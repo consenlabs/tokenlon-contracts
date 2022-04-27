@@ -27,7 +27,7 @@ abstract contract Ownable {
         emit OwnerNominated(newOwner);
     }
 
-    modifier onlyOwner {
+    modifier onlyOwner() {
         require(msg.sender == owner, "not owner");
         _;
     }
