@@ -5,6 +5,10 @@
   "repository": "git@github.com:consenlabs/tokenlon-contract.git",
   "author": "Charles Jhong <charlesjhongc@gmail.com>",
   "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0 <16",
+    "yarn": "^1.22.10"
+  },
   "scripts": {
     "setup": "yarn install --frozen-lockfile && yarn allow-scripts",
     "check-pretty": "prettier --check .",
