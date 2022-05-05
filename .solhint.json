@@ -1,0 +1,27 @@
+{
+  "extends": "solhint:recommended",
+  "plugins": ["prettier"],
+  "rules": {
+    "constructor-syntax": "error",
+    "payable-fallback": "error",
+    "no-unused-vars": "error",
+    "prettier/prettier": "error",
+    "comprehensive-interface": "warn",
+    "avoid-call-value": "error",
+    "avoid-sha3": "error",
+    "avoid-suicide": "error",
+    "avoid-throw": "error",
+    "avoid-tx-origin": "off",
+    "check-send-result": "error",
+    "compiler-version": ["error", ">=0.6.0"],
+    "func-visibility": ["error", { "ignoreConstructors": true }],
+    "mark-callable-contracts": "off",
+    "multiple-sends": "error",
+    "no-complex-fallback": "error",
+    "no-inline-assembly": "warn",
+    "not-rely-on-block-hash": "error",
+    "not-rely-on-time": "warn",
+    "reentrancy": "error",
+    "state-visibility": "error"
+  }
+}
