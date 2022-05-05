@@ -2,7 +2,7 @@
 
 /* Copied and modifier from openzepplin ERC20 contract to replace constructor with initialize function*/
 
-pragma solidity >=0.6.0 <0.8.0;
+pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
