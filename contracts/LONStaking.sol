@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.6.0 <0.8.0;
+pragma solidity 0.7.6;
 
 /* Modified from SushiBar contract: https://etherscan.io/address/0x8798249c2E607446EfB7Ad49eC89dD1865Ff4272#code */
 /* Added with AAVE StakedToken's cooldown feature: https://etherscan.io/address/0x74a7a4e7566a2f523986e500ce35b20d343f6741#code */
