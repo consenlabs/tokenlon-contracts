@@ -1,0 +1,25 @@
+[default]
+src = 'contracts'                                             # the source directory
+test = 'contracts/test'                                       # the test directory
+out = 'artifacts-foundry'                                     # the output directory (for artifacts)
+cache = true                                                  # whether to cache builds or not
+cache_path = 'cache-foundry'                                  # where the cache is stored if enabled
+force = false                                                 # whether to ignore the cache (clean build)
+
+optimizer = true                                              # enable or disable the solc optimizer
+optimizer_runs = 200                                          # the number of optimizer runs
+
+block_number = 10000
+block_timestamp = 1640966400                                  # 2022/01/01 00:00
+initial_balance = '0xffffffffffffffffffffffff'                # the initial balance of the test contract
+gas_limit = 9223372036854775807                               # the gas limit in tests
+gas_price = 0                                                 # the gas price (in wei) in tests
+
+fuzz_runs = 50000                                             # the number of fuzz runs for tests
+fuzz_max_global_rejects = 10000000
+
+#solc_version = '0.8.13'                                      # override for the solc version (setting this ignores `auto_detect_solc`)
+auto_detect_solc = true                                       # enable auto-detection of the appropriate solc version to use
+ignored_error_codes = []                                      # a list of ignored solc error codes
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config
