@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity 0.7.6;
 
 import "./interfaces/IPermanentStorage.sol";
@@ -10,6 +9,7 @@ contract PermanentStorage is IPermanentStorage {
     bytes32 public constant curveTokenIndexStorageId = 0xf4c750cdce673f6c35898d215e519b86e3846b1f0532fb48b84fe9d80f6de2fc; // keccak256("curveTokenIndex")
     bytes32 public constant transactionSeenStorageId = 0x695d523b8578c6379a2121164fd8de334b9c5b6b36dff5408bd4051a6b1704d0; // keccak256("transactionSeen")
     bytes32 public constant relayerValidStorageId = 0x2c97779b4deaf24e9d46e02ec2699240a957d92782b51165b93878b09dd66f61; // keccak256("relayerValid")
+    bytes32 public constant allowFillSeenStorageId = 0x808188d002c47900fbb4e871d29754afff429009f6684806712612d807395dd8; // keccak256("allowFillSeen")
 
     // New supported Curve pools
     address public constant CURVE_renBTC_POOL = 0x93054188d876f558f4a66B2EF1d97d16eDf0895B;
@@ -36,7 +36,10 @@ contract PermanentStorage is IPermanentStorage {
     event UpgradeAMMWrapper(address newAMMWrapper);
     event UpgradePMM(address newPMM);
     event UpgradeRFQ(address newRFQ);
+    event UpgradeLimitOrder(address newLimitOrder);
     event UpgradeWETH(address newWETH);
+    event SetCurvePoolInfo(address makerAddr, address[] underlyingCoins, address[] coins, bool supportGetD);
+    event SetRelayerValid(address relayer, bool valid);
 
     /************************************************************
      *          Access control and ownership management          *
@@ -48,7 +51,10 @@ contract PermanentStorage is IPermanentStorage {
 
     modifier validRole(bool _enabled, address _role) {
         if (_enabled) {
-            require((_role == operator) || (_role == ammWrapperAddr()) || (_role == pmmAddr() || (_role == rfqAddr())), "PermanentStorage: not a valid role");
+            require(
+                (_role == operator) || (_role == ammWrapperAddr()) || (_role == pmmAddr()) || (_role == rfqAddr()) || (_role == limitOrderAddr()),
+                "PermanentStorage: not a valid role"
+            );
         }
         _;
     }
@@ -81,33 +87,9 @@ contract PermanentStorage is IPermanentStorage {
      *************************************************************/
     /// @dev Replacing constructor and initialize the contract. This function should only be called once.
     function initialize() external {
-        require(keccak256(abi.encodePacked(version)) == keccak256(abi.encodePacked("5.1.0")), "PermanentStorage: not upgrading from 5.1.0 version");
-        // upgrade from 5.1.0 to 5.2.0
-        version = "5.2.0";
-        // register renBTC pool
-        // coins, exchange
-        AMMWrapperStorage.getStorage().curveWrappedTokenIndexes[CURVE_renBTC_POOL][renBTC] = 1; // renBTC
-        AMMWrapperStorage.getStorage().curveWrappedTokenIndexes[CURVE_renBTC_POOL][wBTC] = 2; // wBTC
-        AMMWrapperStorage.getStorage().curveSupportGetDx[CURVE_renBTC_POOL] = false;
-
-        // register sBTC pool
-        // coins, exchange
-        AMMWrapperStorage.getStorage().curveWrappedTokenIndexes[CURVE_sBTC_POOL][renBTC] = 1; // renBTC
-        AMMWrapperStorage.getStorage().curveWrappedTokenIndexes[CURVE_sBTC_POOL][wBTC] = 2; // wBTC
-        AMMWrapperStorage.getStorage().curveWrappedTokenIndexes[CURVE_sBTC_POOL][sBTC] = 3; // sBTC
-        AMMWrapperStorage.getStorage().curveSupportGetDx[CURVE_sBTC_POOL] = false;
-
-        // register hBTC pool
-        // coins, exchange
-        AMMWrapperStorage.getStorage().curveWrappedTokenIndexes[CURVE_hBTC_POOL][hBTC] = 1; // hBTC
-        AMMWrapperStorage.getStorage().curveWrappedTokenIndexes[CURVE_hBTC_POOL][wBTC] = 2; // wBTC
-        AMMWrapperStorage.getStorage().curveSupportGetDx[CURVE_hBTC_POOL] = false;
-
-        // register sETH pool
-        // coins, exchange
-        AMMWrapperStorage.getStorage().curveWrappedTokenIndexes[CURVE_sETH_POOL][ETH] = 1; // ETH
-        AMMWrapperStorage.getStorage().curveWrappedTokenIndexes[CURVE_sETH_POOL][sETH] = 2; // sETH
-        AMMWrapperStorage.getStorage().curveSupportGetDx[CURVE_sETH_POOL] = false;
+        require(keccak256(abi.encodePacked(version)) == keccak256(abi.encodePacked("5.2.0")), "PermanentStorage: not upgrading from 5.2.0 version");
+        // upgrade from 5.2.0 to 5.3.0
+        version = "5.3.0";
     }
 
     /************************************************************
@@ -127,6 +109,10 @@ contract PermanentStorage is IPermanentStorage {
 
     function rfqAddr() public view returns (address) {
         return PSStorage.getStorage().rfqAddr;
+    }
+
+    function limitOrderAddr() public view returns (address) {
+        return PSStorage.getStorage().limitOrderAddr;
     }
 
     function wethAddr() external view override returns (address) {
@@ -192,6 +178,14 @@ contract PermanentStorage is IPermanentStorage {
         return RFQStorage.getStorage().transactionSeen[_transactionHash];
     }
 
+    function isLimitOrderTransactionSeen(bytes32 _transactionHash) external view override returns (bool) {
+        return LimitOrderStorage.getStorage().transactionSeen[_transactionHash];
+    }
+
+    function isLimitOrderAllowFillSeen(bytes32 _allowFillHash) external view override returns (bool) {
+        return LimitOrderStorage.getStorage().allowFillSeen[_allowFillHash];
+    }
+
     function isRelayerValid(address _relayer) external view override returns (bool) {
         return AMMWrapperStorage.getStorage().relayerValid[_relayer];
     }
@@ -218,6 +212,13 @@ contract PermanentStorage is IPermanentStorage {
         PSStorage.getStorage().rfqAddr = _newRFQ;
 
         emit UpgradeRFQ(_newRFQ);
+    }
+
+    /// @dev Update Limit Order contract address.
+    function upgradeLimitOrder(address _newLimitOrder) external onlyOperator {
+        PSStorage.getStorage().limitOrderAddr = _newLimitOrder;
+
+        emit UpgradeLimitOrder(_newLimitOrder);
     }
 
     /// @dev Update WETH contract address.
@@ -251,6 +252,7 @@ contract PermanentStorage is IPermanentStorage {
         }
 
         AMMWrapperStorage.getStorage().curveSupportGetDx[_makerAddr] = _supportGetDx;
+        emit SetCurvePoolInfo(_makerAddr, _underlyingCoins, _coins, _supportGetDx);
     }
 
     /* 
@@ -272,10 +274,21 @@ contract PermanentStorage is IPermanentStorage {
         RFQStorage.getStorage().transactionSeen[_transactionHash] = true;
     }
 
+    function setLimitOrderTransactionSeen(bytes32 _transactionHash) external override isPermitted(transactionSeenStorageId, msg.sender) {
+        require(!LimitOrderStorage.getStorage().transactionSeen[_transactionHash], "PermanentStorage: transaction seen before");
+        LimitOrderStorage.getStorage().transactionSeen[_transactionHash] = true;
+    }
+
+    function setLimitOrderAllowFillSeen(bytes32 _allowFillHash) external override isPermitted(allowFillSeenStorageId, msg.sender) {
+        require(!LimitOrderStorage.getStorage().allowFillSeen[_allowFillHash], "PermanentStorage: allow fill seen before");
+        LimitOrderStorage.getStorage().allowFillSeen[_allowFillHash] = true;
+    }
+
     function setRelayersValid(address[] calldata _relayers, bool[] calldata _isValids) external override isPermitted(relayerValidStorageId, msg.sender) {
         require(_relayers.length == _isValids.length, "PermanentStorage: inputs length mismatch");
         for (uint256 i = 0; i < _relayers.length; i++) {
             AMMWrapperStorage.getStorage().relayerValid[_relayers[i]] = _isValids[i];
+            emit SetRelayerValid(_relayers[i], _isValids[i]);
         }
     }
 }

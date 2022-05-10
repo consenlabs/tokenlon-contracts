@@ -1,6 +1,6 @@
-pragma solidity 0.7.6;
+pragma solidity ^0.7.6;
 
-contract BaseLibEIP712 {
+abstract contract BaseLibEIP712 {
     /***********************************|
     |             Constants             |
     |__________________________________*/
@@ -33,5 +33,9 @@ contract BaseLibEIP712 {
             chainId := chainid()
         }
         return chainId;
+    }
+
+    function getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, structHash));
     }
 }
