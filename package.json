@@ -16,7 +16,10 @@
     "lint-es": "eslint --ignore-path .prettierignore \"./**/*.ts\"",
     "compile-sol": "hardhat compile --show-stack-traces --force",
     "compile-ts": "tsc --noEmit",
-    "test-all": "hardhat test --parallel --network hardhat"
+    "compile-foundry": "forge build",
+    "test-all": "hardhat test --parallel --network hardhat",
+    "test-foundry": "forge test -vvv --no-match-path contracts/test/forkMainnet/*.t.sol",
+    "test-foundry-fork-mainnet": "forge test -vvv --fork-url https://eth-mainnet.alchemyapi.io/v2/$ALCHEMY_TOKEN --fork-block-number $FORK_BLOCK_NUMBER --match-path contracts/test/forkMainnet/*.t.sol"
   },
   "devDependencies": {
     "@types/chai": "^4.3.1",

@@ -18,12 +18,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node-version }}
       - name: Install
         run: yarn install --frozen-lockfile
+      - name: Install Foundry and Setup
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
       - name: Format
         run: yarn run check-pretty
       - name: Lint
@@ -34,7 +40,10 @@ jobs:
         run: |
           yarn run compile-sol
           yarn run compile-ts
+          yarn run compile-foundry
       - name: Test
         env:
           ALCHEMY_TOKEN: ${{ secrets.ALCHEMY_TOKEN }}
-        run: yarn run test-all
+          FORK_BLOCK_NUMBER: 14340000
+        run: |
+          yarn run test-all
