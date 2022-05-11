@@ -30,6 +30,10 @@ interface IPermanentStorage {
 
     function isRFQTransactionSeen(bytes32 _transactionHash) external view returns (bool);
 
+    function isLimitOrderTransactionSeen(bytes32 _transactionHash) external view returns (bool);
+
+    function isLimitOrderAllowFillSeen(bytes32 _allowFillHash) external view returns (bool);
+
     function isRelayerValid(address _relayer) external view returns (bool);
 
     function setTransactionSeen(bytes32 _transactionHash) external; // Kept for backward compatability. Should be removed from AMM 5.2.1 upward
@@ -37,6 +41,10 @@ interface IPermanentStorage {
     function setAMMTransactionSeen(bytes32 _transactionHash) external;
 
     function setRFQTransactionSeen(bytes32 _transactionHash) external;
+
+    function setLimitOrderTransactionSeen(bytes32 _transactionHash) external;
+
+    function setLimitOrderAllowFillSeen(bytes32 _allowFillHash) external;
 
     function setRelayersValid(address[] memory _relayers, bool[] memory _isValids) external;
 }
