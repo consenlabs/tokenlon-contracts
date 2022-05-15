@@ -36,6 +36,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     address public operator;
     address public coordinator;
     ISpender public spender;
+    address public feeCollector;
 
     // Factors
     uint16 public makerFeeFactor = 0;
@@ -51,7 +52,8 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         IPermanentStorage _permStorage,
         IWETH _weth,
         address _uniswapV3RouterAddress,
-        address _sushiswapRouterAddress
+        address _sushiswapRouterAddress,
+        address _feeCollector
     ) {
         operator = _operator;
         coordinator = _coordinator;
@@ -61,6 +63,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         weth = _weth;
         uniswapV3RouterAddress = _uniswapV3RouterAddress;
         sushiswapRouterAddress = _sushiswapRouterAddress;
+        feeCollector = _feeCollector;
     }
 
     receive() external payable {}
@@ -144,6 +147,16 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         profitCapFactor = _profitCapFactor;
 
         emit FactorsUpdated(_makerFeeFactor, _takerFeeFactor, _profitFeeFactor, _profitCapFactor);
+    }
+
+    /**
+     * @dev set fee collector
+     */
+    function setFeeCollector(address _newFeeCollector) external onlyOperator {
+        require(_newFeeCollector != address(0), "LimitOrder: fee collector can not be zero address");
+        feeCollector = _newFeeCollector;
+
+        emit SetFeeCollector(_newFeeCollector);
     }
 
     /**
@@ -265,11 +278,11 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
         // Collect maker fee (charged in taker token)
         if (takerTokenFee > 0) {
-            spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), address(this), takerTokenFee);
+            spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), feeCollector, takerTokenFee);
         }
         // Collect taker fee (charged in maker token)
         if (makerTokenFee > 0) {
-            spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), address(this), makerTokenFee);
+            spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), feeCollector, makerTokenFee);
         }
 
         // bypass stack too deep error
@@ -387,6 +400,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
         // Distribute taker token profit to profit recipient assigned by relayer
         _settlement.takerToken.safeTransfer(_settlement.profitRecipient, takerTokenProfitForRelayer);
+        _settlement.takerToken.safeTransfer(feeCollector, takerTokenProfitFee);
 
         // Calculate maker fee (maker receives taker token so fee is charged in taker token)
         uint256 takerTokenFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
@@ -397,6 +411,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
         // Distribute taker token to maker
         _settlement.takerToken.safeTransfer(_settlement.maker, takerTokenForMaker.add(takerTokenProfitBackToMaker));
+        _settlement.takerToken.safeTransfer(feeCollector, takerTokenFee);
 
         // Bypass stack too deep error
         _emitLimitOrderFilledByProtocol(
