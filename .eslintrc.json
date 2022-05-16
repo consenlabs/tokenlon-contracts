@@ -1,0 +1,29 @@
+{
+  "env": {
+    "node": true,
+    "es2021": true,
+    "mocha": true
+  },
+  "extends": ["eslint:recommended", "prettier"],
+  "plugins": ["mocha-no-only", "@typescript-eslint"],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 12,
+    "sourceType": "module"
+  },
+  "globals": {
+    "artifacts": false,
+    "contract": false,
+    "assert": false,
+    "web3": false,
+    "usePlugin": false,
+    "extendEnvironment": false,
+    "task": false,
+    "ethers": false
+  },
+  "rules": {
+    "mocha-no-only/mocha-no-only": ["error"],
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["error"]
+  }
+}
