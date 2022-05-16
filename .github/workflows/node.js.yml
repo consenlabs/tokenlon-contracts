@@ -47,3 +47,5 @@ jobs:
           FORK_BLOCK_NUMBER: 14340000
         run: |
           yarn run test-all
+          yarn run test-foundry
+          yarn run test-foundry-fork-mainnet
