@@ -47,11 +47,11 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
     uint256 makerPrivateKey = uint256(2);
     uint256 coordinatorPrivateKey = uint256(3);
 
-    address user;
-    address maker;
-    address coordinator;
+    address user = vm.addr(userPrivateKey);
+    address maker = vm.addr(makerPrivateKey);
+    address coordinator = vm.addr(coordinatorPrivateKey);
     address receiver = address(0x133702);
-    address[] wallet;
+    address[] wallet = [user, maker, coordinator];
 
     ERC1271WalletStub erc1271WalletStub;
 
@@ -75,13 +75,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
     // effectively a "beforeEach" block
     function setUp() public {
-        user = vm.addr(userPrivateKey);
-        maker = vm.addr(makerPrivateKey);
-        coordinator = vm.addr(coordinatorPrivateKey);
         erc1271WalletStub = new ERC1271WalletStub(user);
-        wallet.push(user);
-        wallet.push(maker);
-        wallet.push(coordinator);
         wallet.push(address(erc1271WalletStub));
 
         // Tokens
@@ -119,19 +113,19 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
             _signFill(userPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712) // takerSig
         );
         DEFAULT_PROTOCOL_PARAMS = ILimitOrder.ProtocolParams(
-            ILimitOrder.Protocol.UniswapV3,
+            ILimitOrder.Protocol.UniswapV3, // protocol
             hex"6b175474e89094c44da98b954eedeac495271d0f0001f4dac17f958d2ee523a2206206994597c13d831ec7", // Uniswap v3 protocol data
             receiver, // profitRecipient
-            DEFAULT_FILL.takerTokenAmount,
+            DEFAULT_FILL.takerTokenAmount, // takerTokenAmount
             0, // protocolOutMinimum
-            DEADLINE
+            DEADLINE // expiry
         );
         DEFAULT_ALLOW_FILL = LimitOrderLibEIP712.AllowFill(
-            DEFAULT_ORDER_HASH,
+            DEFAULT_ORDER_HASH, // orderHash
             user, // executor
-            DEFAULT_FILL.takerTokenAmount,
-            uint256(1003),
-            DEADLINE
+            DEFAULT_FILL.takerTokenAmount, // fillAmount
+            uint256(1003), // salt
+            DEADLINE // expiry
         );
         DEFAULT_CRD_PARAMS = ILimitOrder.CoordinatorParams(
             _signAllowFill(coordinatorPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712),
@@ -335,6 +329,10 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
 
+        // makerFeeFactor/takerFeeFactor : 10%
+        // profitFeeFactor/profitCapFactor : 20%
+        limitOrder.setFactors(1000, 1000, 2000, 2000);
+
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectEmit(true, true, true, true);
         emit LimitOrderFilledByTrader(
@@ -348,16 +346,16 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
                 address(DEFAULT_ORDER.takerToken),
                 DEFAULT_ORDER.makerTokenAmount,
                 DEFAULT_ORDER.takerTokenAmount,
-                0,
-                0,
-                0
+                0, // remainingAmount should be zero after order fully filled
+                DEFAULT_ORDER.makerTokenAmount.mul(10).div(100), // makerTokenFee = 10% makerTokenAmount
+                DEFAULT_ORDER.takerTokenAmount.mul(10).div(100) // takerTokenFee = 10% takerTokenAmount
             )
         );
         userProxyStub.toLimitOrder(payload);
 
         userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount));
-        receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount));
-        makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount));
+        receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount.mul(90).div(100)));
+        makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(90).div(100)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
     }
 
@@ -435,8 +433,13 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
     }
 
     function testFillByTraderMultipleTimes() public {
-        // First fill amount : 15 USDT
-        LimitOrderLibEIP712.Fill memory fill1 = LimitOrderLibEIP712.Fill(DEFAULT_ORDER_HASH, user, 15 * 1e6, uint256(1002), DEADLINE);
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
+
+        // First fill amount : 9 USDT
+        LimitOrderLibEIP712.Fill memory fill1 = LimitOrderLibEIP712.Fill(DEFAULT_ORDER_HASH, user, 9 * 1e6, uint256(1002), DEADLINE);
         ILimitOrder.TraderParams memory traderParams1 = ILimitOrder.TraderParams(
             user, // taker
             receiver, // recipient
@@ -460,8 +463,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
         userProxyStub.toLimitOrder(payload1);
 
-        // Second fill amount : 63 USDT
-        LimitOrderLibEIP712.Fill memory fill2 = LimitOrderLibEIP712.Fill(DEFAULT_ORDER_HASH, user, 63 * 1e6, uint256(5001), DEADLINE);
+        // Second fill amount : 36 USDT
+        LimitOrderLibEIP712.Fill memory fill2 = LimitOrderLibEIP712.Fill(DEFAULT_ORDER_HASH, user, 36 * 1e6, uint256(5001), DEADLINE);
         ILimitOrder.TraderParams memory traderParams2 = ILimitOrder.TraderParams(
             user, // taker
             receiver, // recipient
@@ -484,6 +487,12 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         );
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
         userProxyStub.toLimitOrder(payload2);
+
+        // Half of the order filled after 2 txs
+        userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.div(2)));
+        receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount.div(2)));
+        makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.div(2)));
+        makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount.div(2)));
     }
 
     function testCannotFillByTraderIfNotFromUserProxy() public {
@@ -701,13 +710,13 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
                 address(DEFAULT_ORDER.takerToken),
                 DEFAULT_ORDER.makerTokenAmount,
                 DEFAULT_ORDER.takerTokenAmount,
-                0,
-                0,
-                DEFAULT_ORDER.takerTokenAmount.mul(10).div(100)
+                0, // remainingAmount should be zero after order fully filled
+                0, // makerTokenFee should be zero in protocol case
+                DEFAULT_ORDER.takerTokenAmount.mul(10).div(100) // takerTokenFee = 10% takerTokenAmount
             ),
-            profit,
-            profit.mul(20).div(100),
-            0
+            profit, // takerTokenProfit
+            profit.mul(20).div(100), // takerTokenProfitFee = 20% takerTokenProfit
+            0 // takerTokenProfitBackToMaker
         );
         userProxyStub.toLimitOrder(payload);
         vm.stopPrank();
@@ -745,8 +754,10 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         order.takerTokenAmount = 8 * 1e6;
 
         // get quote from AMM
-        uint256[] memory amountOuts = getSushiAmountsOut(order.makerTokenAmount, tokenAddrs);
-        uint256 profit = amountOuts[1].sub(order.takerTokenAmount);
+        address[] memory path = tokenAddrs;
+        uint256[] memory amountOuts = getSushiAmountsOut(order.makerTokenAmount, path);
+        // Since profitFeeFactor is zero, so the extra token from AMM is the profit for relayer.
+        uint256 profit = amountOuts[amountOuts.length - 1].sub(order.takerTokenAmount);
 
         bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerHash = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
@@ -754,7 +765,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
         protocolParams.protocol = ILimitOrder.Protocol.Sushiswap;
         protocolParams.takerTokenAmount = order.takerTokenAmount;
-        protocolParams.data = abi.encode(tokenAddrs);
+        protocolParams.data = abi.encode(path);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
@@ -779,10 +790,11 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         // get quote from AMM
         uint256[] memory amountOuts = getSushiAmountsOut(DEFAULT_ORDER.makerTokenAmount, tokenAddrs);
 
+        address[] memory path = tokenAddrs;
         ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
         protocolParams.protocol = ILimitOrder.Protocol.Sushiswap;
         protocolParams.protocolOutMinimum = amountOuts[1].mul(2); // require 2x output from AMM
-        protocolParams.data = abi.encode(tokenAddrs);
+        protocolParams.data = abi.encode(path);
 
         // Allow fill is bound by tx.origin in protocol case.
         vm.startPrank(user, user);
@@ -800,8 +812,10 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
     function testCannotFillFilledOrderByProtocol() public {
         // Fullly fill the default order first
-        bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
+        vm.startPrank(user, user);
+        bytes memory payload1 = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
         userProxyStub.toLimitOrder(payload1);
+        vm.stopPrank();
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.salt = uint256(8002);
