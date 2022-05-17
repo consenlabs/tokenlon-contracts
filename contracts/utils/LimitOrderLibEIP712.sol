@@ -53,8 +53,9 @@ library LimitOrderLibEIP712 {
     }
 
     struct Fill {
-        bytes32 orderHash; // EIP712
+        bytes32 orderHash; // EIP712 hash
         address taker;
+        address recipient;
         uint256 takerTokenAmount;
         uint256 takerSalt;
         uint64 expiry;
@@ -66,6 +67,7 @@ library LimitOrderLibEIP712 {
                 "Fill(",
                 "bytes32 orderHash,",
                 "address taker,",
+                "address recipient,",
                 "uint256 takerTokenAmount,",
                 "uint256 takerSalt,",
                 "uint64 expiry",
@@ -73,14 +75,14 @@ library LimitOrderLibEIP712 {
             )
         );
     */
-    uint256 private constant FILL_TYPEHASH = 0x7c877f414692468d8e3753c330575f7aec230fb79e4a8e4b0362e7610bffb0be;
+    uint256 private constant FILL_TYPEHASH = 0x4ef294060cea2f973f7fe2a6d78624328586118efb1c4d640855aac3ba70e9c9;
 
     function _getFillStructHash(Fill memory _fill) internal pure returns (bytes32) {
         return keccak256(abi.encode(FILL_TYPEHASH, _fill.orderHash, _fill.taker, _fill.takerTokenAmount, _fill.takerSalt, _fill.expiry));
     }
 
     struct AllowFill {
-        bytes32 orderHash;
+        bytes32 orderHash; // EIP712 hash
         address executor;
         uint256 fillAmount;
         uint256 salt;
