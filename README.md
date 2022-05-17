@@ -25,8 +25,8 @@ $ yarn install
 ## Compile contracts
 
 ```bash
-$ yarn run compile-contracts
-$ yarn run compile-foundry
+$ yarn run compile-contracts // compile contracts
+$ yarn run compile-foundry // compile tests written in solidity
 ```
 
 ## Run unit test
