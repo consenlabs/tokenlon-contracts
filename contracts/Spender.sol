@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -7,6 +8,9 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./interfaces/ISpender.sol";
 import "./interfaces/IAllowanceTarget.sol";
 
+/**
+ * @dev Spender contract
+ */
 contract Spender is ISpender {
     using SafeMath for uint256;
 
@@ -16,15 +20,33 @@ contract Spender is ISpender {
     uint256 private constant TIME_LOCK_DURATION = 1 days;
 
     // Below are the variables which consume storage slots.
+    bool public timelockActivated;
+    uint64 public numPendingAuthorized;
     address public operator;
+
     address public allowanceTarget;
+    address public pendingOperator;
+
+    uint256 public contractDeployedTime;
+    uint256 public timelockExpirationTime;
+
+    mapping(address => bool) public consumeGasERC20Tokens;
+    mapping(uint256 => address) public pendingAuthorized;
+
     mapping(address => bool) private authorized;
     mapping(address => bool) private tokenBlacklist;
-    uint256 public numPendingAuthorized;
-    mapping(uint256 => address) public pendingAuthorized;
-    uint256 public timelockExpirationTime;
-    uint256 public contractDeployedTime;
-    bool public timelockActivated;
+
+    // System events
+    event TimeLockActivated(uint256 activatedTimeStamp);
+    // Operator events
+    event SetPendingOperator(address pendingOperator);
+    event TransferOwnership(address newOperator);
+    event SetAllowanceTarget(address allowanceTarget);
+    event SetNewSpender(address newSpender);
+    event SetConsumeGasERC20Token(address token);
+    event TearDownAllowanceTarget(uint256 tearDownTimeStamp);
+    event BlackListToken(address token, bool isBlacklisted);
+    event AuthorizeSpender(address spender, bool isAuthorized);
 
     /************************************************************
      *          Access control and ownership management          *
@@ -39,9 +61,19 @@ contract Spender is ISpender {
         _;
     }
 
-    function transferOwnership(address _newOperator) external onlyOperator {
+    function setNewOperator(address _newOperator) external onlyOperator {
         require(_newOperator != address(0), "Spender: operator can not be zero address");
-        operator = _newOperator;
+        pendingOperator = _newOperator;
+
+        emit SetPendingOperator(_newOperator);
+    }
+
+    function acceptAsOperator() external {
+        require(pendingOperator == msg.sender, "Spender: only nominated one can accept as new operator");
+        operator = pendingOperator;
+        pendingOperator = address(0);
+
+        emit TransferOwnership(operator);
     }
 
     /************************************************************
@@ -52,18 +84,24 @@ contract Spender is ISpender {
         bool canActivate = block.timestamp.sub(contractDeployedTime) > 1 days;
         require(canActivate && !timelockActivated, "Spender: can not activate timelock yet or has been activated");
         timelockActivated = true;
+
+        emit TimeLockActivated(block.timestamp);
     }
 
     /************************************************************
      *              Constructor and init functions               *
      *************************************************************/
-    constructor(address _operator) public {
+    constructor(address _operator, address[] memory _consumeGasERC20Tokens) {
         require(_operator != address(0), "Spender: _operator should not be 0");
 
         // Set operator
         operator = _operator;
         timelockActivated = false;
         contractDeployedTime = block.timestamp;
+
+        for (uint256 i = 0; i < _consumeGasERC20Tokens.length; i++) {
+            consumeGasERC20Tokens[_consumeGasERC20Tokens[i]] = true;
+        }
     }
 
     function setAllowanceTarget(address _allowanceTarget) external onlyOperator {
@@ -71,6 +109,8 @@ contract Spender is ISpender {
 
         // Set allowanceTarget
         allowanceTarget = _allowanceTarget;
+
+        emit SetAllowanceTarget(_allowanceTarget);
     }
 
     /************************************************************
@@ -78,10 +118,14 @@ contract Spender is ISpender {
      *************************************************************/
     function setNewSpender(address _newSpender) external onlyOperator {
         IAllowanceTarget(allowanceTarget).setSpenderWithTimelock(_newSpender);
+
+        emit SetNewSpender(_newSpender);
     }
 
     function teardownAllowanceTarget() external onlyOperator {
         IAllowanceTarget(allowanceTarget).teardown();
+
+        emit TearDownAllowanceTarget(block.timestamp);
     }
 
     /************************************************************
@@ -95,6 +139,8 @@ contract Spender is ISpender {
         require(_tokenAddrs.length == _isBlacklisted.length, "Spender: length mismatch");
         for (uint256 i = 0; i < _tokenAddrs.length; i++) {
             tokenBlacklist[_tokenAddrs[i]] = _isBlacklisted[i];
+
+            emit BlackListToken(_tokenAddrs[i], _isBlacklisted[i]);
         }
     }
 
@@ -107,7 +153,7 @@ contract Spender is ISpender {
         require(numPendingAuthorized == 0 && timelockExpirationTime == 0, "Spender: an authorize current in progress");
 
         if (timelockActivated) {
-            numPendingAuthorized = _pendingAuthorized.length;
+            numPendingAuthorized = uint64(_pendingAuthorized.length);
             for (uint256 i = 0; i < _pendingAuthorized.length; i++) {
                 require(_pendingAuthorized[i] != address(0), "Spender: can not authorize zero address");
                 pendingAuthorized[i] = _pendingAuthorized[i];
@@ -117,6 +163,8 @@ contract Spender is ISpender {
             for (uint256 i = 0; i < _pendingAuthorized.length; i++) {
                 require(_pendingAuthorized[i] != address(0), "Spender: can not authorize zero address");
                 authorized[_pendingAuthorized[i]] = true;
+
+                emit AuthorizeSpender(_pendingAuthorized[i], true);
             }
         }
     }
@@ -127,6 +175,7 @@ contract Spender is ISpender {
 
         for (uint256 i = 0; i < numPendingAuthorized; i++) {
             authorized[pendingAuthorized[i]] = true;
+            emit AuthorizeSpender(pendingAuthorized[i], true);
             delete pendingAuthorized[i];
         }
         timelockExpirationTime = 0;
@@ -136,6 +185,16 @@ contract Spender is ISpender {
     function deauthorize(address[] calldata _deauthorized) external onlyOperator {
         for (uint256 i = 0; i < _deauthorized.length; i++) {
             authorized[_deauthorized[i]] = false;
+
+            emit AuthorizeSpender(_deauthorized[i], false);
+        }
+    }
+
+    function setConsumeGasERC20Tokens(address[] memory _consumeGasERC20Tokens) external onlyOperator {
+        for (uint256 i = 0; i < _consumeGasERC20Tokens.length; i++) {
+            consumeGasERC20Tokens[_consumeGasERC20Tokens[i]] = true;
+
+            emit SetConsumeGasERC20Token(_consumeGasERC20Tokens[i]);
         }
     }
 
@@ -151,31 +210,26 @@ contract Spender is ISpender {
         address _tokenAddr,
         uint256 _amount
     ) external override onlyAuthorized {
-        _transferTokenFromUserTo(_tokenAddr, _user, msg.sender, _amount);
+        _transferTokenFromUserTo(_user, _tokenAddr, msg.sender, _amount);
     }
 
     /// @dev Spend tokens on user's behalf. Only an authority can call this.
     /// @param _user The user to spend token from.
     /// @param _tokenAddr The address of the token.
-    /// @param _receiver The receiver of the token.
+    /// @param _recipient The receiver of the token.
     /// @param _amount Amount to spend.
     function spendFromUserTo(
         address _user,
         address _tokenAddr,
-        address _receiver,
+        address _recipient,
         uint256 _amount
     ) external override onlyAuthorized {
-        _transferTokenFromUserTo(_tokenAddr, _user, _receiver, _amount);
+        _transferTokenFromUserTo(_user, _tokenAddr, _recipient, _amount);
     }
 
-    /// @dev Spend tokens on user's behalf with user's permit signature. Only an authority can call this.
-    /// @param _tokenAddr The address of the token.
-    /// @param _user The user to spend token from.
-    /// @param _recipient The recipient of the token.
-    /// @param _amount Amount to spend.
     function _transferTokenFromUserTo(
-        address _tokenAddr,
         address _user,
+        address _tokenAddr,
         address _recipient,
         uint256 _amount
     ) internal {
@@ -186,7 +240,7 @@ contract Spender is ISpender {
         }
         // Fix gas stipend for non standard ERC20 transfer in case token contract's SafeMath violation is triggered
         // and all gas are consumed.
-        uint256 gasStipend = gasleft();
+        uint256 gasStipend = consumeGasERC20Tokens[_tokenAddr] ? 80000 : gasleft();
         uint256 balanceBefore = IERC20(_tokenAddr).balanceOf(_recipient);
 
         (bool callSucceed, bytes memory returndata) = address(allowanceTarget).call{ gas: gasStipend }(
