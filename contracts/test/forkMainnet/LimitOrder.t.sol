@@ -451,10 +451,10 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         userProxyStub.toLimitOrder(payload2);
     }
 
-    function testCannotAltertakerTokenAmountWithoutTakerSign() public {
+    function testCannotFillByTraderWithAlteredTakerTokenAmount() public {
         // Replace takerTokenAmount in traderParams without corresponded signature
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerTokenAmount = 100000 * 1e18;
+        traderParams.takerTokenAmount = DEFAULT_TRADER_PARAMS.takerTokenAmount.div(2);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = traderParams.takerTokenAmount;
@@ -467,7 +467,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         userProxyStub.toLimitOrder(payload);
     }
 
-    function testCannotAlterRecipientWithoutTakerSign() public {
+    function testCannotFillByTraderWithAlteredRecipient() public {
         // Replace recipient in traderParams without corresponded signature
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.recipient = coordinator;
@@ -489,15 +489,41 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         userProxyStub.toLimitOrder(payload);
     }
 
-    function testCannotFillByTraderWithWrongAllowFill() public {
+    function testCannotFillByTraderWithAlteredOrderHash() public {
+        // Replace orderHash in allowFill
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = bytes32(0);
+
+        ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
+        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
+        userProxyStub.toLimitOrder(payload);
+    }
+
+    function testCannotFillByTraderWithAlteredExecutor() public {
         // Set the executor to maker (not user)
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.executor = maker;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         // Fill order using user (not executor)
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
+        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
+        userProxyStub.toLimitOrder(payload);
+    }
+
+    function testCannotFillByTraderWithAlteredFillAmount() public {
+        // Change fill amount in allow fill
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.fillAmount = DEFAULT_ALLOW_FILL.fillAmount.div(2);
+
+        ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
         userProxyStub.toLimitOrder(payload);
@@ -839,6 +865,54 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         // Fill order using user (not executor)
+        vm.startPrank(user, user);
+        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
+        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
+        userProxyStub.toLimitOrder(payload);
+        vm.stopPrank();
+    }
+
+    function testCannotFillByProtocoWithAlteredOrderHash() public {
+        // Replace orderHash in allowFill
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = bytes32(0);
+
+        ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        // Allow fill is bound by tx.origin in protocol case.
+        vm.startPrank(user, user);
+        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
+        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
+        userProxyStub.toLimitOrder(payload);
+        vm.stopPrank();
+    }
+
+    function testCannotFillByProtocoWithAlteredExecutor() public {
+        // Set the executor to maker (not user)
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.executor = maker;
+
+        ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        // Fill order using user (not executor)
+        vm.startPrank(user, user);
+        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
+        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
+        userProxyStub.toLimitOrder(payload);
+        vm.stopPrank();
+    }
+
+    function testCannotFillByProtocoWithAlteredFillAmount() public {
+        // Change fill amount in allow fill
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.fillAmount = DEFAULT_ALLOW_FILL.fillAmount.div(2);
+
+        ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        // Allow fill is bound by tx.origin in protocol case.
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
