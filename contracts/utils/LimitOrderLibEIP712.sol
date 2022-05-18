@@ -78,7 +78,7 @@ library LimitOrderLibEIP712 {
     uint256 private constant FILL_TYPEHASH = 0x4ef294060cea2f973f7fe2a6d78624328586118efb1c4d640855aac3ba70e9c9;
 
     function _getFillStructHash(Fill memory _fill) internal pure returns (bytes32) {
-        return keccak256(abi.encode(FILL_TYPEHASH, _fill.orderHash, _fill.taker, _fill.takerTokenAmount, _fill.takerSalt, _fill.expiry));
+        return keccak256(abi.encode(FILL_TYPEHASH, _fill.orderHash, _fill.taker, _fill.recipient, _fill.takerTokenAmount, _fill.takerSalt, _fill.expiry));
     }
 
     struct AllowFill {

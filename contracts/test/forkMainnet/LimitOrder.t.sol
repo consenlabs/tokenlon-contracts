@@ -451,6 +451,31 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         userProxyStub.toLimitOrder(payload2);
     }
 
+    function testCannotAltertakerTokenAmountWithoutTakerSign() public {
+        // Replace takerTokenAmount in traderParams without corresponded signature
+        ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.takerTokenAmount = 100000 * 1e18;
+
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.fillAmount = traderParams.takerTokenAmount;
+
+        ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
+        vm.expectRevert("LimitOrder: Fill is not signed by taker");
+        userProxyStub.toLimitOrder(payload);
+    }
+
+    function testCannotAlterRecipientWithoutTakerSign() public {
+        // Replace recipient in traderParams without corresponded signature
+        ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.recipient = coordinator;
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
+        vm.expectRevert("LimitOrder: Fill is not signed by taker");
+        userProxyStub.toLimitOrder(payload);
+    }
+
     function testCannotFillByTraderWithExpiredAllowFill() public {
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.expiry = uint64(block.timestamp - 1);
