@@ -20,6 +20,8 @@ contract UserProxy {
     event UpgradePMM(address newPMM);
     event SetRFQStatus(bool enable);
     event UpgradeRFQ(address newRFQ);
+    event SetLimitOrderStatus(bool enable);
+    event UpgradeLimitOrder(address newLimitOrder);
 
     receive() external payable {}
 
@@ -42,21 +44,16 @@ contract UserProxy {
      *              Constructor and init functions               *
      *************************************************************/
     /// @dev Replacing constructor and initialize the contract. This function should only be called once.
-    function initialize(address _rfqAddr, address _newAMMWrapperAddr) external {
-        require(_rfqAddr != address(0), "UserProxy: _rfqAddr should not be 0");
-        require(_newAMMWrapperAddr != address(0), "UserProxy: _newAMMWrapperAddr should not be 0");
-        require(keccak256(abi.encodePacked(version)) == keccak256(abi.encodePacked("5.1.1")), "UserProxy: not upgrading from version 5.1.1");
+    function initialize(address _limitOrderAddr) external {
+        require(_limitOrderAddr != address(0), "UserProxy: _limitOrderAddr should not be 0");
+        require(keccak256(abi.encodePacked(version)) == keccak256(abi.encodePacked("5.2.0")), "UserProxy: not upgrading from version 5.2.0");
 
-        // Set RFQ
-        RFQStorage.getStorage().rfqAddr = _rfqAddr;
-        RFQStorage.getStorage().isEnabled = true;
-
-        // Set new AMMWrapper
-        AMMWrapperStorage.getStorage().ammWrapperAddr = _newAMMWrapperAddr;
-        AMMWrapperStorage.getStorage().isEnabled = true;
+        // Set Limit Order
+        LimitOrderStorage.getStorage().limitOrderAddr = _limitOrderAddr;
+        LimitOrderStorage.getStorage().isEnabled = true;
 
         // Upgrade version
-        version = "5.2.0";
+        version = "5.3.0";
     }
 
     /************************************************************
@@ -84,6 +81,14 @@ contract UserProxy {
 
     function isRFQEnabled() public view returns (bool) {
         return RFQStorage.getStorage().isEnabled;
+    }
+
+    function limitOrderAddr() public view returns (address) {
+        return LimitOrderStorage.getStorage().limitOrderAddr;
+    }
+
+    function isLimitOrderEnabled() public view returns (bool) {
+        return LimitOrderStorage.getStorage().isEnabled;
     }
 
     /************************************************************
@@ -143,6 +148,24 @@ contract UserProxy {
         emit SetRFQStatus(_enable);
     }
 
+    function setLimitOrderStatus(bool _enable) public onlyOperator {
+        LimitOrderStorage.getStorage().isEnabled = _enable;
+
+        emit SetLimitOrderStatus(_enable);
+    }
+
+    /**
+     * @dev Update Limit Order contract address. Used only when ABI of Limit Order remain unchanged.
+     * Otherwise, UserProxy contract should be upgraded altogether.
+     */
+    function upgradeLimitOrder(address _newLimitOrderAddr, bool _enable) external onlyOperator {
+        LimitOrderStorage.getStorage().limitOrderAddr = _newLimitOrderAddr;
+        LimitOrderStorage.getStorage().isEnabled = _enable;
+
+        emit UpgradeLimitOrder(_newLimitOrderAddr);
+        emit SetLimitOrderStatus(_enable);
+    }
+
     /************************************************************
      *                   External functions                      *
      *************************************************************/
@@ -191,6 +214,22 @@ contract UserProxy {
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
         (bool callSucceed, ) = rfqAddr().call{ value: msg.value }(_payload);
+        if (callSucceed == false) {
+            // Get the error message returned
+            assembly {
+                let ptr := mload(0x40)
+                let size := returndatasize()
+                returndatacopy(ptr, 0, size)
+                revert(ptr, size)
+            }
+        }
+    }
+
+    function toLimitOrder(bytes calldata _payload) external {
+        require(isLimitOrderEnabled(), "UserProxy: Limit Order is disabled");
+        require(msg.sender == tx.origin, "UserProxy: only EOA");
+
+        (bool callSucceed, ) = limitOrderAddr().call(_payload);
         if (callSucceed == false) {
             // Get the error message returned
             assembly {
