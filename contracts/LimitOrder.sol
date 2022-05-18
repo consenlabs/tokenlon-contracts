@@ -212,7 +212,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         address _executor,
         CoordinatorParams memory _crdParams
     ) internal returns (bytes32) {
-        require(_crdParams.expiry > uint64(block.timestamp), "LimitOrder: Fill request is expired");
+        require(_crdParams.expiry > uint64(block.timestamp), "LimitOrder: Fill permission is expired");
 
         bytes32 allowFillHash = getEIP712Hash(
             LimitOrderLibEIP712._getAllowFillStructHash(

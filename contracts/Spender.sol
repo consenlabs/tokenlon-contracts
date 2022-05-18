@@ -4,9 +4,10 @@ pragma solidity 0.7.6;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
+import "./interfaces/ISpender.sol";
 import "./interfaces/IAllowanceTarget.sol";
 
-contract Spender {
+contract Spender is ISpender {
     using SafeMath for uint256;
 
     // Constants do not have storage slot.
@@ -149,22 +150,63 @@ contract Spender {
         address _user,
         address _tokenAddr,
         uint256 _amount
-    ) external onlyAuthorized {
+    ) external override onlyAuthorized {
+        _transferTokenFromUserTo(_tokenAddr, _user, msg.sender, _amount);
+    }
+
+    /// @dev Spend tokens on user's behalf. Only an authority can call this.
+    /// @param _user The user to spend token from.
+    /// @param _tokenAddr The address of the token.
+    /// @param _receiver The receiver of the token.
+    /// @param _amount Amount to spend.
+    function spendFromUserTo(
+        address _user,
+        address _tokenAddr,
+        address _receiver,
+        uint256 _amount
+    ) external override onlyAuthorized {
+        _transferTokenFromUserTo(_tokenAddr, _user, _receiver, _amount);
+    }
+
+    /// @dev Spend tokens on user's behalf with user's permit signature. Only an authority can call this.
+    /// @param _tokenAddr The address of the token.
+    /// @param _user The user to spend token from.
+    /// @param _recipient The recipient of the token.
+    /// @param _amount Amount to spend.
+    function _transferTokenFromUserTo(
+        address _tokenAddr,
+        address _user,
+        address _recipient,
+        uint256 _amount
+    ) internal {
         require(!tokenBlacklist[_tokenAddr], "Spender: token is blacklisted");
 
-        if (_tokenAddr != ETH_ADDRESS && _tokenAddr != ZERO_ADDRESS) {
-            uint256 balanceBefore = IERC20(_tokenAddr).balanceOf(msg.sender);
-            (bool callSucceed, ) = address(allowanceTarget).call(
-                abi.encodeWithSelector(
-                    IAllowanceTarget.executeCall.selector,
-                    _tokenAddr,
-                    abi.encodeWithSelector(IERC20.transferFrom.selector, _user, msg.sender, _amount)
-                )
-            );
-            require(callSucceed, "Spender: ERC20 transferFrom failed");
-            // Check balance
-            uint256 balanceAfter = IERC20(_tokenAddr).balanceOf(msg.sender);
-            require(balanceAfter.sub(balanceBefore) == _amount, "Spender: ERC20 transferFrom result mismatch");
+        if (_tokenAddr == ETH_ADDRESS || _tokenAddr == ZERO_ADDRESS) {
+            return;
         }
+        // Fix gas stipend for non standard ERC20 transfer in case token contract's SafeMath violation is triggered
+        // and all gas are consumed.
+        uint256 gasStipend = gasleft();
+        uint256 balanceBefore = IERC20(_tokenAddr).balanceOf(_recipient);
+
+        (bool callSucceed, bytes memory returndata) = address(allowanceTarget).call{ gas: gasStipend }(
+            abi.encodeWithSelector(
+                IAllowanceTarget.executeCall.selector,
+                _tokenAddr,
+                abi.encodeWithSelector(IERC20.transferFrom.selector, _user, _recipient, _amount)
+            )
+        );
+        require(callSucceed, "Spender: ERC20 transferFrom failed");
+
+        bytes memory decodedReturnData = abi.decode(returndata, (bytes));
+        if (decodedReturnData.length > 0) {
+            // Return data is optional
+            // Tokens like ZRX returns false on failed transfer
+            require(abi.decode(decodedReturnData, (bool)), "Spender: ERC20 transferFrom failed");
+        }
+
+        // Check balance
+        uint256 balanceAfter = IERC20(_tokenAddr).balanceOf(_recipient);
+        require(balanceAfter.sub(balanceBefore) == _amount, "Spender: ERC20 transferFrom amount mismatch");
     }
 }
