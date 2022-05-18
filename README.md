@@ -4,6 +4,10 @@
 
 > Notice: This repository may contains changes that are under development. Make sure the correct commit is referenced when reviewing specific deployed contract.
 
+## Architecture
+
+![image info](./tokenlon_architecture.png)
+
 ## Deployed contracts (Mainnet)
 
 | Contracts                        | Address                                                                                                               |
