@@ -4,7 +4,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
-
 import "./interfaces/ISpender.sol";
 import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ICurveFi.sol";
@@ -12,9 +11,10 @@ import "./interfaces/IAMMWrapper.sol";
 import "./interfaces/IWeth.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./utils/AMMLibEIP712.sol";
+import "./utils/BaseLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
-contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureValidator {
+contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -111,9 +111,13 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
     /************************************************************
      *                 Internal function modifier                *
      *************************************************************/
-    modifier approveTakerAsset(address _takerAssetInternalAddr, address _makerAddr) {
+    modifier approveTakerAsset(
+        address _takerAssetInternalAddr,
+        address _makerAddr,
+        uint256 _takerAssetAmount
+    ) {
         bool isTakerAssetETH = _isInternalAssetETH(_takerAssetInternalAddr);
-        if (!isTakerAssetETH) IERC20(_takerAssetInternalAddr).safeApprove(_makerAddr, MAX_UINT);
+        if (!isTakerAssetETH) IERC20(_takerAssetInternalAddr).safeApprove(_makerAddr, _takerAssetAmount);
 
         _;
 
@@ -130,7 +134,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
         ISpender _spender,
         IPermanentStorage _permStorage,
         IWETH _weth
-    ) public {
+    ) {
         operator = _operator;
         subsidyFactor = _subsidyFactor;
         userProxy = _userProxy;
@@ -205,7 +209,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
         uint256 _deadline,
         bytes calldata _sig
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
-        Order memory order = Order(
+        AMMLibEIP712.Order memory order = AMMLibEIP712.Order(
             _makerAddr,
             _takerAssetAddr,
             _makerAssetAddr,
@@ -246,7 +250,9 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
 
         _prepare(order, internalTxData);
 
-        (txMetaData.source, txMetaData.receivedAmount) = _swap(order, txMetaData, internalTxData);
+        // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
+        uint256 _minAmount = order.makerAssetAmount.mul((BPS_MAX.sub(txMetaData.subsidyFactor))).div(BPS_MAX);
+        (txMetaData.source, txMetaData.receivedAmount) = _swap(order, internalTxData, _minAmount);
 
         // Settle
         txMetaData.settleAmount = _settle(order, txMetaData, internalTxData);
@@ -304,24 +310,10 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
      * @dev internal function of `trade`.
      * It verifies user signature and store tx hash to prevent replay attack.
      */
-    function _verify(Order memory _order, bytes calldata _sig) internal returns (bytes32 transactionHash) {
+    function _verify(AMMLibEIP712.Order memory _order, bytes calldata _sig) internal returns (bytes32 transactionHash) {
         // Verify user signature
-        // TRADE_WITH_PERMIT_TYPEHASH = keccak256("tradeWithPermit(address makerAddr,address takerAssetAddr,address makerAssetAddr,uint256 takerAssetAmount,uint256 makerAssetAmount,address userAddr,address receiverAddr,uint256 salt,uint256 deadline)");
-        transactionHash = keccak256(
-            abi.encode(
-                TRADE_WITH_PERMIT_TYPEHASH,
-                _order.makerAddr,
-                _order.takerAssetAddr,
-                _order.makerAssetAddr,
-                _order.takerAssetAmount,
-                _order.makerAssetAmount,
-                _order.userAddr,
-                _order.receiverAddr,
-                _order.salt,
-                _order.deadline
-            )
-        );
-        bytes32 EIP712SignDigest = keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, transactionHash));
+        transactionHash = AMMLibEIP712._getOrderHash(_order);
+        bytes32 EIP712SignDigest = getEIP712Hash(transactionHash);
         require(isValidSignature(_order.userAddr, EIP712SignDigest, bytes(""), _sig), "AMMWrapper: invalid user signature");
         // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
         permStorage.setAMMTransactionSeen(transactionHash);
@@ -331,7 +323,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
      * @dev internal function of `trade`.
      * It executes the swap on chosen AMM.
      */
-    function _prepare(Order memory _order, InternalTxData memory _internalTxData) internal {
+    function _prepare(AMMLibEIP712.Order memory _order, InternalTxData memory _internalTxData) internal {
         // Transfer asset from user and deposit to weth if needed
         if (_internalTxData.fromEth) {
             require(msg.value > 0, "AMMWrapper: msg.value is zero");
@@ -351,14 +343,14 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
      * It executes the swap on chosen AMM.
      */
     function _swap(
-        Order memory _order,
-        TxMetaData memory _txMetaData,
-        InternalTxData memory _internalTxData
-    ) internal approveTakerAsset(_internalTxData.takerAssetInternalAddr, _order.makerAddr) returns (string memory source, uint256 receivedAmount) {
-        // Swap
-        // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
-        uint256 minAmount = _order.makerAssetAmount.mul((BPS_MAX.sub(_txMetaData.subsidyFactor))).div(BPS_MAX);
-
+        AMMLibEIP712.Order memory _order,
+        InternalTxData memory _internalTxData,
+        uint256 _minAmount
+    )
+        internal
+        approveTakerAsset(_internalTxData.takerAssetInternalAddr, _order.makerAddr, _order.takerAssetAmount)
+        returns (string memory source, uint256 receivedAmount)
+    {
         if (_order.makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _order.makerAddr == SUSHISWAP_ROUTER_ADDRESS) {
             source = (_order.makerAddr == SUSHISWAP_ROUTER_ADDRESS) ? "SushiSwap" : "Uniswap V2";
             // Sushiswap shares the same interface as Uniswap's
@@ -367,10 +359,11 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
                 _internalTxData.takerAssetInternalAddr,
                 _internalTxData.makerAssetInternalAddr,
                 _order.takerAssetAmount,
-                minAmount,
+                _minAmount,
                 _order.deadline
             );
         } else {
+            // Try to match maker with Curve pool list
             CurveData memory curveData;
             (curveData.fromTokenCurveIndex, curveData.toTokenCurveIndex, curveData.swapMethod, ) = permStorage.getCurvePoolInfo(
                 _order.makerAddr,
@@ -390,7 +383,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
                     curveData.fromTokenCurveIndex,
                     curveData.toTokenCurveIndex,
                     _order.takerAssetAmount,
-                    minAmount,
+                    _minAmount,
                     curveData.swapMethod
                 );
                 uint256 balanceAfterTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
@@ -406,7 +399,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
      * It collects fee from the trade or compensates the trade based on the actual amount swapped.
      */
     function _settle(
-        Order memory _order,
+        AMMLibEIP712.Order memory _order,
         TxMetaData memory _txMetaData,
         InternalTxData memory _internalTxData
     ) internal returns (uint256 settleAmount) {
@@ -472,12 +465,12 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, AMMLibEIP712, SignatureVali
         int128 j,
         uint256 _takerAssetAmount,
         uint256 _makerAssetAmount,
-        uint16 swapMethod
+        uint16 _swapMethod
     ) internal {
         ICurveFi curve = ICurveFi(_makerAddr);
-        if (swapMethod == 1) {
+        if (_swapMethod == 1) {
             curve.exchange{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
-        } else if (swapMethod == 2) {
+        } else if (_swapMethod == 2) {
             curve.exchange_underlying{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
         }
     }

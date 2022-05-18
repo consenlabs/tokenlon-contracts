@@ -6,22 +6,24 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./AMMWrapper.sol";
+import "./interfaces/IBalancerV2Vault.sol";
+import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/ISpender.sol";
 import "./interfaces/IUniswapRouterV2.sol";
-import "./interfaces/IUniswapV3SwapRouter.sol";
-import "./interfaces/IPermanentStorage.sol";
-import "./utils/UniswapV3PathLib.sol";
+import "./utils/AMMLibEIP712.sol";
+import "./utils/LibBytes.sol";
+import "./utils/LibConstant.sol";
+import "./utils/LibUniswapV3.sol";
 
 contract AMMWrapperWithPath is AMMWrapper {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-    using Path for bytes;
     using LibBytes for bytes;
 
     // Constants do not have storage slot.
     address public constant UNISWAP_V3_ROUTER_ADDRESS = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
-    event Swapped(TxMetaData, Order order);
+    event Swapped(TxMetaData, AMMLibEIP712.Order order);
 
     /************************************************************
      *              Constructor and init functions               *
@@ -33,13 +35,14 @@ contract AMMWrapperWithPath is AMMWrapper {
         ISpender _spender,
         IPermanentStorage _permStorage,
         IWETH _weth
-    ) public AMMWrapper(_operator, _subsidyFactor, _userProxy, _spender, _permStorage, _weth) {}
+    ) AMMWrapper(_operator, _subsidyFactor, _userProxy, _spender, _permStorage, _weth) {}
 
     /************************************************************
      *                   External functions                      *
      *************************************************************/
+
     function trade(
-        Order memory _order,
+        AMMLibEIP712.Order calldata _order,
         uint256 _feeFactor,
         bytes calldata _sig,
         bytes calldata _makerSpecificData,
@@ -77,7 +80,9 @@ contract AMMWrapperWithPath is AMMWrapper {
 
         _prepare(_order, internalTxData);
 
-        (txMetaData.source, txMetaData.receivedAmount) = _swapWithPath(_order, txMetaData, internalTxData);
+        // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
+        uint256 _minAmount = _order.makerAssetAmount.mul((BPS_MAX.sub(txMetaData.subsidyFactor))).div(BPS_MAX);
+        (txMetaData.source, txMetaData.receivedAmount) = _swapWithPath(_order, internalTxData, _minAmount);
 
         // Settle
         txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData);
@@ -92,8 +97,10 @@ contract AMMWrapperWithPath is AMMWrapper {
      * Used to tell if maker is Curve.
      */
     function _isCurve(address _makerAddr) internal pure override returns (bool) {
-        if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == UNISWAP_V3_ROUTER_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) return false;
-        else return true;
+        if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == UNISWAP_V3_ROUTER_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -101,14 +108,14 @@ contract AMMWrapperWithPath is AMMWrapper {
      * It executes the swap on chosen AMM.
      */
     function _swapWithPath(
-        Order memory _order,
-        TxMetaData memory _txMetaData,
-        InternalTxData memory _internalTxData
-    ) internal approveTakerAsset(_internalTxData.takerAssetInternalAddr, _order.makerAddr) returns (string memory source, uint256 receivedAmount) {
-        // Swap
-        // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
-        uint256 minAmount = _order.makerAssetAmount.mul((BPS_MAX.sub(_txMetaData.subsidyFactor))).div(BPS_MAX);
-
+        AMMLibEIP712.Order memory _order,
+        InternalTxData memory _internalTxData,
+        uint256 _minAmount
+    )
+        internal
+        approveTakerAsset(_internalTxData.takerAssetInternalAddr, _order.makerAddr, _order.takerAssetAmount)
+        returns (string memory source, uint256 receivedAmount)
+    {
         if (_order.makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _order.makerAddr == SUSHISWAP_ROUTER_ADDRESS) {
             source = (_order.makerAddr == SUSHISWAP_ROUTER_ADDRESS) ? "SushiSwap" : "Uniswap V2";
             // Sushiswap shares the same interface as Uniswap's
@@ -117,28 +124,29 @@ contract AMMWrapperWithPath is AMMWrapper {
                 _internalTxData.takerAssetInternalAddr,
                 _internalTxData.makerAssetInternalAddr,
                 _order.takerAssetAmount,
-                minAmount,
+                _minAmount,
                 _order.deadline,
                 _internalTxData.path
             );
         } else if (_order.makerAddr == UNISWAP_V3_ROUTER_ADDRESS) {
             source = "Uniswap V3";
             receivedAmount = _tradeUniswapV3TokenToToken(
-                _order.makerAddr,
                 _internalTxData.takerAssetInternalAddr,
                 _internalTxData.makerAssetInternalAddr,
                 _order.deadline,
                 _order.takerAssetAmount,
-                minAmount,
+                _minAmount,
                 _internalTxData.makerSpecificData
             );
         } else {
+            // Try to match maker with Curve pool list
             CurveData memory curveData;
             (curveData.fromTokenCurveIndex, curveData.toTokenCurveIndex, curveData.swapMethod, ) = permStorage.getCurvePoolInfo(
                 _order.makerAddr,
                 _internalTxData.takerAssetInternalAddr,
                 _internalTxData.makerAssetInternalAddr
             );
+
             require(curveData.swapMethod != 0, "AMMWrapper: swap method not registered");
             if (curveData.fromTokenCurveIndex > 0 && curveData.toTokenCurveIndex > 0) {
                 source = "Curve";
@@ -152,7 +160,7 @@ contract AMMWrapperWithPath is AMMWrapper {
                     curveData.fromTokenCurveIndex,
                     curveData.toTokenCurveIndex,
                     _order.takerAssetAmount,
-                    minAmount,
+                    _minAmount,
                     curveData.swapMethod
                 );
                 uint256 balanceAfterTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
@@ -162,6 +170,8 @@ contract AMMWrapperWithPath is AMMWrapper {
             }
         }
     }
+
+    /* Uniswap V2 */
 
     function _tradeUniswapV2TokenToToken(
         address _makerAddr,
@@ -178,35 +188,25 @@ contract AMMWrapperWithPath is AMMWrapper {
             _path[0] = _takerAssetAddr;
             _path[1] = _makerAssetAddr;
         } else {
-            require(_path.length >= 2, "AMMWrapper: path length must be at least two");
-            require(_path[0] == _takerAssetAddr, "AMMWrapper: first element of path must match taker asset");
-            require(_path[_path.length - 1] == _makerAssetAddr, "AMMWrapper: last element of path must match maker asset");
+            _validateAMMPath(_path, _takerAssetAddr, _makerAssetAddr);
         }
         uint256[] memory amounts = router.swapExactTokensForTokens(_takerAssetAmount, _makerAssetAmount, _path, address(this), _deadline);
         return amounts[amounts.length - 1];
     }
 
-    function _validateUniswapV3Path(
-        bytes memory _path,
+    function _validateAMMPath(
+        address[] memory _path,
         address _takerAssetAddr,
         address _makerAssetAddr
     ) internal {
-        (address tokenA, address tokenB, ) = _path.decodeFirstPool();
-
-        if (_path.hasMultiplePools()) {
-            _path = _path.skipToken();
-            while (_path.hasMultiplePools()) {
-                _path = _path.skipToken();
-            }
-            (, tokenB, ) = _path.decodeFirstPool();
-        }
-
-        require(tokenA == _takerAssetAddr, "AMMWrapper: first element of path must match taker asset");
-        require(tokenB == _makerAssetAddr, "AMMWrapper: last element of path must match maker asset");
+        require(_path.length >= 2, "AMMWrapper: path length must be at least two");
+        require(_path[0] == _takerAssetAddr, "AMMWrapper: first element of path must match taker asset");
+        require(_path[_path.length - 1] == _makerAssetAddr, "AMMWrapper: last element of path must match maker asset");
     }
 
+    /* Uniswap V3 */
+
     function _tradeUniswapV3TokenToToken(
-        address _makerAddr,
         address _takerAssetAddr,
         address _makerAssetAddr,
         uint256 _deadline,
@@ -214,37 +214,44 @@ contract AMMWrapperWithPath is AMMWrapper {
         uint256 _makerAssetAmount,
         bytes memory _makerSpecificData
     ) internal returns (uint256 amountOut) {
-        ISwapRouter router = ISwapRouter(_makerAddr);
-        // swapType:
-        // 1: exactInputSingle, 2: exactInput
-        uint8 swapType = uint8(uint256(_makerSpecificData.readBytes32(0)));
+        LibUniswapV3.SwapType swapType = LibUniswapV3.SwapType(uint256(_makerSpecificData.readBytes32(0)));
 
-        if (swapType == 1) {
+        // exactInputSingle
+        if (swapType == LibUniswapV3.SwapType.ExactInputSingle) {
             (, uint24 poolFee) = abi.decode(_makerSpecificData, (uint8, uint24));
-            ISwapRouter.ExactInputSingleParams memory exactInputSingleParams;
-            exactInputSingleParams.tokenIn = _takerAssetAddr;
-            exactInputSingleParams.tokenOut = _makerAssetAddr;
-            exactInputSingleParams.fee = poolFee;
-            exactInputSingleParams.recipient = address(this);
-            exactInputSingleParams.deadline = _deadline;
-            exactInputSingleParams.amountIn = _takerAssetAmount;
-            exactInputSingleParams.amountOutMinimum = _makerAssetAmount;
-            exactInputSingleParams.sqrtPriceLimitX96 = 0;
-
-            amountOut = router.exactInputSingle(exactInputSingleParams);
-        } else if (swapType == 2) {
-            (, bytes memory path) = abi.decode(_makerSpecificData, (uint8, bytes));
-            _validateUniswapV3Path(path, _takerAssetAddr, _makerAssetAddr);
-            ISwapRouter.ExactInputParams memory exactInputParams;
-            exactInputParams.path = path;
-            exactInputParams.recipient = address(this);
-            exactInputParams.deadline = _deadline;
-            exactInputParams.amountIn = _takerAssetAmount;
-            exactInputParams.amountOutMinimum = _makerAssetAmount;
-
-            amountOut = router.exactInput(exactInputParams);
-        } else {
-            revert("AMMWrapper: unsupported UniswapV3 swap type");
+            return
+                LibUniswapV3.exactInputSingle(
+                    UNISWAP_V3_ROUTER_ADDRESS,
+                    LibUniswapV3.ExactInputSingleParams({
+                        tokenIn: _takerAssetAddr,
+                        tokenOut: _makerAssetAddr,
+                        fee: poolFee,
+                        recipient: address(this),
+                        deadline: _deadline,
+                        amountIn: _takerAssetAmount,
+                        amountOutMinimum: _makerAssetAmount
+                    })
+                );
         }
+
+        // exactInput
+        if (swapType == LibUniswapV3.SwapType.ExactInput) {
+            (, bytes memory path) = abi.decode(_makerSpecificData, (uint8, bytes));
+            return
+                LibUniswapV3.exactInput(
+                    UNISWAP_V3_ROUTER_ADDRESS,
+                    LibUniswapV3.ExactInputParams({
+                        tokenIn: _takerAssetAddr,
+                        tokenOut: _makerAssetAddr,
+                        path: path,
+                        recipient: address(this),
+                        deadline: _deadline,
+                        amountIn: _takerAssetAmount,
+                        amountOutMinimum: _makerAssetAmount
+                    })
+                );
+        }
+
+        revert("AMMWrapper: unsupported UniswapV3 swap type");
     }
 }
