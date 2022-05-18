@@ -1,0 +1,435 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.7.6;
+pragma abicoder v2;
+
+import "@openzeppelin/contracts/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "contracts/MarketMakerProxy.sol";
+import "contracts/RFQ.sol";
+import "contracts/stub/ERC1271WalletStub.sol";
+import "contracts/utils/SignatureValidator.sol";
+import "contracts-test/mocks/MockERC20.sol";
+import "contracts-test/mocks/MockWETH.sol";
+import "contracts-test/utils/BalanceSnapshot.sol";
+import "contracts-test/utils/StrategySharedSetup.sol";
+
+contract RFQTest is StrategySharedSetup {
+    using SafeMath for uint256;
+    using BalanceSnapshot for BalanceSnapshot.Snapshot;
+
+    uint256 constant BPS_MAX = 10000;
+    event FillOrder(
+        string source,
+        bytes32 indexed transactionHash,
+        bytes32 indexed orderHash,
+        address indexed userAddr,
+        address takerAssetAddr,
+        uint256 takerAssetAmount,
+        address makerAddr,
+        address makerAssetAddr,
+        uint256 makerAssetAmount,
+        address receiverAddr,
+        uint256 settleAmount,
+        uint16 feeFactor
+    );
+
+    uint256 userPrivateKey = uint256(1);
+    uint256 makerPrivateKey = uint256(2);
+    uint256 otherPrivateKey = uint256(3);
+
+    address user;
+    address maker;
+    address receiver = address(0x133702);
+    address[] wallet;
+    IERC20[] tokens;
+
+    ERC1271WalletStub erc1271WalletStub;
+    MarketMakerProxy marketMakerProxy;
+    RFQ rfq;
+    MockWETH weth;
+    IERC20 usdt;
+    IERC20 dai;
+
+    uint256 DEADLINE = block.timestamp + 1;
+    RFQLibEIP712.Order DEFAULT_ORDER;
+
+    // effectively a "beforeEach" block
+    function setUp() public {
+        user = vm.addr(userPrivateKey);
+        maker = vm.addr(makerPrivateKey);
+        wallet.push(user);
+        wallet.push(maker);
+
+        // Tokens
+        weth = new MockWETH("Wrapped ETH", "WETH", 18);
+        usdt = new MockERC20("USDT", "USDT", 6);
+        dai = new MockERC20("DAI", "DAI", 18);
+        tokens.push(weth);
+        tokens.push(usdt);
+        tokens.push(dai);
+
+        // Setup
+        setUpSystemContracts();
+        vm.prank(maker);
+        marketMakerProxy = new MarketMakerProxy();
+        erc1271WalletStub = new ERC1271WalletStub(user);
+        // Setup MMP
+        vm.startPrank(maker);
+        marketMakerProxy.setSigner(maker);
+        marketMakerProxy.setWithdrawer(maker);
+        marketMakerProxy.setConfig(address(weth));
+        marketMakerProxy.registerWithdrawWhitelist(maker, true);
+        vm.stopPrank();
+
+        // Deal 100 ETH to each account
+        dealWallet(wallet, 100 ether);
+        // Deposit to increase WETH total supply so withdraw does not cause underflow when WETH balance is manipulated by setERC20Balance
+        weth.deposit{ value: 10 ether }();
+        // Set user token balance and approve
+        setEOABalanceAndApprove(user, tokens, 100);
+        // Set ERC1271 wallet token balance and approve
+        setWalletContractBalanceAndApprove(user, address(erc1271WalletStub), tokens, 100);
+        // Set maker token balance and approve
+        setEOABalanceAndApprove(maker, tokens, 100);
+        // Set MMP token balance and approve
+        setWalletContractBalanceAndApprove(maker, address(marketMakerProxy), tokens, 100);
+
+        // Default order
+        DEFAULT_ORDER = RFQLibEIP712.Order(
+            user, // takerAddr
+            maker, // makerAddr
+            address(dai), // takerAssetAddr
+            address(usdt), // makerAssetAddr
+            100 * 1e18, // takerAssetAmount
+            90 * 1e6, // makerAssetAmount
+            receiver, // receiverAddr
+            uint256(1234), // salt
+            DEADLINE, // deadline
+            0 // feeFactor
+        );
+
+        // Label addresses for easier debugging
+        vm.label(user, "User");
+        vm.label(address(this), "TestingContract");
+        vm.label(address(marketMakerProxy), "MarketMakerProxy");
+        vm.label(address(erc1271WalletStub), "ERC1271WalletStub");
+        vm.label(address(rfq), "RFQContract");
+        vm.label(address(weth), "WETH");
+        vm.label(address(usdt), "USDT");
+        vm.label(address(dai), "DAI");
+    }
+
+    function _deployStrategyAndUpgrade() internal override returns (address) {
+        rfq = new RFQ(
+            address(this), // This contract would be the operator
+            address(userProxyStub),
+            ISpender(address(spender)),
+            permanentStorageStub,
+            IWETH(address(weth))
+        );
+        // Setup
+        userProxyStub.upgradeRFQ(address(rfq));
+        permanentStorageStub.upgradeRFQ(address(rfq));
+        return address(rfq);
+    }
+
+    /*********************************
+     *          Test: setup          *
+     *********************************/
+
+    function testSetupAllowance() public {
+        for (uint256 i = 0; i < tokens.length; i++) {
+            assertEq(tokens[i].allowance(user, address(allowanceTarget)), type(uint256).max);
+            assertEq(tokens[i].allowance(address(erc1271WalletStub), address(allowanceTarget)), type(uint256).max);
+            assertEq(tokens[i].allowance(maker, address(allowanceTarget)), type(uint256).max);
+            assertEq(tokens[i].allowance(address(marketMakerProxy), address(allowanceTarget)), type(uint256).max);
+        }
+    }
+
+    function testSetupRFQ() public {
+        assertEq(rfq.operator(), address(this));
+        assertEq(rfq.userProxy(), address(userProxyStub));
+        assertEq(address(rfq.spender()), address(spender));
+        assertEq(address(rfq.weth()), address(weth));
+        assertEq(userProxyStub.rfqAddr(), address(rfq));
+        assertEq(permanentStorageStub.rfqAddr(), address(rfq));
+        assertTrue(spender.isAuthorized(address(rfq)));
+    }
+
+    /*********************************
+     *     Test: upgradeSpender      *
+     *********************************/
+
+    function testCannotUpgradeSpenderByNotOperator() public {
+        vm.expectRevert("RFQ: not operator");
+        vm.prank(user);
+        rfq.upgradeSpender(user);
+    }
+
+    function testCannotUpgradeSpenderToZeroAddress() public {
+        vm.expectRevert("RFQ: spender can not be zero address");
+        rfq.upgradeSpender(address(0));
+    }
+
+    function testUpgradeSpender() public {
+        rfq.upgradeSpender(user);
+        assertEq(address(rfq.spender()), user);
+    }
+
+    /*********************************
+     *   Test: set/close allowance   *
+     *********************************/
+
+    function testCannotSetAllowanceCloseAllowanceByNotOperator() public {
+        address[] memory allowanceTokenList = new address[](1);
+        allowanceTokenList[0] = address(usdt);
+
+        vm.startPrank(user);
+        vm.expectRevert("RFQ: not operator");
+        rfq.setAllowance(allowanceTokenList, address(this));
+        vm.expectRevert("RFQ: not operator");
+        rfq.closeAllowance(allowanceTokenList, address(this));
+        vm.stopPrank();
+    }
+
+    function testSetAllowanceCloseAllowance() public {
+        address[] memory allowanceTokenList = new address[](1);
+        allowanceTokenList[0] = address(usdt);
+
+        assertEq(usdt.allowance(address(rfq), address(this)), uint256(0));
+
+        rfq.setAllowance(allowanceTokenList, address(this));
+        assertEq(usdt.allowance(address(rfq), address(this)), type(uint256).max);
+
+        rfq.closeAllowance(allowanceTokenList, address(this));
+        assertEq(usdt.allowance(address(rfq), address(this)), uint256(0));
+    }
+
+    /*********************************
+     *       Test: depositETH        *
+     *********************************/
+
+    function testCannotDepositETHByNotOperator() public {
+        vm.expectRevert("RFQ: not operator");
+        vm.prank(user);
+        rfq.depositETH();
+    }
+
+    function testDepositETH() public {
+        vm.deal(address(rfq), 1 ether);
+        assertEq(address(rfq).balance, 1 ether);
+        rfq.depositETH();
+        assertEq(address(rfq).balance, uint256(0));
+        assertEq(weth.balanceOf(address(rfq)), 1 ether);
+    }
+
+    /*********************************
+     *          Test: fill          *
+     *********************************/
+
+    function testCannotFillWithExpiredOrder() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.deadline = block.timestamp - 1;
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(otherPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        vm.expectRevert("RFQ: expired order");
+        userProxyStub.toRFQ(payload);
+    }
+
+    function testCannotFillWithInvalidUserSig() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(otherPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        vm.expectRevert("RFQ: invalid user signature");
+        userProxyStub.toRFQ(payload);
+    }
+
+    function testCannotFillWithInvalidUserWallet() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        // Taker is an EOA but user signs a Wallet type fill
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        vm.expectRevert(); // No revert string in this case
+        userProxyStub.toRFQ(payload);
+    }
+
+    function testCannotFillWithInvalidMakerSig() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder(otherPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        vm.expectRevert("RFQ: invalid MM signature");
+        userProxyStub.toRFQ(payload);
+    }
+
+    function testFillDAIToUSDT_EOAUserAndEOAMaker() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, order.makerAssetAddr);
+
+        userProxyStub.toRFQ(payload);
+
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
+    }
+
+    function testFillETHToUSDT_EOAUserAndMMPMaker() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.takerAssetAddr = address(weth);
+        order.takerAssetAmount = 1 ether;
+        order.makerAddr = address(marketMakerProxy);
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.Wallet);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, Addresses.ETH_ADDRESS);
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.makerAssetAddr);
+
+        vm.prank(user);
+        userProxyStub.toRFQ{ value: order.takerAssetAmount }(payload);
+
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerMMPTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMMPMakerAsset.assertChange(-int256(order.makerAssetAmount));
+    }
+
+    function testFillDAIToETH_WalletUserAndMMPMaker() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.takerAddr = address(erc1271WalletStub);
+        order.makerAddr = address(marketMakerProxy);
+        order.makerAssetAddr = address(weth);
+        order.makerAssetAmount = 1 ether;
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.Wallet);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take(address(erc1271WalletStub), order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, Addresses.ETH_ADDRESS);
+        BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.makerAssetAddr);
+
+        userProxyStub.toRFQ(payload);
+
+        userWalletTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerMMPTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMMPMakerAsset.assertChange(-int256(order.makerAssetAmount));
+    }
+
+    function testCannotFillWithSamePayloadAgain() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        userProxyStub.toRFQ(payload);
+
+        vm.expectRevert("PermanentStorage: transaction seen before");
+        userProxyStub.toRFQ(payload);
+    }
+
+    /*********************************
+     *       Test: emit event        *
+     *********************************/
+
+    function _expectEvent(RFQLibEIP712.Order memory order) internal {
+        vm.expectEmit(true, true, false, true);
+        emit FillOrder(
+            "RFQ v1",
+            RFQLibEIP712._getTransactionHash(order),
+            RFQLibEIP712._getOrderHash(order),
+            order.takerAddr,
+            order.takerAssetAddr,
+            order.takerAssetAmount,
+            order.makerAddr,
+            order.makerAssetAddr,
+            order.makerAssetAmount,
+            order.receiverAddr,
+            order.makerAssetAmount.mul((BPS_MAX).sub(order.feeFactor)).div(BPS_MAX),
+            uint16(order.feeFactor)
+        );
+    }
+
+    function testEmitSwappedEvent() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        _expectEvent(order);
+        userProxyStub.toRFQ(payload);
+    }
+
+    /*********************************
+     *             Helpers           *
+     *********************************/
+
+    function _getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
+        string memory EIP191_HEADER = "\x19\x01";
+        bytes32 EIP712_DOMAIN_SEPARATOR = rfq.EIP712_DOMAIN_SEPARATOR();
+        return keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, structHash));
+    }
+
+    function _signOrder(
+        uint256 privateKey,
+        RFQLibEIP712.Order memory order,
+        SignatureValidator.SignatureType sigType
+    ) internal returns (bytes memory sig) {
+        bytes32 orderHash = RFQLibEIP712._getOrderHash(order);
+        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+
+        if (sigType == SignatureValidator.SignatureType.EIP712) {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+            sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
+        } else if (sigType == SignatureValidator.SignatureType.Wallet) {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
+            sig = abi.encodePacked(v, r, s, uint8(sigType));
+        } else {
+            revert("Invalid signature type");
+        }
+    }
+
+    function _signFill(
+        uint256 privateKey,
+        RFQLibEIP712.Order memory order,
+        SignatureValidator.SignatureType sigType
+    ) internal returns (bytes memory sig) {
+        bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
+        bytes32 EIP712SignDigest = _getEIP712Hash(transactionHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
+    }
+
+    function _genFillPayload(
+        RFQLibEIP712.Order memory order,
+        bytes memory makerSig,
+        bytes memory userSig
+    ) internal view returns (bytes memory payload) {
+        return
+            abi.encodeWithSignature(
+                "fill((address,address,address,address,uint256,uint256,address,uint256,uint256,uint256),bytes,bytes)",
+                order,
+                makerSig,
+                userSig
+            );
+    }
+}
