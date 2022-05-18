@@ -51,6 +51,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
     address maker = vm.addr(makerPrivateKey);
     address coordinator = vm.addr(coordinatorPrivateKey);
     address receiver = address(0x133702);
+    address feeCollector = address(0x133703);
     address[] wallet = [user, maker, coordinator];
 
     ERC1271WalletStub erc1271WalletStub;
@@ -162,7 +163,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
             IPermanentStorage(address(permanentStorageStub)),
             IWETH(address(weth)),
             Addresses.UNISWAP_V3_ADDRESS,
-            Addresses.SUSHISWAP_ADDRESS
+            Addresses.SUSHISWAP_ADDRESS,
+            feeCollector
         );
         // Setup
         userProxyStub.upgradeLimitOrder(address(limitOrder));
@@ -317,6 +319,26 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         assertEq(uint256(limitOrder.takerFeeFactor()), 2);
         assertEq(uint256(limitOrder.profitFeeFactor()), 3);
         assertEq(uint256(limitOrder.profitCapFactor()), 4);
+    }
+
+    /*********************************
+     *     Test: setFeeCollector     *
+     *********************************/
+
+    function testCannotSetFeeCollectorByNotOperator() public {
+        vm.expectRevert("LimitOrder: not operator");
+        vm.prank(user);
+        limitOrder.setFeeCollector(feeCollector);
+    }
+
+    function testCannotSetFeeCollectorToZeroAddr() public {
+        vm.expectRevert("LimitOrder: fee collector can not be zero address");
+        limitOrder.setFeeCollector(address(0));
+    }
+
+    function testSetFeeCollector() public {
+        limitOrder.setFeeCollector(user);
+        assertEq(address(limitOrder.feeCollector()), user);
     }
 
     /*********************************
@@ -509,6 +531,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
+        BalanceSnapshot.Snapshot memory fcMakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.makerToken));
+        BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.takerToken));
 
         // makerFeeFactor/takerFeeFactor : 10%
         // profitFeeFactor/profitCapFactor : 20%
@@ -538,6 +562,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount.mul(90).div(100)));
         makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(90).div(100)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
+        fcMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount.mul(10).div(100)));
+        fcTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(10).div(100)));
     }
 
     function testFullyFillByContractWalletTrader() public {
@@ -867,6 +893,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         BalanceSnapshot.Snapshot memory receiverTakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
+        BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.takerToken));
 
         // makerFeeFactor/takerFeeFactor : 10%
         // profitFeeFactor/profitCapFactor : 20%
@@ -908,6 +935,9 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         receiverTakerAsset.assertChangeGt(int256(profit.mul(80).div(100)));
         makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(90).div(100)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
+        uint256 feeTotal = DEFAULT_ORDER.takerTokenAmount.mul(10).div(100);
+        feeTotal = feeTotal.add(profit.mul(20).div(100));
+        fcTakerAsset.assertChange(int256(feeTotal));
     }
 
     function testFullyFillBySushiSwap() public {
