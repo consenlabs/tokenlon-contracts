@@ -3,7 +3,6 @@
 [![Node.js CI](https://github.com/consenlabs/tokenlon-contracts/actions/workflows/node.js.yml/badge.svg?branch=master)](https://github.com/consenlabs/tokenlon-contracts/actions/workflows/node.js.yml)
 [![Built-with openzeppelin](https://img.shields.io/badge/built%20with-OpenZeppelin-3677FF)](https://docs.openzeppelin.com/)
 
-
 > Notice: This repository may contains changes that are under development. Make sure the correct commit is referenced when reviewing specific deployed contract.
 
 ## Architecture
