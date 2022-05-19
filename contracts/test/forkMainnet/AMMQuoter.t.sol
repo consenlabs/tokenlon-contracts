@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.6;
-pragma abicoder v2;
 
 import "forge-std/Test.sol";
 import "contracts/AMMQuoter.sol";
@@ -8,7 +7,7 @@ import "contracts/interfaces/IBalancerV2Vault.sol";
 import "contracts/interfaces/IPermanentStorage.sol";
 import "contracts/stub/PermanentStorageStub.sol";
 import "contracts-test/utils/Addresses.sol";
-import "contracts-test/utils/UniswapV3Util.sol";
+import "contracts-test/utils/AMMUtil.sol";
 
 contract AMMQuoterTest is Test {
     uint256 constant BPS_MAX = 10000;
@@ -450,29 +449,5 @@ contract AMMQuoterTest is Test {
         );
         assertFalse(bestMaker == address(0));
         assertGt(bestAmount, 0);
-    }
-
-    /*********************************
-     *             Helpers           *
-     *********************************/
-
-    function _encodeUniswapSinglePoolData(uint256 swapType, uint24 poolFee) internal returns (bytes memory) {
-        return abi.encode(swapType, poolFee);
-    }
-
-    function _encodeUniswapMultiPoolData(
-        uint256 swapType,
-        address[] memory path,
-        uint24[] memory poolFees
-    ) internal returns (bytes memory) {
-        return abi.encode(swapType, encodePath(path, poolFees));
-    }
-
-    function _encodeBalancerData(IBalancerV2Vault.BatchSwapStep[] memory swapSteps) internal returns (bytes memory) {
-        return abi.encode(swapSteps);
-    }
-
-    function _encodeCurveData(uint256 version) internal returns (bytes memory) {
-        return abi.encode(version);
     }
 }
