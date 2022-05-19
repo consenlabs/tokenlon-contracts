@@ -1,6 +1,8 @@
 # Tokenlon
 
 [![Node.js CI](https://github.com/consenlabs/tokenlon-contracts/actions/workflows/node.js.yml/badge.svg?branch=master)](https://github.com/consenlabs/tokenlon-contracts/actions/workflows/node.js.yml)
+[![Built-with openzeppelin](https://img.shields.io/badge/built%20with-OpenZeppelin-3677FF)](https://docs.openzeppelin.com/)
+
 
 > Notice: This repository may contains changes that are under development. Make sure the correct commit is referenced when reviewing specific deployed contract.
 
@@ -13,11 +15,11 @@
 | Contracts                        | Address                                                                                                               |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | LON                              | [0x0000000000095413afC295d19EDeb1Ad7B71c952](https://etherscan.io/address/0x0000000000095413afC295d19EDeb1Ad7B71c952) |
+| xLON                             | [0xf88506b0f1d30056b9e5580668d5875b9cd30f23](https://etherscan.io/address/0xf88506b0f1d30056b9e5580668d5875b9cd30f23) |
 | LONStaking                       | [0x413ecce5d56204962090eef1dead4c0a247e289b](https://etherscan.io/address/0x413ecce5d56204962090eef1dead4c0a247e289b) |
 | MiningTreasury                   | [0x292a6921Efc261070a0d5C96911c102cBF1045E4](https://etherscan.io/address/0x292a6921Efc261070a0d5C96911c102cBF1045E4) |
 | TreasuryVesterFactory            | [0x000000003A8DBF47cD362EDA39B3a5F3FC6E99ce](https://etherscan.io/address/0x000000003A8DBF47cD362EDA39B3a5F3FC6E99ce) |
 | MerkleRedeem                     | [0x0000000006a0403952389B70d8EE4E45479023db](https://etherscan.io/address/0x0000000006a0403952389B70d8EE4E45479023db) |
-| xLON                             | [0xf88506b0f1d30056b9e5580668d5875b9cd30f23](https://etherscan.io/address/0xf88506b0f1d30056b9e5580668d5875b9cd30f23) |
 | RewardDistributor                | [0xbF1C2c17CC77e7Dec3466B96F46f93c09f02aB07](https://etherscan.io/address/0xbF1C2c17CC77e7Dec3466B96F46f93c09f02aB07) |
 | StakingRewards (LON/ETH)         | [0xb6bC1a713e4B11fa31480d31C825dCFd7e8FaBFD](https://etherscan.io/address/0xb6bC1a713e4B11fa31480d31C825dCFd7e8FaBFD) |
 | StakingRewards (LON/USDT)        | [0x9648B119f442a3a096C0d5A1F8A0215B46dbb547](https://etherscan.io/address/0x9648B119f442a3a096C0d5A1F8A0215B46dbb547) |
@@ -51,8 +53,7 @@ $ yarn install
 ## Compile contracts
 
 ```bash
-$ yarn run compile-contracts // compile contracts
-$ yarn run compile-foundry // compile tests written in solidity
+$ yarn run compile // compile contracts
 ```
 
 ## Run unit test
