@@ -24,7 +24,7 @@ contract StrategySharedSetup is BalanceUtil {
 
     function setUpSystemContracts() internal {
         // Deploy
-        spender = new Spender(address(this));
+        spender = new Spender(address(this), new address[](1));
         allowanceTarget = new AllowanceTarget(address(spender));
         userProxyStub = new UserProxyStub(Addresses.WETH_ADDRESS);
         permanentStorageStub = new PermanentStorageStub();

@@ -34,18 +34,15 @@ jobs:
         run: yarn run check-pretty
       - name: Lint
         run: |
-          yarn run lint-sol
-          yarn run lint-es
+          yarn run lint
       - name: Compile
         run: |
-          yarn run compile-sol
-          yarn run compile-ts
+          yarn run compile-contracts
           yarn run compile-foundry
       - name: Test
         env:
-          ALCHEMY_TOKEN: ${{ secrets.ALCHEMY_TOKEN }}
+          FORK_URL: ${{ secrets.FORK_URL }}
           FORK_BLOCK_NUMBER: 14340000
         run: |
-          yarn run test-all
-          yarn run test-foundry
-          yarn run test-foundry-fork-mainnet
+          yarn run test-foundry-local
+          yarn run test-foundry-fork
