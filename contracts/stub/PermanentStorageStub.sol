@@ -158,10 +158,6 @@ contract PermanentStorageStub is IPermanentStorage {
         return PSStorage.getStorage().limitOrderAddr;
     }
 
-    function l2DepositAddr() public view returns (address) {
-        return PSStorage.getStorage().l2DepositAddr;
-    }
-
     function wethAddr() external view override returns (address) {
         return PSStorage.getStorage().wethAddr;
     }

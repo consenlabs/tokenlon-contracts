@@ -6,9 +6,7 @@ pragma abicoder v2;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import "../utils/Multicall.sol";
-
-contract UserProxyStub is Multicall {
+contract UserProxyStub {
     using SafeERC20 for IERC20;
 
     // Constants do not have storage slot.
@@ -25,7 +23,6 @@ contract UserProxyStub is Multicall {
     address public pmmAddr;
     address public rfqAddr;
     address public limitOrderAddr;
-    address public l2DepositAddr;
 
     receive() external payable {}
 
@@ -61,10 +58,6 @@ contract UserProxyStub is Multicall {
 
     function upgradeLimitOrder(address _limitOrderAddr) external onlyOperator {
         limitOrderAddr = _limitOrderAddr;
-    }
-
-    function upgradeL2Deposit(address _l2DepositAddr) external onlyOperator {
-        l2DepositAddr = _l2DepositAddr;
     }
 
     function toAMM(bytes calldata _payload) external payable {
@@ -108,19 +101,6 @@ contract UserProxyStub is Multicall {
 
     function toLimitOrder(bytes calldata _payload) external payable {
         (bool callSucceed, ) = limitOrderAddr.call{ value: msg.value }(_payload);
-        if (callSucceed == false) {
-            // Get the error message returned
-            assembly {
-                let ptr := mload(0x40)
-                let size := returndatasize()
-                returndatacopy(ptr, 0, size)
-                revert(ptr, size)
-            }
-        }
-    }
-
-    function toL2Deposit(bytes calldata _payload) external payable {
-        (bool callSucceed, ) = l2DepositAddr.call{ value: msg.value }(_payload);
         if (callSucceed == false) {
             // Get the error message returned
             assembly {

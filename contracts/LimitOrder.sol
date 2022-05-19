@@ -178,6 +178,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
             LimitOrderLibEIP712.Fill memory fill = LimitOrderLibEIP712.Fill({
                 orderHash: orderHash,
                 taker: _params.taker,
+                recipient: _params.recipient,
                 takerTokenAmount: _params.takerTokenAmount,
                 takerSalt: _params.salt,
                 expiry: _params.expiry

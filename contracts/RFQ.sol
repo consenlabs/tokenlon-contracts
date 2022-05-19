@@ -6,15 +6,16 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-
 import "./interfaces/ISpender.sol";
 import "./interfaces/IWeth.sol";
 import "./interfaces/IRFQ.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/IERC1271Wallet.sol";
 import "./utils/RFQLibEIP712.sol";
+import "./utils/BaseLibEIP712.sol";
+import "./utils/SignatureValidator.sol";
 
-contract RFQ is ReentrancyGuard, IRFQ, RFQLibEIP712, SignatureValidator {
+contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using Address for address;
@@ -90,7 +91,7 @@ contract RFQ is ReentrancyGuard, IRFQ, RFQLibEIP712, SignatureValidator {
         ISpender _spender,
         IPermanentStorage _permStorage,
         IWETH _weth
-    ) public {
+    ) {
         operator = _operator;
         userProxy = _userProxy;
         spender = _spender;
@@ -146,9 +147,9 @@ contract RFQ is ReentrancyGuard, IRFQ, RFQLibEIP712, SignatureValidator {
      *                   External functions                      *
      *************************************************************/
     function fill(
-        RFQLibEIP712.Order memory _order,
-        bytes memory _mmSignature,
-        bytes memory _userSignature
+        RFQLibEIP712.Order calldata _order,
+        bytes calldata _mmSignature,
+        bytes calldata _userSignature
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         // check the order deadline and fee factor
         require(_order.deadline >= block.timestamp, "RFQ: expired order");
@@ -157,13 +158,10 @@ contract RFQ is ReentrancyGuard, IRFQ, RFQLibEIP712, SignatureValidator {
         GroupedVars memory vars;
 
         // Validate signatures
-        vars.orderHash = _getOrderHash(_order);
-        require(isValidSignature(_order.makerAddr, _getOrderSignDigestFromHash(vars.orderHash), bytes(""), _mmSignature), "RFQ: invalid MM signature");
-        vars.transactionHash = _getTransactionHash(_order);
-        require(
-            isValidSignature(_order.takerAddr, _getTransactionSignDigestFromHash(vars.transactionHash), bytes(""), _userSignature),
-            "RFQ: invalid user signature"
-        );
+        vars.orderHash = RFQLibEIP712._getOrderHash(_order);
+        require(isValidSignature(_order.makerAddr, getEIP712Hash(vars.orderHash), bytes(""), _mmSignature), "RFQ: invalid MM signature");
+        vars.transactionHash = RFQLibEIP712._getTransactionHash(_order);
+        require(isValidSignature(_order.takerAddr, getEIP712Hash(vars.transactionHash), bytes(""), _userSignature), "RFQ: invalid user signature");
 
         // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
         permStorage.setRFQTransactionSeen(vars.transactionHash);

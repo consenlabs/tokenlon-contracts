@@ -1,9 +1,7 @@
-pragma solidity 0.7.6;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.7.6;
 
-import "./BaseLibEIP712.sol";
-import "./SignatureValidator.sol";
-
-contract RFQLibEIP712 is BaseLibEIP712 {
+library RFQLibEIP712 {
     /***********************************|
     |             Constants             |
     |__________________________________*/
@@ -21,7 +19,9 @@ contract RFQLibEIP712 is BaseLibEIP712 {
         uint256 feeFactor;
     }
 
-    bytes32 public constant ORDER_TYPEHASH =
+    bytes32 public constant ORDER_TYPEHASH = 0xad84a47ecda74707b63cf430860b59806332525ed81c01c6e3ec66983c35646a;
+
+    /*
         keccak256(
             abi.encodePacked(
                 "Order(",
@@ -37,6 +37,7 @@ contract RFQLibEIP712 is BaseLibEIP712 {
                 ")"
             )
         );
+        */
 
     function _getOrderHash(Order memory _order) internal pure returns (bytes32 orderHash) {
         orderHash = keccak256(
@@ -55,15 +56,9 @@ contract RFQLibEIP712 is BaseLibEIP712 {
         );
     }
 
-    function _getOrderSignDigest(Order memory _order) internal view returns (bytes32 orderSignDigest) {
-        orderSignDigest = keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, _getOrderHash(_order)));
-    }
+    bytes32 public constant FILL_WITH_PERMIT_TYPEHASH = 0x4ea663383968865a4516f51bec2c29addd1e7cecce5583296a44cc8d568cad09;
 
-    function _getOrderSignDigestFromHash(bytes32 _orderHash) internal view returns (bytes32 orderSignDigest) {
-        orderSignDigest = keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, _orderHash));
-    }
-
-    bytes32 public constant FILL_WITH_PERMIT_TYPEHASH =
+    /*
         keccak256(
             abi.encodePacked(
                 "fillWithPermit(",
@@ -80,6 +75,7 @@ contract RFQLibEIP712 is BaseLibEIP712 {
                 ")"
             )
         );
+        */
 
     function _getTransactionHash(Order memory _order) internal pure returns (bytes32 transactionHash) {
         transactionHash = keccak256(
@@ -97,13 +93,5 @@ contract RFQLibEIP712 is BaseLibEIP712 {
                 _order.feeFactor
             )
         );
-    }
-
-    function _getTransactionSignDigest(Order memory _order) internal view returns (bytes32 transactionSignDigest) {
-        transactionSignDigest = keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, _getTransactionHash(_order)));
-    }
-
-    function _getTransactionSignDigestFromHash(bytes32 _txHash) internal view returns (bytes32 transactionSignDigest) {
-        transactionSignDigest = keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, _txHash));
     }
 }
