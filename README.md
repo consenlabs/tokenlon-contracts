@@ -46,7 +46,7 @@
 
 ```bash
 $ git submodule update --init --recursive
-$ yarn install
+$ yarn run setup
 ```
 
 ## Compile contracts
