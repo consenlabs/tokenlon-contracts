@@ -6,39 +6,102 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "contracts/Spender.sol";
 import "contracts/AllowanceTarget.sol";
+import { PermanentStorage } from "contracts/PermanentStorage.sol"; // Using "import from" syntax so PermanentStorage and UserProxy's imports will not collide
+import "contracts/upgrade_proxy/TransparentUpgradeableProxy.sol";
+import { UserProxy } from "contracts/UserProxy.sol"; // Using "import from" syntax so PermanentStorage and UserProxy's imports will not collide
+import "contracts/Tokenlon.sol";
 import "contracts/interfaces/ISetAllowance.sol";
-import "contracts/stub/UserProxyStub.sol";
-import "contracts/stub/PermanentStorageStub.sol";
 import "./Addresses.sol";
 import "./BalanceUtil.sol";
+import "./RegisterCurveIndexes.sol";
 
-contract StrategySharedSetup is BalanceUtil {
+contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
     using SafeERC20 for IERC20;
+
+    address upgradeAdmin = address(0x5566);
 
     AllowanceTarget allowanceTarget;
     Spender spender;
-    UserProxyStub userProxyStub;
-    PermanentStorageStub permanentStorageStub;
+    UserProxy userProxy;
+    PermanentStorage permanentStorage;
 
     function _deployStrategyAndUpgrade() internal virtual returns (address) {}
+
+    function _deployTokenlonAndUserProxy() internal {
+        UserProxy userProxyImpl = new UserProxy();
+        Tokenlon tokenlon = new Tokenlon(
+            address(userProxyImpl),
+            upgradeAdmin,
+            bytes("") // Skip initialization during deployment
+        );
+        userProxy = UserProxy(address(tokenlon));
+
+        // Setup
+        // Set this contract as operator
+        // prettier-ignore
+        vm.store(
+            address(userProxy), // address
+            bytes32(uint256(0)), // key
+            bytes32(uint256(address(this))) // value
+        );
+        // Set version
+        // prettier-ignore
+        vm.store(
+            address(userProxy), // address
+            bytes32(uint256(1)), // key
+            bytes32(uint256(bytes32("5.2.0")) + uint256(5 * 2)) // value
+        );
+    }
+
+    function _deployPermanentStorageAndProxy() internal {
+        PermanentStorage permanentStorageImpl = new PermanentStorage();
+        TransparentUpgradeableProxy permanentStorageProxy = new TransparentUpgradeableProxy(
+            address(permanentStorageImpl),
+            upgradeAdmin,
+            bytes("") // Skip initialization during deployment
+        );
+        permanentStorage = PermanentStorage(address(permanentStorageProxy));
+
+        // Setup
+        // Set this contract as operator
+        // prettier-ignore
+        vm.store(
+            address(permanentStorage), // address
+            bytes32(uint256(0)), // key
+            bytes32(uint256(address(this))) // value
+        );
+        // Set version
+        // prettier-ignore
+        vm.store(
+            address(permanentStorage), // address
+            bytes32(uint256(1)), // key
+            bytes32(uint256(bytes32("5.2.0")) + uint256(5 * 2)) // value
+        );
+        permanentStorage.upgradeWETH(Addresses.WETH_ADDRESS);
+        // Set Curve indexes
+        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), address(this), true);
+        _registerCurveIndexes(permanentStorage);
+    }
 
     function setUpSystemContracts() internal {
         // Deploy
         spender = new Spender(address(this), new address[](1));
         allowanceTarget = new AllowanceTarget(address(spender));
-        userProxyStub = new UserProxyStub(Addresses.WETH_ADDRESS);
-        permanentStorageStub = new PermanentStorageStub();
+        _deployTokenlonAndUserProxy();
+        _deployPermanentStorageAndProxy();
         address strategy = _deployStrategyAndUpgrade();
         // Setup
         spender.setAllowanceTarget(address(allowanceTarget));
         address[] memory authListAddress = new address[](1);
         authListAddress[0] = strategy;
         spender.authorize(authListAddress);
+        permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), address(this), true);
 
+        vm.label(upgradeAdmin, "UpgradeAdmin");
         vm.label(address(spender), "SpenderContract");
         vm.label(address(allowanceTarget), "AllowanceTargetContract");
-        vm.label(address(userProxyStub), "UserProxyStubContract");
-        vm.label(address(permanentStorageStub), "PermanentStorageStubContract");
+        vm.label(address(userProxy), "UserProxyContract");
+        vm.label(address(permanentStorage), "PermanentStorageContract");
     }
 
     function dealWallet(address[] memory wallet, uint256 amount) internal {

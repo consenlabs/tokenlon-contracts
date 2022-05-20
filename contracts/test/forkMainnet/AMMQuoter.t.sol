@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.6;
 
-import "forge-std/Test.sol";
 import "contracts/AMMQuoter.sol";
 import "contracts/interfaces/IBalancerV2Vault.sol";
 import "contracts/interfaces/IPermanentStorage.sol";
-import "contracts/stub/PermanentStorageStub.sol";
 import "contracts-test/utils/Addresses.sol";
 import "contracts-test/utils/AMMUtil.sol";
+import "contracts-test/utils/StrategySharedSetup.sol";
 
-contract AMMQuoterTest is Test {
+contract AMMQuoterTest is StrategySharedSetup {
     uint256 constant BPS_MAX = 10000;
 
     AMMQuoter ammQuoter;
-    PermanentStorageStub permanentStorageStub;
 
     address DEFAULT_MAKER_ADDR = Addresses.UNISWAP_V2_ADDRESS;
     address DEFAULT_TAKER_ASSET_ADDR = Addresses.DAI_ADDRESS;
@@ -33,8 +31,8 @@ contract AMMQuoterTest is Test {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
-        permanentStorageStub = new PermanentStorageStub();
-        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorageStub), Addresses.WETH_ADDRESS);
+        _deployPermanentStorageAndProxy();
+        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), Addresses.WETH_ADDRESS);
 
         // Label addresses for easier debugging
         vm.label(address(this), "TestingContract");
@@ -50,7 +48,7 @@ contract AMMQuoterTest is Test {
      *********************************/
 
     function testSetupAMMQuoter() public {
-        assertEq(address(ammQuoter.permStorage()), address(permanentStorageStub));
+        assertEq(address(ammQuoter.permStorage()), address(permanentStorage));
         assertEq(ammQuoter.weth(), Addresses.WETH_ADDRESS);
     }
 
@@ -70,12 +68,12 @@ contract AMMQuoterTest is Test {
 
     function testCannotGetMakerOutAmount_Curve_InvalidSwapMethod() public {
         vm.expectRevert("PermanentStorage: invalid pair");
-        ammQuoter.getMakerOutAmount(Addresses.CURVE_USDT_ADDRESS, address(0xdead), DEFAULT_MAKER_ASSET_ADDR, DEFAULT_TAKER_ASSET_AMOUNT);
+        ammQuoter.getMakerOutAmount(Addresses.CURVE_USDT_POOL_ADDRESS, address(0xdead), DEFAULT_MAKER_ASSET_ADDR, DEFAULT_TAKER_ASSET_AMOUNT);
     }
 
     function testGetMakerOutAmount_Curve() public {
         uint256 amountOut = ammQuoter.getMakerOutAmount(
-            Addresses.CURVE_USDT_ADDRESS,
+            Addresses.CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT
@@ -219,7 +217,7 @@ contract AMMQuoterTest is Test {
         uint256 curveVersion = 3;
         vm.expectRevert("AMMQuoter: Invalid Curve version");
         ammQuoter.getMakerOutAmountWithPath(
-            Addresses.CURVE_USDT_ADDRESS,
+            Addresses.CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT,
@@ -231,7 +229,7 @@ contract AMMQuoterTest is Test {
     function testGetMakerOutAmountWithPath_Curve_Version1() public {
         uint256 curveVersion = 1;
         uint256 amountOut = ammQuoter.getMakerOutAmountWithPath(
-            Addresses.CURVE_USDT_ADDRESS,
+            Addresses.CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT,
@@ -244,7 +242,7 @@ contract AMMQuoterTest is Test {
     function testGetMakerOutAmountWithPath_Curve_Version2() public {
         uint256 curveVersion = 2;
         uint256 amountOut = ammQuoter.getMakerOutAmountWithPath(
-            Addresses.CURVE_TRICRYPTO2_ADDRESS,
+            Addresses.CURVE_TRICRYPTO2_POOL_ADDRESS,
             Addresses.USDT_ADDRESS,
             Addresses.WBTC_ADDRESS,
             100 * 1e6,
@@ -262,7 +260,7 @@ contract AMMQuoterTest is Test {
         address[] memory makers = new address[](3);
         makers[0] = Addresses.UNISWAP_V2_ADDRESS;
         makers[1] = Addresses.SUSHISWAP_ADDRESS;
-        makers[2] = Addresses.CURVE_USDT_ADDRESS;
+        makers[2] = Addresses.CURVE_USDT_POOL_ADDRESS;
         (address bestMaker, uint256 bestAmount) = ammQuoter.getBestOutAmount(
             makers,
             DEFAULT_TAKER_ASSET_ADDR,
@@ -289,12 +287,12 @@ contract AMMQuoterTest is Test {
 
     function testCannotGetTakerInAmount_Curve_InvalidSwapMethod() public {
         vm.expectRevert("PermanentStorage: invalid pair");
-        ammQuoter.getTakerInAmount(Addresses.CURVE_USDT_ADDRESS, address(0xdead), DEFAULT_MAKER_ASSET_ADDR, DEFAULT_TAKER_ASSET_AMOUNT);
+        ammQuoter.getTakerInAmount(Addresses.CURVE_USDT_POOL_ADDRESS, address(0xdead), DEFAULT_MAKER_ASSET_ADDR, DEFAULT_TAKER_ASSET_AMOUNT);
     }
 
     function testGetTakerInAmount_Curve() public {
         uint256 amountOut = ammQuoter.getTakerInAmount(
-            Addresses.CURVE_USDT_ADDRESS,
+            Addresses.CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_AMOUNT
@@ -397,7 +395,7 @@ contract AMMQuoterTest is Test {
         uint256 curveVersion = 3;
         vm.expectRevert("AMMQuoter: Invalid Curve version");
         ammQuoter.getTakerInAmountWithPath(
-            Addresses.CURVE_USDT_ADDRESS,
+            Addresses.CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_AMOUNT,
@@ -409,7 +407,7 @@ contract AMMQuoterTest is Test {
     function testGetTakerInAmountWithPath_Curve_Version1() public {
         uint256 curveVersion = 1;
         uint256 amountOut = ammQuoter.getTakerInAmountWithPath(
-            Addresses.CURVE_USDT_ADDRESS,
+            Addresses.CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_AMOUNT,
@@ -422,7 +420,7 @@ contract AMMQuoterTest is Test {
     function testGetTakerInAmountWithPath_Curve_Version2() public {
         uint256 curveVersion = 2;
         uint256 amountOut = ammQuoter.getTakerInAmountWithPath(
-            Addresses.CURVE_TRICRYPTO2_ADDRESS,
+            Addresses.CURVE_TRICRYPTO2_POOL_ADDRESS,
             Addresses.USDT_ADDRESS,
             Addresses.WBTC_ADDRESS,
             100 * 1e6,
@@ -440,7 +438,7 @@ contract AMMQuoterTest is Test {
         address[] memory makers = new address[](3);
         makers[0] = Addresses.UNISWAP_V2_ADDRESS;
         makers[1] = Addresses.SUSHISWAP_ADDRESS;
-        makers[2] = Addresses.CURVE_USDT_ADDRESS;
+        makers[2] = Addresses.CURVE_USDT_POOL_ADDRESS;
         (address bestMaker, uint256 bestAmount) = ammQuoter.getBestInAmount(
             makers,
             DEFAULT_TAKER_ASSET_ADDR,
