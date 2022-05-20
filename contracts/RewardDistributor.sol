@@ -7,18 +7,30 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "contracts/interfaces/IUniswapRouterV2.sol";
+import "contracts/interfaces/IUniswapV3SwapRouter.sol";
+import "contracts/interfaces/ILon.sol";
+import "contracts/utils/LibBytes.sol";
+import "contracts/Ownable.sol";
+import "contracts/utils/UniswapV3PathLib.sol";
 
-import "./interfaces/IUniswapRouterV2.sol";
-import "./interfaces/ILon.sol";
-import "./Ownable.sol";
-
-contract RewardDistributor is Ownable, Pausable {
+contract RewardDistributor is Ownable, Pausable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+    using LibBytes for bytes;
+    using Path for bytes;
 
     // Constants do not have storage slot.
     uint256 private constant MAX_UINT = 2**256 - 1;
+    uint8 private constant UNISWAP_V2_INDEX = 0;
+    uint8 private constant SUSHISWAP_INDEX = 1;
+    uint8 private constant UNISWAP_V3_INDEX = 2;
+    address public immutable UNISWAP_V2_ROUTER_02_ADDRESS;
+    address public immutable UNISWAP_V3_ROUTER_ADDRESS;
+    address public immutable SUSHISWAP_ROUTER_ADDRESS;
     address public immutable LON_TOKEN_ADDR;
+    uint32 public immutable MIN_BUYBACK_INTERVAL;
 
     // Below are the variables which consume storage slots.
     uint32 public buybackInterval;
@@ -33,23 +45,36 @@ contract RewardDistributor is Ownable, Pausable {
     address public feeTokenRecipient;
 
     mapping(uint256 => address) public strategyAddrs;
-    mapping(uint256 => address) public exchangeAddrs;
     mapping(address => FeeToken) public feeTokens;
 
     /* Struct and event declaration */
     struct FeeToken {
-        uint8 exchangeIndex;
         uint8 LFactor; // Percentage of fee token reserved for feeTokenRecipient
         uint8 RFactor; // Percentage of buyback-ed lon token for treasury
         uint32 lastTimeBuyback;
         bool enable;
         uint256 minBuy;
         uint256 maxBuy;
-        address[] path;
+        bytes encodedAMMRoute;
+    }
+
+    struct ConstructorParams {
+        address lonTokenAddr;
+        address sushiRouterAddr;
+        address uniswapV2RouterAddr;
+        address uniswapV3RouterAddr;
+        address owner;
+        address operator;
+        uint32 minBuyBackInterval;
+        uint32 buyBackInterval;
+        uint8 miningFactor;
+        address treasury;
+        address lonStaking;
+        address miningTreasury;
+        address feeTokenRecipient;
     }
 
     // Owner events
-
     event SetOperator(address operator, bool enable);
     event SetMiningFactor(uint8 miningFactor);
     event SetTreasury(address treasury);
@@ -59,11 +84,10 @@ contract RewardDistributor is Ownable, Pausable {
     // Operator events
     event SetBuybackInterval(uint256 interval);
     event SetStrategy(uint256 index, address strategy);
-    event SetExchange(uint256 index, address exchange);
     event EnableFeeToken(address feeToken, bool enable);
-    event SetFeeToken(address feeToken, uint256 exchangeIndex, address[] path, uint256 LFactor, uint256 RFactor, uint256 minBuy, uint256 maxBuy);
+    event SetFeeToken(address feeToken, bytes encodedAMMRoute, uint256 LFactor, uint256 RFactor, uint256 minBuy, uint256 maxBuy);
     event SetFeeTokenFailure(address feeToken, string reason, bytes lowLevelData);
-
+    // Main events
     event BuyBack(address feeToken, uint256 feeTokenAmount, uint256 swappedLonAmount, uint256 LFactor, uint256 RFactor, uint256 minBuy, uint256 maxBuy);
     event BuyBackFailure(address feeToken, uint256 feeTokenAmount, string reason, bytes lowLevelData);
     event DistributeLon(uint256 treasuryAmount, uint256 lonStakingAmount);
@@ -100,38 +124,32 @@ contract RewardDistributor is Ownable, Pausable {
     /************************************************************
      *                       Constructor                         *
      *************************************************************/
-    constructor(
-        address _LON_TOKEN_ADDR,
-        address _owner,
-        address _operator,
-        uint32 _buyBackInterval,
-        uint8 _miningFactor,
-        address _treasury,
-        address _lonStaking,
-        address _miningTreasury,
-        address _feeTokenRecipient
-    ) Ownable(_owner) {
-        LON_TOKEN_ADDR = _LON_TOKEN_ADDR;
+    constructor(ConstructorParams memory params) Ownable(params.owner) {
+        LON_TOKEN_ADDR = params.lonTokenAddr;
+        SUSHISWAP_ROUTER_ADDRESS = params.sushiRouterAddr;
+        UNISWAP_V2_ROUTER_02_ADDRESS = params.uniswapV2RouterAddr;
+        UNISWAP_V3_ROUTER_ADDRESS = params.uniswapV3RouterAddr;
+        MIN_BUYBACK_INTERVAL = params.minBuyBackInterval;
 
-        isOperator[_operator] = true;
+        isOperator[params.operator] = true;
 
-        buybackInterval = _buyBackInterval;
+        buybackInterval = params.buyBackInterval;
 
-        require(_miningFactor <= 100, "incorrect mining factor");
-        miningFactor = _miningFactor;
+        require(params.miningFactor <= 100, "incorrect mining factor");
+        miningFactor = params.miningFactor;
 
-        require(Address.isContract(_lonStaking), "Lon staking is not a contract");
-        treasury = _treasury;
-        lonStaking = _lonStaking;
-        miningTreasury = _miningTreasury;
-        feeTokenRecipient = _feeTokenRecipient;
+        require(Address.isContract(params.lonStaking), "Lon staking is not a contract");
+        treasury = params.treasury;
+        lonStaking = params.lonStaking;
+        miningTreasury = params.miningTreasury;
+        feeTokenRecipient = params.feeTokenRecipient;
     }
 
     /************************************************************
      *                     Getter functions                      *
      *************************************************************/
-    function getFeeTokenPath(address _feeTokenAddr) public view returns (address[] memory path) {
-        return feeTokens[_feeTokenAddr].path;
+    function getFeeTokenAMMRoute(address _feeTokenAddr) public view returns (bytes memory encodedAMMRoute) {
+        return feeTokens[_feeTokenAddr].encodedAMMRoute;
     }
 
     /************************************************************
@@ -209,23 +227,9 @@ contract RewardDistributor is Ownable, Pausable {
         }
     }
 
-    function setExchangeAddrs(uint256[] calldata _indexes, address[] calldata _exchangeAddrs) external only_Operator_or_Owner {
-        require(_indexes.length == _exchangeAddrs.length, "input not the same length");
-
-        for (uint256 i = 0; i < _indexes.length; i++) {
-            require(Address.isContract(_exchangeAddrs[i]), "exchange is not a contract");
-            require(_indexes[i] <= numExchangeAddr, "index out of bound");
-
-            exchangeAddrs[_indexes[i]] = _exchangeAddrs[i];
-            if (_indexes[i] == numExchangeAddr) numExchangeAddr++;
-            emit SetExchange(_indexes[i], _exchangeAddrs[i]);
-        }
-    }
-
     function setFeeToken(
         address _feeTokenAddr,
-        uint8 _exchangeIndex,
-        address[] calldata _path,
+        bytes memory _encodedAMMRoute,
         uint8 _LFactor,
         uint8 _RFactor,
         bool _enable,
@@ -234,16 +238,23 @@ contract RewardDistributor is Ownable, Pausable {
     ) external only_Owner_or_Operator_or_Self {
         // Validate fee token inputs
         require(Address.isContract(_feeTokenAddr), "fee token is not a contract");
-        require(Address.isContract(exchangeAddrs[_exchangeIndex]), "exchange is not a contract");
-        require(_path.length >= 2, "invalid swap path");
-        require(_path[_path.length - 1] == LON_TOKEN_ADDR, "output token must be LON");
         require(_LFactor <= 100, "incorrect LFactor");
         require(_RFactor <= 100, "incorrect RFactor");
         require(_minBuy <= _maxBuy, "incorrect minBuy and maxBuy");
 
+        uint8 _exchangeIndex = uint8(uint256(_encodedAMMRoute.readBytes32(0)));
+        require(_exchangeIndex < 3, "invalid exchange index");
+        if (_exchangeIndex == UNISWAP_V2_INDEX || _exchangeIndex == SUSHISWAP_INDEX) {
+            (, address[] memory _decodedPath) = abi.decode(_encodedAMMRoute, (uint8, address[]));
+            require(_decodedPath.length >= 2, "invalid Sushiswap/Uniswap v2 swap path");
+            require(_decodedPath[_decodedPath.length - 1] == LON_TOKEN_ADDR, "output token must be LON");
+        } else if (_exchangeIndex == UNISWAP_V3_INDEX) {
+            (, bytes memory _decodedPath) = abi.decode(_encodedAMMRoute, (uint8, bytes));
+            require(_decodedPath.numPools() >= 1, "invalid Uniswap v3 swap path");
+        }
+
         FeeToken storage feeToken = feeTokens[_feeTokenAddr];
-        feeToken.exchangeIndex = _exchangeIndex;
-        feeToken.path = _path;
+        feeToken.encodedAMMRoute = _encodedAMMRoute;
         feeToken.LFactor = _LFactor;
         feeToken.RFactor = _RFactor;
         if (feeToken.enable != _enable) {
@@ -252,13 +263,12 @@ contract RewardDistributor is Ownable, Pausable {
         }
         feeToken.minBuy = _minBuy;
         feeToken.maxBuy = _maxBuy;
-        emit SetFeeToken(_feeTokenAddr, _exchangeIndex, _path, _LFactor, _RFactor, _minBuy, _maxBuy);
+        emit SetFeeToken(_feeTokenAddr, _encodedAMMRoute, _LFactor, _RFactor, _minBuy, _maxBuy);
     }
 
     function setFeeTokens(
         address[] memory _feeTokenAddr,
-        uint8[] memory _exchangeIndex,
-        address[][] memory _path,
+        bytes[] memory _encodedAMMRoute,
         uint8[] memory _LFactor,
         uint8[] memory _RFactor,
         bool[] memory _enable,
@@ -267,8 +277,7 @@ contract RewardDistributor is Ownable, Pausable {
     ) external only_Operator_or_Owner {
         uint256 inputLength = _feeTokenAddr.length;
         require(
-            (_exchangeIndex.length == inputLength) &&
-                (_path.length == inputLength) &&
+            (_encodedAMMRoute.length == inputLength) &&
                 (_LFactor.length == inputLength) &&
                 (_RFactor.length == inputLength) &&
                 (_enable.length == inputLength) &&
@@ -278,7 +287,7 @@ contract RewardDistributor is Ownable, Pausable {
         );
 
         for (uint256 i = 0; i < inputLength; i++) {
-            try this.setFeeToken(_feeTokenAddr[i], _exchangeIndex[i], _path[i], _LFactor[i], _RFactor[i], _enable[i], _minBuy[i], _maxBuy[i]) {
+            try this.setFeeToken(_feeTokenAddr[i], _encodedAMMRoute[i], _LFactor[i], _RFactor[i], _enable[i], _minBuy[i], _maxBuy[i]) {
                 continue;
             } catch Error(string memory reason) {
                 emit SetFeeTokenFailure(_feeTokenAddr[i], reason, bytes(""));
@@ -357,28 +366,57 @@ contract RewardDistributor is Ownable, Pausable {
 
     function _swap(
         address _feeTokenAddr,
-        address _exchangeAddr,
-        address[] memory _path,
+        bytes memory _encodedAMMRoute,
         uint256 _amountFeeTokenToSwap,
         uint256 _minLonAmount
     ) internal returns (uint256 swappedLonAmount) {
-        // Approve exchange contract
-        IERC20(_feeTokenAddr).safeApprove(_exchangeAddr, MAX_UINT);
+        uint8 _exchangeIndex = uint8(uint256(_encodedAMMRoute.readBytes32(0)));
+        if (_exchangeIndex == UNISWAP_V2_INDEX || _exchangeIndex == SUSHISWAP_INDEX) {
+            // Uniswap v2 and Sushiswap case
+            address _exchangeAddr = (_exchangeIndex == UNISWAP_V2_INDEX) ? UNISWAP_V2_ROUTER_02_ADDRESS : SUSHISWAP_ROUTER_ADDRESS;
 
-        // Swap fee token for Lon
-        IUniswapRouterV2 router = IUniswapRouterV2(_exchangeAddr);
+            // Decode path
+            (, address[] memory _decodedPath) = abi.decode(_encodedAMMRoute, (uint8, address[]));
 
-        uint256[] memory amounts = router.swapExactTokensForTokens(
-            _amountFeeTokenToSwap,
-            _minLonAmount, // Minimum amount of Lon expected to receive
-            _path,
-            address(this),
-            block.timestamp + 60
-        );
-        swappedLonAmount = amounts[_path.length - 1];
+            // Approve exchange contract
+            IERC20(_feeTokenAddr).safeApprove(_exchangeAddr, MAX_UINT);
 
-        // Clear allowance for exchange contract
-        IERC20(_feeTokenAddr).safeApprove(_exchangeAddr, 0);
+            // Swap fee token for Lon
+            IUniswapRouterV2 router = IUniswapRouterV2(_exchangeAddr);
+            uint256[] memory amounts = router.swapExactTokensForTokens(
+                _amountFeeTokenToSwap,
+                _minLonAmount, // Minimum amount of Lon expected to receive
+                _decodedPath,
+                address(this),
+                block.timestamp + 60
+            );
+            swappedLonAmount = amounts[_decodedPath.length - 1];
+
+            // Clear allowance for exchange contract
+            IERC20(_feeTokenAddr).safeApprove(_exchangeAddr, 0);
+        } else if (_exchangeIndex == UNISWAP_V3_INDEX) {
+            // Uniswap v3 case
+            address _exchangeAddr = UNISWAP_V3_ROUTER_ADDRESS;
+
+            // Decode path
+            (, bytes memory _decodedPath) = abi.decode(_encodedAMMRoute, (uint8, bytes));
+
+            // Approve exchange contract
+            IERC20(_feeTokenAddr).safeApprove(_exchangeAddr, MAX_UINT);
+
+            // Swap fee token for Lon
+            ISwapRouter router = ISwapRouter(_exchangeAddr);
+            ISwapRouter.ExactInputParams memory exactInputParams;
+            exactInputParams.path = _decodedPath;
+            exactInputParams.recipient = address(this);
+            exactInputParams.deadline = block.timestamp + 60;
+            exactInputParams.amountIn = _amountFeeTokenToSwap;
+            exactInputParams.amountOutMinimum = _minLonAmount;
+            swappedLonAmount = router.exactInput(exactInputParams);
+
+            // Clear allowance for exchange contract
+            IERC20(_feeTokenAddr).safeApprove(_exchangeAddr, 0);
+        }
     }
 
     function _distributeLon(FeeToken memory _feeToken, uint256 swappedLonAmount) internal {
@@ -409,12 +447,11 @@ contract RewardDistributor is Ownable, Pausable {
     function _buyback(
         address _feeTokenAddr,
         FeeToken storage _feeToken,
-        address _exchangeAddr,
         uint256 _amountFeeTokenToSwap,
         uint256 _minLonAmount
     ) internal {
         if (_amountFeeTokenToSwap > 0) {
-            uint256 swappedLonAmount = _swap(_feeTokenAddr, _exchangeAddr, _feeToken.path, _amountFeeTokenToSwap, _minLonAmount);
+            uint256 swappedLonAmount = _swap(_feeTokenAddr, _feeToken.encodedAMMRoute, _amountFeeTokenToSwap, _minLonAmount);
 
             // Update fee token data
             _feeToken.lastTimeBuyback = uint32(block.timestamp);
@@ -433,7 +470,7 @@ contract RewardDistributor is Ownable, Pausable {
         address _feeTokenAddr,
         uint256 _amount,
         uint256 _minLonAmount
-    ) external whenNotPaused only_EOA_or_Self {
+    ) external whenNotPaused only_EOA_or_Self nonReentrant {
         FeeToken storage feeToken = feeTokens[_feeTokenAddr];
 
         // Distribute LON directly without swap
@@ -463,7 +500,7 @@ contract RewardDistributor is Ownable, Pausable {
             _transferFeeToken(_feeTokenAddr, address(this), _amount);
 
             // Buyback
-            _buyback(_feeTokenAddr, feeToken, exchangeAddrs[feeToken.exchangeIndex], amountFeeTokenToSwap, _minLonAmount);
+            _buyback(_feeTokenAddr, feeToken, amountFeeTokenToSwap, _minLonAmount);
 
             // Transfer fee token from distributor to feeTokenRecipient
             if (amountFeeTokenToTransfer > 0) {
