@@ -65,12 +65,12 @@ contract AMMWrapperTest is StrategySharedSetup {
 
         // Setup
         setUpSystemContracts();
-        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorageStub), address(weth));
+        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
         address[] memory relayerListAddress = new address[](1);
         relayerListAddress[0] = relayer;
         bool[] memory relayerListBool = new bool[](1);
         relayerListBool[0] = true;
-        permanentStorageStub.setRelayersValid(relayerListAddress, relayerListBool);
+        permanentStorage.setRelayersValid(relayerListAddress, relayerListBool);
 
         // Deal 100 ETH to each account
         dealWallet(wallet, 100 ether);
@@ -105,14 +105,15 @@ contract AMMWrapperTest is StrategySharedSetup {
         ammWrapper = new AMMWrapper(
             address(this), // This contract would be the operator
             SUBSIDY_FACTOR,
-            address(userProxyStub),
+            address(userProxy),
             ISpender(address(spender)),
-            permanentStorageStub,
+            permanentStorage,
             IWETH(address(weth))
         );
         // Setup
-        userProxyStub.upgradeAMMWrapper(address(ammWrapper));
-        permanentStorageStub.upgradeAMMWrapper(address(ammWrapper));
+        userProxy.upgradeAMMWrapper(address(ammWrapper), true);
+        permanentStorage.upgradeAMMWrapper(address(ammWrapper));
+        permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(ammWrapper), true);
         return address(ammWrapper);
     }
 
@@ -135,12 +136,12 @@ contract AMMWrapperTest is StrategySharedSetup {
     function testSetupAMMWrapper() public {
         assertEq(ammWrapper.operator(), address(this));
         assertEq(ammWrapper.subsidyFactor(), SUBSIDY_FACTOR);
-        assertEq(ammWrapper.userProxy(), address(userProxyStub));
+        assertEq(ammWrapper.userProxy(), address(userProxy));
         assertEq(address(ammWrapper.spender()), address(spender));
-        assertEq(userProxyStub.ammWrapperAddr(), address(ammWrapper));
-        assertEq(permanentStorageStub.ammWrapperAddr(), address(ammWrapper));
+        assertEq(userProxy.ammWrapperAddr(), address(ammWrapper));
+        assertEq(permanentStorage.ammWrapperAddr(), address(ammWrapper));
         assertTrue(spender.isAuthorized(address(ammWrapper)));
-        assertTrue(permanentStorageStub.isRelayerValid(relayer));
+        assertTrue(permanentStorage.isRelayerValid(relayer));
     }
 
     /*********************************
@@ -221,7 +222,7 @@ contract AMMWrapperTest is StrategySharedSetup {
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
         vm.expectRevert("AMMWrapper: invalid user signature");
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
     }
 
     function testTradeUniswapV2() public {
@@ -236,7 +237,7 @@ contract AMMWrapperTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
 
         vm.prank(user);
-        userProxyStub.toAMM{ value: order.takerAssetAmount }(payload);
+        userProxy.toAMM{ value: order.takerAssetAmount }(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
@@ -245,14 +246,14 @@ contract AMMWrapperTest is StrategySharedSetup {
     function testTradeCurve() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAddr = Addresses.CURVE_USDT_ADDRESS;
+        order.makerAddr = Addresses.CURVE_USDT_POOL_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
 
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
@@ -270,7 +271,7 @@ contract AMMWrapperTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
 
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
@@ -282,10 +283,10 @@ contract AMMWrapperTest is StrategySharedSetup {
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
 
         vm.expectRevert("PermanentStorage: transaction seen before");
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
     }
 
     /*********************************
@@ -317,7 +318,7 @@ contract AMMWrapperTest is StrategySharedSetup {
             uint16(feeFactor), // Fee factor: 0
             uint16(0) // Subsidy factor: 0
         );
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
     }
 
     /*****************************************************
@@ -335,7 +336,7 @@ contract AMMWrapperTest is StrategySharedSetup {
 
         BalanceSnapshot.Snapshot memory ammWrapperMakerAsset = BalanceSnapshot.take(address(ammWrapper), order.makerAssetAddr);
 
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
 
         ammWrapperMakerAsset.assertChange(int256(0));
     }
@@ -358,7 +359,7 @@ contract AMMWrapperTest is StrategySharedSetup {
 
         BalanceSnapshot.Snapshot memory ammWrapperMakerAsset = BalanceSnapshot.take(address(ammWrapper), order.makerAssetAddr);
 
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
 
         ammWrapperMakerAsset.assertChangeGt(int256(0));
     }
@@ -381,7 +382,7 @@ contract AMMWrapperTest is StrategySharedSetup {
 
         BalanceSnapshot.Snapshot memory ammWrapperMakerAsset = BalanceSnapshot.take(address(ammWrapper), order.makerAssetAddr);
 
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
 
         ammWrapperMakerAsset.assertChangeGt(int256(0));
     }
@@ -407,7 +408,7 @@ contract AMMWrapperTest is StrategySharedSetup {
 
         vm.expectRevert("UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         vm.prank(relayer, relayer);
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
     }
 
     function testCannotSubsidizeWithoutEnoughBalance() public {
@@ -424,7 +425,7 @@ contract AMMWrapperTest is StrategySharedSetup {
 
         vm.expectRevert("AMMWrapper: not enough savings to subsidize");
         vm.prank(relayer, relayer);
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
     }
 
     function testCannotSubsidizeExceedMaxSubsidyAmount() public {
@@ -440,14 +441,14 @@ contract AMMWrapperTest is StrategySharedSetup {
         vm.expectRevert("AMMWrapper: amount difference larger than subsidy amount");
         vm.prank(relayer, relayer);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
 
         // Set fee factor to 1
         feeFactor = 1;
         vm.expectRevert("AMMWrapper: amount difference larger than subsidy amount");
         vm.prank(relayer, relayer);
         payload = _genTradePayload(order, feeFactor, sig);
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
     }
 
     function testCannotSubsidizeByNotRelayer() public {
@@ -461,7 +462,7 @@ contract AMMWrapperTest is StrategySharedSetup {
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
         vm.expectRevert("UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
     }
 
     function testSubsidize() public {
@@ -480,7 +481,7 @@ contract AMMWrapperTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory ammWrapperMakerAsset = BalanceSnapshot.take(address(ammWrapper), order.makerAssetAddr);
 
         vm.prank(relayer, relayer);
-        userProxyStub.toAMM(payload);
+        userProxy.toAMM(payload);
 
         ammWrapperMakerAsset.assertChangeGt(-int256(0));
     }
