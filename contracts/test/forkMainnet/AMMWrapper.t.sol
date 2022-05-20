@@ -6,7 +6,6 @@ import "contracts/AMMQuoter.sol";
 import "contracts/interfaces/IPermanentStorage.sol";
 import "contracts/interfaces/ISpender.sol";
 import "contracts/utils/AMMLibEIP712.sol";
-import "contracts-test/mocks/MockERC20.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 import "contracts-test/utils/StrategySharedSetup.sol";
 
@@ -34,16 +33,16 @@ contract AMMWrapperTest is StrategySharedSetup {
     uint256 userPrivateKey = uint256(1);
     uint256 otherPrivateKey = uint256(2);
 
-    address user;
+    address user = vm.addr(userPrivateKey);
     address relayer = address(0x133702);
-    address[] wallet;
-    IERC20[] tokens;
+    address[] wallet = [user, relayer];
 
     AMMWrapper ammWrapper;
     AMMQuoter ammQuoter;
-    IERC20 weth;
-    IERC20 usdt;
-    IERC20 dai;
+    IERC20 weth = IERC20(Addresses.WETH_ADDRESS);
+    IERC20 usdt = IERC20(Addresses.USDT_ADDRESS);
+    IERC20 dai = IERC20(Addresses.DAI_ADDRESS);
+    IERC20[] tokens = [weth, usdt, dai];
 
     uint256 SUBSIDY_FACTOR = 3;
     uint256 DEADLINE = block.timestamp + 1;
@@ -51,18 +50,6 @@ contract AMMWrapperTest is StrategySharedSetup {
 
     // effectively a "beforeEach" block
     function setUp() public {
-        user = vm.addr(userPrivateKey);
-        wallet.push(user);
-        wallet.push(relayer);
-
-        // Tokens
-        weth = IERC20(Addresses.WETH_ADDRESS);
-        usdt = IERC20(Addresses.USDT_ADDRESS);
-        dai = IERC20(Addresses.DAI_ADDRESS);
-        tokens.push(weth);
-        tokens.push(usdt);
-        tokens.push(dai);
-
         // Setup
         setUpSystemContracts();
         ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
@@ -99,6 +86,8 @@ contract AMMWrapperTest is StrategySharedSetup {
         vm.label(address(usdt), "USDT");
         vm.label(address(dai), "DAI");
         vm.label(Addresses.UNISWAP_V2_ADDRESS, "UniswapV2");
+        vm.label(Addresses.SUSHISWAP_ADDRESS, "Sushiswap");
+        vm.label(Addresses.CURVE_USDT_POOL_ADDRESS, "CurveUSDTPool");
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
@@ -120,12 +109,6 @@ contract AMMWrapperTest is StrategySharedSetup {
     /*********************************
      *          Test: setup          *
      *********************************/
-
-    function testSetupTokens() public {
-        for (uint256 i = 0; i < tokens.length; i++) {
-            assertGt(tokens[i].totalSupply(), uint256(0));
-        }
-    }
 
     function testSetupAllowance() public {
         for (uint256 i = 0; i < tokens.length; i++) {

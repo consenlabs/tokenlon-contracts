@@ -1,10 +1,9 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-
 import "./AMMWrapper.sol";
 import "./interfaces/IBalancerV2Vault.sol";
 import "./interfaces/IPermanentStorage.sol";
@@ -21,6 +20,7 @@ contract AMMWrapperWithPath is AMMWrapper {
     using LibBytes for bytes;
 
     // Constants do not have storage slot.
+    address public constant BALANCER_V2_VAULT_ADDRESS = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
     address public constant UNISWAP_V3_ROUTER_ADDRESS = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     event Swapped(TxMetaData, AMMLibEIP712.Order order);
@@ -97,7 +97,12 @@ contract AMMWrapperWithPath is AMMWrapper {
      * Used to tell if maker is Curve.
      */
     function _isCurve(address _makerAddr) internal pure override returns (bool) {
-        if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == UNISWAP_V3_ROUTER_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) {
+        if (
+            _makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS ||
+            _makerAddr == UNISWAP_V3_ROUTER_ADDRESS ||
+            _makerAddr == SUSHISWAP_ROUTER_ADDRESS ||
+            _makerAddr == BALANCER_V2_VAULT_ADDRESS
+        ) {
             return false;
         }
         return true;
@@ -138,6 +143,17 @@ contract AMMWrapperWithPath is AMMWrapper {
                 _minAmount,
                 _internalTxData.makerSpecificData
             );
+        } else if (_order.makerAddr == BALANCER_V2_VAULT_ADDRESS) {
+            source = "Balancer V2";
+            receivedAmount = _tradeBalancerV2TokenToToken(
+                _internalTxData.path,
+                _internalTxData.takerAssetInternalAddr,
+                _internalTxData.makerAssetInternalAddr,
+                _order.takerAssetAmount,
+                _minAmount,
+                _order.deadline,
+                _internalTxData.makerSpecificData
+            );
         } else {
             // Try to match maker with Curve pool list
             CurveData memory curveData;
@@ -146,28 +162,27 @@ contract AMMWrapperWithPath is AMMWrapper {
                 _internalTxData.takerAssetInternalAddr,
                 _internalTxData.makerAssetInternalAddr
             );
+            require(curveData.fromTokenCurveIndex > 0 && curveData.toTokenCurveIndex > 0 && curveData.swapMethod != 0, "AMMWrapper: Unsupported makerAddr");
 
-            require(curveData.swapMethod != 0, "AMMWrapper: swap method not registered");
-            if (curveData.fromTokenCurveIndex > 0 && curveData.toTokenCurveIndex > 0) {
-                source = "Curve";
-                // Substract index by 1 because indices stored in `permStorage` starts from 1
-                curveData.fromTokenCurveIndex = curveData.fromTokenCurveIndex - 1;
-                curveData.toTokenCurveIndex = curveData.toTokenCurveIndex - 1;
-                // Curve does not return amount swapped so we need to record balance change instead.
-                uint256 balanceBeforeTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
-                _tradeCurveTokenToToken(
-                    _order.makerAddr,
-                    curveData.fromTokenCurveIndex,
-                    curveData.toTokenCurveIndex,
-                    _order.takerAssetAmount,
-                    _minAmount,
-                    curveData.swapMethod
-                );
-                uint256 balanceAfterTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
-                receivedAmount = balanceAfterTrade.sub(balanceBeforeTrade);
-            } else {
-                revert("AMMWrapper: unsupported makerAddr");
-            }
+            // Handle Curve
+            source = "Curve";
+            // Substract index by 1 because indices stored in `permStorage` starts from 1
+            curveData.fromTokenCurveIndex = curveData.fromTokenCurveIndex - 1;
+            curveData.toTokenCurveIndex = curveData.toTokenCurveIndex - 1;
+            // Curve does not return amount swapped so we need to record balance change instead.
+            uint256 balanceBeforeTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
+            _tradeCurveTokenToToken(
+                _order.makerAddr,
+                uint8(uint256(_internalTxData.makerSpecificData.readBytes32(0))), // curve version
+                curveData.fromTokenCurveIndex,
+                curveData.toTokenCurveIndex,
+                _order.takerAssetAmount,
+                _minAmount,
+                curveData.swapMethod
+            );
+            uint256 balanceAfterTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
+            receivedAmount = balanceAfterTrade.sub(balanceBeforeTrade);
+            require(receivedAmount > 0, "AMMWrapper: No output from curve");
         }
     }
 
@@ -253,5 +268,78 @@ contract AMMWrapperWithPath is AMMWrapper {
         }
 
         revert("AMMWrapper: unsupported UniswapV3 swap type");
+    }
+
+    /* Balancer V2 */
+
+    function _tradeBalancerV2TokenToToken(
+        address[] memory _path,
+        address _takerAssetAddr,
+        address _makerAssetAddr,
+        uint256 _takerAssetAmount,
+        uint256 _makerAssetAmount,
+        uint256 _deadline,
+        bytes memory _makerSpecificData
+    ) internal returns (uint256 amountOut) {
+        _validateAMMPath(_path, _takerAssetAddr, _makerAssetAddr);
+        IBalancerV2Vault.BatchSwapStep[] memory swapSteps = _parseBalancerV2SwapSteps(
+            _path,
+            _takerAssetAddr,
+            _makerAssetAddr,
+            _takerAssetAmount,
+            _makerSpecificData
+        );
+        int256[] memory limits = _buildBalancerV2Limits(_path, _takerAssetAmount, _makerAssetAmount);
+        int256[] memory amountDeltas = IBalancerV2Vault(BALANCER_V2_VAULT_ADDRESS).batchSwap(
+            IBalancerV2Vault.SwapKind.GIVEN_IN,
+            swapSteps,
+            _path,
+            // Balancer supports internal balance which keeps user balance in their contract to skip actual token transfer for efficiency.
+            // AMM user should receive tokens right away after swap, so we need to turn off internal balance flag here.
+            IBalancerV2Vault.FundManagement({ sender: address(this), fromInternalBalance: false, recipient: payable(address(this)), toInternalBalance: false }),
+            limits,
+            _deadline
+        );
+        // amount swapped out from balancer will denoted with negative sign
+        amountOut = uint256(-amountDeltas[amountDeltas.length - 1]);
+        require(amountOut >= _makerAssetAmount, "AMMWrapper: BalancerV2 swaps out insufficient tokens");
+    }
+
+    function _parseBalancerV2SwapSteps(
+        address[] memory _path,
+        address _takerAssetAddr,
+        address _makerAssetAddr,
+        uint256 _takerAssetAmount,
+        bytes memory _makerSpecificData
+    ) internal returns (IBalancerV2Vault.BatchSwapStep[] memory) {
+        IBalancerV2Vault.BatchSwapStep[] memory swapSteps = abi.decode(_makerSpecificData, (IBalancerV2Vault.BatchSwapStep[]));
+
+        require(swapSteps.length > 0, "AMMWrapper: BalancerV2 requires at least one swap step");
+        require(_path[swapSteps[0].assetInIndex] == _takerAssetAddr, "AMMWrapper: BalancerV2 first step asset in should match taker asset");
+        require(_path[swapSteps[swapSteps.length - 1].assetOutIndex] == _makerAssetAddr, "AMMWrapper: BalancerV2 last step asset out should match maker asset");
+
+        require(swapSteps[0].amount <= _takerAssetAmount, "AMMWrapper: BalancerV2 cannot swap more than taker asset amount");
+        for (uint256 i = 1; i < swapSteps.length; i++) {
+            require(swapSteps[i].amount == 0, "AMMWrapper: BalancerV2 can only specify amount at first step");
+        }
+
+        return swapSteps;
+    }
+
+    function _buildBalancerV2Limits(
+        address[] memory _path,
+        uint256 _takerAssetAmount,
+        uint256 _makerAssetAmount
+    ) internal returns (int256[] memory) {
+        int256[] memory limits = new int256[](_path.length);
+        // amount swapped in to balancer will denoted with positive sign
+        limits[0] = int256(_takerAssetAmount);
+        for (uint256 i = 1; i < _path.length - 1; i++) {
+            // we only care final maker asset out amount
+            limits[i] = LibConstant.MAX_INT;
+        }
+        // amount swapped out from balancer will denoted with negative sign
+        limits[_path.length - 1] = int256(-_makerAssetAmount);
+        return limits;
     }
 }

@@ -5,16 +5,19 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./interfaces/ISpender.sol";
+import "./interfaces/IUniswapExchange.sol";
+import "./interfaces/IUniswapFactory.sol";
 import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ICurveFi.sol";
-import "./interfaces/IAMMWrapper.sol";
+import "./interfaces/ICurveFiV2.sol";
+import "./interfaces/IAMM.sol";
 import "./interfaces/IWeth.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./utils/AMMLibEIP712.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
-contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
+contract AMMWrapper is IAMM, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -370,27 +373,26 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
                 _internalTxData.takerAssetInternalAddr,
                 _internalTxData.makerAssetInternalAddr
             );
-            require(curveData.swapMethod != 0, "AMMWrapper: swap method not registered");
-            if (curveData.fromTokenCurveIndex > 0 && curveData.toTokenCurveIndex > 0) {
-                source = "Curve";
-                // Substract index by 1 because indices stored in `permStorage` starts from 1
-                curveData.fromTokenCurveIndex = curveData.fromTokenCurveIndex - 1;
-                curveData.toTokenCurveIndex = curveData.toTokenCurveIndex - 1;
-                // Curve does not return amount swapped so we need to record balance change instead.
-                uint256 balanceBeforeTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
-                _tradeCurveTokenToToken(
-                    _order.makerAddr,
-                    curveData.fromTokenCurveIndex,
-                    curveData.toTokenCurveIndex,
-                    _order.takerAssetAmount,
-                    _minAmount,
-                    curveData.swapMethod
-                );
-                uint256 balanceAfterTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
-                receivedAmount = balanceAfterTrade.sub(balanceBeforeTrade);
-            } else {
-                revert("AMMWrapper: unsupported makerAddr");
-            }
+            require(curveData.fromTokenCurveIndex > 0 && curveData.toTokenCurveIndex > 0 && curveData.swapMethod != 0, "AMMWrapper: Unsupported makerAddr");
+
+            // Handle Curve
+            source = "Curve";
+            // Substract index by 1 because indices stored in `permStorage` starts from 1
+            curveData.fromTokenCurveIndex = curveData.fromTokenCurveIndex - 1;
+            curveData.toTokenCurveIndex = curveData.toTokenCurveIndex - 1;
+            // Curve does not return amount swapped so we need to record balance change instead.
+            uint256 balanceBeforeTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
+            _tradeCurveTokenToToken(
+                _order.makerAddr,
+                1, // here only support curve v1
+                curveData.fromTokenCurveIndex,
+                curveData.toTokenCurveIndex,
+                _order.takerAssetAmount,
+                _minAmount,
+                curveData.swapMethod
+            );
+            uint256 balanceAfterTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
+            receivedAmount = balanceAfterTrade.sub(balanceBeforeTrade);
         }
     }
 
@@ -461,18 +463,28 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
 
     function _tradeCurveTokenToToken(
         address _makerAddr,
+        uint8 _version,
         int128 i,
         int128 j,
         uint256 _takerAssetAmount,
         uint256 _makerAssetAmount,
         uint16 _swapMethod
     ) internal {
-        ICurveFi curve = ICurveFi(_makerAddr);
-        if (_swapMethod == 1) {
-            curve.exchange{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
-        } else if (_swapMethod == 2) {
-            curve.exchange_underlying{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+        if (_version == 1) {
+            ICurveFi curve = ICurveFi(_makerAddr);
+            if (_swapMethod == 1) {
+                curve.exchange{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+            } else if (_swapMethod == 2) {
+                curve.exchange_underlying{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+            }
+            return;
+        } else if (_version == 2) {
+            ICurveFiV2 curve = ICurveFiV2(_makerAddr);
+            require(_swapMethod == 1, "AMMWrapper: Curve v2 no underlying");
+            curve.exchange{ value: msg.value }(uint256(i), uint256(j), _takerAssetAmount, _makerAssetAmount, true);
+            return;
         }
+        revert("AMMWrapper: Invalid Curve version");
     }
 
     function _tradeUniswapV2TokenToToken(
