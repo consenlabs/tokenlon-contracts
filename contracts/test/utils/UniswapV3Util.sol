@@ -2,6 +2,19 @@ pragma solidity ^0.7.6;
 
 import "./Addresses.sol";
 
+uint24 constant FEE_LOW = 500;
+uint24 constant FEE_MEDIUM = 3000;
+uint24 constant FEE_HIGH = 10000;
+
+function encodePath(address[] memory path, uint24[] memory fees) returns (bytes memory) {
+    bytes memory res;
+    for (uint256 i = 0; i < fees.length; i++) {
+        res = abi.encodePacked(res, path[i], fees[i]);
+    }
+    res = abi.encodePacked(res, path[path.length - 1]);
+    return res;
+}
+
 interface IQuoter {
     function quoteExactInput(bytes memory path, uint256 amountIn) external returns (uint256 amountOut);
 
@@ -25,7 +38,7 @@ interface IQuoter {
 }
 
 abstract contract UniswapV3Util {
-    IQuoter quoter = IQuoter(Addresses.UNISWAP_V3_QUOTER_ADDR);
+    IQuoter quoter = IQuoter(Addresses.UNISWAP_V3_QUOTER_ADDRESS);
 
     function quoteUniswapV3ExactInput(bytes memory path, uint256 amountIn) internal returns (uint256) {
         return quoter.quoteExactInput(path, amountIn);
