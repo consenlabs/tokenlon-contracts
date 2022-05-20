@@ -2,11 +2,10 @@ pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "../../interfaces/ISetAllowance.sol";
+import "../../interfaces/IERC1271Wallet.sol";
 
-import "../interfaces/ISetAllowance.sol";
-import "../interfaces/IERC1271Wallet.sol";
-
-contract ERC1271WalletStub is ISetAllowance, IERC1271Wallet {
+contract MockERC1271Wallet is ISetAllowance, IERC1271Wallet {
     using SafeERC20 for IERC20;
     // bytes4(keccak256("isValidSignature(bytes,bytes)"))
     bytes4 internal constant ERC1271_MAGICVALUE = 0x20c13b0b;
@@ -17,7 +16,7 @@ contract ERC1271WalletStub is ISetAllowance, IERC1271Wallet {
     address public operator;
 
     modifier onlyOperator() {
-        require(operator == msg.sender, "Quoter: not the operator");
+        require(operator == msg.sender, "MockERC1271Wallet: not the operator");
         _;
     }
 
