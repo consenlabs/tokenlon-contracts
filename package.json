@@ -10,7 +10,7 @@
     "yarn": "^1.22.10"
   },
   "scripts": {
-    "setup": "yarn install --frozen-lockfile && yarn allow-scripts",
+    "setup": "yarn install --frozen-lockfile",
     "check-pretty": "prettier --check .",
     "lint": "solhint \"contracts/**/*.sol\"",
     "compile": "forge build --force",
