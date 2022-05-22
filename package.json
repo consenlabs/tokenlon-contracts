@@ -17,7 +17,7 @@
     "compile-foundry": "forge build",
     "test-hardhat": "hardhat test",
     "test-foundry-local": "forge test -vvv --force --no-match-path 'contracts/test/forkMainnet/*.t.sol'",
-    "test-foundry-fork": "forge test -vvv --force --fork-url $FORK_URL --fork-block-number $FORK_BLOCK_NUMBER --match-path 'contracts/test/forkMainnet/*.t.sol'"
+    "test-foundry-fork": "forge test -vvv --force --fork-url $NODE_RPC_URL --fork-block-number $FORK_BLOCK_NUMBER --match-path 'contracts/test/forkMainnet/*.t.sol'"
   },
   "devDependencies": {
     "0x.js": "^6.0.0",

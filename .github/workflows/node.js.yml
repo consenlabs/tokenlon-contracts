@@ -41,7 +41,7 @@ jobs:
           yarn run compile-foundry
       - name: Test
         env:
-          FORK_URL: ${{ secrets.FORK_URL }}
+          NODE_RPC_URL: ${{ secrets.NODE_RPC_URL }}
           FORK_BLOCK_NUMBER: 14340000
         run: |
           yarn run test-hardhat
