@@ -6,13 +6,13 @@ import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
-import "contracts/stub/ERC1271WalletStub.sol";
 import "contracts/LimitOrder.sol";
 import "contracts/interfaces/ILimitOrder.sol";
 import "contracts/utils/SignatureValidator.sol";
 import "contracts/utils/LimitOrderLibEIP712.sol";
 import "contracts/utils/LibConstant.sol";
 
+import "contracts-test/mocks/MockERC1271Wallet.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 import "contracts-test/utils/StrategySharedSetup.sol";
 import "contracts-test/utils/UniswapV3Util.sol";
@@ -54,7 +54,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
     address feeCollector = address(0x133703);
     address[] wallet = [user, maker, coordinator];
 
-    ERC1271WalletStub erc1271WalletStub;
+    MockERC1271Wallet mockERC1271Wallet;
 
     IWETH weth;
     IERC20 usdt;
@@ -76,8 +76,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
     // effectively a "beforeEach" block
     function setUp() public {
-        erc1271WalletStub = new ERC1271WalletStub(user);
-        wallet.push(address(erc1271WalletStub));
+        mockERC1271Wallet = new MockERC1271Wallet(user);
+        wallet.push(address(mockERC1271Wallet));
 
         // Tokens
         weth = IWETH(Addresses.WETH_ADDRESS);
@@ -139,7 +139,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         // Set token balance and approve
         setEOABalanceAndApprove(user, tokens, 10000);
         setEOABalanceAndApprove(maker, tokens, 10000);
-        setEOABalanceAndApprove(address(erc1271WalletStub), tokens, 10000);
+        setEOABalanceAndApprove(address(mockERC1271Wallet), tokens, 10000);
 
         // Label addresses for easier debugging
         vm.label(user, "User");
@@ -148,7 +148,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.label(receiver, "Receiver");
         vm.label(address(this), "TestingContract");
         vm.label(address(limitOrder), "LimitOrderContract");
-        vm.label(address(erc1271WalletStub), "ERC1271WalletStub");
+        vm.label(address(mockERC1271Wallet), "MockERC1271Wallet");
         vm.label(address(weth), "WETH");
         vm.label(address(usdt), "USDT");
         vm.label(address(dai), "DAI");
@@ -158,17 +158,19 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         limitOrder = new LimitOrder(
             address(this), // This contract would be the operator
             coordinator,
-            address(userProxyStub),
+            address(userProxy),
             ISpender(address(spender)),
-            IPermanentStorage(address(permanentStorageStub)),
+            IPermanentStorage(address(permanentStorage)),
             IWETH(address(weth)),
             Addresses.UNISWAP_V3_ADDRESS,
             Addresses.SUSHISWAP_ADDRESS,
             feeCollector
         );
         // Setup
-        userProxyStub.upgradeLimitOrder(address(limitOrder));
-        permanentStorageStub.upgradeLimitOrder(address(limitOrder));
+        userProxy.upgradeLimitOrder(address(limitOrder), true);
+        permanentStorage.upgradeLimitOrder(address(limitOrder));
+        permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(limitOrder), true);
+        permanentStorage.setPermission(permanentStorage.allowFillSeenStorageId(), address(limitOrder), true);
         return address(limitOrder);
     }
 
@@ -179,9 +181,9 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
     function testSetupLimitOrder() public {
         assertEq(limitOrder.operator(), address(this));
         assertEq(limitOrder.coordinator(), coordinator);
-        assertEq(limitOrder.userProxy(), address(userProxyStub));
+        assertEq(limitOrder.userProxy(), address(userProxy));
         assertEq(address(limitOrder.spender()), address(spender));
-        assertEq(address(limitOrder.permStorage()), address(permanentStorageStub));
+        assertEq(address(limitOrder.permStorage()), address(permanentStorage));
         assertEq(address(limitOrder.weth()), address(weth));
         assertEq(limitOrder.uniswapV3RouterAddress(), Addresses.UNISWAP_V3_ADDRESS);
         assertEq(limitOrder.sushiswapRouterAddress(), Addresses.SUSHISWAP_ADDRESS);
@@ -354,7 +356,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
     function testCannotFillFilledOrderByTrader() public {
         // Fullly fill the default order first
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        userProxyStub.toLimitOrder(payload1);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload1);
 
         // Try to fill the default order, should fail
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -373,7 +376,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Order is filled");
-        userProxyStub.toLimitOrder(payload2);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload2);
     }
 
     function testCannotFillExpiredOrderByTrader() public {
@@ -397,7 +401,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Order is expired");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithWrongMakerSig() public {
@@ -405,7 +410,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, wrongMakerSig, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Order is not signed by maker");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithWrongTakerSig() public {
@@ -414,7 +420,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, wrongTraderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Fill is not signed by taker");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithTakerOtherThanOrderSpecified() public {
@@ -439,7 +446,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Order cannot be filled by this taker");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithExpiredFill() public {
@@ -452,13 +460,15 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Fill request is expired");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotReplayFill() public {
         // Fill with DEFAULT_FILL
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        userProxyStub.toLimitOrder(payload1);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload1);
 
         // Try to fill with same fill request with differnt allowFill (otherwise will revert by dup allowFill)
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
@@ -470,7 +480,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("PermanentStorage: transaction seen before");
-        userProxyStub.toLimitOrder(payload2);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload2);
     }
 
     function testCannotFillByTraderWithAlteredTakerTokenAmount() public {
@@ -486,7 +497,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Fill is not signed by taker");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAlteredRecipient() public {
@@ -495,7 +507,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         traderParams.recipient = coordinator;
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Fill is not signed by taker");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithExpiredAllowFill() public {
@@ -508,7 +521,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: Fill permission is expired");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAlteredOrderHash() public {
@@ -521,7 +535,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAlteredExecutor() public {
@@ -535,7 +550,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         // Fill order using user (not executor)
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAlteredFillAmount() public {
@@ -548,7 +564,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAllowFillNotSignedByCoordinator() public {
@@ -558,13 +575,15 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithReplayedAllowFill() public {
         // Fill with default allow fill
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        userProxyStub.toLimitOrder(payload1);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload1);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.takerSalt = uint256(8001);
@@ -574,7 +593,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("PermanentStorage: allow fill seen before");
-        userProxyStub.toLimitOrder(payload2);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload2);
     }
 
     function testFullyFillByTrader() public {
@@ -607,7 +627,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
                 DEFAULT_ORDER.takerTokenAmount.mul(10).div(100) // takerTokenFee = 10% takerTokenAmount
             )
         );
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
 
         userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount.mul(90).div(100)));
@@ -618,23 +639,24 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
     }
 
     function testFullyFillByContractWalletTrader() public {
-        // Contract erc1271WalletStub as taker which always return valid ERC-1271 magic value no matter what.
+        // Contract mockERC1271Wallet as taker which always return valid ERC-1271 magic value no matter what.
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
-        fill.taker = address(erc1271WalletStub);
+        fill.taker = address(mockERC1271Wallet);
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.taker = address(erc1271WalletStub);
-        // since erc1271WalletStub is used, signer doesn't matter
+        traderParams.taker = address(mockERC1271Wallet);
+        // since mockERC1271Wallet is used, signer doesn't matter
         traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.WalletBytes);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.executor = address(erc1271WalletStub);
+        allowFill.executor = address(mockERC1271Wallet);
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testFillBySpecificTaker() public {
@@ -657,7 +679,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testOverFillByTrader() public {
@@ -681,7 +704,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
 
         // Balance change should be bound by order amount (not affected by 2x fill amount)
         userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount));
@@ -710,7 +734,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         crdParams1.sig = _signAllowFill(coordinatorPrivateKey, allowFill1, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
-        userProxyStub.toLimitOrder(payload1);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload1);
 
         // Second fill amount : 36 USDT
         LimitOrderLibEIP712.Fill memory fill2 = DEFAULT_FILL;
@@ -727,7 +752,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         crdParams2.sig = _signAllowFill(coordinatorPrivateKey, allowFill2, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
-        userProxyStub.toLimitOrder(payload2);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload2);
 
         // Half of the order filled after 2 txs
         userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.div(2)));
@@ -751,7 +777,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, protocolParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("Too little received");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -769,7 +795,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, protocolParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -783,7 +809,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         // Fullly fill the default order first
         vm.startPrank(user, user);
         bytes memory payload1 = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
-        userProxyStub.toLimitOrder(payload1);
+        userProxy.toLimitOrder(payload1);
         vm.stopPrank();
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
@@ -796,7 +822,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.startPrank(user, user);
         bytes memory payload2 = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: Order is filled");
-        userProxyStub.toLimitOrder(payload2);
+        userProxy.toLimitOrder(payload2);
         vm.stopPrank();
     }
 
@@ -818,7 +844,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByProtocolPayload(order, orderMakerSig, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: Order is expired");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByProtocolWithWrongMakerSig() public {
@@ -826,7 +853,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, wrongMakerSig, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Order is not signed by maker");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByProtocolWithTakerOtherThanOrderSpecified() public {
@@ -845,7 +873,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(order, orderMakerSig, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: Order cannot be filled by this taker");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -857,7 +885,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, protocolParams, DEFAULT_CRD_PARAMS);
         // Revert caused by Uniswap V3
         vm.expectRevert("Transaction too old");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -878,7 +906,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(order, orderMakerSig, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: Insufficient token amount out from protocol");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -894,7 +922,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -910,7 +938,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -926,7 +954,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -942,7 +970,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -955,7 +983,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -963,10 +991,10 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         // Fill with default allow fill
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
 
         vm.expectRevert("PermanentStorage: allow fill seen before");
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
 
@@ -1009,7 +1037,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
             profit.mul(20).div(100), // takerTokenProfitFee = 20% takerTokenProfit
             0 // takerTokenProfitBackToMaker
         );
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
 
         userTakerAsset.assertChange(0);
@@ -1056,7 +1084,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         // Allow fill is bound by tx.origin in protocol case.
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(order, orderMakerHash, protocolParams, crdParams);
-        userProxyStub.toLimitOrder(payload);
+        userProxy.toLimitOrder(payload);
         vm.stopPrank();
 
         userTakerAsset.assertChange(0);
@@ -1077,11 +1105,13 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
             DEFAULT_ORDER,
             _signOrder(makerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712)
         );
-        userProxyStub.toLimitOrder(cancelPayload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(cancelPayload);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Order is cancelled");
-        userProxyStub.toLimitOrder(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
     }
 
     function testCannotCancelIfNotMaker() public {
@@ -1090,7 +1120,8 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
         bytes memory cancelPayload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
         vm.expectRevert("LimitOrder: Cancel request is not signed by maker");
-        userProxyStub.toLimitOrder(cancelPayload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(cancelPayload);
     }
 
     /*********************************

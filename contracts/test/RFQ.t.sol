@@ -7,8 +7,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/MarketMakerProxy.sol";
 import "contracts/RFQ.sol";
-import "contracts/stub/ERC1271WalletStub.sol";
 import "contracts/utils/SignatureValidator.sol";
+import "contracts-test/mocks/MockERC1271Wallet.sol";
 import "contracts-test/mocks/MockERC20.sol";
 import "contracts-test/mocks/MockWETH.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
@@ -44,7 +44,7 @@ contract RFQTest is StrategySharedSetup {
     address[] wallet;
     IERC20[] tokens;
 
-    ERC1271WalletStub erc1271WalletStub;
+    MockERC1271Wallet mockERC1271Wallet;
     MarketMakerProxy marketMakerProxy;
     RFQ rfq;
     MockWETH weth;
@@ -73,7 +73,7 @@ contract RFQTest is StrategySharedSetup {
         setUpSystemContracts();
         vm.prank(maker);
         marketMakerProxy = new MarketMakerProxy();
-        erc1271WalletStub = new ERC1271WalletStub(user);
+        mockERC1271Wallet = new MockERC1271Wallet(user);
         // Setup MMP
         vm.startPrank(maker);
         marketMakerProxy.setSigner(maker);
@@ -89,7 +89,7 @@ contract RFQTest is StrategySharedSetup {
         // Set user token balance and approve
         setEOABalanceAndApprove(user, tokens, 100);
         // Set ERC1271 wallet token balance and approve
-        setWalletContractBalanceAndApprove(user, address(erc1271WalletStub), tokens, 100);
+        setWalletContractBalanceAndApprove(user, address(mockERC1271Wallet), tokens, 100);
         // Set maker token balance and approve
         setEOABalanceAndApprove(maker, tokens, 100);
         // Set MMP token balance and approve
@@ -113,7 +113,7 @@ contract RFQTest is StrategySharedSetup {
         vm.label(user, "User");
         vm.label(address(this), "TestingContract");
         vm.label(address(marketMakerProxy), "MarketMakerProxy");
-        vm.label(address(erc1271WalletStub), "ERC1271WalletStub");
+        vm.label(address(mockERC1271Wallet), "MockERC1271Wallet");
         vm.label(address(rfq), "RFQContract");
         vm.label(address(weth), "WETH");
         vm.label(address(usdt), "USDT");
@@ -123,14 +123,15 @@ contract RFQTest is StrategySharedSetup {
     function _deployStrategyAndUpgrade() internal override returns (address) {
         rfq = new RFQ(
             address(this), // This contract would be the operator
-            address(userProxyStub),
+            address(userProxy),
             ISpender(address(spender)),
-            permanentStorageStub,
+            permanentStorage,
             IWETH(address(weth))
         );
         // Setup
-        userProxyStub.upgradeRFQ(address(rfq));
-        permanentStorageStub.upgradeRFQ(address(rfq));
+        userProxy.upgradeRFQ(address(rfq), true);
+        permanentStorage.upgradeRFQ(address(rfq));
+        permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(rfq), true);
         return address(rfq);
     }
 
@@ -141,7 +142,7 @@ contract RFQTest is StrategySharedSetup {
     function testSetupAllowance() public {
         for (uint256 i = 0; i < tokens.length; i++) {
             assertEq(tokens[i].allowance(user, address(allowanceTarget)), type(uint256).max);
-            assertEq(tokens[i].allowance(address(erc1271WalletStub), address(allowanceTarget)), type(uint256).max);
+            assertEq(tokens[i].allowance(address(mockERC1271Wallet), address(allowanceTarget)), type(uint256).max);
             assertEq(tokens[i].allowance(maker, address(allowanceTarget)), type(uint256).max);
             assertEq(tokens[i].allowance(address(marketMakerProxy), address(allowanceTarget)), type(uint256).max);
         }
@@ -149,11 +150,11 @@ contract RFQTest is StrategySharedSetup {
 
     function testSetupRFQ() public {
         assertEq(rfq.operator(), address(this));
-        assertEq(rfq.userProxy(), address(userProxyStub));
+        assertEq(rfq.userProxy(), address(userProxy));
         assertEq(address(rfq.spender()), address(spender));
         assertEq(address(rfq.weth()), address(weth));
-        assertEq(userProxyStub.rfqAddr(), address(rfq));
-        assertEq(permanentStorageStub.rfqAddr(), address(rfq));
+        assertEq(userProxy.rfqAddr(), address(rfq));
+        assertEq(permanentStorage.rfqAddr(), address(rfq));
         assertTrue(spender.isAuthorized(address(rfq)));
     }
 
@@ -236,7 +237,8 @@ contract RFQTest is StrategySharedSetup {
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
         vm.expectRevert("RFQ: expired order");
-        userProxyStub.toRFQ(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
     }
 
     function testCannotFillWithInvalidUserSig() public {
@@ -246,7 +248,8 @@ contract RFQTest is StrategySharedSetup {
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
         vm.expectRevert("RFQ: invalid user signature");
-        userProxyStub.toRFQ(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
     }
 
     function testCannotFillWithInvalidUserWallet() public {
@@ -257,7 +260,8 @@ contract RFQTest is StrategySharedSetup {
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
         vm.expectRevert(); // No revert string in this case
-        userProxyStub.toRFQ(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
     }
 
     function testCannotFillWithInvalidMakerSig() public {
@@ -267,7 +271,8 @@ contract RFQTest is StrategySharedSetup {
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
         vm.expectRevert("RFQ: invalid MM signature");
-        userProxyStub.toRFQ(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
     }
 
     function testFillDAIToUSDT_EOAUserAndEOAMaker() public {
@@ -281,7 +286,8 @@ contract RFQTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, order.makerAssetAddr);
 
-        userProxyStub.toRFQ(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
         receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
@@ -303,8 +309,8 @@ contract RFQTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.makerAssetAddr);
 
-        vm.prank(user);
-        userProxyStub.toRFQ{ value: order.takerAssetAmount }(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ{ value: order.takerAssetAmount }(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
         receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
@@ -314,7 +320,7 @@ contract RFQTest is StrategySharedSetup {
 
     function testFillDAIToETH_WalletUserAndMMPMaker() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.takerAddr = address(erc1271WalletStub);
+        order.takerAddr = address(mockERC1271Wallet);
         order.makerAddr = address(marketMakerProxy);
         order.makerAssetAddr = address(weth);
         order.makerAssetAmount = 1 ether;
@@ -322,12 +328,13 @@ contract RFQTest is StrategySharedSetup {
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes);
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
-        BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take(address(erc1271WalletStub), order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take(address(mockERC1271Wallet), order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, Addresses.ETH_ADDRESS);
         BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.makerAssetAddr);
 
-        userProxyStub.toRFQ(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
 
         userWalletTakerAsset.assertChange(-int256(order.takerAssetAmount));
         receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
@@ -341,10 +348,12 @@ contract RFQTest is StrategySharedSetup {
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
-        userProxyStub.toRFQ(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
 
         vm.expectRevert("PermanentStorage: transaction seen before");
-        userProxyStub.toRFQ(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
     }
 
     /*********************************
@@ -376,7 +385,8 @@ contract RFQTest is StrategySharedSetup {
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
         _expectEvent(order);
-        userProxyStub.toRFQ(payload);
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
     }
 
     /*********************************
