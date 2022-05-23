@@ -37,8 +37,7 @@ jobs:
           yarn run lint
       - name: Compile
         run: |
-          yarn run compile-contracts
-          yarn run compile-foundry
+          yarn run compile
       - name: Test
         env:
           NODE_RPC_URL: ${{ secrets.NODE_RPC_URL }}
