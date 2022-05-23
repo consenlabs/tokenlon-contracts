@@ -13,7 +13,7 @@
     "setup": "yarn install --frozen-lockfile",
     "check-pretty": "prettier --check .",
     "lint": "solhint \"contracts/**/*.sol\"",
-    "compile": "forge build --force",
+    "compile": "hardhat compile --show-stack-traces --force && forge build --force",
     "test-hardhat": "hardhat test",
     "test-foundry-local": "forge test -vvv --force --no-match-path 'contracts/test/forkMainnet/*.t.sol'",
     "test-foundry-fork": "forge test -vvv --force --fork-url $NODE_RPC_URL --fork-block-number $FORK_BLOCK_NUMBER --match-path 'contracts/test/forkMainnet/*.t.sol'"
