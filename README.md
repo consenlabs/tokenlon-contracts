@@ -52,12 +52,12 @@ $ yarn run setup
 ## Compile contracts
 
 ```bash
-$ yarn run compile // compile contracts
+$ yarn run compile # compile contracts
 ```
 
 ## Run unit test
 
 ```bash
-$ yarn run test-foundry-local // run unit tests with fresh states
-$ yarn run test-foundry-fork // run unit tests with forked states
+$ yarn run test-foundry-local # run unit tests with fresh states
+$ yarn run test-foundry-fork # run unit tests with forked states
 ```
