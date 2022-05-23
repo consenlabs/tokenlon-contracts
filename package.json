@@ -15,10 +15,16 @@
     "lint": "solhint \"contracts/**/*.sol\"",
     "compile-contracts": "hardhat compile --show-stack-traces --force",
     "compile-foundry": "forge build",
+    "test-hardhat": "hardhat test",
     "test-foundry-local": "forge test -vvv --force --no-match-path 'contracts/test/forkMainnet/*.t.sol'",
-    "test-foundry-fork": "forge test -vvv --force --fork-url $FORK_URL --fork-block-number $FORK_BLOCK_NUMBER --match-path 'contracts/test/forkMainnet/*.t.sol'"
+    "test-foundry-fork": "forge test -vvv --force --fork-url $NODE_RPC_URL --fork-block-number $FORK_BLOCK_NUMBER --match-path 'contracts/test/forkMainnet/*.t.sol'"
   },
   "devDependencies": {
+    "0x.js": "^6.0.0",
+    "@nomiclabs/hardhat-ethers": "^2.0.6",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "@typechain/ethers-v5": "^10.0.0",
+    "@typechain/hardhat": "^6.0.0",
     "@types/chai": "^4.3.1",
     "@types/mocha": "^9.1.1",
     "@types/node": "^17.0.27",
@@ -28,12 +34,16 @@
     "eslint": "^8.14.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-mocha-no-only": "^1.1.1",
+    "ethereum-waffle": "^3.4.4",
+    "ethers": "^5.6.6",
     "hardhat": "^2.9.3",
     "prettier": "^2.6.2",
     "prettier-plugin-solidity": "^1.0.0-beta.19",
     "solhint": "^3.3.7",
     "solhint-plugin-prettier": "^0.0.5",
     "ts-node": "^10.7.0",
+    "tsconfig-paths": "^4.0.0",
+    "typechain": "^8.0.0",
     "typescript": "^4.6.3"
   },
   "dependencies": {
