@@ -12,6 +12,14 @@ contract BalanceUtil is Test {
         uint256 amount
     ) internal {
         uint256 decimals = uint256(ERC20(tokenAddr).decimals());
+        setERC20BalanceRaw(tokenAddr, userAddr, amount * (10**decimals));
+    }
+
+    function setERC20BalanceRaw(
+        address tokenAddr,
+        address userAddr,
+        uint256 amount
+    ) internal {
         // Use stdStorage to find storage slot of user's balance
         // prettier-ignore
         uint256 tokenStorageSlot = stdstore
@@ -23,7 +31,7 @@ contract BalanceUtil is Test {
         vm.store(
             tokenAddr, // address
             bytes32(tokenStorageSlot), // key
-            bytes32(amount * (10**decimals)) // value
+            bytes32(amount) // value
         );
     }
 }
