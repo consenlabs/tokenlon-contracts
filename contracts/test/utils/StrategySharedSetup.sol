@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "contracts/Spender.sol";
 import "contracts/AllowanceTarget.sol";
 import { PermanentStorage } from "contracts/PermanentStorage.sol"; // Using "import from" syntax so PermanentStorage and UserProxy's imports will not collide
-import "contracts/upgrade_proxy/TransparentUpgradeableProxy.sol";
+import "contracts/ProxyPermanentStorage.sol";
 import { UserProxy } from "contracts/UserProxy.sol"; // Using "import from" syntax so PermanentStorage and UserProxy's imports will not collide
 import "contracts/Tokenlon.sol";
 import "contracts/interfaces/ISetAllowance.sol";
@@ -55,7 +55,7 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
 
     function _deployPermanentStorageAndProxy() internal {
         PermanentStorage permanentStorageImpl = new PermanentStorage();
-        TransparentUpgradeableProxy permanentStorageProxy = new TransparentUpgradeableProxy(
+        ProxyPermanentStorage permanentStorageProxy = new ProxyPermanentStorage(
             address(permanentStorageImpl),
             upgradeAdmin,
             bytes("") // Skip initialization during deployment

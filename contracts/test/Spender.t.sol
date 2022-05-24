@@ -23,27 +23,21 @@ contract SpenderTest is Test {
     uint256 userPrivateKey = uint256(1);
     uint256 otherPrivateKey = uint256(2);
 
-    address user;
+    address user = vm.addr(userPrivateKey);
     address recipient = address(0x133702);
     address unauthorized = address(0x133704);
-    address[] wallet;
+    address[] wallet = [address(this), user, recipient];
 
     Spender spender;
     AllowanceTarget allowanceTarget;
-    MockERC20 lon;
+    MockERC20 lon = new MockERC20("TOKENLON", "LON", 18);
 
     uint64 EXPIRY = uint64(block.timestamp + 1);
     SpendWithPermit DEFAULT_SPEND_WITH_PERMIT;
 
     // effectively a "beforeEach" block
     function setUp() public {
-        user = vm.addr(userPrivateKey);
-        wallet.push(address(this));
-        wallet.push(user);
-        wallet.push(recipient);
-
         // Deploy
-        lon = new MockERC20("TOKENLON", "LON", 18);
         spender = new Spender(
             address(this), // This contract would be the operator
             new address[](0)

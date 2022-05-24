@@ -31,7 +31,7 @@ contract LONStakingTest is Test, BalanceUtil {
     address upgradeAdmin = address(0x133701);
     address spender = address(0x133702);
 
-    Lon lon;
+    Lon lon = new Lon(address(this), address(this));
     xLON xLon;
     LONStaking lonStaking;
 
@@ -60,7 +60,6 @@ contract LONStakingTest is Test, BalanceUtil {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
-        lon = new Lon(address(this), address(this));
         LONStaking lonStakingImpl = new LONStaking();
         bytes memory initData = abi.encodeWithSignature(
             "initialize(address,address,uint256,uint256)",

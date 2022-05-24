@@ -38,37 +38,24 @@ contract RFQTest is StrategySharedSetup {
     uint256 makerPrivateKey = uint256(2);
     uint256 otherPrivateKey = uint256(3);
 
-    address user;
-    address maker;
+    address user = vm.addr(userPrivateKey);
+    address maker = vm.addr(makerPrivateKey);
     address receiver = address(0x133702);
-    address[] wallet;
-    IERC20[] tokens;
+    address[] wallet = [user, maker];
 
     MockERC1271Wallet mockERC1271Wallet;
     MarketMakerProxy marketMakerProxy;
     RFQ rfq;
-    MockWETH weth;
-    IERC20 usdt;
-    IERC20 dai;
+    MockWETH weth = new MockWETH("Wrapped ETH", "WETH", 18);
+    IERC20 usdt = new MockERC20("USDT", "USDT", 6);
+    IERC20 dai = new MockERC20("DAI", "DAI", 18);
+    IERC20[] tokens = [weth, usdt, dai];
 
     uint256 DEADLINE = block.timestamp + 1;
     RFQLibEIP712.Order DEFAULT_ORDER;
 
     // effectively a "beforeEach" block
     function setUp() public {
-        user = vm.addr(userPrivateKey);
-        maker = vm.addr(makerPrivateKey);
-        wallet.push(user);
-        wallet.push(maker);
-
-        // Tokens
-        weth = new MockWETH("Wrapped ETH", "WETH", 18);
-        usdt = new MockERC20("USDT", "USDT", 6);
-        dai = new MockERC20("DAI", "DAI", 18);
-        tokens.push(weth);
-        tokens.push(usdt);
-        tokens.push(dai);
-
         // Setup
         setUpSystemContracts();
         vm.prank(maker);
