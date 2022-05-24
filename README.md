@@ -39,7 +39,7 @@
 -   yarn (^1.22.10)
 -   [foundry](https://github.com/foundry-rs/foundry)
 -   Environment Variables (Used for foundry fork tests)
-    -   FORK_URL : The RPC URL for accessing forked states.
+    -   MAINNET_NODE_RPC_URL : The RPC URL for accessing forked states.
     -   FORK_BLOCK_NUMBER : Specfic block number of forked states.
 
 ## Installation
