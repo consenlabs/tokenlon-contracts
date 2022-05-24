@@ -44,6 +44,13 @@ Tokenlon is a decentralized exchange and payment settlement protocol based on bl
     -   `MAINNET_NODE_RPC_URL`: The RPC URL for accessing forked states.
     -   `FORK_BLOCK_NUMBER`: Specfic block number of forked states.
 
+### Example
+
+```
+MAINNET_NODE_RPC_URL=https://eth-mainnet.alchemyapi.io/v2/#####__YOUR_SECRET__#####
+FORK_BLOCK_NUMBER=14340000
+```
+
 ## Installation
 
 ```bash
