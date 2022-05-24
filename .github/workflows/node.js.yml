@@ -37,11 +37,10 @@ jobs:
           yarn run lint
       - name: Compile
         run: |
-          yarn run compile-contracts
-          yarn run compile-foundry
+          yarn run compile
       - name: Test
         env:
-          NODE_RPC_URL: ${{ secrets.NODE_RPC_URL }}
+          MAINNET_NODE_RPC_URL: ${{ secrets.MAINNET_NODE_RPC_URL }}
           FORK_BLOCK_NUMBER: 14340000
         run: |
           yarn run test-hardhat

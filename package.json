@@ -10,14 +10,13 @@
     "yarn": "^1.22.10"
   },
   "scripts": {
-    "setup": "yarn install --frozen-lockfile && yarn allow-scripts",
+    "setup": "yarn install --frozen-lockfile",
     "check-pretty": "prettier --check .",
     "lint": "solhint \"contracts/**/*.sol\"",
-    "compile-contracts": "hardhat compile --show-stack-traces --force",
-    "compile-foundry": "forge build",
+    "compile": "hardhat compile --show-stack-traces --force && forge build --force",
     "test-hardhat": "hardhat test",
     "test-foundry-local": "forge test -vvv --force --no-match-path 'contracts/test/forkMainnet/*.t.sol'",
-    "test-foundry-fork": "forge test -vvv --force --fork-url $NODE_RPC_URL --fork-block-number $FORK_BLOCK_NUMBER --match-path 'contracts/test/forkMainnet/*.t.sol'"
+    "test-foundry-fork": "forge test -vvv --force --fork-url $MAINNET_NODE_RPC_URL --fork-block-number $FORK_BLOCK_NUMBER --match-path 'contracts/test/forkMainnet/*.t.sol'"
   },
   "devDependencies": {
     "0x.js": "^6.0.0",

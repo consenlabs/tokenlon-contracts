@@ -22,7 +22,7 @@ contract LONTest is Test, BalanceUtil {
     address spender = address(0x133701);
     address emergencyRecipient = address(0x133702);
 
-    Lon lon;
+    Lon lon = new Lon(address(this), emergencyRecipient);
 
     uint256 DEADLINE = block.timestamp + 1;
 
@@ -37,9 +37,6 @@ contract LONTest is Test, BalanceUtil {
 
     // effectively a "beforeEach" block
     function setUp() public {
-        // Setup
-        lon = new Lon(address(this), emergencyRecipient);
-
         // Deal 100 ETH to each account
         vm.deal(user, 100 ether);
 

@@ -52,15 +52,14 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
     address coordinator = vm.addr(coordinatorPrivateKey);
     address receiver = address(0x133702);
     address feeCollector = address(0x133703);
-    address[] wallet = [user, maker, coordinator];
+    MockERC1271Wallet mockERC1271Wallet = new MockERC1271Wallet(user);
+    address[] wallet = [user, maker, coordinator, address(mockERC1271Wallet)];
 
-    MockERC1271Wallet mockERC1271Wallet;
-
-    IWETH weth;
-    IERC20 usdt;
-    IERC20 dai;
-    IERC20[] tokens;
-    address[] tokenAddrs;
+    IWETH weth = IWETH(Addresses.WETH_ADDRESS);
+    IERC20 usdt = IERC20(Addresses.USDT_ADDRESS);
+    IERC20 dai = IERC20(Addresses.DAI_ADDRESS);
+    IERC20[] tokens = [dai, usdt];
+    address[] tokenAddrs = [address(dai), address(usdt)];
 
     LimitOrderLibEIP712.Order DEFAULT_ORDER;
     bytes32 DEFAULT_ORDER_HASH;
@@ -76,18 +75,6 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
 
     // effectively a "beforeEach" block
     function setUp() public {
-        mockERC1271Wallet = new MockERC1271Wallet(user);
-        wallet.push(address(mockERC1271Wallet));
-
-        // Tokens
-        weth = IWETH(Addresses.WETH_ADDRESS);
-        usdt = IERC20(Addresses.USDT_ADDRESS);
-        dai = IERC20(Addresses.DAI_ADDRESS);
-        tokens.push(dai);
-        tokens.push(usdt);
-        tokenAddrs.push(address(dai));
-        tokenAddrs.push(address(usdt));
-
         // Setup
         setUpSystemContracts();
 
@@ -146,6 +133,7 @@ contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
         vm.label(maker, "Maker");
         vm.label(coordinator, "Coordinator");
         vm.label(receiver, "Receiver");
+        vm.label(feeCollector, "FeeCollector");
         vm.label(address(this), "TestingContract");
         vm.label(address(limitOrder), "LimitOrderContract");
         vm.label(address(mockERC1271Wallet), "MockERC1271Wallet");
