@@ -239,19 +239,6 @@ contract AMMQuoterTest is StrategySharedSetup {
         assertGt(amountOut, 0);
     }
 
-    function testGetMakerOutAmountWithPath_Curve_Version2() public {
-        uint256 curveVersion = 2;
-        uint256 amountOut = ammQuoter.getMakerOutAmountWithPath(
-            Addresses.CURVE_TRICRYPTO2_POOL_ADDRESS,
-            Addresses.USDT_ADDRESS,
-            Addresses.WBTC_ADDRESS,
-            100 * 1e6,
-            EMPTY_PATH,
-            _encodeCurveData(curveVersion)
-        );
-        assertGt(amountOut, 0);
-    }
-
     /************************************
      *      Test: getBestOutAmount      *
      ************************************/
@@ -411,19 +398,6 @@ contract AMMQuoterTest is StrategySharedSetup {
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_AMOUNT,
-            EMPTY_PATH,
-            _encodeCurveData(curveVersion)
-        );
-        assertGt(amountOut, 0);
-    }
-
-    function testGetTakerInAmountWithPath_Curve_Version2() public {
-        uint256 curveVersion = 2;
-        uint256 amountOut = ammQuoter.getTakerInAmountWithPath(
-            Addresses.CURVE_TRICRYPTO2_POOL_ADDRESS,
-            Addresses.USDT_ADDRESS,
-            Addresses.WBTC_ADDRESS,
-            100 * 1e6,
             EMPTY_PATH,
             _encodeCurveData(curveVersion)
         );
