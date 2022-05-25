@@ -1,0 +1,10 @@
+# dependency
+node_modules/
+
+# Hardhat files
+cache/
+artifacts/
+
+# Typechain artifacts
+typechain-types/
+
