@@ -84,6 +84,7 @@ contract AllowanceTargetTest is Test {
         // fast forward
         vm.warp(allowanceTarget.timelockExpirationTime());
         allowanceTarget.completeSetSpender();
+        assertEq(allowanceTarget.spender(), newSpender);
     }
 
     /*********************************
@@ -126,8 +127,11 @@ contract AllowanceTargetTest is Test {
 
     function testExecuteCall() public {
         MockERC20 token = new MockERC20("Test", "TST", 18);
+        BalanceSnapshot.Snapshot memory bobBalance = BalanceSnapshot.take(address(bob), address(token));
 
         // mint(address to, uint256 value)
-        allowanceTarget.executeCall(payable(address(token)), abi.encodeWithSelector(MockERC20.mint.selector, address(bob), 1e18));
+        uint256 mintAmount = 1e18;
+        allowanceTarget.executeCall(payable(address(token)), abi.encodeWithSelector(MockERC20.mint.selector, address(bob), mintAmount));
+        bobBalance.assertChange(int256(mintAmount));
     }
 }
