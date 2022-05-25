@@ -40,18 +40,18 @@ contract AllowanceTargetTest is Test {
      *  test: setSpenderWithTimelock *
      *********************************/
 
-    function testCantSetSpenderWithTimelockByRandomEOA() public {
+    function testCannotSetSpenderWithTimelockByRandomEOA() public {
         vm.prank(bob);
         vm.expectRevert("AllowanceTarget: not the spender");
         allowanceTarget.setSpenderWithTimelock(newSpender);
     }
 
-    function testCantSetSpenderWithTimelockWithInvalidAddress() public {
+    function testCannotSetSpenderWithTimelockWithInvalidAddress() public {
         vm.expectRevert("AllowanceTarget: new spender not a contract");
         allowanceTarget.setSpenderWithTimelock(bob);
     }
 
-    function testCantSetSpenderWithTimelockIfInProgress() public {
+    function testCannotSetSpenderWithTimelockIfInProgress() public {
         allowanceTarget.setSpenderWithTimelock(newSpender);
         address mySpender = address(new MockStrategy());
         vm.expectRevert("AllowanceTarget: SetSpender in progress");
@@ -68,12 +68,12 @@ contract AllowanceTargetTest is Test {
      *  test:   completeSetSpender   *
      *********************************/
 
-    function testCantCompleteSetSpenderBeforeSet() public {
+    function testCannotCompleteSetSpenderBeforeSet() public {
         vm.expectRevert("AllowanceTarget: no pending SetSpender");
         allowanceTarget.completeSetSpender();
     }
 
-    function testCantCompleteSetSpenderTooEarly() public {
+    function testCannotCompleteSetSpenderTooEarly() public {
         allowanceTarget.setSpenderWithTimelock(newSpender);
         vm.expectRevert("AllowanceTarget: time lock not expired yet");
         allowanceTarget.completeSetSpender();
@@ -91,7 +91,7 @@ contract AllowanceTargetTest is Test {
      *         test: teardown        *
      *********************************/
 
-    function testCantTeardownIfNotSpender() public {
+    function testCannotTeardownIfNotSpender() public {
         vm.prank(bob);
         vm.expectRevert("AllowanceTarget: not the spender");
         allowanceTarget.teardown();
@@ -117,7 +117,7 @@ contract AllowanceTargetTest is Test {
      *         test: executeCall     *
      *********************************/
 
-    function testCantExecuteCallIfNotSpender() public {
+    function testCannotExecuteCallIfNotSpender() public {
         vm.prank(bob);
         vm.expectRevert("AllowanceTarget: not the spender");
 
