@@ -49,7 +49,6 @@ contract AllowanceTargetTest is Test {
     function testCantSetSpenderWithTimelockWithInvalidAddress() public {
         vm.expectRevert("AllowanceTarget: new spender not a contract");
         allowanceTarget.setSpenderWithTimelock(bob);
-        //vm.expectRevert("");
     }
 
     function testCantSetSpenderWithTimelockIfInProgress() public {
@@ -66,7 +65,7 @@ contract AllowanceTargetTest is Test {
     }
 
     /*********************************
-     *  test: setSpenderWithTimelock *
+     *  test:   completeSetSpender   *
      *********************************/
 
     function testCantCompleteSetSpenderBeforeSet() public {
