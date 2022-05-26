@@ -18,7 +18,7 @@ import "contracts-test/utils/StrategySharedSetup.sol";
 import "contracts-test/utils/UniswapV3Util.sol";
 import "contracts-test/utils/SushiswapUtil.sol";
 
-contract LimitOrderTest is StrategySharedSetup, UniswapV3Util, SushiswapUtil {
+contract LimitOrderTest is StrategySharedSetup {
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
