@@ -40,9 +40,9 @@ contract AMMWrapperTest is StrategySharedSetup {
 
     AMMWrapper ammWrapper;
     AMMQuoter ammQuoter;
-    IERC20 weth = IERC20(Addresses.WETH_ADDRESS);
-    IERC20 usdt = IERC20(Addresses.USDT_ADDRESS);
-    IERC20 dai = IERC20(Addresses.DAI_ADDRESS);
+    IERC20 weth = IERC20(WETH_ADDRESS);
+    IERC20 usdt = IERC20(USDT_ADDRESS);
+    IERC20 dai = IERC20(DAI_ADDRESS);
     IERC20[] tokens = [weth, usdt, dai];
 
     uint256 SUBSIDY_FACTOR = 3;
@@ -67,7 +67,7 @@ contract AMMWrapperTest is StrategySharedSetup {
 
         // Default order
         DEFAULT_ORDER = AMMLibEIP712.Order(
-            Addresses.UNISWAP_V2_ADDRESS, // makerAddr
+            UNISWAP_V2_ADDRESS, // makerAddr
             address(dai), // takerAssetAddr
             address(usdt), // makerAssetAddr
             100 * 1e18, // takerAssetAmount
@@ -86,7 +86,7 @@ contract AMMWrapperTest is StrategySharedSetup {
         vm.label(address(weth), "WETH");
         vm.label(address(usdt), "USDT");
         vm.label(address(dai), "DAI");
-        vm.label(Addresses.UNISWAP_V2_ADDRESS, "UniswapV2");
+        vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
@@ -216,7 +216,7 @@ contract AMMWrapperTest is StrategySharedSetup {
     function testTradeUniswapV2() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.takerAssetAddr = Addresses.ETH_ADDRESS;
+        order.takerAssetAddr = ETH_ADDRESS;
         order.takerAssetAmount = 0.1 ether;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
@@ -234,7 +234,7 @@ contract AMMWrapperTest is StrategySharedSetup {
     function testTradeCurve() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAddr = Addresses.CURVE_USDT_POOL_ADDRESS;
+        order.makerAddr = CURVE_USDT_POOL_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
@@ -250,8 +250,8 @@ contract AMMWrapperTest is StrategySharedSetup {
     function testTradeSushiswap() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAddr = Addresses.SUSHISWAP_ADDRESS;
-        order.makerAssetAddr = Addresses.ETH_ADDRESS;
+        order.makerAddr = SUSHISWAP_ADDRESS;
+        order.makerAssetAddr = ETH_ADDRESS;
         order.makerAssetAmount = 0.001 ether;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);

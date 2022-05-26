@@ -38,5 +38,5 @@ function encodePath(address[] memory path, uint24[] memory fees) returns (bytes 
 }
 
 function quoteUniswapV3ExactInput(bytes memory path, uint256 amountIn) returns (uint256) {
-    return IQuoter(Addresses.UNISWAP_V3_QUOTER_ADDRESS).quoteExactInput(path, amountIn);
+    return IQuoter(UNISWAP_V3_QUOTER_ADDRESS).quoteExactInput(path, amountIn);
 }

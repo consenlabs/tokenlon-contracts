@@ -291,7 +291,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, Addresses.ETH_ADDRESS);
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, ETH_ADDRESS);
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
         BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.makerAssetAddr);
@@ -316,7 +316,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
         BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take(address(mockERC1271Wallet), order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, Addresses.ETH_ADDRESS);
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, ETH_ADDRESS);
         BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.makerAssetAddr);
 

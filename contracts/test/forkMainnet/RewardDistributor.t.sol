@@ -40,13 +40,13 @@ contract RewardDistributorTest is Test, BalanceUtil {
     address miningTreasury = address(0x133702);
     address feeTokenRecipient = address(0x133703);
 
-    IUniswapRouterV2 uniswapV2 = IUniswapRouterV2(Addresses.UNISWAP_V2_ADDRESS);
-    IUniswapRouterV2 sushiswap = IUniswapRouterV2(Addresses.SUSHISWAP_ADDRESS);
-    IUniswapRouterV3 uniswapV3 = IUniswapRouterV3(Addresses.UNISWAP_V3_ADDRESS);
-    IUniswapV3Quoter uniswapV3Quoter = IUniswapV3Quoter(Addresses.UNISWAP_V3_QUOTER_ADDRESS);
+    IUniswapRouterV2 uniswapV2 = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
+    IUniswapRouterV2 sushiswap = IUniswapRouterV2(SUSHISWAP_ADDRESS);
+    IUniswapRouterV3 uniswapV3 = IUniswapRouterV3(UNISWAP_V3_ADDRESS);
+    IUniswapV3Quoter uniswapV3Quoter = IUniswapV3Quoter(UNISWAP_V3_QUOTER_ADDRESS);
 
-    Lon lon = Lon(Addresses.LON_ADDRESS);
-    IERC20 usdt = IERC20(Addresses.USDT_ADDRESS);
+    Lon lon = Lon(LON_ADDRESS);
+    IERC20 usdt = IERC20(USDT_ADDRESS);
 
     MockStrategy[] strategies = [new MockStrategy(), new MockStrategy()];
     MockContract lonStaking = new MockContract();
@@ -66,7 +66,7 @@ contract RewardDistributorTest is Test, BalanceUtil {
     uint8 constant SUSHISWAP_EXCHANGE_INDEX = 0;
     uint8 constant UNISWAPV2_EXCHANGE_INDEX = 1;
     uint256[] EXCHANGE_INDEXES = [uint256(SUSHISWAP_EXCHANGE_INDEX), uint256(UNISWAPV2_EXCHANGE_INDEX)];
-    address[] EXCHANGE_ADDRESSES = [Addresses.SUSHISWAP_ADDRESS, Addresses.UNISWAP_V2_ADDRESS];
+    address[] EXCHANGE_ADDRESSES = [SUSHISWAP_ADDRESS, UNISWAP_V2_ADDRESS];
 
     address[] LON_FEE_TOKEN_PATH = [address(lon), address(lon)];
     SetFeeTokenParams LON_FEE_TOKEN =
@@ -81,7 +81,7 @@ contract RewardDistributorTest is Test, BalanceUtil {
             maxBuy: 100
         });
 
-    address[] USDT_FEE_TOKEN_PATH = [address(usdt), Addresses.WETH_ADDRESS, address(lon)];
+    address[] USDT_FEE_TOKEN_PATH = [address(usdt), WETH_ADDRESS, address(lon)];
     uint24[] USDT_POOL_FEES = [FEE_MEDIUM, FEE_MEDIUM];
     SetFeeTokenParams USDT_FEE_TOKEN =
         SetFeeTokenParams({

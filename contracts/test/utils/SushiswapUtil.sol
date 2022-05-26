@@ -4,5 +4,5 @@ import "./Addresses.sol";
 import "../../interfaces/IUniswapRouterV2.sol";
 
 function getSushiAmountsOut(uint256 amountIn, address[] memory path) returns (uint256[] memory amounts) {
-     return IUniswapRouterV2(Addresses.SUSHISWAP_ADDRESS).getAmountsOut(amountIn, path);
- }
+    return IUniswapRouterV2(SUSHISWAP_ADDRESS).getAmountsOut(amountIn, path);
+}

@@ -77,7 +77,7 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
             bytes32(uint256(1)), // key
             bytes32(uint256(bytes32("5.2.0")) + uint256(5 * 2)) // value
         );
-        permanentStorage.upgradeWETH(Addresses.WETH_ADDRESS);
+        permanentStorage.upgradeWETH(WETH_ADDRESS);
         // Set Curve indexes
         permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), address(this), true);
         _registerCurveIndexes(permanentStorage);

@@ -55,9 +55,9 @@ contract LimitOrderTest is StrategySharedSetup {
     MockERC1271Wallet mockERC1271Wallet = new MockERC1271Wallet(user);
     address[] wallet = [user, maker, coordinator, address(mockERC1271Wallet)];
 
-    IWETH weth = IWETH(Addresses.WETH_ADDRESS);
-    IERC20 usdt = IERC20(Addresses.USDT_ADDRESS);
-    IERC20 dai = IERC20(Addresses.DAI_ADDRESS);
+    IWETH weth = IWETH(WETH_ADDRESS);
+    IERC20 usdt = IERC20(USDT_ADDRESS);
+    IERC20 dai = IERC20(DAI_ADDRESS);
     IERC20[] tokens = [dai, usdt];
     address[] tokenAddrs = [address(dai), address(usdt)];
 
@@ -150,8 +150,8 @@ contract LimitOrderTest is StrategySharedSetup {
             ISpender(address(spender)),
             IPermanentStorage(address(permanentStorage)),
             IWETH(address(weth)),
-            Addresses.UNISWAP_V3_ADDRESS,
-            Addresses.SUSHISWAP_ADDRESS,
+            UNISWAP_V3_ADDRESS,
+            SUSHISWAP_ADDRESS,
             feeCollector
         );
         // Setup
@@ -173,8 +173,8 @@ contract LimitOrderTest is StrategySharedSetup {
         assertEq(address(limitOrder.spender()), address(spender));
         assertEq(address(limitOrder.permStorage()), address(permanentStorage));
         assertEq(address(limitOrder.weth()), address(weth));
-        assertEq(limitOrder.uniswapV3RouterAddress(), Addresses.UNISWAP_V3_ADDRESS);
-        assertEq(limitOrder.sushiswapRouterAddress(), Addresses.SUSHISWAP_ADDRESS);
+        assertEq(limitOrder.uniswapV3RouterAddress(), UNISWAP_V3_ADDRESS);
+        assertEq(limitOrder.sushiswapRouterAddress(), SUSHISWAP_ADDRESS);
 
         assertEq(uint256(limitOrder.makerFeeFactor()), 0);
         assertEq(uint256(limitOrder.takerFeeFactor()), 0);
@@ -848,7 +848,7 @@ contract LimitOrderTest is StrategySharedSetup {
     function testCannotFillByProtocolWithTakerOtherThanOrderSpecified() public {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
-        order.taker = Addresses.SUSHISWAP_ADDRESS;
+        order.taker = SUSHISWAP_ADDRESS;
         bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
@@ -1008,7 +1008,7 @@ contract LimitOrderTest is StrategySharedSetup {
         emit LimitOrderFilledByProtocol(
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.maker,
-            Addresses.UNISWAP_V3_ADDRESS,
+            UNISWAP_V3_ADDRESS,
             _getEIP712Hash(LimitOrderLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
             user,
             receiver,
