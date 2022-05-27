@@ -105,7 +105,7 @@ contract AllowanceTargetTest is Test {
         vm.warp(allowanceTarget.timelockExpirationTime());
         allowanceTarget.completeSetSpender();
 
-        BalanceSnapshot.Snapshot memory beneficiary = BalanceSnapshot.take(address(newSpender), Addresses.ETH_ADDRESS);
+        BalanceSnapshot.Snapshot memory beneficiary = BalanceSnapshot.take(address(newSpender), ETH_ADDRESS);
         uint256 heritage = 10 ether;
         vm.deal(address(allowanceTarget), heritage);
         vm.prank(newSpender);

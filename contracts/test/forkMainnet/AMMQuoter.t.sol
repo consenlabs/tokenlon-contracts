@@ -4,7 +4,6 @@ pragma solidity 0.7.6;
 import "contracts/AMMQuoter.sol";
 import "contracts/interfaces/IBalancerV2Vault.sol";
 import "contracts/interfaces/IPermanentStorage.sol";
-import "contracts-test/utils/Addresses.sol";
 import "contracts-test/utils/AMMUtil.sol";
 import "contracts-test/utils/StrategySharedSetup.sol";
 
@@ -13,14 +12,14 @@ contract AMMQuoterTest is StrategySharedSetup {
 
     AMMQuoter ammQuoter;
 
-    address DEFAULT_MAKER_ADDR = Addresses.UNISWAP_V2_ADDRESS;
-    address DEFAULT_TAKER_ASSET_ADDR = Addresses.DAI_ADDRESS;
-    address DEFAULT_MAKER_ASSET_ADDR = Addresses.USDT_ADDRESS;
+    address DEFAULT_MAKER_ADDR = UNISWAP_V2_ADDRESS;
+    address DEFAULT_TAKER_ASSET_ADDR = DAI_ADDRESS;
+    address DEFAULT_MAKER_ASSET_ADDR = USDT_ADDRESS;
     uint256 DEFAULT_TAKER_ASSET_AMOUNT = 100 * 1e18;
     uint256 DEFAULT_MAKER_ASSET_AMOUNT = 100 * 1e6;
     address[] EMPTY_PATH = new address[](0);
     address[] DEFAULT_SINGLE_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, DEFAULT_MAKER_ASSET_ADDR];
-    address[] DEFAULT_MULTI_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, Addresses.WETH_ADDRESS, DEFAULT_MAKER_ASSET_ADDR];
+    address[] DEFAULT_MULTI_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, WETH_ADDRESS, DEFAULT_MAKER_ASSET_ADDR];
     uint24[] DEFAULT_MULTI_HOP_POOL_FEES = [FEE_MEDIUM, FEE_MEDIUM];
 
     // BalancerV2
@@ -32,15 +31,15 @@ contract AMMQuoterTest is StrategySharedSetup {
     function setUp() public {
         // Setup
         _deployPermanentStorageAndProxy();
-        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), Addresses.WETH_ADDRESS);
+        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), WETH_ADDRESS);
 
         // Label addresses for easier debugging
         vm.label(address(this), "TestingContract");
         vm.label(address(ammQuoter), "AMMQuoterContract");
-        vm.label(Addresses.UNISWAP_V2_ADDRESS, "UniswapV2");
-        vm.label(Addresses.SUSHISWAP_ADDRESS, "Sushiswap");
-        vm.label(Addresses.UNISWAP_V3_ADDRESS, "UniswapV3");
-        vm.label(Addresses.UNISWAP_V3_QUOTER_ADDRESS, "UniswapV3Quoter");
+        vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
+        vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
+        vm.label(UNISWAP_V3_ADDRESS, "UniswapV3");
+        vm.label(UNISWAP_V3_QUOTER_ADDRESS, "UniswapV3Quoter");
     }
 
     /*********************************
@@ -49,7 +48,7 @@ contract AMMQuoterTest is StrategySharedSetup {
 
     function testSetupAMMQuoter() public {
         assertEq(address(ammQuoter.permStorage()), address(permanentStorage));
-        assertEq(ammQuoter.weth(), Addresses.WETH_ADDRESS);
+        assertEq(ammQuoter.weth(), WETH_ADDRESS);
     }
 
     /*************************************
@@ -68,12 +67,12 @@ contract AMMQuoterTest is StrategySharedSetup {
 
     function testCannotGetMakerOutAmount_Curve_InvalidSwapMethod() public {
         vm.expectRevert("PermanentStorage: invalid pair");
-        ammQuoter.getMakerOutAmount(Addresses.CURVE_USDT_POOL_ADDRESS, address(0xdead), DEFAULT_MAKER_ASSET_ADDR, DEFAULT_TAKER_ASSET_AMOUNT);
+        ammQuoter.getMakerOutAmount(CURVE_USDT_POOL_ADDRESS, address(0xdead), DEFAULT_MAKER_ASSET_ADDR, DEFAULT_TAKER_ASSET_AMOUNT);
     }
 
     function testGetMakerOutAmount_Curve() public {
         uint256 amountOut = ammQuoter.getMakerOutAmount(
-            Addresses.CURVE_USDT_POOL_ADDRESS,
+            CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT
@@ -113,7 +112,7 @@ contract AMMQuoterTest is StrategySharedSetup {
         uint256 swapType = 3;
         vm.expectRevert("AMMQuoter: Invalid UniswapV3 swap type");
         ammQuoter.getMakerOutAmountWithPath(
-            Addresses.UNISWAP_V3_ADDRESS,
+            UNISWAP_V3_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT,
@@ -125,7 +124,7 @@ contract AMMQuoterTest is StrategySharedSetup {
     function testGetMakerOutAmountWithPath_UniswapV3_SingleHop() public {
         uint256 swapType = 1;
         uint256 amountOut = ammQuoter.getMakerOutAmountWithPath(
-            Addresses.UNISWAP_V3_ADDRESS,
+            UNISWAP_V3_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT,
@@ -140,7 +139,7 @@ contract AMMQuoterTest is StrategySharedSetup {
         address[] memory path = DEFAULT_MULTI_HOP_PATH;
         uint24[] memory fees = DEFAULT_MULTI_HOP_POOL_FEES;
         uint256 amountOut = ammQuoter.getMakerOutAmountWithPath(
-            Addresses.UNISWAP_V3_ADDRESS,
+            UNISWAP_V3_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT,
@@ -162,7 +161,7 @@ contract AMMQuoterTest is StrategySharedSetup {
         );
         vm.expectRevert("AMMQuoter: wrong amount from balancer pool");
         ammQuoter.getMakerOutAmountWithPath(
-            Addresses.BALANCER_V2_ADDRESS,
+            BALANCER_V2_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT,
@@ -181,8 +180,7 @@ contract AMMQuoterTest is StrategySharedSetup {
             new bytes(0) // userData
         );
         uint256 amountOut = ammQuoter.getMakerOutAmountWithPath(
-            Addresses.BALANCER_V2_ADDRESS,
-            // Addresses.USDC_ADDRESS,
+            BALANCER_V2_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT,
@@ -203,7 +201,7 @@ contract AMMQuoterTest is StrategySharedSetup {
             new bytes(0) // userData
         );
         uint256 amountOut = ammQuoter.getMakerOutAmountWithPath(
-            Addresses.BALANCER_V2_ADDRESS,
+            BALANCER_V2_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT,
@@ -217,7 +215,7 @@ contract AMMQuoterTest is StrategySharedSetup {
         uint256 curveVersion = 3;
         vm.expectRevert("AMMQuoter: Invalid Curve version");
         ammQuoter.getMakerOutAmountWithPath(
-            Addresses.CURVE_USDT_POOL_ADDRESS,
+            CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT,
@@ -229,7 +227,7 @@ contract AMMQuoterTest is StrategySharedSetup {
     function testGetMakerOutAmountWithPath_Curve_Version1() public {
         uint256 curveVersion = 1;
         uint256 amountOut = ammQuoter.getMakerOutAmountWithPath(
-            Addresses.CURVE_USDT_POOL_ADDRESS,
+            CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_TAKER_ASSET_AMOUNT,
@@ -245,9 +243,9 @@ contract AMMQuoterTest is StrategySharedSetup {
 
     function testGetBestOutAmount() public {
         address[] memory makers = new address[](3);
-        makers[0] = Addresses.UNISWAP_V2_ADDRESS;
-        makers[1] = Addresses.SUSHISWAP_ADDRESS;
-        makers[2] = Addresses.CURVE_USDT_POOL_ADDRESS;
+        makers[0] = UNISWAP_V2_ADDRESS;
+        makers[1] = SUSHISWAP_ADDRESS;
+        makers[2] = CURVE_USDT_POOL_ADDRESS;
         (address bestMaker, uint256 bestAmount) = ammQuoter.getBestOutAmount(
             makers,
             DEFAULT_TAKER_ASSET_ADDR,
@@ -274,16 +272,11 @@ contract AMMQuoterTest is StrategySharedSetup {
 
     function testCannotGetTakerInAmount_Curve_InvalidSwapMethod() public {
         vm.expectRevert("PermanentStorage: invalid pair");
-        ammQuoter.getTakerInAmount(Addresses.CURVE_USDT_POOL_ADDRESS, address(0xdead), DEFAULT_MAKER_ASSET_ADDR, DEFAULT_TAKER_ASSET_AMOUNT);
+        ammQuoter.getTakerInAmount(CURVE_USDT_POOL_ADDRESS, address(0xdead), DEFAULT_MAKER_ASSET_ADDR, DEFAULT_TAKER_ASSET_AMOUNT);
     }
 
     function testGetTakerInAmount_Curve() public {
-        uint256 amountOut = ammQuoter.getTakerInAmount(
-            Addresses.CURVE_USDT_POOL_ADDRESS,
-            DEFAULT_TAKER_ASSET_ADDR,
-            DEFAULT_MAKER_ASSET_ADDR,
-            DEFAULT_MAKER_ASSET_AMOUNT
-        );
+        uint256 amountOut = ammQuoter.getTakerInAmount(CURVE_USDT_POOL_ADDRESS, DEFAULT_TAKER_ASSET_ADDR, DEFAULT_MAKER_ASSET_ADDR, DEFAULT_MAKER_ASSET_AMOUNT);
         assertGt(amountOut, 0);
     }
 
@@ -327,7 +320,7 @@ contract AMMQuoterTest is StrategySharedSetup {
         );
         vm.expectRevert("AMMQuoter: wrong amount from balancer pool");
         ammQuoter.getTakerInAmountWithPath(
-            Addresses.BALANCER_V2_ADDRESS,
+            BALANCER_V2_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_AMOUNT,
@@ -346,8 +339,7 @@ contract AMMQuoterTest is StrategySharedSetup {
             new bytes(0) // userData
         );
         uint256 amountOut = ammQuoter.getTakerInAmountWithPath(
-            Addresses.BALANCER_V2_ADDRESS,
-            // Addresses.USDC_ADDRESS,
+            BALANCER_V2_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_AMOUNT,
@@ -368,7 +360,7 @@ contract AMMQuoterTest is StrategySharedSetup {
             new bytes(0) // userData
         );
         uint256 amountOut = ammQuoter.getTakerInAmountWithPath(
-            Addresses.BALANCER_V2_ADDRESS,
+            BALANCER_V2_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_AMOUNT,
@@ -382,7 +374,7 @@ contract AMMQuoterTest is StrategySharedSetup {
         uint256 curveVersion = 3;
         vm.expectRevert("AMMQuoter: Invalid Curve version");
         ammQuoter.getTakerInAmountWithPath(
-            Addresses.CURVE_USDT_POOL_ADDRESS,
+            CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_AMOUNT,
@@ -394,7 +386,7 @@ contract AMMQuoterTest is StrategySharedSetup {
     function testGetTakerInAmountWithPath_Curve_Version1() public {
         uint256 curveVersion = 1;
         uint256 amountOut = ammQuoter.getTakerInAmountWithPath(
-            Addresses.CURVE_USDT_POOL_ADDRESS,
+            CURVE_USDT_POOL_ADDRESS,
             DEFAULT_TAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_ADDR,
             DEFAULT_MAKER_ASSET_AMOUNT,
@@ -410,9 +402,9 @@ contract AMMQuoterTest is StrategySharedSetup {
 
     function testGetBestInAmount() public {
         address[] memory makers = new address[](3);
-        makers[0] = Addresses.UNISWAP_V2_ADDRESS;
-        makers[1] = Addresses.SUSHISWAP_ADDRESS;
-        makers[2] = Addresses.CURVE_USDT_POOL_ADDRESS;
+        makers[0] = UNISWAP_V2_ADDRESS;
+        makers[1] = SUSHISWAP_ADDRESS;
+        makers[2] = CURVE_USDT_POOL_ADDRESS;
         (address bestMaker, uint256 bestAmount) = ammQuoter.getBestInAmount(
             makers,
             DEFAULT_TAKER_ASSET_ADDR,

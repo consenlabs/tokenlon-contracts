@@ -12,7 +12,7 @@ library BalanceSnapshot {
 
     function take(address owner, address token) internal view returns (Snapshot memory) {
         uint256 balanceBefore;
-        if (token == Addresses.ETH_ADDRESS) {
+        if (token == ETH_ADDRESS) {
             balanceBefore = owner.balance;
         } else {
             balanceBefore = IERC20(token).balanceOf(owner);
@@ -21,7 +21,7 @@ library BalanceSnapshot {
     }
 
     function _getBalanceAfter(Snapshot memory snapshot) internal view returns (int256) {
-        if (address(snapshot.token) == Addresses.ETH_ADDRESS) {
+        if (address(snapshot.token) == ETH_ADDRESS) {
             return int256(snapshot.owner.balance);
         } else {
             return int256(snapshot.token.balanceOf(snapshot.owner));
