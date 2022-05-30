@@ -29,11 +29,11 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
 
     AMMWrapperWithPath ammWrapperWithPath;
     AMMQuoter ammQuoter;
-    IERC20 weth = IERC20(Addresses.WETH_ADDRESS);
-    IERC20 usdt = IERC20(Addresses.USDT_ADDRESS);
-    IERC20 usdc = IERC20(Addresses.USDC_ADDRESS);
-    IERC20 dai = IERC20(Addresses.DAI_ADDRESS);
-    IERC20 wbtc = IERC20(Addresses.WBTC_ADDRESS);
+    IERC20 weth = IERC20(WETH_ADDRESS);
+    IERC20 usdt = IERC20(USDT_ADDRESS);
+    IERC20 usdc = IERC20(USDC_ADDRESS);
+    IERC20 dai = IERC20(DAI_ADDRESS);
+    IERC20 wbtc = IERC20(WBTC_ADDRESS);
     IERC20[] tokens = [weth, usdt, usdc, dai, wbtc];
 
     uint256 SUBSIDY_FACTOR = 3;
@@ -67,7 +67,7 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
 
         // Default order
         DEFAULT_ORDER = AMMLibEIP712.Order(
-            Addresses.UNISWAP_V3_ADDRESS, // makerAddr
+            UNISWAP_V3_ADDRESS, // makerAddr
             address(usdc), // takerAssetAddr
             address(dai), // makerAssetAddr
             100 * 1e6, // takerAssetAmount
@@ -95,11 +95,11 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
         vm.label(address(usdc), "USDC");
         vm.label(address(dai), "DAI");
         vm.label(address(wbtc), "WBTC");
-        vm.label(Addresses.UNISWAP_V2_ADDRESS, "UniswapV2");
-        vm.label(Addresses.SUSHISWAP_ADDRESS, "Sushiswap");
-        vm.label(Addresses.UNISWAP_V3_ADDRESS, "UniswapV3");
-        vm.label(Addresses.CURVE_USDT_POOL_ADDRESS, "CurveUSDTPool");
-        vm.label(Addresses.CURVE_TRICRYPTO2_POOL_ADDRESS, "CurveTriCryptoPool");
+        vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
+        vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
+        vm.label(UNISWAP_V3_ADDRESS, "UniswapV3");
+        vm.label(CURVE_USDT_POOL_ADDRESS, "CurveUSDTPool");
+        vm.label(CURVE_TRICRYPTO2_POOL_ADDRESS, "CurveTriCryptoPool");
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
@@ -156,8 +156,8 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
     function testTradeSushiswap_SingleHop() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAddr = Addresses.SUSHISWAP_ADDRESS;
-        order.makerAssetAddr = Addresses.ETH_ADDRESS;
+        order.makerAddr = SUSHISWAP_ADDRESS;
+        order.makerAssetAddr = ETH_ADDRESS;
         order.makerAssetAmount = 0.001 ether;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig, bytes(""), new address[](0));
@@ -174,8 +174,8 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
     function testTradeSushiswap_MultiHop() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAddr = Addresses.SUSHISWAP_ADDRESS;
-        order.makerAssetAddr = Addresses.ETH_ADDRESS;
+        order.makerAddr = SUSHISWAP_ADDRESS;
+        order.makerAssetAddr = ETH_ADDRESS;
         order.makerAssetAmount = 0.001 ether;
         bytes memory sig = _signTrade(userPrivateKey, order);
         address[] memory path = DEFAULT_MULTI_HOP_PATH;
@@ -195,7 +195,7 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
     function testTradeCurveVersion1() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAddr = Addresses.CURVE_USDT_POOL_ADDRESS;
+        order.makerAddr = CURVE_USDT_POOL_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeCurveData(1), new address[](0));
 
@@ -244,7 +244,7 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
     function testTradeUniswapV3_ExactInputSingle() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAssetAddr = Addresses.ETH_ADDRESS;
+        order.makerAssetAddr = ETH_ADDRESS;
         order.makerAssetAmount = 0.001 ether;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapSinglePoolData(SINGLE_POOL_SWAP_TYPE, FEE_MEDIUM), new address[](0));
