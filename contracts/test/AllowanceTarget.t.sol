@@ -98,7 +98,7 @@ contract AllowanceTargetTest is Test {
     }
 
     function testTeardown() public {
-        BalanceSnapshot.Snapshot memory beneficiary = BalanceSnapshot.take(address(this), Addresses.ETH_ADDRESS);
+        BalanceSnapshot.Snapshot memory beneficiary = BalanceSnapshot.take(address(this), ETH_ADDRESS);
         uint256 heritage = 10 ether;
         vm.deal(address(allowanceTarget), heritage);
         allowanceTarget.teardown();
