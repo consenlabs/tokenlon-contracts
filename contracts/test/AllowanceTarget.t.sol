@@ -98,17 +98,9 @@ contract AllowanceTargetTest is Test {
     }
 
     function testTeardown() public {
-        // Seems like the test contract itself have issue with receving ether.
-        // So set spender to mock contract first.
-        allowanceTarget.setSpenderWithTimelock(newSpender);
-        // fast forward
-        vm.warp(allowanceTarget.timelockExpirationTime());
-        allowanceTarget.completeSetSpender();
-
-        BalanceSnapshot.Snapshot memory beneficiary = BalanceSnapshot.take(address(newSpender), ETH_ADDRESS);
+        BalanceSnapshot.Snapshot memory beneficiary = BalanceSnapshot.take(address(this), ETH_ADDRESS);
         uint256 heritage = 10 ether;
         vm.deal(address(allowanceTarget), heritage);
-        vm.prank(newSpender);
         allowanceTarget.teardown();
         beneficiary.assertChange(int256(heritage));
     }
