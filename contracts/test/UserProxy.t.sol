@@ -36,8 +36,8 @@ contract UserProxyTest is Test {
         );
 
         // Deal 100 ETH to each account
-        vm.deal(user, 100 ether);
-        vm.deal(relayer, 100 ether);
+        deal(user, 100 ether);
+        deal(relayer, 100 ether);
 
         // Label addresses for easier debugging
         vm.label(user, "User");

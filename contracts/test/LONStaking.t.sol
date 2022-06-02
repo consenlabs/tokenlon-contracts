@@ -2,6 +2,7 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
+import "forge-std/Test.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -11,9 +12,8 @@ import "contracts/xLON.sol";
 import "contracts/interfaces/ILon.sol";
 import "contracts-test/mocks/MockERC20.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
-import "contracts-test/utils/BalanceUtil.sol";
 
-contract LONStakingTest is Test, BalanceUtil {
+contract LONStakingTest is Test {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
@@ -73,7 +73,7 @@ contract LONStakingTest is Test, BalanceUtil {
         lonStaking = LONStaking(address(xLon));
 
         // Deal 100 ETH to user
-        vm.deal(user, 100 ether);
+        deal(user, 100 ether);
         // Mint LON to user
         lon.mint(user, 100 * 1e18);
         // User approve LONStaking

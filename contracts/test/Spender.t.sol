@@ -5,11 +5,8 @@ import "forge-std/Test.sol";
 import "contracts/Spender.sol";
 import "contracts/AllowanceTarget.sol";
 import "contracts-test/mocks/MockERC20.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
 
 contract SpenderTest is Test {
-    using BalanceSnapshot for BalanceSnapshot.Snapshot;
-
     event TearDownAllowanceTarget(uint256 tearDownTimeStamp);
     struct SpendWithPermit {
         address tokenAddr;
@@ -49,7 +46,7 @@ contract SpenderTest is Test {
 
         // Deal 100 ETH to each account
         for (uint256 i = 0; i < wallet.length; i++) {
-            vm.deal(wallet[i], 100 ether);
+            deal(wallet[i], 100 ether);
         }
         // Mint 10k tokens to user
         lon.mint(user, 10000 * 1e18);

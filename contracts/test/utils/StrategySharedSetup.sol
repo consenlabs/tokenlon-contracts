@@ -107,7 +107,7 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
     function dealWallet(address[] memory wallet, uint256 amount) internal {
         // Deal 100 ETH to each account
         for (uint256 i = 0; i < wallet.length; i++) {
-            vm.deal(wallet[i], amount);
+            deal(wallet[i], amount);
         }
     }
 

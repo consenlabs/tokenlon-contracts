@@ -20,10 +20,9 @@ import "contracts-test/mocks/MockContract.sol";
 import "contracts-test/mocks/MockStrategy.sol";
 import "contracts-test/utils/Addresses.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
-import "contracts-test/utils/BalanceUtil.sol";
 import "contracts-test/utils/UniswapV3Util.sol";
 
-contract RewardDistributorTest is Test, BalanceUtil {
+contract RewardDistributorTest is Test {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
@@ -117,10 +116,10 @@ contract RewardDistributorTest is Test, BalanceUtil {
             strategyAddrs[i] = address(strategy);
             vm.startPrank(address(strategy));
             // LON
-            setERC20BalanceRaw(address(lon), address(strategy), LON_FEE_TOKEN.maxBuy / strategies.length);
+            deal(address(lon), address(strategy), LON_FEE_TOKEN.maxBuy / strategies.length, true);
             IERC20(lon).safeApprove(address(rewardDistributor), type(uint256).max);
             // USDT
-            setERC20BalanceRaw(address(usdt), address(strategy), USDT_FEE_TOKEN.maxBuy / strategies.length);
+            deal(address(usdt), address(strategy), USDT_FEE_TOKEN.maxBuy / strategies.length, true);
             usdt.safeApprove(address(rewardDistributor), type(uint256).max);
             vm.stopPrank();
         }
@@ -130,7 +129,7 @@ contract RewardDistributorTest is Test, BalanceUtil {
         lon.setMinter(address(rewardDistributor));
 
         // Deal 100 ETH to user
-        vm.deal(user, 100 ether);
+        deal(user, 100 ether);
 
         vm.label(user, "User");
         vm.label(treasury, "Treasury");
@@ -301,7 +300,7 @@ contract RewardDistributorTest is Test, BalanceUtil {
     function testRecoverERC20() public {
         uint256 recoverAmount = 100;
 
-        setERC20BalanceRaw(address(lon), address(rewardDistributor), recoverAmount);
+        deal(address(lon), address(rewardDistributor), recoverAmount, true);
 
         BalanceSnapshot.Snapshot memory ownerLon = BalanceSnapshot.take(address(this), address(lon));
 

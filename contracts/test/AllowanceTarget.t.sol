@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.6;
 
+import "forge-std/Test.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "contracts/AllowanceTarget.sol";
 import "contracts-test/mocks/MockStrategy.sol";
 import "contracts-test/mocks/MockERC20.sol";
 import "contracts-test/utils/Addresses.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
-import "contracts-test/utils/StrategySharedSetup.sol";
 
 contract AllowanceTargetTest is Test {
     using Address for address;
@@ -100,7 +100,7 @@ contract AllowanceTargetTest is Test {
     function testTeardown() public {
         BalanceSnapshot.Snapshot memory beneficiary = BalanceSnapshot.take(address(this), ETH_ADDRESS);
         uint256 heritage = 10 ether;
-        vm.deal(address(allowanceTarget), heritage);
+        deal(address(allowanceTarget), heritage);
         allowanceTarget.teardown();
         beneficiary.assertChange(int256(heritage));
     }

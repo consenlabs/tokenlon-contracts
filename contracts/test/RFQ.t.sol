@@ -71,8 +71,6 @@ contract RFQTest is StrategySharedSetup {
 
         // Deal 100 ETH to each account
         dealWallet(wallet, 100 ether);
-        // Deposit to increase WETH total supply so withdraw does not cause underflow when WETH balance is manipulated by setERC20Balance
-        weth.deposit{ value: 10 ether }();
         // Set user token balance and approve
         setEOABalanceAndApprove(user, tokens, 100);
         // Set ERC1271 wallet token balance and approve
@@ -81,6 +79,8 @@ contract RFQTest is StrategySharedSetup {
         setEOABalanceAndApprove(maker, tokens, 100);
         // Set MMP token balance and approve
         setWalletContractBalanceAndApprove(maker, address(marketMakerProxy), tokens, 100);
+        // Deal ETH to WETH contract because it's balances are manipualted without actual ETH deposit
+        deal(address(weth), weth.totalSupply());
 
         // Default order
         DEFAULT_ORDER = RFQLibEIP712.Order(
@@ -205,7 +205,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testDepositETH() public {
-        vm.deal(address(rfq), 1 ether);
+        deal(address(rfq), 1 ether);
         assertEq(address(rfq).balance, 1 ether);
         rfq.depositETH();
         assertEq(address(rfq).balance, uint256(0));

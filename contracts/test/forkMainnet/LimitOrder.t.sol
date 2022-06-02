@@ -283,7 +283,7 @@ contract LimitOrderTest is StrategySharedSetup {
     function testDepositETH() public {
         // Send ether to limit order contract
         uint256 amount = 1234 ether;
-        vm.deal(address(limitOrder), amount);
+        deal(address(limitOrder), amount);
         limitOrder.depositETH();
         assertEq(weth.balanceOf(address(limitOrder)), amount);
     }
