@@ -192,7 +192,7 @@ contract AMMWrapperTest is StrategySharedSetup {
     }
 
     function testDepositETH() public {
-        vm.deal(address(ammWrapper), 1 ether);
+        deal(address(ammWrapper), 1 ether);
         assertEq(address(ammWrapper).balance, 1 ether);
         ammWrapper.depositETH();
         assertEq(address(ammWrapper).balance, uint256(0));

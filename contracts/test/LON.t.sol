@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.6;
 
+import "forge-std/Test.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/Lon.sol";
 import "contracts-test/mocks/MockERC20.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
-import "contracts-test/utils/BalanceUtil.sol";
 
-contract LONTest is Test, BalanceUtil {
+contract LONTest is Test {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
@@ -37,7 +37,7 @@ contract LONTest is Test, BalanceUtil {
     // effectively a "beforeEach" block
     function setUp() public {
         // Deal 100 ETH to each account
-        vm.deal(user, 100 ether);
+        deal(user, 100 ether);
 
         // Default permit
         DEFAULT_PERMIT = Permit(
