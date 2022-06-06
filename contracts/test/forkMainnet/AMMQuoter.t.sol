@@ -71,12 +71,8 @@ contract AMMQuoterTest is StrategySharedSetup {
     }
 
     function testGetMakerOutAmount_Curve() public {
-        uint256 amountOut = ammQuoter.getMakerOutAmount(
-            CURVE_USDT_POOL_ADDRESS,
-            DEFAULT_TAKER_ASSET_ADDR,
-            DEFAULT_MAKER_ASSET_ADDR,
-            DEFAULT_TAKER_ASSET_AMOUNT
-        );
+        // Test USDT Pool
+        uint256 amountOut = ammQuoter.getMakerOutAmount(CURVE_STETH_POOL_ADDRESS, ETH_ADDRESS, STETH_ADDRESS, 0.01 ether);
         assertGt(amountOut, 0);
     }
 
@@ -227,10 +223,10 @@ contract AMMQuoterTest is StrategySharedSetup {
     function testGetMakerOutAmountWithPath_Curve_Version1() public {
         uint256 curveVersion = 1;
         uint256 amountOut = ammQuoter.getMakerOutAmountWithPath(
-            CURVE_USDT_POOL_ADDRESS,
-            DEFAULT_TAKER_ASSET_ADDR,
-            DEFAULT_MAKER_ASSET_ADDR,
-            DEFAULT_TAKER_ASSET_AMOUNT,
+            CURVE_STETH_POOL_ADDRESS,
+            ETH_ADDRESS,
+            STETH_ADDRESS,
+            0.01 ether,
             EMPTY_PATH,
             _encodeCurveData(curveVersion)
         );

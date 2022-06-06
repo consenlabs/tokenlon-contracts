@@ -234,14 +234,19 @@ contract AMMWrapperTest is StrategySharedSetup {
     function testTradeCurve() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAddr = CURVE_USDT_POOL_ADDRESS;
+        order.takerAssetAddr = ETH_ADDRESS;
+        order.makerAssetAddr = STETH_ADDRESS;
+        order.takerAssetAmount = 0.01 ether;
+        order.makerAssetAmount = 0.001 ether;
+        order.makerAddr = CURVE_STETH_POOL_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
 
-        userProxy.toAMM(payload);
+        vm.prank(user);
+        userProxy.toAMM{ value: order.takerAssetAmount }(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
