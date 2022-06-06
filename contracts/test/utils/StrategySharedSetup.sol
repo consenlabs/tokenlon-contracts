@@ -118,9 +118,9 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
     ) internal {
         require(address(allowanceTarget) != address(0), "System contracts not setup yet");
         vm.startPrank(eoa);
-        for (uint256 j = 0; j < tokens.length; j++) {
-            setERC20Balance(address(tokens[j]), eoa, amount);
-            tokens[j].safeApprove(address(allowanceTarget), type(uint256).max);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            setERC20Balance(address(tokens[i]), eoa, amount);
+            tokens[i].safeApprove(address(allowanceTarget), type(uint256).max);
         }
         vm.stopPrank();
     }

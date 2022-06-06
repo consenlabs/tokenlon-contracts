@@ -2,11 +2,19 @@
 pragma solidity 0.7.6;
 
 import "forge-std/Test.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "contracts/Spender.sol";
 import "contracts/AllowanceTarget.sol";
 import "contracts-test/mocks/MockERC20.sol";
+import "contracts-test/mocks/MockDeflationaryERC20.sol";
+import "contracts-test/mocks/MockNoReturnERC20.sol";
+import "contracts-test/mocks/MockNoRevertERC20.sol";
+import "contracts-test/utils/BalanceUtil.sol";
 
-contract SpenderTest is Test {
+contract SpenderTest is BalanceUtil {
+    using SafeERC20 for IERC20;
+
     event TearDownAllowanceTarget(uint256 tearDownTimeStamp);
     struct SpendWithPermit {
         address tokenAddr;
@@ -28,6 +36,10 @@ contract SpenderTest is Test {
     Spender spender;
     AllowanceTarget allowanceTarget;
     MockERC20 lon = new MockERC20("TOKENLON", "LON", 18);
+    MockDeflationaryERC20 deflationaryERC20 = new MockDeflationaryERC20();
+    MockNoReturnERC20 noReturnERC20 = new MockNoReturnERC20();
+    MockNoRevertERC20 noRevertERC20 = new MockNoRevertERC20();
+    IERC20[] tokens = [IERC20(address(deflationaryERC20)), IERC20(address(noReturnERC20)), IERC20(address(noRevertERC20))];
 
     uint64 EXPIRY = uint64(block.timestamp + 1);
     SpendWithPermit DEFAULT_SPEND_WITH_PERMIT;
@@ -51,8 +63,14 @@ contract SpenderTest is Test {
         // Mint 10k tokens to user
         lon.mint(user, 10000 * 1e18);
         // User approve AllowanceTarget
-        vm.prank(user);
+        vm.startPrank(user);
         lon.approve(address(allowanceTarget), type(uint256).max);
+        // Set user's mock tokens balance and approve
+        for (uint256 j = 0; j < tokens.length; j++) {
+            setERC20Balance(address(tokens[j]), user, 100);
+            tokens[j].safeApprove(address(allowanceTarget), type(uint256).max);
+        }
+        vm.stopPrank();
 
         // Default SpendWithPermit
         // prettier-ignore
@@ -202,6 +220,23 @@ contract SpenderTest is Test {
         spender.spendFromUser(user, address(lon), 100);
     }
 
+    function testCannotSpendFromUserWithNoReturnValueToken() public {
+        uint256 userBalance = noReturnERC20.balanceOf(user);
+        vm.expectRevert("Spender: ERC20 transferFrom failed");
+        spender.spendFromUser(user, address(noReturnERC20), userBalance + 1);
+    }
+
+    function testCannotSpendFromUserWithReturnFalseToken() public {
+        uint256 userBalance = noReturnERC20.balanceOf(user);
+        vm.expectRevert("Spender: ERC20 transferFrom failed");
+        spender.spendFromUser(user, address(noRevertERC20), userBalance + 1);
+    }
+
+    function testCannotSpendFromUserWithDeflationaryToken() public {
+        vm.expectRevert("Spender: ERC20 transferFrom amount mismatch");
+        spender.spendFromUser(user, address(deflationaryERC20), 100);
+    }
+
     function testSpendFromUser() public {
         assertEq(lon.balanceOf(address(this)), 0);
 
@@ -229,6 +264,23 @@ contract SpenderTest is Test {
 
         vm.expectRevert("Spender: token is blacklisted");
         spender.spendFromUserTo(user, address(lon), recipient, 100);
+    }
+
+    function testCannotSpendFromUserToWithNoReturnValueToken() public {
+        uint256 userBalance = noReturnERC20.balanceOf(user);
+        vm.expectRevert("Spender: ERC20 transferFrom failed");
+        spender.spendFromUserTo(user, address(noReturnERC20), recipient, userBalance + 1);
+    }
+
+    function testCannotSpendFromUserToWithReturnFalseToken() public {
+        uint256 userBalance = noReturnERC20.balanceOf(user);
+        vm.expectRevert("Spender: ERC20 transferFrom failed");
+        spender.spendFromUserTo(user, address(noRevertERC20), recipient, userBalance + 1);
+    }
+
+    function testCannotSpendFromUserToWithDeflationaryToken() public {
+        vm.expectRevert("Spender: ERC20 transferFrom amount mismatch");
+        spender.spendFromUserTo(user, address(deflationaryERC20), recipient, 100);
     }
 
     function testSpendFromUserTo() public {
