@@ -223,11 +223,11 @@ contract SpenderTest is BalanceUtil {
     function testCannotSpendFromUserWithNoReturnValueToken() public {
         uint256 userBalance = noReturnERC20.balanceOf(user);
         vm.expectRevert("Spender: ERC20 transferFrom failed");
-        spender.spendFromUser(user, address(noReturnERC20), userBalance + 1);
+        spender.spendFromUser(user, address(noReturnERC20), userBalance);
     }
 
     function testCannotSpendFromUserWithReturnFalseToken() public {
-        uint256 userBalance = noReturnERC20.balanceOf(user);
+        uint256 userBalance = noRevertERC20.balanceOf(user);
         vm.expectRevert("Spender: ERC20 transferFrom failed");
         spender.spendFromUser(user, address(noRevertERC20), userBalance + 1);
     }
@@ -269,11 +269,11 @@ contract SpenderTest is BalanceUtil {
     function testCannotSpendFromUserToWithNoReturnValueToken() public {
         uint256 userBalance = noReturnERC20.balanceOf(user);
         vm.expectRevert("Spender: ERC20 transferFrom failed");
-        spender.spendFromUserTo(user, address(noReturnERC20), recipient, userBalance + 1);
+        spender.spendFromUserTo(user, address(noReturnERC20), recipient, userBalance);
     }
 
     function testCannotSpendFromUserToWithReturnFalseToken() public {
-        uint256 userBalance = noReturnERC20.balanceOf(user);
+        uint256 userBalance = noRevertERC20.balanceOf(user);
         vm.expectRevert("Spender: ERC20 transferFrom failed");
         spender.spendFromUserTo(user, address(noRevertERC20), recipient, userBalance + 1);
     }
