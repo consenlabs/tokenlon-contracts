@@ -220,13 +220,13 @@ contract SpenderTest is BalanceUtil {
         spender.spendFromUser(user, address(lon), 100);
     }
 
-    function testCannotSpendFromUserWithNoReturnValueToken() public {
+    function testCannotSpendFromUserInsufficientBalance_NoReturnValueToken() public {
         uint256 userBalance = noReturnERC20.balanceOf(user);
         vm.expectRevert("Spender: ERC20 transferFrom failed");
         spender.spendFromUser(user, address(noReturnERC20), userBalance + 1);
     }
 
-    function testCannotSpendFromUserWithReturnFalseToken() public {
+    function testCannotSpendFromUserInsufficientBalance_ReturnFalseToken() public {
         uint256 userBalance = noRevertERC20.balanceOf(user);
         vm.expectRevert("Spender: ERC20 transferFrom failed");
         spender.spendFromUser(user, address(noRevertERC20), userBalance + 1);
@@ -243,6 +243,14 @@ contract SpenderTest is BalanceUtil {
         spender.spendFromUser(user, address(lon), 100);
 
         assertEq(lon.balanceOf(address(this)), 100);
+    }
+
+    function testSpendFromUserWithNoReturnValueToken() public {
+        assertEq(noReturnERC20.balanceOf(address(this)), 0);
+
+        spender.spendFromUser(user, address(noReturnERC20), 100);
+
+        assertEq(noReturnERC20.balanceOf(address(this)), 100);
     }
 
     /*********************************
@@ -266,13 +274,13 @@ contract SpenderTest is BalanceUtil {
         spender.spendFromUserTo(user, address(lon), recipient, 100);
     }
 
-    function testCannotSpendFromUserToWithNoReturnValueToken() public {
+    function testCannotSpendFromUserToInsufficientBalance_NoReturnValueToken() public {
         uint256 userBalance = noReturnERC20.balanceOf(user);
         vm.expectRevert("Spender: ERC20 transferFrom failed");
         spender.spendFromUserTo(user, address(noReturnERC20), recipient, userBalance + 1);
     }
 
-    function testCannotSpendFromUserToWithReturnFalseToken() public {
+    function testCannotSpendFromUserToInsufficientBalance_ReturnFalseToken() public {
         uint256 userBalance = noRevertERC20.balanceOf(user);
         vm.expectRevert("Spender: ERC20 transferFrom failed");
         spender.spendFromUserTo(user, address(noRevertERC20), recipient, userBalance + 1);
@@ -289,5 +297,13 @@ contract SpenderTest is BalanceUtil {
         spender.spendFromUserTo(user, address(lon), recipient, 100);
 
         assertEq(lon.balanceOf(recipient), 100);
+    }
+
+    function testSpendFromUserToWithNoReturnValueToken() public {
+        assertEq(noReturnERC20.balanceOf(recipient), 0);
+
+        spender.spendFromUserTo(user, address(noReturnERC20), recipient, 100);
+
+        assertEq(noReturnERC20.balanceOf(recipient), 100);
     }
 }
