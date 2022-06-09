@@ -248,7 +248,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
 
         txMetaData.transactionHash = _verify(order, _sig);
 
-        _prepare(order, internalTxData);
+        order.takerAssetAmount = _prepare(order, internalTxData);
 
         // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
         uint256 _minAmount = order.makerAssetAmount.mul((BPS_MAX.sub(txMetaData.subsidyFactor))).div(BPS_MAX);
@@ -323,7 +323,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
      * @dev internal function of `trade`.
      * It executes the swap on chosen AMM.
      */
-    function _prepare(AMMLibEIP712.Order memory _order, InternalTxData memory _internalTxData) internal {
+    function _prepare(AMMLibEIP712.Order memory _order, InternalTxData memory _internalTxData) internal returns (uint256 transferredAmount) {
         // Transfer asset from user and deposit to weth if needed
         if (_internalTxData.fromEth) {
             require(msg.value > 0, "AMMWrapper: msg.value is zero");
@@ -332,9 +332,10 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
             if (!_isInternalAssetETH(_internalTxData.takerAssetInternalAddr)) {
                 weth.deposit{ value: msg.value }();
             }
+            return _order.takerAssetAmount;
         } else {
             // other ERC20 tokens
-            spender.spendFromUser(_order.userAddr, _order.takerAssetAddr, _order.takerAssetAmount);
+            return spender.spendFromUser(_order.userAddr, _order.takerAssetAddr, _order.takerAssetAmount);
         }
     }
 
