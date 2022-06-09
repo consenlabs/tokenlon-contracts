@@ -209,8 +209,8 @@ contract Spender is ISpender {
         address _user,
         address _tokenAddr,
         uint256 _amount
-    ) external override onlyAuthorized {
-        _transferTokenFromUserTo(_user, _tokenAddr, msg.sender, _amount);
+    ) external override onlyAuthorized returns (uint256 transferredAmount) {
+        return _transferTokenFromUserTo(_user, _tokenAddr, msg.sender, _amount);
     }
 
     /// @dev Spend tokens on user's behalf. Only an authority can call this.
@@ -223,8 +223,8 @@ contract Spender is ISpender {
         address _tokenAddr,
         address _recipient,
         uint256 _amount
-    ) external override onlyAuthorized {
-        _transferTokenFromUserTo(_user, _tokenAddr, _recipient, _amount);
+    ) external override onlyAuthorized returns (uint256 transferredAmount) {
+        return _transferTokenFromUserTo(_user, _tokenAddr, _recipient, _amount);
     }
 
     function _transferTokenFromUserTo(
@@ -232,11 +232,11 @@ contract Spender is ISpender {
         address _tokenAddr,
         address _recipient,
         uint256 _amount
-    ) internal {
+    ) internal returns (uint256 transferredAmount) {
         require(!tokenBlacklist[_tokenAddr], "Spender: token is blacklisted");
 
         if (_tokenAddr == ETH_ADDRESS || _tokenAddr == ZERO_ADDRESS) {
-            return;
+            return 0;
         }
         // Fix gas stipend for non standard ERC20 transfer in case token contract's SafeMath violation is triggered
         // and all gas are consumed.
@@ -261,6 +261,6 @@ contract Spender is ISpender {
 
         // Check balance
         uint256 balanceAfter = IERC20(_tokenAddr).balanceOf(_recipient);
-        require(balanceAfter.sub(balanceBefore) == _amount, "Spender: ERC20 transferFrom amount mismatch");
+        return balanceAfter.sub(balanceBefore);
     }
 }
