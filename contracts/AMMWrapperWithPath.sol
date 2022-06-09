@@ -16,26 +16,30 @@ import "./utils/LibConstant.sol";
 import "./utils/LibUniswapV3.sol";
 
 contract AMMWrapperWithPath is AMMWrapper {
+    using SafeMath for uint16;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using LibBytes for bytes;
 
     // Constants do not have storage slot.
-    address public constant UNISWAP_V3_ROUTER_ADDRESS = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-
-    event Swapped(TxMetaData, AMMLibEIP712.Order order);
+    address public immutable UNISWAP_V3_ROUTER_ADDRESS;
 
     /************************************************************
      *              Constructor and init functions               *
      *************************************************************/
     constructor(
         address _operator,
-        uint256 _subsidyFactor,
+        uint16 _feeFactor,
         address _userProxy,
         ISpender _spender,
         IPermanentStorage _permStorage,
-        IWETH _weth
-    ) AMMWrapper(_operator, _subsidyFactor, _userProxy, _spender, _permStorage, _weth) {}
+        IWETH _weth,
+        address _uniswapV2Router,
+        address _sushiswapRouter,
+        address _uniswapV3Router
+    ) AMMWrapper(_operator, _feeFactor, _userProxy, _spender, _permStorage, _weth, _uniswapV2Router, _sushiswapRouter) {
+        UNISWAP_V3_ROUTER_ADDRESS = _uniswapV3Router;
+    }
 
     /************************************************************
      *                   External functions                      *
@@ -43,51 +47,46 @@ contract AMMWrapperWithPath is AMMWrapper {
 
     function trade(
         AMMLibEIP712.Order calldata _order,
-        uint256 _feeFactor,
         bytes calldata _sig,
         bytes calldata _makerSpecificData,
         address[] calldata _path
     ) external payable nonReentrant onlyUserProxy returns (uint256) {
         require(_order.deadline >= block.timestamp, "AMMWrapper: expired order");
         TxMetaData memory txMetaData;
-        InternalTxData memory internalTxData;
+        {
+            InternalTxData memory internalTxData;
 
-        // These variables are copied straight from function parameters and
-        // used to bypass stack too deep error.
-        txMetaData.subsidyFactor = uint16(subsidyFactor);
-        txMetaData.feeFactor = uint16(_feeFactor);
-        internalTxData.makerSpecificData = _makerSpecificData;
-        internalTxData.path = _path;
-        if (!permStorage.isRelayerValid(tx.origin)) {
-            txMetaData.feeFactor = (txMetaData.subsidyFactor > txMetaData.feeFactor) ? txMetaData.subsidyFactor : txMetaData.feeFactor;
-            txMetaData.subsidyFactor = 0;
+            // These variables are copied straight from function parameters and
+            // used to bypass stack too deep error.
+            internalTxData.makerSpecificData = _makerSpecificData;
+            internalTxData.path = _path;
+
+            // Assign trade vairables
+            internalTxData.fromEth = (_order.takerAssetAddr == ZERO_ADDRESS || _order.takerAssetAddr == ETH_ADDRESS);
+            internalTxData.toEth = (_order.makerAssetAddr == ZERO_ADDRESS || _order.makerAssetAddr == ETH_ADDRESS);
+            if (_isCurve(_order.makerAddr)) {
+                // PermanetStorage can recognize `ETH_ADDRESS` but not `ZERO_ADDRESS`.
+                // Convert it to `ETH_ADDRESS` as passed in `_order.takerAssetAddr` or `_order.makerAssetAddr` might be `ZERO_ADDRESS`.
+                internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? ETH_ADDRESS : _order.takerAssetAddr;
+                internalTxData.makerAssetInternalAddr = internalTxData.toEth ? ETH_ADDRESS : _order.makerAssetAddr;
+            } else {
+                internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? address(weth) : _order.takerAssetAddr;
+                internalTxData.makerAssetInternalAddr = internalTxData.toEth ? address(weth) : _order.makerAssetAddr;
+            }
+
+            txMetaData.transactionHash = _verify(_order, _sig);
+
+            _prepare(_order, internalTxData);
+
+            // amountOutMin = makerAssetAmount * (10000 + feeFactor) / 10000
+            uint256 _amountOutMin = _order.makerAssetAmount.mul((LibConstant.BPS_MAX.add(feeFactor))).div(LibConstant.BPS_MAX);
+            (txMetaData.source, txMetaData.receivedAmount) = _swapWithPath(_order, internalTxData, _amountOutMin);
+
+            // Settle
+            txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData);
         }
 
-        // Assign trade vairables
-        internalTxData.fromEth = (_order.takerAssetAddr == ZERO_ADDRESS || _order.takerAssetAddr == ETH_ADDRESS);
-        internalTxData.toEth = (_order.makerAssetAddr == ZERO_ADDRESS || _order.makerAssetAddr == ETH_ADDRESS);
-        if (_isCurve(_order.makerAddr)) {
-            // PermanetStorage can recognize `ETH_ADDRESS` but not `ZERO_ADDRESS`.
-            // Convert it to `ETH_ADDRESS` as passed in `_order.takerAssetAddr` or `_order.makerAssetAddr` might be `ZERO_ADDRESS`.
-            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? ETH_ADDRESS : _order.takerAssetAddr;
-            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? ETH_ADDRESS : _order.makerAssetAddr;
-        } else {
-            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? address(weth) : _order.takerAssetAddr;
-            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? address(weth) : _order.makerAssetAddr;
-        }
-
-        txMetaData.transactionHash = _verify(_order, _sig);
-
-        _prepare(_order, internalTxData);
-
-        // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
-        uint256 _minAmount = _order.makerAssetAmount.mul((BPS_MAX.sub(txMetaData.subsidyFactor))).div(BPS_MAX);
-        (txMetaData.source, txMetaData.receivedAmount) = _swapWithPath(_order, internalTxData, _minAmount);
-
-        // Settle
-        txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData);
-
-        emit Swapped(txMetaData, _order);
+        emitSwappedEvent(_order, txMetaData);
 
         return txMetaData.settleAmount;
     }
@@ -96,7 +95,7 @@ contract AMMWrapperWithPath is AMMWrapper {
      * @dev internal function of `trade`.
      * Used to tell if maker is Curve.
      */
-    function _isCurve(address _makerAddr) internal pure override returns (bool) {
+    function _isCurve(address _makerAddr) internal view override returns (bool) {
         if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == UNISWAP_V3_ROUTER_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) {
             return false;
         }
@@ -110,7 +109,7 @@ contract AMMWrapperWithPath is AMMWrapper {
     function _swapWithPath(
         AMMLibEIP712.Order memory _order,
         InternalTxData memory _internalTxData,
-        uint256 _minAmount
+        uint256 _amountOutMin
     )
         internal
         approveTakerAsset(_internalTxData.takerAssetInternalAddr, _order.makerAddr, _order.takerAssetAmount)
@@ -124,7 +123,7 @@ contract AMMWrapperWithPath is AMMWrapper {
                 _internalTxData.takerAssetInternalAddr,
                 _internalTxData.makerAssetInternalAddr,
                 _order.takerAssetAmount,
-                _minAmount,
+                _amountOutMin,
                 _order.deadline,
                 _internalTxData.path
             );
@@ -135,7 +134,7 @@ contract AMMWrapperWithPath is AMMWrapper {
                 _internalTxData.makerAssetInternalAddr,
                 _order.deadline,
                 _order.takerAssetAmount,
-                _minAmount,
+                _amountOutMin,
                 _internalTxData.makerSpecificData
             );
         } else {
@@ -160,7 +159,7 @@ contract AMMWrapperWithPath is AMMWrapper {
                     curveData.fromTokenCurveIndex,
                     curveData.toTokenCurveIndex,
                     _order.takerAssetAmount,
-                    _minAmount,
+                    _amountOutMin,
                     curveData.swapMethod
                 );
                 uint256 balanceAfterTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
