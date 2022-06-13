@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./AMMWrapper.sol";
+import "./interfaces/IAMMWrapperWithPath.sol";
 import "./interfaces/IBalancerV2Vault.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/ISpender.sol";
@@ -15,7 +16,7 @@ import "./utils/LibBytes.sol";
 import "./utils/LibConstant.sol";
 import "./utils/LibUniswapV3.sol";
 
-contract AMMWrapperWithPath is AMMWrapper {
+contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
     using SafeMath for uint16;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -29,7 +30,7 @@ contract AMMWrapperWithPath is AMMWrapper {
      *************************************************************/
     constructor(
         address _operator,
-        uint16 _feeFactor,
+        uint16 _defaultFeeFactor,
         address _userProxy,
         ISpender _spender,
         IPermanentStorage _permStorage,
@@ -37,7 +38,7 @@ contract AMMWrapperWithPath is AMMWrapper {
         address _uniswapV2Router,
         address _sushiswapRouter,
         address _uniswapV3Router
-    ) AMMWrapper(_operator, _feeFactor, _userProxy, _spender, _permStorage, _weth, _uniswapV2Router, _sushiswapRouter) {
+    ) AMMWrapper(_operator, _defaultFeeFactor, _userProxy, _spender, _permStorage, _weth, _uniswapV2Router, _sushiswapRouter) {
         UNISWAP_V3_ROUTER_ADDRESS = _uniswapV3Router;
     }
 
@@ -50,7 +51,31 @@ contract AMMWrapperWithPath is AMMWrapper {
         bytes calldata _sig,
         bytes calldata _makerSpecificData,
         address[] calldata _path
-    ) external payable nonReentrant onlyUserProxy returns (uint256) {
+    ) external payable override nonReentrant onlyUserProxy returns (uint256) {
+        TxMetaData memory txMetaData = _trade(_order, _sig, _makerSpecificData, _path, defaultFeeFactor);
+        emitSwappedEvent(_order, txMetaData, defaultFeeFactor, false);
+        return txMetaData.settleAmount;
+    }
+
+    function tradeByRelayer(
+        AMMLibEIP712.Order calldata _order,
+        bytes calldata _sig,
+        bytes calldata _makerSpecificData,
+        address[] calldata _path,
+        uint16 _feeFactor
+    ) external payable override nonReentrant onlyUserProxy returns (uint256) {
+        TxMetaData memory txMetaData = _trade(_order, _sig, _makerSpecificData, _path, defaultFeeFactor);
+        emitSwappedEvent(_order, txMetaData, _feeFactor, true);
+        return txMetaData.settleAmount;
+    }
+
+    function _trade(
+        AMMLibEIP712.Order calldata _order,
+        bytes calldata _sig,
+        bytes calldata _makerSpecificData,
+        address[] calldata _path,
+        uint16 _feeFactor
+    ) internal returns (TxMetaData memory) {
         require(_order.deadline >= block.timestamp, "AMMWrapper: expired order");
         TxMetaData memory txMetaData;
         {
@@ -78,17 +103,13 @@ contract AMMWrapperWithPath is AMMWrapper {
 
             _prepare(_order, internalTxData);
 
-            // amountOutMin = makerAssetAmount * (10000 + feeFactor) / 10000
-            uint256 _amountOutMin = _order.makerAssetAmount.mul((LibConstant.BPS_MAX.add(feeFactor))).div(LibConstant.BPS_MAX);
-            (txMetaData.source, txMetaData.receivedAmount) = _swapWithPath(_order, internalTxData, _amountOutMin);
+            (txMetaData.source, txMetaData.receivedAmount) = _swapWithPath(_order, internalTxData, _order.makerAssetAmount);
 
             // Settle
-            txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData);
+            txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData, _feeFactor);
         }
 
-        emitSwappedEvent(_order, txMetaData);
-
-        return txMetaData.settleAmount;
+        return txMetaData;
     }
 
     /**

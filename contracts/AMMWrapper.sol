@@ -33,7 +33,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
 
     // Below are the variables which consume storage slots.
     address public operator;
-    uint16 public feeFactor;
+    uint16 public defaultFeeFactor;
     ISpender public spender;
 
     /* Struct declaration */
@@ -104,7 +104,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
      *************************************************************/
     constructor(
         address _operator,
-        uint16 _feeFactor,
+        uint16 _defaultFeeFactor,
         address _userProxy,
         ISpender _spender,
         IPermanentStorage _permStorage,
@@ -113,7 +113,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         address _sushiswapRouter
     ) {
         operator = _operator;
-        feeFactor = _feeFactor;
+        defaultFeeFactor = _defaultFeeFactor;
         userProxy = _userProxy;
         spender = _spender;
         permStorage = _permStorage;
@@ -154,10 +154,10 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         }
     }
 
-    function setFeeFactor(uint16 _feeFactor) external onlyOperator {
-        feeFactor = _feeFactor;
+    function setDefaultFeeFactor(uint16 _defaultFeeFactor) external onlyOperator {
+        defaultFeeFactor = _defaultFeeFactor;
 
-        emit SetFeeFactor(_feeFactor);
+        emit SetDefaultFeeFactor(_defaultFeeFactor);
     }
 
     /**
@@ -176,6 +176,26 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
      *                   External functions                      *
      *************************************************************/
     function trade(AMMLibEIP712.Order calldata _order, bytes calldata _sig) external payable override nonReentrant onlyUserProxy returns (uint256) {
+        TxMetaData memory txMetaData = _trade(_order, _sig, defaultFeeFactor);
+        emitSwappedEvent(_order, txMetaData, defaultFeeFactor, false);
+        return txMetaData.settleAmount;
+    }
+
+    function tradeByRelayer(
+        AMMLibEIP712.Order calldata _order,
+        bytes calldata _sig,
+        uint16 _feeFactor
+    ) external payable override nonReentrant onlyUserProxy returns (uint256) {
+        TxMetaData memory txMetaData = _trade(_order, _sig, _feeFactor);
+        emitSwappedEvent(_order, txMetaData, _feeFactor, true);
+        return txMetaData.settleAmount;
+    }
+
+    function _trade(
+        AMMLibEIP712.Order calldata _order,
+        bytes calldata _sig,
+        uint16 feeFactor
+    ) internal returns (TxMetaData memory) {
         require(_order.deadline >= block.timestamp, "AMMWrapper: expired order");
         TxMetaData memory txMetaData;
         InternalTxData memory internalTxData;
@@ -200,11 +220,9 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         (txMetaData.source, txMetaData.receivedAmount) = _swap(_order, internalTxData, _order.makerAssetAmount);
 
         // Settle
-        txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData);
+        txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData, feeFactor);
 
-        emitSwappedEvent(_order, txMetaData);
-
-        return txMetaData.settleAmount;
+        return txMetaData;
     }
 
     /**
@@ -332,15 +350,16 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     function _settle(
         AMMLibEIP712.Order memory _order,
         TxMetaData memory _txMetaData,
-        InternalTxData memory _internalTxData
+        InternalTxData memory _internalTxData,
+        uint16 _feeFactor
     ) internal returns (uint256 settleAmount) {
         if (_txMetaData.receivedAmount > _order.makerAssetAmount) {
             // shouldCollectFee = ((receivedAmount - makerAssetAmount) / receivedAmount) > (feeFactor / 10000)
             bool shouldCollectFee = _txMetaData.receivedAmount.sub(_order.makerAssetAmount).mul(LibConstant.BPS_MAX) >
-                feeFactor.mul(_txMetaData.receivedAmount);
+                _feeFactor.mul(_txMetaData.receivedAmount);
             if (shouldCollectFee) {
                 // settleAmount = receivedAmount * (1 - feeFactor) / 10000
-                settleAmount = _txMetaData.receivedAmount.mul(LibConstant.BPS_MAX.sub(feeFactor)).div(LibConstant.BPS_MAX);
+                settleAmount = _txMetaData.receivedAmount.mul(LibConstant.BPS_MAX.sub(_feeFactor)).div(LibConstant.BPS_MAX);
             } else {
                 settleAmount = _order.makerAssetAmount;
             }
@@ -391,7 +410,12 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         return amounts[1];
     }
 
-    function emitSwappedEvent(AMMLibEIP712.Order memory _order, TxMetaData memory _txMetaData) internal {
+    function emitSwappedEvent(
+        AMMLibEIP712.Order memory _order,
+        TxMetaData memory _txMetaData,
+        uint16 _feeFactor,
+        bool _relayed
+    ) internal {
         emit Swapped(
             _txMetaData.source,
             _txMetaData.transactionHash,
@@ -404,7 +428,8 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
             _order.receiverAddr,
             _txMetaData.settleAmount,
             _txMetaData.receivedAmount,
-            feeFactor
+            _feeFactor,
+            _relayed
         );
     }
 }

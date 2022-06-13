@@ -10,7 +10,7 @@ interface IAMMWrapper is ISetAllowance {
     event AllowTransfer(address spender);
     event DisallowTransfer(address spender);
     event DepositETH(uint256 ethBalance);
-    event SetFeeFactor(uint256 newFeeFactor);
+    event SetDefaultFeeFactor(uint256 newDefaultFeeFactor);
 
     event Swapped(
         string source,
@@ -24,8 +24,15 @@ interface IAMMWrapper is ISetAllowance {
         address receiverAddr,
         uint256 settleAmount,
         uint256 receivedAmount,
-        uint16 feeFactor
+        uint16 feeFactor,
+        bool relayed
     );
 
     function trade(AMMLibEIP712.Order calldata _order, bytes memory _sig) external payable returns (uint256);
+
+    function tradeByRelayer(
+        AMMLibEIP712.Order calldata _order,
+        bytes memory _sig,
+        uint16 _feeFactor
+    ) external payable returns (uint256);
 }
