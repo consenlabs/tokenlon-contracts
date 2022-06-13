@@ -197,9 +197,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
 
         _prepare(_order, internalTxData);
 
-        // amountOutMin = makerAssetAmount * (10000 + feeFactor) / 10000
-        uint256 _amountOutMin = _order.makerAssetAmount.mul((LibConstant.BPS_MAX.add(feeFactor))).div(LibConstant.BPS_MAX);
-        (txMetaData.source, txMetaData.receivedAmount) = _swap(_order, internalTxData, _amountOutMin);
+        (txMetaData.source, txMetaData.receivedAmount) = _swap(_order, internalTxData, _order.makerAssetAmount);
 
         // Settle
         txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData);
@@ -336,9 +334,17 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         TxMetaData memory _txMetaData,
         InternalTxData memory _internalTxData
     ) internal returns (uint256 settleAmount) {
-        // settleAmount = receivedAmount - fee
-        uint256 fee = _order.makerAssetAmount.mul(feeFactor).div(LibConstant.BPS_MAX);
-        settleAmount = _txMetaData.receivedAmount.sub(fee);
+        if (_txMetaData.receivedAmount > _order.makerAssetAmount) {
+            // shouldCollectFee = ((receivedAmount - makerAssetAmount) / receivedAmount) > (feeFactor / 10000)
+            bool shouldCollectFee = _txMetaData.receivedAmount.sub(_order.makerAssetAmount).mul(LibConstant.BPS_MAX) >
+                feeFactor.mul(_txMetaData.receivedAmount);
+            if (shouldCollectFee) {
+                // settleAmount = receivedAmount * (1 - feeFactor) / 10000
+                settleAmount = _txMetaData.receivedAmount.mul(LibConstant.BPS_MAX.sub(feeFactor)).div(LibConstant.BPS_MAX);
+            } else {
+                settleAmount = _order.makerAssetAmount;
+            }
+        }
 
         // Transfer token/ETH to receiver
         if (_internalTxData.toEth) {
