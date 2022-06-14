@@ -155,6 +155,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     }
 
     function setDefaultFeeFactor(uint16 _defaultFeeFactor) external onlyOperator {
+        require(_defaultFeeFactor <= LibConstant.BPS_MAX, "AMMWrapper: invalid fee factor");
         defaultFeeFactor = _defaultFeeFactor;
 
         emit SetDefaultFeeFactor(_defaultFeeFactor);
