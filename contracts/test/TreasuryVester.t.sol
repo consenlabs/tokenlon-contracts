@@ -140,17 +140,22 @@ contract TreasuryVesterTest is Test {
      *              Test: set Vester recipient               *
      *********************************************************/
 
+    function _createVesterWithDefaultValues() internal returns (TreasuryVester) {
+        return
+            TreasuryVester(
+                treasuryVesterFactory.createVester(
+                    recipient,
+                    DEFAULT_VESTING_AMOUNT,
+                    DEFAULT_VESTING_BEGIN_TIMESTAMP,
+                    DEFAULT_VESTING_CLIFF_TIMESTAMP,
+                    DEFAULT_VESTING_END_TIMESTAMP
+                )
+            );
+    }
+
     function testCannotSetRecipientByNotRecipient() public {
         lon.approve(address(treasuryVesterFactory), DEFAULT_VESTING_AMOUNT);
-        treasuryVester = TreasuryVester(
-            treasuryVesterFactory.createVester(
-                recipient,
-                DEFAULT_VESTING_AMOUNT,
-                DEFAULT_VESTING_BEGIN_TIMESTAMP,
-                DEFAULT_VESTING_CLIFF_TIMESTAMP,
-                DEFAULT_VESTING_END_TIMESTAMP
-            )
-        );
+        treasuryVester = _createVesterWithDefaultValues();
         vm.expectRevert("unauthorized");
         vm.prank(other);
         treasuryVester.setRecipient(other);
@@ -167,15 +172,7 @@ contract TreasuryVesterTest is Test {
 
     function testVested() public {
         lon.approve(address(treasuryVesterFactory), DEFAULT_VESTING_AMOUNT);
-        treasuryVester = TreasuryVester(
-            treasuryVesterFactory.createVester(
-                recipient,
-                DEFAULT_VESTING_AMOUNT,
-                DEFAULT_VESTING_BEGIN_TIMESTAMP,
-                DEFAULT_VESTING_CLIFF_TIMESTAMP,
-                DEFAULT_VESTING_END_TIMESTAMP
-            )
-        );
+        treasuryVester = _createVesterWithDefaultValues();
 
         vm.warp(DEFAULT_VESTING_CLIFF_TIMESTAMP - 1);
         assertEq(treasuryVester.vested(), 0);
@@ -192,30 +189,14 @@ contract TreasuryVesterTest is Test {
 
     function testCannotClaimBeforeCliff() public {
         lon.approve(address(treasuryVesterFactory), DEFAULT_VESTING_AMOUNT);
-        treasuryVester = TreasuryVester(
-            treasuryVesterFactory.createVester(
-                recipient,
-                DEFAULT_VESTING_AMOUNT,
-                DEFAULT_VESTING_BEGIN_TIMESTAMP,
-                DEFAULT_VESTING_CLIFF_TIMESTAMP,
-                DEFAULT_VESTING_END_TIMESTAMP
-            )
-        );
+        treasuryVester = _createVesterWithDefaultValues();
         vm.expectRevert("not time yet");
         treasuryVester.claim();
     }
 
     function testClaimMultipleTimes() public {
         lon.approve(address(treasuryVesterFactory), DEFAULT_VESTING_AMOUNT);
-        treasuryVester = TreasuryVester(
-            treasuryVesterFactory.createVester(
-                recipient,
-                DEFAULT_VESTING_AMOUNT,
-                DEFAULT_VESTING_BEGIN_TIMESTAMP,
-                DEFAULT_VESTING_CLIFF_TIMESTAMP,
-                DEFAULT_VESTING_END_TIMESTAMP
-            )
-        );
+        treasuryVester = _createVesterWithDefaultValues();
 
         // Claim right after cliff
         vm.warp(DEFAULT_VESTING_CLIFF_TIMESTAMP);
@@ -251,15 +232,7 @@ contract TreasuryVesterTest is Test {
 
     function testClaimAllAtOnce() public {
         lon.approve(address(treasuryVesterFactory), DEFAULT_VESTING_AMOUNT);
-        treasuryVester = TreasuryVester(
-            treasuryVesterFactory.createVester(
-                recipient,
-                DEFAULT_VESTING_AMOUNT,
-                DEFAULT_VESTING_BEGIN_TIMESTAMP,
-                DEFAULT_VESTING_CLIFF_TIMESTAMP,
-                DEFAULT_VESTING_END_TIMESTAMP
-            )
-        );
+        treasuryVester = _createVesterWithDefaultValues();
 
         // Claim after end
         vm.warp(DEFAULT_VESTING_END_TIMESTAMP);
