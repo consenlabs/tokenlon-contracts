@@ -10,6 +10,7 @@ import "contracts/Lon.sol";
 import "contracts/LONStaking.sol";
 import "contracts/xLON.sol";
 import "contracts/interfaces/ILon.sol";
+import "contracts/utils/LibConstant.sol";
 import "contracts-test/mocks/MockERC20.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 
@@ -226,7 +227,7 @@ contract LONStakingTest is Test {
      *         Test: stake           *
      *********************************/
 
-    function _getExpectedXLON(uint256 stakeAmount) internal returns (uint256) {
+    function _getExpectedXLON(uint256 stakeAmount) internal view returns (uint256) {
         uint256 totalLon = lon.balanceOf(address(lonStaking));
         uint256 totalShares = lonStaking.totalSupply();
         if (totalShares == 0 || totalLon == 0) {
@@ -248,17 +249,51 @@ contract LONStakingTest is Test {
         lonStaking.stake(DEFAULT_STAKE_AMOUNT);
     }
 
-    function testStake() public {
-        BalanceSnapshot.Snapshot memory userLon = BalanceSnapshot.take(user, address(lon));
+    function _stakeAndValidate(address staker, uint256 stakeAmount) internal {
+        BalanceSnapshot.Snapshot memory stakerLon = BalanceSnapshot.take(staker, address(lon));
         BalanceSnapshot.Snapshot memory lonStakingLon = BalanceSnapshot.take(address(lonStaking), address(lon));
-        BalanceSnapshot.Snapshot memory userXLON = BalanceSnapshot.take(user, address(lonStaking));
-        uint256 stakeAmount = DEFAULT_STAKE_AMOUNT;
+        BalanceSnapshot.Snapshot memory stakerXLON = BalanceSnapshot.take(staker, address(lonStaking));
         uint256 expectedStakeAmount = _getExpectedXLON(stakeAmount);
-        vm.prank(user);
+        vm.startPrank(staker);
+        if (lon.allowance(staker, address(lonStaking)) == 0) {
+            lon.approve(address(lonStaking), type(uint256).max);
+        }
         lonStaking.stake(stakeAmount);
-        userLon.assertChange(-int256(stakeAmount));
+        stakerLon.assertChange(-int256(stakeAmount));
         lonStakingLon.assertChange(int256(stakeAmount));
-        userXLON.assertChange(int256(expectedStakeAmount));
+        stakerXLON.assertChange(int256(expectedStakeAmount));
+        vm.stopPrank();
+    }
+
+    function testStake() public {
+        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT);
+    }
+
+    function testFuzz_Stake(uint256 stakeAmount) public {
+        vm.assume(stakeAmount > 0);
+        vm.assume(stakeAmount <= lon.cap());
+        vm.assume(stakeAmount.add(lon.totalSupply()) <= lon.cap());
+
+        lon.mint(user, stakeAmount);
+        _stakeAndValidate(user, stakeAmount);
+    }
+
+    function testFuzz_StakeMultiple(uint80[16] memory stakeAmounts) public {
+        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+        uint256 totalLONAmount = lon.totalSupply();
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            vm.assume(stakeAmounts[i] > 0);
+            totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
+            vm.assume(totalLONAmount <= lon.cap());
+        }
+
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            address _user = address(uint256(user) + i);
+            uint256 stakeAmount = stakeAmounts[i];
+            lon.mint(_user, stakeAmount);
+            vm.prank(_user);
+            _stakeAndValidate(_user, stakeAmount);
+        }
     }
 
     /*********************************
@@ -332,6 +367,9 @@ contract LONStakingTest is Test {
      *********************************/
 
     function _stake(address staker, uint256 stakeAmount) internal {
+        if (lon.balanceOf(staker) < stakeAmount) {
+            lon.mint(staker, stakeAmount);
+        }
         vm.startPrank(staker);
         if (lon.allowance(staker, address(lonStaking)) == 0) {
             lon.approve(address(lonStaking), type(uint256).max);
@@ -381,7 +419,7 @@ contract LONStakingTest is Test {
      *         Test: redeem          *
      *********************************/
 
-    function _getExpectedLONWithoutPenalty(uint256 redeemShareAmount) internal returns (uint256) {
+    function _getExpectedLONWithoutPenalty(uint256 redeemShareAmount) internal view returns (uint256) {
         uint256 totalLon = lon.balanceOf(address(lonStaking));
         uint256 totalShares = lonStaking.totalSupply();
         return redeemShareAmount.mul(totalLon).div(totalShares);
@@ -433,80 +471,302 @@ contract LONStakingTest is Test {
         vm.stopPrank();
     }
 
-    function testRedeemPartial() public {
-        _stake(user, DEFAULT_STAKE_AMOUNT);
-        vm.startPrank(user);
-        lonStaking.unstake();
-
-        vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
-
+    function _redeemAndValidate(address redeemer, uint256 redeemAmount) internal {
+        if (redeemAmount > lonStaking.balanceOf(redeemer)) redeemAmount = lonStaking.balanceOf(redeemer);
+        bool redeemPartial = lonStaking.balanceOf(redeemer) > redeemAmount;
         uint256 lonStakingXLONBefore = lonStaking.totalSupply();
         BalanceSnapshot.Snapshot memory lonStakingLON = BalanceSnapshot.take(address(lonStaking), address(lon));
-        BalanceSnapshot.Snapshot memory userXLON = BalanceSnapshot.take(user, address(lonStaking));
-        BalanceSnapshot.Snapshot memory userLON = BalanceSnapshot.take(user, address(lon));
+        BalanceSnapshot.Snapshot memory redeemerXLON = BalanceSnapshot.take(redeemer, address(lonStaking));
+        BalanceSnapshot.Snapshot memory redeemerLON = BalanceSnapshot.take(redeemer, address(lon));
 
-        uint256 redeemAmount = lonStaking.balanceOf(user).div(2);
         uint256 expectedLONAmount = _getExpectedLONWithoutPenalty(redeemAmount);
+        vm.prank(redeemer);
         lonStaking.redeem(redeemAmount);
-        vm.stopPrank();
 
         uint256 lonStakingXLONAfter = lonStaking.totalSupply();
         assertEq(lonStakingXLONAfter, lonStakingXLONBefore - redeemAmount);
         lonStakingLON.assertChange(-int256(expectedLONAmount));
-        userXLON.assertChange(-int256(redeemAmount));
-        userLON.assertChange(int256(expectedLONAmount));
-        assertGt(lonStaking.stakersCooldowns(user), 0, "Cooldown record remains until user redeem all shares");
+        redeemerXLON.assertChange(-int256(redeemAmount));
+        redeemerLON.assertChange(int256(expectedLONAmount));
+        if (redeemPartial) {
+            assertGt(lonStaking.stakersCooldowns(redeemer), 0, "Cooldown record remains until user redeem all shares");
+        }
+    }
+
+    function testRedeemPartial() public {
+        _stake(user, DEFAULT_STAKE_AMOUNT);
+        vm.prank(user);
+        lonStaking.unstake();
+
+        vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
+
+        uint256 redeemAmount = lonStaking.balanceOf(user).div(2);
+        _redeemAndValidate(user, redeemAmount);
+    }
+
+    function testFuzz_RedeemPartial(uint256 stakeAmount, uint256 redeemAmount) public {
+        vm.assume(stakeAmount > 0);
+        vm.assume(redeemAmount > 0);
+        vm.assume(redeemAmount < stakeAmount);
+        vm.assume(stakeAmount <= lon.cap());
+        vm.assume(stakeAmount.add(lon.totalSupply()) <= lon.cap());
+
+        _stake(user, stakeAmount);
+        vm.prank(user);
+        lonStaking.unstake();
+
+        vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
+
+        _redeemAndValidate(user, redeemAmount);
+    }
+
+    function _determineStakeRedeemAmount(uint80[2][16] memory stakeAndRedeemAmounts)
+        internal
+        pure
+        returns (uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts)
+    {
+        for (uint256 i = 0; i < stakeAndRedeemAmounts.length; i++) {
+            if (stakeAndRedeemAmounts[i][0] >= stakeAndRedeemAmounts[i][1]) {
+                stakeAmounts[i] = stakeAndRedeemAmounts[i][0];
+                redeemAmounts[i] = stakeAndRedeemAmounts[i][1];
+            } else {
+                stakeAmounts[i] = stakeAndRedeemAmounts[i][1];
+                redeemAmounts[i] = stakeAndRedeemAmounts[i][0];
+            }
+        }
+    }
+
+    function testFuzz_RedeemPartialMultiple_OneByOne(uint80[2][16] memory stakeAndRedeemAmounts) public {
+        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+        uint256 totalLONAmount = lon.totalSupply();
+        (uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) = _determineStakeRedeemAmount(stakeAndRedeemAmounts);
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 stakeAmount = stakeAmounts[i];
+            uint256 redeemAmount = redeemAmounts[i];
+            vm.assume(stakeAmount > 0);
+            vm.assume(redeemAmount > 0);
+            vm.assume(stakeAmount > redeemAmount);
+            totalLONAmount = totalLONAmount.add(stakeAmount);
+            vm.assume(totalLONAmount <= lon.cap());
+        }
+
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            address _user = address(uint256(user) + i);
+            uint256 stakeAmount = stakeAmounts[i];
+            uint256 redeemAmount = redeemAmounts[i];
+            _stake(_user, stakeAmount);
+            vm.prank(_user);
+            lonStaking.unstake();
+
+            vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
+
+            _redeemAndValidate(_user, redeemAmount);
+        }
+    }
+
+    function testFuzz_RedeemPartialMultiple_AllAtOnce(uint80[2][16] memory stakeAndRedeemAmounts) public {
+        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+        uint256 totalLONAmount = lon.totalSupply();
+        (uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) = _determineStakeRedeemAmount(stakeAndRedeemAmounts);
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 stakeAmount = stakeAmounts[i];
+            uint256 redeemAmount = redeemAmounts[i];
+            vm.assume(stakeAmount > 0);
+            vm.assume(redeemAmount > 0);
+            vm.assume(stakeAmount > redeemAmount);
+            totalLONAmount = totalLONAmount.add(stakeAmount);
+            vm.assume(totalLONAmount <= lon.cap());
+        }
+
+        // All stake and unstake
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            address _user = address(uint256(user) + i);
+            uint256 stakeAmount = stakeAmounts[i];
+            _stake(_user, stakeAmount);
+            vm.prank(_user);
+            lonStaking.unstake();
+        }
+        vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
+        // All redeem
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            address _user = address(uint256(user) + i);
+            uint256 redeemAmount = redeemAmounts[i];
+
+            _redeemAndValidate(_user, redeemAmount);
+        }
     }
 
     function testRedeemAll() public {
         _stake(user, DEFAULT_STAKE_AMOUNT);
-        vm.startPrank(user);
+        vm.prank(user);
         lonStaking.unstake();
 
         vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
 
         uint256 lonStakingXLONBefore = lonStaking.totalSupply();
-        BalanceSnapshot.Snapshot memory lonStakingLON = BalanceSnapshot.take(address(lonStaking), address(lon));
-        BalanceSnapshot.Snapshot memory userXLON = BalanceSnapshot.take(user, address(lonStaking));
-        BalanceSnapshot.Snapshot memory userLON = BalanceSnapshot.take(user, address(lon));
 
         uint256 redeemAmount = lonStaking.balanceOf(user);
-        uint256 expectedLONAmount = _getExpectedLONWithoutPenalty(redeemAmount);
-        lonStaking.redeem(redeemAmount);
-        vm.stopPrank();
+        _redeemAndValidate(user, redeemAmount);
 
         uint256 lonStakingXLONAfter = lonStaking.totalSupply();
         assertEq(lonStakingXLONAfter, lonStakingXLONBefore - redeemAmount);
-        lonStakingLON.assertChange(-int256(expectedLONAmount));
-        userXLON.assertChange(-int256(redeemAmount));
-        userLON.assertChange(int256(expectedLONAmount));
         assertEq(lonStaking.stakersCooldowns(user), 0, "Cooldown record reset when user redeem all shares");
+    }
+
+    function testFuzz_RedeemAll(uint256 stakeAmount) public {
+        vm.assume(stakeAmount > 0);
+        vm.assume(stakeAmount <= lon.cap());
+        vm.assume(stakeAmount.add(lon.totalSupply()) <= lon.cap());
+
+        _stake(user, stakeAmount);
+        vm.prank(user);
+        lonStaking.unstake();
+
+        vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
+
+        uint256 redeemAmount = lonStaking.balanceOf(user);
+        _redeemAndValidate(user, redeemAmount);
+    }
+
+    function testFuzz_RedeemAllMultiple_OneByOne(uint80[16] memory stakeAmounts) public {
+        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+        uint256 totalLONAmount = lon.totalSupply();
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 stakeAmount = stakeAmounts[i];
+            vm.assume(stakeAmount > 0);
+            totalLONAmount = totalLONAmount.add(stakeAmount);
+            vm.assume(totalLONAmount <= lon.cap());
+        }
+
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            address _user = address(uint256(user) + i);
+            uint256 stakeAmount = stakeAmounts[i];
+            _stake(_user, stakeAmount);
+            vm.prank(_user);
+            lonStaking.unstake();
+
+            vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
+
+            uint256 redeemAmount = lonStaking.balanceOf(_user);
+            _redeemAndValidate(_user, redeemAmount);
+        }
+    }
+
+    function testFuzz_RedeemAllMultiple_AllAtOnce(uint80[16] memory stakeAmounts) public {
+        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+        uint256 totalLONAmount = lon.totalSupply();
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 stakeAmount = stakeAmounts[i];
+            vm.assume(stakeAmount > 0);
+            totalLONAmount = totalLONAmount.add(stakeAmount);
+            vm.assume(totalLONAmount <= lon.cap());
+        }
+
+        // All stake and unstake
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            address _user = address(uint256(user) + i);
+            uint256 stakeAmount = stakeAmounts[i];
+            _stake(_user, stakeAmount);
+            vm.prank(_user);
+            lonStaking.unstake();
+        }
+        vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
+        // All redeem
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            address _user = address(uint256(user) + i);
+            uint256 redeemAmount = lonStaking.balanceOf(_user);
+            _redeemAndValidate(_user, redeemAmount);
+        }
     }
 
     function testRedeemWithBuyback() public {
         _stake(user, DEFAULT_STAKE_AMOUNT);
         simulateBuyback(100 * 1e18);
 
-        vm.startPrank(user);
+        vm.prank(user);
         lonStaking.unstake();
 
         vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
 
         uint256 lonStakingXLONBefore = lonStaking.totalSupply();
-        BalanceSnapshot.Snapshot memory lonStakingLON = BalanceSnapshot.take(address(lonStaking), address(lon));
-        BalanceSnapshot.Snapshot memory userXLON = BalanceSnapshot.take(user, address(lonStaking));
-        BalanceSnapshot.Snapshot memory userLON = BalanceSnapshot.take(user, address(lon));
 
         uint256 redeemAmount = lonStaking.balanceOf(user);
-        uint256 expectedLONAmount = _getExpectedLONWithoutPenalty(redeemAmount);
-        lonStaking.redeem(redeemAmount);
-        vm.stopPrank();
+        _redeemAndValidate(user, redeemAmount);
 
         uint256 lonStakingXLONAfter = lonStaking.totalSupply();
         assertEq(lonStakingXLONAfter, lonStakingXLONBefore - redeemAmount);
-        lonStakingLON.assertChange(-int256(expectedLONAmount));
-        userXLON.assertChange(-int256(redeemAmount));
-        userLON.assertChange(int256(expectedLONAmount));
+    }
+
+    function testFuzz_RedeemMultipleWithBuyback_OneByOne(uint80[2][16] memory stakeAndRedeemAmounts, uint80[16] memory buybackAmounts) public {
+        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+        uint256 totalLONAmount = lon.totalSupply();
+        (uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) = _determineStakeRedeemAmount(stakeAndRedeemAmounts);
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 stakeAmount = stakeAmounts[i];
+            uint256 redeemAmount = redeemAmounts[i];
+            vm.assume(stakeAmount > 0);
+            vm.assume(redeemAmount > 0);
+            vm.assume(stakeAmount > redeemAmount);
+            totalLONAmount = totalLONAmount.add(stakeAmount);
+            vm.assume(totalLONAmount <= lon.cap());
+        }
+        for (uint256 i = 0; i < buybackAmounts.length; i++) {
+            vm.assume(buybackAmounts[i] > 0);
+            totalLONAmount = totalLONAmount.add(buybackAmounts[i]);
+            vm.assume(totalLONAmount <= lon.cap());
+        }
+
+        // Make initial big enough deposit so LON amount will not increase dramatically relative to xLON amount due to buyback
+        // and hence result in later staker getting zero shares
+        _stake(address(0x5566), 10_000_000e18); // stake 10mil LON
+
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            address _user = address(uint256(user) + i);
+            uint256 stakeAmount = stakeAmounts[i];
+            uint256 redeemAmount = redeemAmounts[i];
+            _stake(_user, stakeAmount);
+            simulateBuyback(buybackAmounts[i]);
+            vm.prank(_user);
+            lonStaking.unstake();
+
+            vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
+
+            _redeemAndValidate(_user, redeemAmount);
+        }
+    }
+
+    function testFuzz_RedeemMultipleWithBuyback_AllAtOnce(uint80[2][16] memory stakeAndRedeemAmounts, uint80 buybackAmount) public {
+        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+        uint256 totalLONAmount = lon.totalSupply();
+        (uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) = _determineStakeRedeemAmount(stakeAndRedeemAmounts);
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 stakeAmount = stakeAmounts[i];
+            uint256 redeemAmount = redeemAmounts[i];
+            vm.assume(stakeAmount > 0);
+            vm.assume(redeemAmount > 0);
+            vm.assume(stakeAmount > redeemAmount);
+            totalLONAmount = totalLONAmount.add(stakeAmount);
+            vm.assume(totalLONAmount <= lon.cap());
+        }
+        vm.assume(totalLONAmount.add(buybackAmount) <= lon.cap());
+
+        // All stake and unstake
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            address _user = address(uint256(user) + i);
+            uint256 stakeAmount = stakeAmounts[i];
+            _stake(_user, stakeAmount);
+            vm.prank(_user);
+            lonStaking.unstake();
+        }
+        vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
+        simulateBuyback(buybackAmount);
+        // All redeem
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            address _user = address(uint256(user) + i);
+            uint256 redeemAmount = redeemAmounts[i];
+
+            _redeemAndValidate(_user, redeemAmount);
+        }
     }
 
     function testRedeemWhenPaused() public {
@@ -555,7 +815,6 @@ contract LONStakingTest is Test {
         // rageExit after cooldown ends
         vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
 
-        uint256 redeemAmount = lonStaking.balanceOf(user);
         (uint256 expectedLONAmount, uint256 penaltyAmount) = lonStaking.previewRageExit(user);
 
         assertEq(penaltyAmount, 0);
