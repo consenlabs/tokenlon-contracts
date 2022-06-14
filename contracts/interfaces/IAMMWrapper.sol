@@ -28,9 +28,7 @@ interface IAMMWrapper is ISetAllowance {
         bool relayed
     );
 
-    function trade(AMMLibEIP712.Order calldata _order, bytes memory _sig) external payable returns (uint256);
-
-    function tradeByRelayer(
+    function trade(
         AMMLibEIP712.Order calldata _order,
         bytes memory _sig,
         uint16 _feeFactor

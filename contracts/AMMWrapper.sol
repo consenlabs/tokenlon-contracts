@@ -175,28 +175,19 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     /************************************************************
      *                   External functions                      *
      *************************************************************/
-    function trade(AMMLibEIP712.Order calldata _order, bytes calldata _sig) external payable override nonReentrant onlyUserProxy returns (uint256) {
-        TxMetaData memory txMetaData = _trade(_order, _sig, defaultFeeFactor);
-        emitSwappedEvent(_order, txMetaData, defaultFeeFactor, false);
-        return txMetaData.settleAmount;
-    }
-
-    function tradeByRelayer(
+    function trade(
         AMMLibEIP712.Order calldata _order,
         bytes calldata _sig,
         uint16 _feeFactor
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
-        TxMetaData memory txMetaData = _trade(_order, _sig, _feeFactor);
-        emitSwappedEvent(_order, txMetaData, _feeFactor, true);
-        return txMetaData.settleAmount;
-    }
-
-    function _trade(
-        AMMLibEIP712.Order calldata _order,
-        bytes calldata _sig,
-        uint16 feeFactor
-    ) internal returns (TxMetaData memory) {
         require(_order.deadline >= block.timestamp, "AMMWrapper: expired order");
+
+        bool relayed = permStorage.isRelayerValid(tx.origin);
+        if (!relayed) {
+            // overwrite feeFactor with default one
+            _feeFactor = defaultFeeFactor;
+        }
+
         TxMetaData memory txMetaData;
         InternalTxData memory internalTxData;
 
@@ -220,9 +211,10 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         (txMetaData.source, txMetaData.receivedAmount) = _swap(_order, internalTxData, _order.makerAssetAmount);
 
         // Settle
-        txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData, feeFactor);
+        txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData, _feeFactor);
 
-        return txMetaData;
+        emitSwappedEvent(_order, txMetaData, _feeFactor, relayed);
+        return txMetaData.settleAmount;
     }
 
     /**

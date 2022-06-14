@@ -50,33 +50,16 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         AMMLibEIP712.Order calldata _order,
         bytes calldata _sig,
         bytes calldata _makerSpecificData,
-        address[] calldata _path
-    ) external payable override nonReentrant onlyUserProxy returns (uint256) {
-        TxMetaData memory txMetaData = _trade(_order, _sig, _makerSpecificData, _path, defaultFeeFactor);
-        emitSwappedEvent(_order, txMetaData, defaultFeeFactor, false);
-        return txMetaData.settleAmount;
-    }
-
-    function tradeByRelayer(
-        AMMLibEIP712.Order calldata _order,
-        bytes calldata _sig,
-        bytes calldata _makerSpecificData,
         address[] calldata _path,
         uint16 _feeFactor
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
-        TxMetaData memory txMetaData = _trade(_order, _sig, _makerSpecificData, _path, defaultFeeFactor);
-        emitSwappedEvent(_order, txMetaData, _feeFactor, true);
-        return txMetaData.settleAmount;
-    }
-
-    function _trade(
-        AMMLibEIP712.Order calldata _order,
-        bytes calldata _sig,
-        bytes calldata _makerSpecificData,
-        address[] calldata _path,
-        uint16 _feeFactor
-    ) internal returns (TxMetaData memory) {
         require(_order.deadline >= block.timestamp, "AMMWrapper: expired order");
+        bool relayed = permStorage.isRelayerValid(tx.origin);
+        if (!relayed) {
+            // overwrite feeFactor with default one
+            _feeFactor = defaultFeeFactor;
+        }
+
         TxMetaData memory txMetaData;
         {
             InternalTxData memory internalTxData;
@@ -109,7 +92,8 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
             txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData, _feeFactor);
         }
 
-        return txMetaData;
+        emitSwappedEvent(_order, txMetaData, _feeFactor, relayed);
+        return txMetaData.settleAmount;
     }
 
     /**

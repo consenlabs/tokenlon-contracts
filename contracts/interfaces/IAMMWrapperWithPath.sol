@@ -9,13 +9,6 @@ interface IAMMWrapperWithPath is IAMMWrapper {
         AMMLibEIP712.Order calldata _order,
         bytes calldata _sig,
         bytes calldata _makerSpecificData,
-        address[] calldata _path
-    ) external payable returns (uint256);
-
-    function tradeByRelayer(
-        AMMLibEIP712.Order calldata _order,
-        bytes calldata _sig,
-        bytes calldata _makerSpecificData,
         address[] calldata _path,
         uint16 _feeFactor
     ) external payable returns (uint256);
