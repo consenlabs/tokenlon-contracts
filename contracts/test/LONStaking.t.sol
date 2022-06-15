@@ -31,6 +31,7 @@ contract LONStakingTest is Test {
     address other = vm.addr(otherPrivateKey);
     address upgradeAdmin = address(0x133701);
     address spender = address(0x133702);
+    address fuzzingUserStartAddress = address(0x133703);
 
     Lon lon = new Lon(address(this), address(this));
     xLON xLon;
@@ -253,6 +254,15 @@ contract LONStakingTest is Test {
         lonStaking.stake(DEFAULT_STAKE_AMOUNT);
     }
 
+    function _stake(address staker, uint256 stakeAmount) internal {
+        vm.startPrank(staker);
+        if (lon.allowance(staker, address(lonStaking)) == 0) {
+            lon.approve(address(lonStaking), type(uint256).max);
+        }
+        lonStaking.stake(stakeAmount);
+        vm.stopPrank();
+    }
+
     function _stakeAndValidate(address staker, uint256 stakeAmount) internal {
         BalanceSnapshot.Snapshot memory stakerLon = BalanceSnapshot.take(staker, address(lon));
         BalanceSnapshot.Snapshot memory lonStakingLon = BalanceSnapshot.take(address(lonStaking), address(lon));
@@ -292,7 +302,7 @@ contract LONStakingTest is Test {
         }
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
             lon.mint(staker, stakeAmount);
             _stakeAndValidate(staker, stakeAmount);
@@ -315,10 +325,11 @@ contract LONStakingTest is Test {
 
         // Make initial big enough deposit so LON amount will not increase dramatically relative to xLON amount due to buyback
         // and hence result in later staker getting zero shares
+        lon.mint(address(0x5566), 10_000_000e18);
         _stake(address(0x5566), 10_000_000e18); // stake 10m LON
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
             lon.mint(staker, stakeAmount);
             _stakeAndValidate(staker, stakeAmount);
@@ -339,10 +350,11 @@ contract LONStakingTest is Test {
 
         // Make initial big enough deposit so LON amount will not increase dramatically relative to xLON amount due to buyback
         // and hence result in later staker getting zero shares
+        lon.mint(address(0x5566), 10_000_000e18);
         _stake(address(0x5566), 10_000_000e18); // stake 10m LON
 
         // First batch of users stake
-        address firstBatchUsersAddressStart = user;
+        address firstBatchUsersAddressStart = fuzzingUserStartAddress;
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
             address firstBatchUser = address(uint256(firstBatchUsersAddressStart) + i);
             uint256 stakeAmount = stakeAmounts[i];
@@ -351,7 +363,7 @@ contract LONStakingTest is Test {
         }
         simulateBuyback(buybackAmount);
         // Second batch of users stake
-        address secondBatchUsersAddressStart = address(uint256(user) + stakeAmounts.length);
+        address secondBatchUsersAddressStart = address(uint256(fuzzingUserStartAddress) + stakeAmounts.length);
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
             address firstBatchUser = address(uint256(firstBatchUsersAddressStart) + i);
             address secondBatchUser = address(uint256(secondBatchUsersAddressStart) + i);
@@ -432,18 +444,6 @@ contract LONStakingTest is Test {
     /*********************************
      *        Test: unstake          *
      *********************************/
-
-    function _stake(address staker, uint256 stakeAmount) internal {
-        if (lon.balanceOf(staker) < stakeAmount) {
-            lon.mint(staker, stakeAmount);
-        }
-        vm.startPrank(staker);
-        if (lon.allowance(staker, address(lonStaking)) == 0) {
-            lon.approve(address(lonStaking), type(uint256).max);
-        }
-        lonStaking.stake(stakeAmount);
-        vm.stopPrank();
-    }
 
     function testCannotUnstakeWithZeroAmount() public {
         vm.expectRevert("no share to unstake");
@@ -574,6 +574,7 @@ contract LONStakingTest is Test {
         vm.assume(stakeAmount <= lon.cap());
         vm.assume(stakeAmount.add(lon.totalSupply()) <= lon.cap());
 
+        lon.mint(user, stakeAmount);
         _stake(user, stakeAmount);
         vm.prank(user);
         lonStaking.unstake();
@@ -614,9 +615,10 @@ contract LONStakingTest is Test {
         }
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
             uint256 redeemAmount = redeemAmounts[i];
+            lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
             vm.prank(staker);
             lonStaking.unstake();
@@ -643,8 +645,9 @@ contract LONStakingTest is Test {
 
         // All stake and unstake
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
+            lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
             vm.prank(staker);
             lonStaking.unstake();
@@ -652,7 +655,7 @@ contract LONStakingTest is Test {
         vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
         // All redeem
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 redeemAmount = redeemAmounts[i];
 
             _redeemAndValidate(staker, redeemAmount);
@@ -681,6 +684,7 @@ contract LONStakingTest is Test {
         vm.assume(stakeAmount <= lon.cap());
         vm.assume(stakeAmount.add(lon.totalSupply()) <= lon.cap());
 
+        lon.mint(user, stakeAmount);
         _stake(user, stakeAmount);
         vm.prank(user);
         lonStaking.unstake();
@@ -702,8 +706,9 @@ contract LONStakingTest is Test {
         }
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
+            lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
             vm.prank(staker);
             lonStaking.unstake();
@@ -727,8 +732,9 @@ contract LONStakingTest is Test {
 
         // All stake and unstake
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
+            lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
             vm.prank(staker);
             lonStaking.unstake();
@@ -736,7 +742,7 @@ contract LONStakingTest is Test {
         vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
         // All redeem
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 redeemAmount = lonStaking.balanceOf(staker);
             _redeemAndValidate(staker, redeemAmount);
         }
@@ -781,12 +787,14 @@ contract LONStakingTest is Test {
 
         // Make initial big enough deposit so LON amount will not increase dramatically relative to xLON amount due to buyback
         // and hence result in later staker getting zero shares
+        lon.mint(address(0x5566), 10_000_000e18);
         _stake(address(0x5566), 10_000_000e18); // stake 10m LON
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
             uint256 redeemAmount = redeemAmounts[i];
+            lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
             simulateBuyback(buybackAmounts[i]);
             // Skip if stake did not get any share due to too small stakeAmount and rounding error
@@ -819,8 +827,9 @@ contract LONStakingTest is Test {
 
         // All stake and unstake
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
+            lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
             vm.prank(staker);
             lonStaking.unstake();
@@ -829,7 +838,7 @@ contract LONStakingTest is Test {
         simulateBuyback(buybackAmount);
         // All redeem
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 redeemAmount = redeemAmounts[i];
 
             _redeemAndValidate(staker, redeemAmount);
@@ -951,6 +960,7 @@ contract LONStakingTest is Test {
         vm.assume(stakeAmount <= lon.cap());
         vm.assume(stakeAmount.add(lon.totalSupply()) <= lon.cap());
 
+        lon.mint(user, stakeAmount);
         _stake(user, stakeAmount);
         vm.prank(user);
         lonStaking.unstake();
@@ -971,8 +981,9 @@ contract LONStakingTest is Test {
         }
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
+            lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
             vm.prank(staker);
             lonStaking.unstake();
@@ -995,8 +1006,9 @@ contract LONStakingTest is Test {
 
         // All stake and unstake
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
+            lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
             vm.prank(staker);
             lonStaking.unstake();
@@ -1004,7 +1016,7 @@ contract LONStakingTest is Test {
         vm.warp(block.timestamp + 2 days);
         // All redeem
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             _rageExitAndValidate(staker);
         }
     }
@@ -1039,11 +1051,13 @@ contract LONStakingTest is Test {
 
         // Make initial big enough deposit so LON amount will not increase dramatically relative to xLON amount due to buyback
         // and hence result in later staker getting zero shares
+        lon.mint(address(0x5566), 10_000_000e18);
         _stake(address(0x5566), 10_000_000e18); // stake 10m LON
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
+            lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
             simulateBuyback(buybackAmounts[i]);
             // Skip if stake did not get any share due to too small stakeAmount and rounding error
@@ -1072,8 +1086,9 @@ contract LONStakingTest is Test {
 
         // All stake and unstake
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             uint256 stakeAmount = stakeAmounts[i];
+            lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
             vm.prank(staker);
             lonStaking.unstake();
@@ -1082,7 +1097,7 @@ contract LONStakingTest is Test {
         simulateBuyback(buybackAmount);
         // All redeem
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            address staker = address(uint256(user) + i);
+            address staker = address(uint256(fuzzingUserStartAddress) + i);
             _rageExitAndValidate(staker);
         }
     }
