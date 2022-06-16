@@ -15,7 +15,7 @@ initial_balance = '0xffffffffffffffffffffffff'                # the initial bala
 gas_limit = 9223372036854775807                               # the gas limit in tests
 gas_price = 0                                                 # the gas price (in wei) in tests
 
-fuzz_runs = 50000                                             # the number of fuzz runs for tests
+fuzz_runs = 1000                                              # the number of fuzz runs for tests
 fuzz_max_global_rejects = 10000000
 
 #solc_version = '0.8.13'                                      # override for the solc version (setting this ignores `auto_detect_solc`)
