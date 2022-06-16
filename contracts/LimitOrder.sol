@@ -402,7 +402,9 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
         // Distribute taker token profit to profit recipient assigned by relayer
         _settlement.takerToken.safeTransfer(_settlement.profitRecipient, takerTokenProfitForRelayer);
-        _settlement.takerToken.safeTransfer(feeCollector, takerTokenProfitFee);
+        if (takerTokenProfitFee > 0) {
+            _settlement.takerToken.safeTransfer(feeCollector, takerTokenProfitFee);
+        }
 
         // Calculate maker fee (maker receives taker token so fee is charged in taker token)
         uint256 takerTokenFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
@@ -413,7 +415,9 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
         // Distribute taker token to maker
         _settlement.takerToken.safeTransfer(_settlement.maker, takerTokenForMaker.add(takerTokenProfitBackToMaker));
-        _settlement.takerToken.safeTransfer(feeCollector, takerTokenFee);
+        if (takerTokenFee > 0) {
+            _settlement.takerToken.safeTransfer(feeCollector, takerTokenFee);
+        }
 
         // Bypass stack too deep error
         _emitLimitOrderFilledByProtocol(
