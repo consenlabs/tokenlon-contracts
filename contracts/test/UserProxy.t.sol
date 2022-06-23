@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.6;
+pragma abicoder v2;
 
 import "forge-std/Test.sol";
 import "contracts/UserProxy.sol";
@@ -302,5 +303,33 @@ contract UserProxyTest is Test {
         vm.expectRevert();
         vm.prank(relayer, relayer);
         userProxy.toRFQ(abi.encode(userProxy.setAMMStatus.selector));
+    }
+
+    /***************************************************
+     *                Test: multicall                  *
+     ***************************************************/
+
+    function testMulticallAMMandRFQ() public {
+        userProxy.upgradeAMMWrapper(address(strategy), true);
+        userProxy.upgradeRFQ(address(strategy), false);
+
+        bytes[] memory data = new bytes[](2);
+        data[0] = abi.encodeWithSelector(UserProxy.toAMM.selector, MockStrategy.execute.selector);
+        data[1] = abi.encodeWithSelector(UserProxy.toRFQ.selector, MockStrategy.execute.selector);
+        vm.prank(relayer, relayer);
+        // should succeed even RFQ is disabled
+        userProxy.multicall(data, false);
+    }
+
+    function testMulticallRevertOnFail() public {
+        userProxy.upgradeAMMWrapper(address(strategy), true);
+        userProxy.upgradeRFQ(address(strategy), false);
+
+        bytes[] memory data = new bytes[](2);
+        data[0] = abi.encodeWithSelector(UserProxy.toAMM.selector, MockStrategy.execute.selector);
+        data[1] = abi.encodeWithSelector(UserProxy.toRFQ.selector, MockStrategy.execute.selector);
+        vm.prank(relayer, relayer);
+        vm.expectRevert("Delegatecall failed");
+        userProxy.multicall(data, true);
     }
 }

@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.7.6;
+pragma abicoder v2;
 
 import "./utils/UserProxyStorage.sol";
+import "./utils/Multicall.sol";
 
 /**
  * @dev UserProxy contract
  */
-contract UserProxy {
+contract UserProxy is Multicall {
     // Below are the variables which consume storage slots.
     address public operator;
     string public version; // Current version of the contract
