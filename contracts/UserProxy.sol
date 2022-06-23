@@ -44,13 +44,10 @@ contract UserProxy {
      *              Constructor and init functions               *
      *************************************************************/
     /// @dev Replacing constructor and initialize the contract. This function should only be called once.
-    function initialize(address _limitOrderAddr) external {
-        require(_limitOrderAddr != address(0), "UserProxy: _limitOrderAddr should not be 0");
-        require(keccak256(abi.encodePacked(version)) == keccak256(abi.encodePacked("5.2.0")), "UserProxy: not upgrading from version 5.2.0");
-
-        // Set Limit Order
-        LimitOrderStorage.getStorage().limitOrderAddr = _limitOrderAddr;
-        LimitOrderStorage.getStorage().isEnabled = true;
+    function initialize(address _operator) external {
+        require(keccak256(abi.encodePacked(version)) == keccak256(abi.encodePacked("")), "UserProxy: not upgrading from empty");
+        require(_operator != address(0), "UserProxy: operator can not be zero address");
+        operator = _operator;
 
         // Upgrade version
         version = "5.3.0";

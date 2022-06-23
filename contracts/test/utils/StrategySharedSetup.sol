@@ -35,22 +35,8 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
             bytes("") // Skip initialization during deployment
         );
         userProxy = UserProxy(address(tokenlon));
-
-        // Setup
         // Set this contract as operator
-        // prettier-ignore
-        vm.store(
-            address(userProxy), // address
-            bytes32(uint256(0)), // key
-            bytes32(uint256(address(this))) // value
-        );
-        // Set version
-        // prettier-ignore
-        vm.store(
-            address(userProxy), // address
-            bytes32(uint256(1)), // key
-            bytes32(uint256(bytes32("5.2.0")) + uint256(5 * 2)) // value
-        );
+        userProxy.initialize(address(this));
     }
 
     function _deployPermanentStorageAndProxy() internal {
@@ -61,22 +47,8 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
             bytes("") // Skip initialization during deployment
         );
         permanentStorage = PermanentStorage(address(permanentStorageProxy));
-
-        // Setup
         // Set this contract as operator
-        // prettier-ignore
-        vm.store(
-            address(permanentStorage), // address
-            bytes32(uint256(0)), // key
-            bytes32(uint256(address(this))) // value
-        );
-        // Set version
-        // prettier-ignore
-        vm.store(
-            address(permanentStorage), // address
-            bytes32(uint256(1)), // key
-            bytes32(uint256(bytes32("5.2.0")) + uint256(5 * 2)) // value
-        );
+        permanentStorage.initialize(address(this));
         permanentStorage.upgradeWETH(WETH_ADDRESS);
         // Set Curve indexes
         permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), address(this), true);
