@@ -54,9 +54,9 @@ contract UserProxyTest is Test {
      *********************************/
 
     function testCannotInitializeToZeroAddress() public {
-        UserProxy us = new UserProxy();
+        UserProxy up = new UserProxy();
         vm.expectRevert("UserProxy: operator can not be zero address");
-        us.initialize(address(0));
+        up.initialize(address(0));
     }
 
     function testCannotInitializeAgain() public {
