@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
+
+pragma solidity ^0.6.5;
 
 import "@openzeppelin/contracts/utils/Address.sol";
-
 import "./interfaces/IAllowanceTarget.sol";
 
+/**
+ * @dev AllowanceTarget contract
+ */
 contract AllowanceTarget is IAllowanceTarget {
     using Address for address;
 
-    uint256 private constant TIME_LOCK_DURATION = 1 days;
+    uint256 constant private TIME_LOCK_DURATION = 1 days;
 
     address public spender;
     address public newSpender;
@@ -19,6 +22,7 @@ contract AllowanceTarget is IAllowanceTarget {
         _;
     }
 
+
     constructor(address _spender) public {
         require(_spender != address(0), "AllowanceTarget: _spender should not be 0");
 
@@ -26,17 +30,18 @@ contract AllowanceTarget is IAllowanceTarget {
         spender = _spender;
     }
 
-    function setSpenderWithTimelock(address _newSpender) external override onlySpender {
+
+    function setSpenderWithTimelock(address _newSpender) override external onlySpender {
         require(_newSpender.isContract(), "AllowanceTarget: new spender not a contract");
         require(newSpender == address(0) && timelockExpirationTime == 0, "AllowanceTarget: SetSpender in progress");
 
-        timelockExpirationTime = block.timestamp + TIME_LOCK_DURATION;
+        timelockExpirationTime = now + TIME_LOCK_DURATION;
         newSpender = _newSpender;
     }
 
-    function completeSetSpender() external override {
+    function completeSetSpender() override external {
         require(timelockExpirationTime != 0, "AllowanceTarget: no pending SetSpender");
-        require(block.timestamp >= timelockExpirationTime, "AllowanceTarget: time lock not expired yet");
+        require(now >= timelockExpirationTime, "AllowanceTarget: time lock not expired yet");
 
         // Set new spender
         spender = newSpender;
@@ -45,15 +50,25 @@ contract AllowanceTarget is IAllowanceTarget {
         newSpender = address(0);
     }
 
-    function teardown() external override onlySpender {
+
+    function teardown() override external onlySpender {
         selfdestruct(payable(spender));
     }
+
 
     /// @dev Execute an arbitrary call. Only an authority can call this.
     /// @param target The call target.
     /// @param callData The call data.
     /// @return resultData The data returned by the call.
-    function executeCall(address payable target, bytes calldata callData) external override onlySpender returns (bytes memory resultData) {
+    function executeCall(
+        address payable target,
+        bytes calldata callData
+    )
+        override
+        external
+        onlySpender
+        returns (bytes memory resultData)
+    {
         bool success;
         (success, resultData) = target.call(callData);
         if (!success) {

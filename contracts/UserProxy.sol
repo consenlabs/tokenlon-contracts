@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.7.6;
-pragma abicoder v2;
+pragma solidity ^0.6.5;
 
-import "./utils/UserProxyStorage.sol";
-import "./utils/Multicall.sol";
+import "./utils/lib_storage/UserProxyStorage.sol";
 
 /**
  * @dev UserProxy contract
  */
-contract UserProxy is Multicall {
+contract UserProxy {
     // Below are the variables which consume storage slots.
     address public operator;
-    string public version; // Current version of the contract
+    string public version;  // Current version of the contract
 
     // Operator events
     event TransferOwnership(address newOperator);
@@ -22,14 +20,13 @@ contract UserProxy is Multicall {
     event UpgradePMM(address newPMM);
     event SetRFQStatus(bool enable);
     event UpgradeRFQ(address newRFQ);
-    event SetLimitOrderStatus(bool enable);
-    event UpgradeLimitOrder(address newLimitOrder);
 
     receive() external payable {}
 
+
     /************************************************************
-     *          Access control and ownership management          *
-     *************************************************************/
+    *          Access control and ownership management          *
+    *************************************************************/
     modifier onlyOperator() {
         require(operator == msg.sender, "UserProxy: not the operator");
         _;
@@ -42,22 +39,34 @@ contract UserProxy is Multicall {
         emit TransferOwnership(_newOperator);
     }
 
+
     /************************************************************
-     *              Constructor and init functions               *
-     *************************************************************/
+    *              Constructor and init functions               *
+    *************************************************************/
     /// @dev Replacing constructor and initialize the contract. This function should only be called once.
-    function initialize(address _operator) external {
-        require(keccak256(abi.encodePacked(version)) == keccak256(abi.encodePacked("")), "UserProxy: not upgrading from empty");
-        require(_operator != address(0), "UserProxy: operator can not be zero address");
-        operator = _operator;
+    function initialize(address _rfqAddr, address _newAMMWrapperAddr) external {
+        require(_rfqAddr != address(0), "UserProxy: _rfqAddr should not be 0");
+        require(_newAMMWrapperAddr != address(0), "UserProxy: _newAMMWrapperAddr should not be 0");
+        require(
+            keccak256(abi.encodePacked(version)) == keccak256(abi.encodePacked("5.0.0")),
+            "UserProxy: not upgrading from version 5.0.0"
+        );
+
+        // Set RFQ
+        RFQStorage.getStorage().rfqAddr = _rfqAddr;
+        RFQStorage.getStorage().isEnabled = true;
+
+        // Set new AMMWrapper
+        AMMWrapperStorage.getStorage().ammWrapperAddr = _newAMMWrapperAddr;
+        AMMWrapperStorage.getStorage().isEnabled = true;
 
         // Upgrade version
-        version = "5.3.0";
+        version = "5.2.0";
     }
 
     /************************************************************
-     *                     Getter functions                      *
-     *************************************************************/
+    *                     Getter functions                      *
+    *************************************************************/
     function ammWrapperAddr() public view returns (address) {
         return AMMWrapperStorage.getStorage().ammWrapperAddr;
     }
@@ -82,17 +91,9 @@ contract UserProxy is Multicall {
         return RFQStorage.getStorage().isEnabled;
     }
 
-    function limitOrderAddr() public view returns (address) {
-        return LimitOrderStorage.getStorage().limitOrderAddr;
-    }
-
-    function isLimitOrderEnabled() public view returns (bool) {
-        return LimitOrderStorage.getStorage().isEnabled;
-    }
-
     /************************************************************
-     *           Management functions for Operator               *
-     *************************************************************/
+    *           Management functions for Operator               *
+    *************************************************************/
     function setAMMStatus(bool _enable) public onlyOperator {
         AMMWrapperStorage.getStorage().isEnabled = _enable;
 
@@ -147,34 +148,17 @@ contract UserProxy is Multicall {
         emit SetRFQStatus(_enable);
     }
 
-    function setLimitOrderStatus(bool _enable) public onlyOperator {
-        LimitOrderStorage.getStorage().isEnabled = _enable;
-
-        emit SetLimitOrderStatus(_enable);
-    }
-
-    /**
-     * @dev Update Limit Order contract address. Used only when ABI of Limit Order remain unchanged.
-     * Otherwise, UserProxy contract should be upgraded altogether.
-     */
-    function upgradeLimitOrder(address _newLimitOrderAddr, bool _enable) external onlyOperator {
-        LimitOrderStorage.getStorage().limitOrderAddr = _newLimitOrderAddr;
-        LimitOrderStorage.getStorage().isEnabled = _enable;
-
-        emit UpgradeLimitOrder(_newLimitOrderAddr);
-        emit SetLimitOrderStatus(_enable);
-    }
 
     /************************************************************
-     *                   External functions                      *
-     *************************************************************/
+    *                   External functions                      *
+    *************************************************************/
     /**
      * @dev proxy the call to AMM
      */
     function toAMM(bytes calldata _payload) external payable {
         require(isAMMEnabled(), "UserProxy: AMM is disabled");
 
-        (bool callSucceed, ) = ammWrapperAddr().call{ value: msg.value }(_payload);
+        (bool callSucceed,) = ammWrapperAddr().call{value: msg.value}(_payload);
         if (callSucceed == false) {
             // Get the error message returned
             assembly {
@@ -191,9 +175,8 @@ contract UserProxy is Multicall {
      */
     function toPMM(bytes calldata _payload) external payable {
         require(isPMMEnabled(), "UserProxy: PMM is disabled");
-        require(msg.sender == tx.origin, "UserProxy: only EOA");
 
-        (bool callSucceed, ) = pmmAddr().call{ value: msg.value }(_payload);
+        (bool callSucceed,) = pmmAddr().call{value: msg.value}(_payload);
         if (callSucceed == false) {
             // Get the error message returned
             assembly {
@@ -210,25 +193,8 @@ contract UserProxy is Multicall {
      */
     function toRFQ(bytes calldata _payload) external payable {
         require(isRFQEnabled(), "UserProxy: RFQ is disabled");
-        require(msg.sender == tx.origin, "UserProxy: only EOA");
 
-        (bool callSucceed, ) = rfqAddr().call{ value: msg.value }(_payload);
-        if (callSucceed == false) {
-            // Get the error message returned
-            assembly {
-                let ptr := mload(0x40)
-                let size := returndatasize()
-                returndatacopy(ptr, 0, size)
-                revert(ptr, size)
-            }
-        }
-    }
-
-    function toLimitOrder(bytes calldata _payload) external {
-        require(isLimitOrderEnabled(), "UserProxy: Limit Order is disabled");
-        require(msg.sender == tx.origin, "UserProxy: only EOA");
-
-        (bool callSucceed, ) = limitOrderAddr().call(_payload);
+        (bool callSucceed,) = rfqAddr().call{value: msg.value}(_payload);
         if (callSucceed == false) {
             // Get the error message returned
             assembly {
