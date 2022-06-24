@@ -86,9 +86,12 @@ contract PermanentStorage is IPermanentStorage {
      *              Constructor and init functions               *
      *************************************************************/
     /// @dev Replacing constructor and initialize the contract. This function should only be called once.
-    function initialize() external {
-        require(keccak256(abi.encodePacked(version)) == keccak256(abi.encodePacked("5.2.0")), "PermanentStorage: not upgrading from 5.2.0 version");
-        // upgrade from 5.2.0 to 5.3.0
+    function initialize(address _operator) external {
+        require(keccak256(abi.encodePacked(version)) == keccak256(abi.encodePacked("")), "PermanentStorage: not upgrading from empty");
+        require(_operator != address(0), "PermanentStorage: operator can not be zero address");
+        operator = _operator;
+
+        // Upgrade version
         version = "5.3.0";
     }
 

@@ -20,21 +20,8 @@ contract UserProxyTest is Test {
         // Deploy
         userProxy = new UserProxy();
         strategy = new MockStrategy();
-        // Setup
         // Set this contract as operator
-        // prettier-ignore
-        vm.store(
-            address(userProxy), // address
-            bytes32(uint256(0)), // key
-            bytes32(uint256(address(this))) // value
-        );
-        // Set version
-        // prettier-ignore
-        vm.store(
-            address(userProxy), // address
-            bytes32(uint256(1)), // key
-            bytes32(uint256(bytes32("5.2.0")) + uint256(5 * 2)) // value
-        );
+        userProxy.initialize(address(this));
 
         // Deal 100 ETH to each account
         deal(user, 100 ether);
@@ -68,15 +55,19 @@ contract UserProxyTest is Test {
      *********************************/
 
     function testCannotInitializeToZeroAddress() public {
-        vm.expectRevert("UserProxy: _limitOrderAddr should not be 0");
-        userProxy.initialize(address(0));
+        UserProxy up = new UserProxy();
+        vm.expectRevert("UserProxy: operator can not be zero address");
+        up.initialize(address(0));
     }
 
     function testCannotInitializeAgain() public {
-        userProxy.initialize(address(this));
+        UserProxy up = new UserProxy();
+        up.initialize(address(this));
+        assertEq(up.version(), "5.3.0");
+        assertEq(up.operator(), address(this));
 
-        vm.expectRevert("UserProxy: not upgrading from version 5.2.0");
-        userProxy.initialize(address(this));
+        vm.expectRevert("UserProxy: not upgrading from empty");
+        up.initialize(address(this));
     }
 
     /***************************************************

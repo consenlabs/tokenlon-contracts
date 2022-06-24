@@ -37,21 +37,8 @@ contract PermanentStorageTest is Test {
         // Deploy
         permanentStorage = new PermanentStorage();
         strategy = address(new MockStrategy());
-        // Setup
         // Set this contract as operator
-        // prettier-ignore
-        vm.store(
-            address(permanentStorage), // address
-            bytes32(uint256(0)), // key
-            bytes32(uint256(address(this))) // value
-        );
-        // Set version
-        // prettier-ignore
-        vm.store(
-            address(permanentStorage), // address
-            bytes32(uint256(1)), // key
-            bytes32(uint256(bytes32("5.2.0")) + uint256(5 * 2)) // value
-        );
+        permanentStorage.initialize(address(this));
 
         // Label addresses for easier debugging
         vm.label(user, "User");
@@ -79,13 +66,20 @@ contract PermanentStorageTest is Test {
     /*********************************
      *        Test: initialize       *
      *********************************/
+    function testCannotInitializeToZeroAddress() public {
+        PermanentStorage ps = new PermanentStorage();
+        vm.expectRevert("PermanentStorage: operator can not be zero address");
+        ps.initialize(address(0));
+    }
 
     function testCannotInitializeAgain() public {
-        permanentStorage.initialize();
-        assertEq(permanentStorage.version(), "5.3.0");
+        PermanentStorage ps = new PermanentStorage();
+        ps.initialize(address(this));
+        assertEq(ps.version(), "5.3.0");
+        assertEq(ps.operator(), address(this));
 
-        vm.expectRevert("PermanentStorage: not upgrading from 5.2.0 version");
-        permanentStorage.initialize();
+        vm.expectRevert("PermanentStorage: not upgrading from empty");
+        ps.initialize(address(this));
     }
 
     /***********************************
