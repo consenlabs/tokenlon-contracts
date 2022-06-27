@@ -93,7 +93,7 @@ contract SignatureValidator {
 
             // Signature using EIP712
         } else if (signatureType == SignatureType.EIP712) {
-            require(_sig.length == 97, "SignatureValidator#isValidSignature: length 97 required");
+            require(_sig.length == 65 || _sig.length == 97, "SignatureValidator#isValidSignature: length 65 or 97 required");
             r = _sig.readBytes32(0);
             s = _sig.readBytes32(32);
             v = uint8(_sig[64]);
@@ -103,7 +103,7 @@ contract SignatureValidator {
 
             // Signed using web3.eth_sign() or Ethers wallet.signMessage()
         } else if (signatureType == SignatureType.EthSign) {
-            require(_sig.length == 97, "SignatureValidator#isValidSignature: length 97 required");
+            require(_sig.length == 65 || _sig.length == 97, "SignatureValidator#isValidSignature: length 65 or 97 required");
             r = _sig.readBytes32(0);
             s = _sig.readBytes32(32);
             v = uint8(_sig[64]);
