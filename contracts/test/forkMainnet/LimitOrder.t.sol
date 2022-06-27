@@ -671,6 +671,30 @@ contract LimitOrderTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload);
     }
 
+    function testFillBySpecificTakerWithOldEIP712Method() public {
+        LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
+        // order specify taker address
+        order.taker = user;
+        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes memory orderMakerSig = _signOrderWithOldEIP712Method(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+
+        LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
+        fill.orderHash = orderHash;
+
+        ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.takerSig = _signFillWithOldEIP712Method(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = orderHash;
+
+        ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFillWithOldEIP712Method(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
+    }
+
     function testOverFillByTrader() public {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
@@ -1132,13 +1156,25 @@ contract LimitOrderTest is StrategySharedSetup {
 
         if (sigType == SignatureValidator.SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
-            sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
+            sig = abi.encodePacked(r, s, v, uint8(sigType));
         } else if (sigType == SignatureValidator.SignatureType.Wallet) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
             sig = abi.encodePacked(v, r, s, uint8(sigType));
         } else {
             revert("Invalid signature type");
         }
+    }
+
+    function _signOrderWithOldEIP712Method(
+        uint256 privateKey,
+        LimitOrderLibEIP712.Order memory order,
+        SignatureValidator.SignatureType sigType
+    ) internal returns (bytes memory sig) {
+        bytes32 orderHash = LimitOrderLibEIP712._getOrderStructHash(order);
+        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+        require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
 
     function _signFill(
@@ -1148,6 +1184,18 @@ contract LimitOrderTest is StrategySharedSetup {
     ) internal returns (bytes memory sig) {
         bytes32 fillHash = LimitOrderLibEIP712._getFillStructHash(fill);
         bytes32 EIP712SignDigest = _getEIP712Hash(fillHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        sig = abi.encodePacked(r, s, v, uint8(sigType));
+    }
+
+    function _signFillWithOldEIP712Method(
+        uint256 privateKey,
+        LimitOrderLibEIP712.Fill memory fill,
+        SignatureValidator.SignatureType sigType
+    ) internal returns (bytes memory sig) {
+        bytes32 fillHash = LimitOrderLibEIP712._getFillStructHash(fill);
+        bytes32 EIP712SignDigest = _getEIP712Hash(fillHash);
+        require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
@@ -1159,6 +1207,18 @@ contract LimitOrderTest is StrategySharedSetup {
     ) internal returns (bytes memory sig) {
         bytes32 allowFillHash = LimitOrderLibEIP712._getAllowFillStructHash(allowFill);
         bytes32 EIP712SignDigest = _getEIP712Hash(allowFillHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        sig = abi.encodePacked(r, s, v, uint8(sigType));
+    }
+
+    function _signAllowFillWithOldEIP712Method(
+        uint256 privateKey,
+        LimitOrderLibEIP712.AllowFill memory allowFill,
+        SignatureValidator.SignatureType sigType
+    ) internal returns (bytes memory sig) {
+        bytes32 allowFillHash = LimitOrderLibEIP712._getAllowFillStructHash(allowFill);
+        bytes32 EIP712SignDigest = _getEIP712Hash(allowFillHash);
+        require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
