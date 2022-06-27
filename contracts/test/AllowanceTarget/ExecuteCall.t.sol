@@ -9,7 +9,7 @@ contract TestAllowanceTargetExecuteCall is TestAllowanceTarget {
     // include Snapshot struct from BalanceSnapshot
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
-    function testCannotExecuteByNotSpender() public {
+    function testExecuteCallByNotSpender() public {
         vm.prank(bob);
         vm.expectRevert("AllowanceTarget: not the spender");
 

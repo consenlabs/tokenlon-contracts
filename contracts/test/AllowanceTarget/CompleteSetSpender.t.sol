@@ -4,12 +4,12 @@ pragma solidity 0.7.6;
 import "contracts-test/AllowanceTarget/Setup.t.sol";
 
 contract TestAllowanceTargetCompleteSetSpender is TestAllowanceTarget {
-    function testCannotCompleteBeforeSet() public {
+    function testCannotCompleteSetSpenderBeforeSet() public {
         vm.expectRevert("AllowanceTarget: no pending SetSpender");
         allowanceTarget.completeSetSpender();
     }
 
-    function testCannotCompleteTooEarly() public {
+    function testCannotCompleteSetSpenderTooEarly() public {
         allowanceTarget.setSpenderWithTimelock(newSpender);
         vm.expectRevert("AllowanceTarget: time lock not expired yet");
         allowanceTarget.completeSetSpender();
