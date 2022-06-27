@@ -171,10 +171,16 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
             require(msg.value == _order.takerAssetAmount, "RFQ: insufficient ETH");
             weth.deposit{ value: msg.value }();
         } else {
-            spender.spendFromUser(_order.takerAddr, _order.takerAssetAddr, _order.takerAssetAmount);
+            {
+                uint256 transferredAmount = spender.spendFromUser(_order.takerAddr, _order.takerAssetAddr, _order.takerAssetAmount);
+                require(transferredAmount == _order.takerAssetAmount, "RFQ: transferred taker amount mismatch");
+            }
         }
         // Transfer from maker
-        spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, _order.makerAssetAmount);
+        {
+            uint256 transferredAmount = spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, _order.makerAssetAmount);
+            require(transferredAmount == _order.takerAssetAmount, "RFQ: transferred maker amount mismatch");
+        }
 
         // settle token/ETH to user
         return _settle(_order, vars);
