@@ -67,6 +67,7 @@ $ yarn run compile # compile contracts
 ## Run unit test
 
 ```bash
+$ yarn run test-hardhat # run PMM unit test (hardhat environment)
 $ yarn run test-foundry-local # run unit tests with fresh states
 $ yarn run test-foundry-fork # run unit tests with forked states
 ```
