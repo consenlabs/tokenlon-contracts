@@ -9,7 +9,7 @@ contract TestAllowanceTargetExecuteCall is TestAllowanceTarget {
     // include Snapshot struct from BalanceSnapshot
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
-    function testExecuteCallByNotSpender() public {
+    function testCannotExecuteByNotSpender() public {
         vm.prank(bob);
         vm.expectRevert("AllowanceTarget: not the spender");
 
@@ -17,7 +17,7 @@ contract TestAllowanceTargetExecuteCall is TestAllowanceTarget {
         allowanceTarget.executeCall(payable(address(newSpender)), data);
     }
 
-    // usually case
+    // normal case
     function testExecuteCall() public {
         MockERC20 token = new MockERC20("Test", "TST", 18);
         BalanceSnapshot.Snapshot memory bobBalance = BalanceSnapshot.take(address(bob), address(token));
