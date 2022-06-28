@@ -3,7 +3,7 @@ pragma solidity 0.7.6;
 
 import "contracts-test/AllowanceTarget/Setup.t.sol";
 
-contract TestAllowanceTargetSetSpenderWithTimeock is TestAllowanceTarget {
+contract TestAllowanceTargetSetSpenderWithTimelock is TestAllowanceTarget {
     function testCannotSetByRandomEOA() public {
         vm.prank(bob);
         vm.expectRevert("AllowanceTarget: not the spender");
@@ -23,7 +23,7 @@ contract TestAllowanceTargetSetSpenderWithTimeock is TestAllowanceTarget {
     }
 
     // normal case
-    function testSetSpenderWithTimeock() public {
+    function testSetSpenderWithTimelock() public {
         allowanceTarget.setSpenderWithTimelock(newSpender);
         assertEq(allowanceTarget.newSpender(), newSpender);
         assertEq(allowanceTarget.timelockExpirationTime(), block.timestamp + 1 days);
