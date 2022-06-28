@@ -9,7 +9,6 @@ contract TestAllowanceTargetConstructor is TestAllowanceTarget {
         allowanceTarget = new AllowanceTarget(address(0));
     }
 
-    // normal case
     function testConstructor() public {
         assertEq(allowanceTarget.spender(), address(this));
     }

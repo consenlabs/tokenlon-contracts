@@ -17,7 +17,6 @@ contract TestAllowanceTargetExecuteCall is TestAllowanceTarget {
         allowanceTarget.executeCall(payable(address(newSpender)), data);
     }
 
-    // normal case
     function testExecuteCall() public {
         MockERC20 token = new MockERC20("Test", "TST", 18);
         BalanceSnapshot.Snapshot memory bobBalance = BalanceSnapshot.take(address(bob), address(token));

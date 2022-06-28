@@ -14,7 +14,6 @@ contract TestAllowanceTargetTeardown is TestAllowanceTarget {
         allowanceTarget.teardown();
     }
 
-    // normal case
     function testTeardown() public {
         BalanceSnapshot.Snapshot memory beneficiary = BalanceSnapshot.take(address(this), ETH_ADDRESS);
         uint256 heritage = 10 ether;

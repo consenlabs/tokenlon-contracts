@@ -22,7 +22,6 @@ contract TestAllowanceTargetSetSpenderWithTimelock is TestAllowanceTarget {
         allowanceTarget.setSpenderWithTimelock(mySpender);
     }
 
-    // normal case
     function testSetSpenderWithTimelock() public {
         allowanceTarget.setSpenderWithTimelock(newSpender);
         assertEq(allowanceTarget.newSpender(), newSpender);
