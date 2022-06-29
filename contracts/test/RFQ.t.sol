@@ -282,6 +282,26 @@ contract RFQTest is StrategySharedSetup {
         makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
+    function testFillDAIToUSDT_EOAUserAndEOAMaker_WithOldEIP712Method() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrderWithOldEIP712Method(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFillWithOldEIP712Method(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, order.makerAssetAddr);
+
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
+
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
+    }
+
     function testFillETHToUSDT_EOAUserAndMMPMaker() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerAssetAddr = address(weth);
@@ -396,13 +416,26 @@ contract RFQTest is StrategySharedSetup {
 
         if (sigType == SignatureValidator.SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
-            sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
+            sig = abi.encodePacked(r, s, v, uint8(sigType));
         } else if (sigType == SignatureValidator.SignatureType.Wallet) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
             sig = abi.encodePacked(v, r, s, uint8(sigType));
         } else {
             revert("Invalid signature type");
         }
+    }
+
+    function _signOrderWithOldEIP712Method(
+        uint256 privateKey,
+        RFQLibEIP712.Order memory order,
+        SignatureValidator.SignatureType sigType
+    ) internal returns (bytes memory sig) {
+        bytes32 orderHash = RFQLibEIP712._getOrderHash(order);
+        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+
+        require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
 
     function _signFill(
@@ -412,6 +445,19 @@ contract RFQTest is StrategySharedSetup {
     ) internal returns (bytes memory sig) {
         bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
         bytes32 EIP712SignDigest = _getEIP712Hash(transactionHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        sig = abi.encodePacked(r, s, v, uint8(sigType));
+    }
+
+    function _signFillWithOldEIP712Method(
+        uint256 privateKey,
+        RFQLibEIP712.Order memory order,
+        SignatureValidator.SignatureType sigType
+    ) internal returns (bytes memory sig) {
+        bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
+        bytes32 EIP712SignDigest = _getEIP712Hash(transactionHash);
+
+        require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
