@@ -1,9 +1,38 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
 import "contracts-test/LON/Setup.t.sol";
 
 contract TestLONPermit is TestLON {
+    uint256 otherPrivateKey = uint256(2);
+
+    uint256 DEADLINE = block.timestamp + 1;
+
+    address spender = address(0x133701);
+
+    struct Permit {
+        address owner;
+        address spender;
+        uint256 value;
+        uint256 nonces;
+        uint256 deadline;
+    }
+    Permit DEFAULT_PERMIT;
+
+    // Override the "beforeEach" block
+    function setUp() public override {
+        TestLON.setUp();
+
+        // Default permit
+        DEFAULT_PERMIT = Permit(
+            user, // owner
+            spender, // spender
+            1e18, // value
+            0, // nonce
+            DEADLINE // deadline
+        );
+    }
+
     function testCannotPermitByZeroAddress() public {
         Permit memory permit = DEFAULT_PERMIT;
         permit.owner = address(0);
@@ -52,5 +81,35 @@ contract TestLONPermit is TestLON {
 
         assertEq(nonceAfter, nonceBefore + 1);
         assertEq(allowanceAfter, allowanceBefore + permit.value);
+    }
+
+    /*********************************
+     *          Test Helpers         *
+     *********************************/
+
+    function _signPermit(uint256 privateKey, Permit memory permit)
+        internal
+        returns (
+            uint8,
+            bytes32,
+            bytes32
+        )
+    {
+        bytes32 permitHash = _getPermitHash(permit);
+        bytes32 EIP712SignDigest = _getEIP712Hash(permitHash);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        return (v, r, s);
+    }
+
+    function _getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
+        string memory EIP191_HEADER = "\x19\x01";
+        bytes32 DOMAIN_SEPARATOR = lon.DOMAIN_SEPARATOR();
+        return keccak256(abi.encodePacked(EIP191_HEADER, DOMAIN_SEPARATOR, structHash));
+    }
+
+    function _getPermitHash(Permit memory permit) internal view returns (bytes32) {
+        bytes32 PERMIT_TYPEHASH = lon.PERMIT_TYPEHASH();
+        return keccak256(abi.encode(PERMIT_TYPEHASH, permit.owner, permit.spender, permit.value, permit.nonces, permit.deadline));
     }
 }

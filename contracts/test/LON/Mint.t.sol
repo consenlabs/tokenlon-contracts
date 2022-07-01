@@ -1,10 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
 import "contracts-test/LON/Setup.t.sol";
 
 contract TestLONMint is TestLON {
-    // include Snapshot struct from BalanceSnapshot
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     function testCannotMintByNotMinter() public {
