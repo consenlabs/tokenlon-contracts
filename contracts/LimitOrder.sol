@@ -490,7 +490,8 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
             cancelledOrder.takerTokenAmount = 0;
 
             bytes32 cancelledOrderHash = getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(cancelledOrder));
-            require(isValidSignature(_order.maker, cancelledOrderHash, bytes(""), _cancelOrderMakerSig), "LimitOrder: Cancel request is not signed by maker");
+            // validate order and check cancel signature
+            _validateOrder(cancelledOrder, cancelledOrderHash, _cancelOrderMakerSig);
         }
 
         // Set cancelled state to storage
