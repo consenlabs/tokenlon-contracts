@@ -102,12 +102,6 @@ contract TestLONPermit is TestLON {
         return (v, r, s);
     }
 
-    function _getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
-        string memory EIP191_HEADER = "\x19\x01";
-        bytes32 DOMAIN_SEPARATOR = lon.DOMAIN_SEPARATOR();
-        return keccak256(abi.encodePacked(EIP191_HEADER, DOMAIN_SEPARATOR, structHash));
-    }
-
     function _getPermitHash(Permit memory permit) internal view returns (bytes32) {
         bytes32 PERMIT_TYPEHASH = lon.PERMIT_TYPEHASH();
         return keccak256(abi.encode(PERMIT_TYPEHASH, permit.owner, permit.spender, permit.value, permit.nonces, permit.deadline));
