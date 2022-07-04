@@ -1112,6 +1112,28 @@ contract LimitOrderTest is StrategySharedSetup {
         userProxy.toLimitOrder(cancelPayload);
     }
 
+    function testCannotCancelExpiredOrder() public {
+        LimitOrderLibEIP712.Order memory expiredOrder = DEFAULT_ORDER;
+        expiredOrder.expiry = 0;
+
+        bytes memory payload = _genCancelLimitOrderPayload(expiredOrder, _signOrder(userPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712));
+        vm.expectRevert("LimitOrder: Order is expired");
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
+    }
+
+    function testCannotCancelTwice() public {
+        LimitOrderLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
+        zeroOrder.takerTokenAmount = 0;
+
+        bytes memory payload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(makerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
+        vm.expectRevert("LimitOrder: Order is cancelled already");
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
+    }
+
     /*********************************
      *             Helpers           *
      *********************************/
