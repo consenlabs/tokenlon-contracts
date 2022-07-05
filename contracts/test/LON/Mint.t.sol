@@ -24,8 +24,10 @@ contract TestLONMint is TestLON {
     }
 
     function testMint() public {
+        uint256 mintAmount = 1e18;
+
         BalanceSnapshot.Snapshot memory userLon = BalanceSnapshot.take(user, address(lon));
-        lon.mint(user, uint256(1e18));
-        userLon.assertChange(int256(1e18));
+        lon.mint(user, mintAmount);
+        userLon.assertChange(int256(mintAmount));
     }
 }

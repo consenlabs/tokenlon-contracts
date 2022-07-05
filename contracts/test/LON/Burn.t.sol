@@ -15,10 +15,12 @@ contract TestLONBurn is TestLON {
     }
 
     function testBurn() public {
-        lon.mint(user, uint256(1e18));
+        uint256 burnAmount = 1e18;
+
+        lon.mint(user, burnAmount);
         BalanceSnapshot.Snapshot memory userLon = BalanceSnapshot.take(user, address(lon));
         vm.prank(user);
-        lon.burn(1e18);
-        userLon.assertChange(-int256(1e18));
+        lon.burn(burnAmount);
+        userLon.assertChange(-int256(burnAmount));
     }
 }

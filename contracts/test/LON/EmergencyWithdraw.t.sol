@@ -8,13 +8,15 @@ contract TestLONEmergencyWithdraw is TestLON {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     function testEmergencyWithdraw() public {
+        uint256 withdrawAmount = 1e18;
+
         MockERC20 dai = new MockERC20("DAI", "DAI", uint8(18));
-        dai.mint(address(lon), uint256(1e18));
+        dai.mint(address(lon), withdrawAmount);
         BalanceSnapshot.Snapshot memory lonDai = BalanceSnapshot.take(address(lon), address(dai));
         BalanceSnapshot.Snapshot memory emergencyRecipientDai = BalanceSnapshot.take(emergencyRecipient, address(dai));
         vm.prank(user);
         lon.emergencyWithdraw(dai);
-        lonDai.assertChange(-int256(1e18));
-        emergencyRecipientDai.assertChange(int256(1e18));
+        lonDai.assertChange(-int256(withdrawAmount));
+        emergencyRecipientDai.assertChange(int256(withdrawAmount));
     }
 }
