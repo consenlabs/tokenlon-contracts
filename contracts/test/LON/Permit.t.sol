@@ -27,8 +27,8 @@ contract TestLONPermit is TestLON {
         DEFAULT_PERMIT = Permit(
             user, // owner
             spender, // spender
-            1e18, // value
-            0, // nonce
+            uint256(1e18), // value
+            uint256(0), // nonce
             DEADLINE // deadline
         );
     }

@@ -9,7 +9,7 @@ contract TestLONMint is TestLON {
     function testCannotMintByNotMinter() public {
         vm.expectRevert("not minter");
         vm.prank(user);
-        lon.mint(user, 1e18);
+        lon.mint(user, uint256(1e18));
     }
 
     function testCannotMintExceedCap() public {
@@ -20,12 +20,12 @@ contract TestLONMint is TestLON {
 
     function testCannotMintToZeroAddress() public {
         vm.expectRevert("zero address");
-        lon.mint(address(0), 1e18);
+        lon.mint(address(0), uint256(1e18));
     }
 
     function testMint() public {
         BalanceSnapshot.Snapshot memory userLon = BalanceSnapshot.take(user, address(lon));
-        lon.mint(user, 1e18);
+        lon.mint(user, uint256(1e18));
         userLon.assertChange(int256(1e18));
     }
 }
