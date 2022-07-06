@@ -19,7 +19,6 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     using SafeERC20 for IERC20;
 
     // Constants do not have storage slot.
-    string public constant version = "5.2.0";
     uint256 internal constant MAX_UINT = 2**256 - 1;
     uint256 internal constant BPS_MAX = 10000;
     address internal constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
