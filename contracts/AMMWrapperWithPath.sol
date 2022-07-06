@@ -16,6 +16,7 @@ import "./utils/LibConstant.sol";
 import "./utils/LibUniswapV3.sol";
 
 contract AMMWrapperWithPath is AMMWrapper {
+    using SafeMath for uint16;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using LibBytes for bytes;
@@ -64,13 +65,13 @@ contract AMMWrapperWithPath is AMMWrapper {
         }
 
         // Assign trade vairables
-        internalTxData.fromEth = (_order.takerAssetAddr == ZERO_ADDRESS || _order.takerAssetAddr == ETH_ADDRESS);
-        internalTxData.toEth = (_order.makerAssetAddr == ZERO_ADDRESS || _order.makerAssetAddr == ETH_ADDRESS);
+        internalTxData.fromEth = (_order.takerAssetAddr == LibConstant.ZERO_ADDRESS || _order.takerAssetAddr == LibConstant.ETH_ADDRESS);
+        internalTxData.toEth = (_order.makerAssetAddr == LibConstant.ZERO_ADDRESS || _order.makerAssetAddr == LibConstant.ETH_ADDRESS);
         if (_isCurve(_order.makerAddr)) {
             // PermanetStorage can recognize `ETH_ADDRESS` but not `ZERO_ADDRESS`.
             // Convert it to `ETH_ADDRESS` as passed in `_order.takerAssetAddr` or `_order.makerAssetAddr` might be `ZERO_ADDRESS`.
-            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? ETH_ADDRESS : _order.takerAssetAddr;
-            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? ETH_ADDRESS : _order.makerAssetAddr;
+            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? LibConstant.ETH_ADDRESS : _order.takerAssetAddr;
+            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? LibConstant.ETH_ADDRESS : _order.makerAssetAddr;
         } else {
             internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? address(weth) : _order.takerAssetAddr;
             internalTxData.makerAssetInternalAddr = internalTxData.toEth ? address(weth) : _order.makerAssetAddr;
@@ -81,7 +82,7 @@ contract AMMWrapperWithPath is AMMWrapper {
         _prepare(_order, internalTxData);
 
         // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
-        uint256 _minAmount = _order.makerAssetAmount.mul((BPS_MAX.sub(txMetaData.subsidyFactor))).div(BPS_MAX);
+        uint256 _minAmount = _order.makerAssetAmount.mul((LibConstant.BPS_MAX.sub(txMetaData.subsidyFactor))).div(LibConstant.BPS_MAX);
         (txMetaData.source, txMetaData.receivedAmount) = _swapWithPath(_order, internalTxData, _minAmount);
 
         // Settle
