@@ -34,17 +34,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     uint256 public subsidyFactor;
     ISpender public spender;
 
-    /* Struct and event declaration */
-    // Group the local variables together to prevent
-    // Compiler error: Stack too deep, try removing local variables.
-    struct TxMetaData {
-        string source;
-        bytes32 transactionHash;
-        uint256 settleAmount;
-        uint256 receivedAmount;
-        uint16 feeFactor;
-        uint16 subsidyFactor;
-    }
+    /* Struct declaration */
 
     struct InternalTxData {
         bool fromEth;
@@ -60,30 +50,6 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         int128 toTokenCurveIndex;
         uint16 swapMethod;
     }
-
-    // Operator events
-    event TransferOwnership(address newOperator);
-    event UpgradeSpender(address newSpender);
-    event SetSubsidyFactor(uint256 newSubisdyFactor);
-    event AllowTransfer(address spender);
-    event DisallowTransfer(address spender);
-    event DepositETH(uint256 ethBalance);
-
-    event Swapped(
-        string source,
-        bytes32 indexed transactionHash,
-        address indexed userAddr,
-        address takerAssetAddr,
-        uint256 takerAssetAmount,
-        address makerAddr,
-        address makerAssetAddr,
-        uint256 makerAssetAmount,
-        address receiverAddr,
-        uint256 settleAmount,
-        uint256 receivedAmount,
-        uint16 feeFactor,
-        uint16 subsidyFactor
-    );
 
     receive() external payable {}
 

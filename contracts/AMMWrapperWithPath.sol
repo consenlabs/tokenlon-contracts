@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./AMMWrapper.sol";
+import "./interfaces/IAMMWrapperWithPath.sol";
 import "./interfaces/IBalancerV2Vault.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/ISpender.sol";
@@ -16,7 +17,7 @@ import "./utils/LibBytes.sol";
 import "./utils/LibConstant.sol";
 import "./utils/LibUniswapV3.sol";
 
-contract AMMWrapperWithPath is AMMWrapper {
+contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
     using SafeMath for uint16;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -24,8 +25,6 @@ contract AMMWrapperWithPath is AMMWrapper {
 
     // Constants do not have storage slot.
     address public immutable UNISWAP_V3_ROUTER_ADDRESS;
-
-    event Swapped(TxMetaData, AMMLibEIP712.Order order);
 
     /************************************************************
      *              Constructor and init functions               *
@@ -54,7 +53,7 @@ contract AMMWrapperWithPath is AMMWrapper {
         bytes calldata _sig,
         bytes calldata _makerSpecificData,
         address[] calldata _path
-    ) external payable nonReentrant onlyUserProxy returns (uint256) {
+    ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         require(_order.deadline >= block.timestamp, "AMMWrapper: expired order");
         TxMetaData memory txMetaData;
         InternalTxData memory internalTxData;
