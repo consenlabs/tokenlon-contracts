@@ -23,7 +23,7 @@ contract AMMWrapperWithPath is AMMWrapper {
     using LibBytes for bytes;
 
     // Constants do not have storage slot.
-    address public constant UNISWAP_V3_ROUTER_ADDRESS = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address public immutable UNISWAP_V3_ROUTER_ADDRESS;
 
     event Swapped(TxMetaData, AMMLibEIP712.Order order);
 
@@ -36,8 +36,13 @@ contract AMMWrapperWithPath is AMMWrapper {
         address _userProxy,
         ISpender _spender,
         IPermanentStorage _permStorage,
-        IWETH _weth
-    ) AMMWrapper(_operator, _subsidyFactor, _userProxy, _spender, _permStorage, _weth) {}
+        IWETH _weth,
+        address _uniswapV2Router,
+        address _sushiwapRouter,
+        address _uniswapV3Router
+    ) AMMWrapper(_operator, _subsidyFactor, _userProxy, _spender, _permStorage, _weth, _uniswapV2Router, _sushiwapRouter) {
+        UNISWAP_V3_ROUTER_ADDRESS = _uniswapV3Router;
+    }
 
     /************************************************************
      *                   External functions                      *
@@ -98,7 +103,7 @@ contract AMMWrapperWithPath is AMMWrapper {
      * @dev internal function of `trade`.
      * Used to tell if maker is Curve.
      */
-    function _isCurve(address _makerAddr) internal pure override returns (bool) {
+    function _isCurve(address _makerAddr) internal view override returns (bool) {
         if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == UNISWAP_V3_ROUTER_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) {
             return false;
         }

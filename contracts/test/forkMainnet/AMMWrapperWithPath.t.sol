@@ -110,7 +110,10 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
             address(userProxy),
             ISpender(address(spender)),
             permanentStorage,
-            IWETH(address(weth))
+            IWETH(address(weth)),
+            UNISWAP_V2_ADDRESS,
+            SUSHISWAP_ADDRESS,
+            UNISWAP_V3_ADDRESS
         );
         // Setup
         userProxy.upgradeAMMWrapper(address(ammWrapperWithPath), true);

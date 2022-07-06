@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
+
 import "./interfaces/ISpender.sol";
 import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ICurveFi.sol";
@@ -25,8 +26,8 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     address public immutable userProxy;
     IWETH public immutable weth;
     IPermanentStorage public immutable permStorage;
-    address public constant UNISWAP_V2_ROUTER_02_ADDRESS = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address public constant SUSHISWAP_ROUTER_ADDRESS = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
+    address public immutable UNISWAP_V2_ROUTER_02_ADDRESS;
+    address public immutable SUSHISWAP_ROUTER_ADDRESS;
 
     // Below are the variables which consume storage slots.
     address public operator;
@@ -131,7 +132,9 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         address _userProxy,
         ISpender _spender,
         IPermanentStorage _permStorage,
-        IWETH _weth
+        IWETH _weth,
+        address _uniswapV2Router,
+        address _sushiwapRouter
     ) {
         operator = _operator;
         subsidyFactor = _subsidyFactor;
@@ -139,6 +142,8 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         spender = _spender;
         permStorage = _permStorage;
         weth = _weth;
+        UNISWAP_V2_ROUTER_02_ADDRESS = _uniswapV2Router;
+        SUSHISWAP_ROUTER_ADDRESS = _sushiwapRouter;
     }
 
     /************************************************************
@@ -278,7 +283,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
      * @dev internal function of `trade`.
      * Used to tell if maker is Curve.
      */
-    function _isCurve(address _makerAddr) internal pure virtual returns (bool) {
+    function _isCurve(address _makerAddr) internal view virtual returns (bool) {
         if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) return false;
         else return true;
     }
