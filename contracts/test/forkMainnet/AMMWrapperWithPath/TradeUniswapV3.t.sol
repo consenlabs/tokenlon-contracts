@@ -119,7 +119,7 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testCannotTradeIfPayloadAgain() public {
+    function testCannotTradeWhenPayloadSeenBefore() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory sig = _signTrade(userPrivateKey, order);

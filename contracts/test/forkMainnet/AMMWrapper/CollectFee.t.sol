@@ -7,7 +7,6 @@ import "contracts-test/utils/BalanceSnapshot.sol";
 contract TestAMMWrapperCollectFee is TestAMMWrapper {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
-    // Received same amount as expected min amount
     function testCollectFeeIfReceivedSameAsMinOut() public {
         uint256 feeFactor = 5;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
@@ -24,7 +23,7 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
     }
 
     // Received more than expected min amount
-    function testCollectFeeIfReceivedMoreThanMinOut() public {
+    function testSwapReceiveMoreThanMinOut() public {
         uint256 feeFactor = 5;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
@@ -43,7 +42,7 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
     }
 
     // Received more than expected min amount but not enough
-    function testCollectFeeIfReceivedMoreThanMinOutButNotEnough() public {
+    function testSwapReceiveMoreThanMinOutButNotEnough() public {
         uint256 feeFactor = 5;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);

@@ -4,7 +4,7 @@ pragma solidity 0.7.6;
 import "contracts-test/forkMainnet/AMMWrapper/Setup.t.sol";
 
 contract TestAMMWrapperDepositETH is TestAMMWrapper {
-    function testCannotDepositETHByNotOperator() public {
+    function testCannotDepositByNotOperator() public {
         vm.expectRevert("AMMWrapper: not the operator");
         vm.prank(user);
         ammWrapper.depositETH();

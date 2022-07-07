@@ -28,7 +28,7 @@ contract TestAMMWrapperWithPathTradeSushiswap is TestAMMWrapperWithPath {
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
     }
 
-    function testTradeWithSingleHopIfOldEIP712Signature() public {
+    function testTradeWithSingleHopWithOldEIP712Signature() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = SUSHISWAP_ADDRESS;
