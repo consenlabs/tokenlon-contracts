@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
+
 import "./interfaces/ISpender.sol";
 import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ICurveFi.sol";
@@ -12,40 +14,27 @@ import "./interfaces/IWeth.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./utils/AMMLibEIP712.sol";
 import "./utils/BaseLibEIP712.sol";
+import "./utils/LibConstant.sol";
 import "./utils/SignatureValidator.sol";
 
 contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
+    using SafeMath for uint16;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     // Constants do not have storage slot.
-    string public constant version = "5.2.0";
-    uint256 internal constant MAX_UINT = 2**256 - 1;
-    uint256 internal constant BPS_MAX = 10000;
-    address internal constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    address internal constant ZERO_ADDRESS = address(0);
     address public immutable userProxy;
     IWETH public immutable weth;
     IPermanentStorage public immutable permStorage;
-    address public constant UNISWAP_V2_ROUTER_02_ADDRESS = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address public constant SUSHISWAP_ROUTER_ADDRESS = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
+    address public immutable UNISWAP_V2_ROUTER_02_ADDRESS;
+    address public immutable SUSHISWAP_ROUTER_ADDRESS;
 
     // Below are the variables which consume storage slots.
     address public operator;
     uint256 public subsidyFactor;
     ISpender public spender;
 
-    /* Struct and event declaration */
-    // Group the local variables together to prevent
-    // Compiler error: Stack too deep, try removing local variables.
-    struct TxMetaData {
-        string source;
-        bytes32 transactionHash;
-        uint256 settleAmount;
-        uint256 receivedAmount;
-        uint16 feeFactor;
-        uint16 subsidyFactor;
-    }
+    /* Struct declaration */
 
     struct InternalTxData {
         bool fromEth;
@@ -61,30 +50,6 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         int128 toTokenCurveIndex;
         uint16 swapMethod;
     }
-
-    // Operator events
-    event TransferOwnership(address newOperator);
-    event UpgradeSpender(address newSpender);
-    event SetSubsidyFactor(uint256 newSubisdyFactor);
-    event AllowTransfer(address spender);
-    event DisallowTransfer(address spender);
-    event DepositETH(uint256 ethBalance);
-
-    event Swapped(
-        string source,
-        bytes32 indexed transactionHash,
-        address indexed userAddr,
-        address takerAssetAddr,
-        uint256 takerAssetAmount,
-        address makerAddr,
-        address makerAssetAddr,
-        uint256 makerAssetAmount,
-        address receiverAddr,
-        uint256 settleAmount,
-        uint256 receivedAmount,
-        uint16 feeFactor,
-        uint16 subsidyFactor
-    );
 
     receive() external payable {}
 
@@ -133,7 +98,9 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         address _userProxy,
         ISpender _spender,
         IPermanentStorage _permStorage,
-        IWETH _weth
+        IWETH _weth,
+        address _uniswapV2Router,
+        address _sushiwapRouter
     ) {
         operator = _operator;
         subsidyFactor = _subsidyFactor;
@@ -141,6 +108,8 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         spender = _spender;
         permStorage = _permStorage;
         weth = _weth;
+        UNISWAP_V2_ROUTER_02_ADDRESS = _uniswapV2Router;
+        SUSHISWAP_ROUTER_ADDRESS = _sushiwapRouter;
     }
 
     /************************************************************
@@ -167,7 +136,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
      */
     function setAllowance(address[] calldata _tokenList, address _spender) external override onlyOperator {
         for (uint256 i = 0; i < _tokenList.length; i++) {
-            IERC20(_tokenList[i]).safeApprove(_spender, MAX_UINT);
+            IERC20(_tokenList[i]).safeApprove(_spender, LibConstant.MAX_UINT);
 
             emit AllowTransfer(_spender);
         }
@@ -234,13 +203,13 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         }
 
         // Assign trade vairables
-        internalTxData.fromEth = (order.takerAssetAddr == ZERO_ADDRESS || order.takerAssetAddr == ETH_ADDRESS);
-        internalTxData.toEth = (order.makerAssetAddr == ZERO_ADDRESS || order.makerAssetAddr == ETH_ADDRESS);
+        internalTxData.fromEth = (order.takerAssetAddr == LibConstant.ZERO_ADDRESS || order.takerAssetAddr == LibConstant.ETH_ADDRESS);
+        internalTxData.toEth = (order.makerAssetAddr == LibConstant.ZERO_ADDRESS || order.makerAssetAddr == LibConstant.ETH_ADDRESS);
         if (_isCurve(order.makerAddr)) {
             // PermanetStorage can recognize `ETH_ADDRESS` but not `ZERO_ADDRESS`.
             // Convert it to `ETH_ADDRESS` as passed in `order.takerAssetAddr` or `order.makerAssetAddr` might be `ZERO_ADDRESS`.
-            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? ETH_ADDRESS : order.takerAssetAddr;
-            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? ETH_ADDRESS : order.makerAssetAddr;
+            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? LibConstant.ETH_ADDRESS : order.takerAssetAddr;
+            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? LibConstant.ETH_ADDRESS : order.makerAssetAddr;
         } else {
             internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? address(weth) : order.takerAssetAddr;
             internalTxData.makerAssetInternalAddr = internalTxData.toEth ? address(weth) : order.makerAssetAddr;
@@ -251,7 +220,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         _prepare(order, internalTxData);
 
         // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
-        uint256 _minAmount = order.makerAssetAmount.mul((BPS_MAX.sub(txMetaData.subsidyFactor))).div(BPS_MAX);
+        uint256 _minAmount = order.makerAssetAmount.mul((LibConstant.BPS_MAX.sub(txMetaData.subsidyFactor))).div(LibConstant.BPS_MAX);
         (txMetaData.source, txMetaData.receivedAmount) = _swap(order, internalTxData, _minAmount);
 
         // Settle
@@ -280,7 +249,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
      * @dev internal function of `trade`.
      * Used to tell if maker is Curve.
      */
-    function _isCurve(address _makerAddr) internal pure virtual returns (bool) {
+    function _isCurve(address _makerAddr) internal view virtual returns (bool) {
         if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) return false;
         else return true;
     }
@@ -290,7 +259,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
      * Used to tell if internal asset is ETH.
      */
     function _isInternalAssetETH(address _internalAssetAddr) internal pure returns (bool) {
-        if (_internalAssetAddr == ETH_ADDRESS || _internalAssetAddr == ZERO_ADDRESS) return true;
+        if (_internalAssetAddr == LibConstant.ETH_ADDRESS || _internalAssetAddr == LibConstant.ZERO_ADDRESS) return true;
         else return false;
     }
 
@@ -411,10 +380,11 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
             settleAmount = _txMetaData.receivedAmount;
         } else if (_txMetaData.receivedAmount > _order.makerAssetAmount) {
             // shouldCollectFee = ((receivedAmount - makerAssetAmount) / receivedAmount) > (feeFactor / 10000)
-            bool shouldCollectFee = _txMetaData.receivedAmount.sub(_order.makerAssetAmount).mul(BPS_MAX) > _feeFactor.mul(_txMetaData.receivedAmount);
+            bool shouldCollectFee = _txMetaData.receivedAmount.sub(_order.makerAssetAmount).mul(LibConstant.BPS_MAX) >
+                _feeFactor.mul(_txMetaData.receivedAmount);
             if (shouldCollectFee) {
                 // settleAmount = receivedAmount * (1 - feeFactor) / 10000
-                settleAmount = _txMetaData.receivedAmount.mul(BPS_MAX.sub(_feeFactor)).div(BPS_MAX);
+                settleAmount = _txMetaData.receivedAmount.mul(LibConstant.BPS_MAX.sub(_feeFactor)).div(LibConstant.BPS_MAX);
             } else {
                 settleAmount = _order.makerAssetAmount;
             }
@@ -426,7 +396,8 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
             uint256 actualSubsidyFactor = (_subsidyFactor < _feeFactor) ? _subsidyFactor : _feeFactor;
 
             // inSubsidyRange = ((makerAssetAmount - receivedAmount) / receivedAmount) > (actualSubsidyFactor / 10000)
-            bool inSubsidyRange = _order.makerAssetAmount.sub(_txMetaData.receivedAmount).mul(BPS_MAX) <= actualSubsidyFactor.mul(_txMetaData.receivedAmount);
+            bool inSubsidyRange = _order.makerAssetAmount.sub(_txMetaData.receivedAmount).mul(LibConstant.BPS_MAX) <=
+                actualSubsidyFactor.mul(_txMetaData.receivedAmount);
             require(inSubsidyRange, "AMMWrapper: amount difference larger than subsidy amount");
 
             uint256 selfBalance = _getSelfBalance(_internalTxData.makerAssetInternalAddr);

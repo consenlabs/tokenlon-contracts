@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 import "contracts/AMMWrapperWithPath.sol";
 import "contracts/AMMQuoter.sol";
+import "contracts/interfaces/IAMMWrapper.sol";
 import "contracts/interfaces/IPermanentStorage.sol";
 import "contracts/interfaces/ISpender.sol";
 import "contracts/interfaces/IBalancerV2Vault.sol";
@@ -110,7 +111,10 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
             address(userProxy),
             ISpender(address(spender)),
             permanentStorage,
-            IWETH(address(weth))
+            IWETH(address(weth)),
+            UNISWAP_V2_ADDRESS,
+            SUSHISWAP_ADDRESS,
+            UNISWAP_V3_ADDRESS
         );
         // Setup
         userProxy.upgradeAMMWrapper(address(ammWrapperWithPath), true);
@@ -399,7 +403,7 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
             makerSpecificData
         );
         vm.expectEmit(false, false, false, true);
-        AMMWrapperWithPath.TxMetaData memory txMetaData = AMMWrapper.TxMetaData(
+        IAMMWrapper.TxMetaData memory txMetaData = IAMMWrapper.TxMetaData(
             "Uniswap V3", // source
             AMMLibEIP712._getOrderHash(order), // transactionHash
             expectedOutAmount, // settleAmount: no fee so settled amount is the same as received amount
