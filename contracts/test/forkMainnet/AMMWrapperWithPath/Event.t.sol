@@ -9,14 +9,7 @@ import "contracts/AMMQuoter.sol";
 contract TestAMMWrapperWithPathEvent is TestAMMWrapperWithPath {
     event Swapped(AMMWrapperWithPath.TxMetaData, AMMLibEIP712.Order order);
 
-    AMMQuoter ammQuoter;
-
-    // Override the "beforeEach" block
-    function setUp() public override {
-        TestAMMWrapperWithPath.setUp();
-
-        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
-    }
+    AMMQuoter ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
 
     function testEmitSwappedEvent() public {
         uint256 feeFactor = 0;
