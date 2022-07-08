@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
@@ -6,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./AMMWrapper.sol";
+import "./interfaces/IAMMWrapperWithPath.sol";
 import "./interfaces/IBalancerV2Vault.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/ISpender.sol";
@@ -15,15 +17,14 @@ import "./utils/LibBytes.sol";
 import "./utils/LibConstant.sol";
 import "./utils/LibUniswapV3.sol";
 
-contract AMMWrapperWithPath is AMMWrapper {
+contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
+    using SafeMath for uint16;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using LibBytes for bytes;
 
     // Constants do not have storage slot.
-    address public constant UNISWAP_V3_ROUTER_ADDRESS = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-
-    event Swapped(TxMetaData, AMMLibEIP712.Order order);
+    address public immutable UNISWAP_V3_ROUTER_ADDRESS;
 
     /************************************************************
      *              Constructor and init functions               *
@@ -34,8 +35,13 @@ contract AMMWrapperWithPath is AMMWrapper {
         address _userProxy,
         ISpender _spender,
         IPermanentStorage _permStorage,
-        IWETH _weth
-    ) AMMWrapper(_operator, _subsidyFactor, _userProxy, _spender, _permStorage, _weth) {}
+        IWETH _weth,
+        address _uniswapV2Router,
+        address _sushiwapRouter,
+        address _uniswapV3Router
+    ) AMMWrapper(_operator, _subsidyFactor, _userProxy, _spender, _permStorage, _weth, _uniswapV2Router, _sushiwapRouter) {
+        UNISWAP_V3_ROUTER_ADDRESS = _uniswapV3Router;
+    }
 
     /************************************************************
      *                   External functions                      *
@@ -47,7 +53,7 @@ contract AMMWrapperWithPath is AMMWrapper {
         bytes calldata _sig,
         bytes calldata _makerSpecificData,
         address[] calldata _path
-    ) external payable nonReentrant onlyUserProxy returns (uint256) {
+    ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         require(_order.deadline >= block.timestamp, "AMMWrapper: expired order");
         TxMetaData memory txMetaData;
         InternalTxData memory internalTxData;
@@ -64,13 +70,13 @@ contract AMMWrapperWithPath is AMMWrapper {
         }
 
         // Assign trade vairables
-        internalTxData.fromEth = (_order.takerAssetAddr == ZERO_ADDRESS || _order.takerAssetAddr == ETH_ADDRESS);
-        internalTxData.toEth = (_order.makerAssetAddr == ZERO_ADDRESS || _order.makerAssetAddr == ETH_ADDRESS);
+        internalTxData.fromEth = (_order.takerAssetAddr == LibConstant.ZERO_ADDRESS || _order.takerAssetAddr == LibConstant.ETH_ADDRESS);
+        internalTxData.toEth = (_order.makerAssetAddr == LibConstant.ZERO_ADDRESS || _order.makerAssetAddr == LibConstant.ETH_ADDRESS);
         if (_isCurve(_order.makerAddr)) {
             // PermanetStorage can recognize `ETH_ADDRESS` but not `ZERO_ADDRESS`.
             // Convert it to `ETH_ADDRESS` as passed in `_order.takerAssetAddr` or `_order.makerAssetAddr` might be `ZERO_ADDRESS`.
-            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? ETH_ADDRESS : _order.takerAssetAddr;
-            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? ETH_ADDRESS : _order.makerAssetAddr;
+            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? LibConstant.ETH_ADDRESS : _order.takerAssetAddr;
+            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? LibConstant.ETH_ADDRESS : _order.makerAssetAddr;
         } else {
             internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? address(weth) : _order.takerAssetAddr;
             internalTxData.makerAssetInternalAddr = internalTxData.toEth ? address(weth) : _order.makerAssetAddr;
@@ -81,7 +87,7 @@ contract AMMWrapperWithPath is AMMWrapper {
         _prepare(_order, internalTxData);
 
         // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
-        uint256 _minAmount = _order.makerAssetAmount.mul((BPS_MAX.sub(txMetaData.subsidyFactor))).div(BPS_MAX);
+        uint256 _minAmount = _order.makerAssetAmount.mul((LibConstant.BPS_MAX.sub(txMetaData.subsidyFactor))).div(LibConstant.BPS_MAX);
         (txMetaData.source, txMetaData.receivedAmount) = _swapWithPath(_order, internalTxData, _minAmount);
 
         // Settle
@@ -96,7 +102,7 @@ contract AMMWrapperWithPath is AMMWrapper {
      * @dev internal function of `trade`.
      * Used to tell if maker is Curve.
      */
-    function _isCurve(address _makerAddr) internal pure override returns (bool) {
+    function _isCurve(address _makerAddr) internal view override returns (bool) {
         if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == UNISWAP_V3_ROUTER_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) {
             return false;
         }
