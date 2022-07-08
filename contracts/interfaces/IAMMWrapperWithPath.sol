@@ -6,8 +6,6 @@ import "./IAMMWrapper.sol";
 import "../utils/AMMLibEIP712.sol";
 
 interface IAMMWrapperWithPath is IAMMWrapper {
-    event Swapped(TxMetaData, AMMLibEIP712.Order order);
-
     function trade(
         AMMLibEIP712.Order calldata _order,
         uint256 _feeFactor,
