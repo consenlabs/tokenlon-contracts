@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 import "contracts-test/forkMainnet/AMMWrapperWithPath/Setup.t.sol";
 import "contracts-test/utils/AMMUtil.sol";
+import "contracts/interfaces/IAMMWrapper.sol";
 import "contracts/AMMQuoter.sol";
 
 contract TestAMMWrapperWithPathEvent is TestAMMWrapperWithPath {
@@ -31,7 +32,7 @@ contract TestAMMWrapperWithPathEvent is TestAMMWrapperWithPath {
             makerSpecificData
         );
         vm.expectEmit(false, false, false, true);
-        AMMWrapperWithPath.TxMetaData memory txMetaData = AMMWrapper.TxMetaData(
+        IAMMWrapper.TxMetaData memory txMetaData = IAMMWrapper.TxMetaData(
             "Uniswap V3", // source
             AMMLibEIP712._getOrderHash(order), // transactionHash
             expectedOutAmount, // settleAmount: no fee so settled amount is the same as received amount

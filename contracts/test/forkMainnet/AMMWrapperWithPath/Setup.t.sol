@@ -9,6 +9,7 @@ import "contracts-test/utils/UniswapV3Util.sol";
 import "contracts-test/utils/StrategySharedSetup.sol"; // Using the deployment Strategy Contract function
 
 contract TestAMMWrapperWithPath is StrategySharedSetup {
+    using SafeERC20 for IERC20;
     uint256 userPrivateKey = uint256(1);
     uint256 otherPrivateKey = uint256(2);
 
@@ -100,7 +101,10 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
             address(userProxy),
             ISpender(address(spender)),
             permanentStorage,
-            IWETH(address(weth))
+            IWETH(address(weth)),
+            UNISWAP_V2_ADDRESS,
+            SUSHISWAP_ADDRESS,
+            UNISWAP_V3_ADDRESS
         );
         // Setup
         userProxy.upgradeAMMWrapper(address(ammWrapperWithPath), true);

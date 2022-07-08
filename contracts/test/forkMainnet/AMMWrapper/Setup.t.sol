@@ -30,7 +30,7 @@ contract TestAMMWrapper is StrategySharedSetup {
     AMMLibEIP712.Order DEFAULT_ORDER;
 
     // effectively a "beforeEach" block
-    function setUp() public {
+    function setUp() public virtual {
         // Deploy and Setup Spender, AllowanceTarget, UserProxy, Tokenlon,
         // PermanentStorage, ProxyPermanentStorage, AMMWrapper contracts
         setUpSystemContracts();
@@ -78,7 +78,9 @@ contract TestAMMWrapper is StrategySharedSetup {
             address(userProxy),
             ISpender(address(spender)),
             permanentStorage,
-            IWETH(address(weth))
+            IWETH(address(weth)),
+            UNISWAP_V2_ADDRESS,
+            SUSHISWAP_ADDRESS
         );
         // Setup
         userProxy.upgradeAMMWrapper(address(ammWrapper), true);

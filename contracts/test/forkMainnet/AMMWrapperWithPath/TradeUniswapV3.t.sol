@@ -77,7 +77,7 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
         garbageData = new bytes(2);
         garbageData[0] = "5";
         garbageData[1] = "5";
-        makerSpecificData = abi.encode(MULTI_POOL_SWAP_TYPE, garbageData);
+        makerSpecificData = abi.encode(MULTI_POOL_SWAP_TYPE, garbageData); // Update the path variable
         payload = _genTradePayload(order, feeFactor, sig, makerSpecificData, path);
 
         vm.expectRevert("toAddress_outOfBounds");
