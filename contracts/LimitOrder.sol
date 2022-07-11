@@ -485,6 +485,10 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
      * Cancel limit order
      */
     function cancelLimitOrder(LimitOrderLibEIP712.Order calldata _order, bytes calldata _cancelOrderMakerSig) external override onlyUserProxy nonReentrant {
+        require(_order.expiry > uint64(block.timestamp), "LimitOrder: Order is expired");
+        bytes32 orderHash = getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(_order));
+        bool isCancelled = LibOrderStorage.getStorage().orderHashToCancelled[orderHash];
+        require(!isCancelled, "LimitOrder: Order is cancelled already");
         {
             LimitOrderLibEIP712.Order memory cancelledOrder = _order;
             cancelledOrder.takerTokenAmount = 0;
@@ -494,9 +498,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         }
 
         // Set cancelled state to storage
-        bytes32 orderHash = getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(_order));
         LibOrderStorage.getStorage().orderHashToCancelled[orderHash] = true;
-
         emit OrderCancelled(orderHash, _order.maker);
     }
 
