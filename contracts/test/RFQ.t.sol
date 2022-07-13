@@ -243,7 +243,7 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         // Taker is an EOA but user signs a Wallet type fill
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes32);
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
         vm.expectRevert(); // No revert string in this case
@@ -332,7 +332,7 @@ contract RFQTest is StrategySharedSetup {
         order.makerAssetAddr = address(weth);
         order.makerAssetAmount = 1 ether;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.Wallet);
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes32);
         bytes memory payload = _genFillPayload(order, makerSig, userSig);
 
         BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take(address(mockERC1271Wallet), order.takerAssetAddr);
