@@ -5,12 +5,6 @@ pragma abicoder v2;
 import "contracts-test/forkMainnet/AMMWrapperWithPath/Setup.t.sol";
 
 contract TestAMMWrapperWithPathSetup is TestAMMWrapperWithPath {
-    function testTokensTotalSupplyWhenSetup() public {
-        for (uint256 i = 0; i < tokens.length; i++) {
-            assertGt(tokens[i].totalSupply(), uint256(0));
-        }
-    }
-
     function testTokensAllowanceAmountWhenSetup() public {
         for (uint256 i = 0; i < tokens.length; i++) {
             assertEq(tokens[i].allowance(user, address(allowanceTarget)), type(uint256).max);
