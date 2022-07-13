@@ -32,6 +32,7 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     // Below are the variables which consume storage slots.
     address public operator;
     ISpender public spender;
+    address public feeCollector;
 
     struct GroupedVars {
         bytes32 orderHash;
@@ -44,6 +45,7 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     event AllowTransfer(address spender);
     event DisallowTransfer(address spender);
     event DepositETH(uint256 ethBalance);
+    event SetFeeCollector(address newFeeCollector);
 
     event FillOrder(
         string source,
@@ -90,13 +92,15 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
         address _userProxy,
         ISpender _spender,
         IPermanentStorage _permStorage,
-        IWETH _weth
+        IWETH _weth,
+        address _feeCollector
     ) {
         operator = _operator;
         userProxy = _userProxy;
         spender = _spender;
         permStorage = _permStorage;
         weth = _weth;
+        feeCollector = _feeCollector;
     }
 
     /************************************************************
@@ -143,6 +147,16 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
         }
     }
 
+    /**
+     * @dev set fee collector
+     */
+    function setFeeCollector(address _newFeeCollector) external onlyOperator {
+        require(_newFeeCollector != address(0), "RFQ: fee collector can not be zero address");
+        feeCollector = _newFeeCollector;
+
+        emit SetFeeCollector(_newFeeCollector);
+    }
+
     /************************************************************
      *                   External functions                      *
      *************************************************************/
@@ -166,24 +180,20 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
         // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
         permStorage.setRFQTransactionSeen(vars.transactionHash);
 
-        // Deposit to WETH if taker asset is ETH, else transfer from user
-        if (address(weth) == _order.takerAssetAddr) {
-            require(msg.value == _order.takerAssetAmount, "RFQ: insufficient ETH");
-            weth.deposit{ value: msg.value }();
-        } else {
-            spender.spendFromUser(_order.takerAddr, _order.takerAssetAddr, _order.takerAssetAmount);
-        }
-        // Transfer from maker
-        spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, _order.makerAssetAmount);
-
-        // settle token/ETH to user
         return _settle(_order, vars);
     }
 
     // settle
     function _settle(RFQLibEIP712.Order memory _order, GroupedVars memory _vars) internal returns (uint256) {
         // Transfer taker asset to maker
-        IERC20(_order.takerAssetAddr).safeTransfer(_order.makerAddr, _order.takerAssetAmount);
+        if (address(weth) == _order.takerAssetAddr) {
+            // Deposit to WETH if taker asset is ETH
+            require(msg.value == _order.takerAssetAmount, "RFQ: insufficient ETH");
+            weth.deposit{ value: msg.value }();
+            weth.transfer(_order.makerAddr, _order.takerAssetAmount);
+        } else {
+            spender.spendFromUserTo(_order.takerAddr, _order.takerAssetAddr, _order.makerAddr, _order.takerAssetAmount);
+        }
 
         // Transfer maker asset to taker, sub fee
         uint256 settleAmount = _order.makerAssetAmount;
@@ -194,10 +204,17 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
 
         // Transfer token/Eth to receiver
         if (_order.makerAssetAddr == address(weth)) {
+            // Transfer from maker
+            spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, settleAmount);
             weth.withdraw(settleAmount);
             payable(_order.receiverAddr).transfer(settleAmount);
         } else {
-            IERC20(_order.makerAssetAddr).safeTransfer(_order.receiverAddr, settleAmount);
+            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount);
+        }
+        // Collect fee
+        // feeAmount = _order.makerAssetAmount - settleAmount;
+        if (_order.makerAssetAmount - settleAmount > 0) {
+            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, _order.makerAssetAmount - settleAmount);
         }
 
         emit FillOrder(

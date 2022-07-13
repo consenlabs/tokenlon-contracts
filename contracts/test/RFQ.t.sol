@@ -40,6 +40,7 @@ contract RFQTest is StrategySharedSetup {
 
     address user = vm.addr(userPrivateKey);
     address maker = vm.addr(makerPrivateKey);
+    address feeCollector = address(0x133701);
     address receiver = address(0x133702);
     address[] wallet = [user, maker];
 
@@ -113,7 +114,8 @@ contract RFQTest is StrategySharedSetup {
             address(userProxy),
             ISpender(address(spender)),
             permanentStorage,
-            IWETH(address(weth))
+            IWETH(address(weth)),
+            feeCollector
         );
         // Setup
         userProxy.upgradeRFQ(address(rfq), true);
@@ -140,6 +142,7 @@ contract RFQTest is StrategySharedSetup {
         assertEq(rfq.userProxy(), address(userProxy));
         assertEq(address(rfq.spender()), address(spender));
         assertEq(address(rfq.weth()), address(weth));
+        assertEq(rfq.feeCollector(), feeCollector);
         assertEq(userProxy.rfqAddr(), address(rfq));
         assertEq(permanentStorage.rfqAddr(), address(rfq));
         assertTrue(spender.isAuthorized(address(rfq)));
@@ -210,6 +213,21 @@ contract RFQTest is StrategySharedSetup {
         rfq.depositETH();
         assertEq(address(rfq).balance, uint256(0));
         assertEq(weth.balanceOf(address(rfq)), 1 ether);
+    }
+
+    /*********************************
+     *     Test: setFeeCollector     *
+     *********************************/
+
+    function testCannotSetFeeCollectorByNotOperator() public {
+        vm.prank(user);
+        vm.expectRevert("RFQ: not operator");
+        rfq.setFeeCollector(user);
+    }
+
+    function testSetFeeCollector() public {
+        rfq.setFeeCollector(user);
+        assertEq(rfq.feeCollector(), user);
     }
 
     /*********************************
@@ -347,6 +365,29 @@ contract RFQTest is StrategySharedSetup {
         receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
         makerMMPTakerAsset.assertChange(int256(order.takerAssetAmount));
         makerMMPMakerAsset.assertChange(-int256(order.makerAssetAmount));
+    }
+
+    function testFillAccrueFeeToFeeCollector() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.feeFactor = 1000; // 10% fee
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
+
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
+
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount.mul(90).div(100))); // 10% fee taken from maker asset
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
+        feeCollectorMakerAsset.assertChange(int256(order.makerAssetAmount.mul(10).div(100))); // 10% fee
     }
 
     function testCannotFillWithSamePayloadAgain() public {
