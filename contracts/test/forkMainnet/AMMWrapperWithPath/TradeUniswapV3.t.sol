@@ -5,11 +5,17 @@ pragma abicoder v2;
 import "contracts-test/forkMainnet/AMMWrapperWithPath/Setup.t.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 import "contracts-test/utils/AMMUtil.sol"; // Using the Encode Data function
+import "contracts/interfaces/IAMMWrapper.sol";
+import "contracts/AMMQuoter.sol";
 
 contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
     uint24 constant INVALID_ZERO_FEE = 0;
     uint24 constant INVALID_OVER_FEE = type(uint24).max;
+
+    event Swapped(AMMWrapperWithPath.TxMetaData, AMMLibEIP712.Order order);
+
+    AMMQuoter ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
 
     function testCannotTradeWithInvalidSignature() public {
         uint256 feeFactor = 0;
@@ -185,5 +191,37 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
+    }
+
+    function testEmitSwappedEvent() public {
+        uint256 feeFactor = 0;
+        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory sig = _signTrade(userPrivateKey, order);
+        address[] memory path = DEFAULT_MULTI_HOP_PATH;
+        uint24[] memory fees = DEFAULT_MULTI_HOP_POOL_FEES;
+        bytes memory makerSpecificData = _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, path, fees);
+        bytes memory payload = _genTradePayload(order, feeFactor, sig, makerSpecificData, path);
+        // Set subsidy factor to 0
+        ammWrapperWithPath.setSubsidyFactor(uint256(0));
+
+        uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
+            order.makerAddr,
+            order.takerAssetAddr,
+            order.makerAssetAddr,
+            order.takerAssetAmount,
+            path,
+            makerSpecificData
+        );
+        vm.expectEmit(false, false, false, true);
+        IAMMWrapper.TxMetaData memory txMetaData = IAMMWrapper.TxMetaData(
+            "Uniswap V3", // source
+            AMMLibEIP712._getOrderHash(order), // transactionHash
+            expectedOutAmount, // settleAmount: no fee so settled amount is the same as received amount
+            expectedOutAmount, // receivedAmount
+            uint16(feeFactor), // Fee factor: 0
+            uint16(0) // Subsidy factor: 0
+        );
+        emit Swapped(txMetaData, order);
+        userProxy.toAMM(payload);
     }
 }
