@@ -61,12 +61,16 @@ contract VETest is Test {
      *********************************/
 
     function _vePowerAdd(uint256 stakeAmount, uint256 lockDuration) internal returns (uint256) {
-        uint unlockTime = (block.timestamp + lockDuration) / 1 weeks * 1 weeks; // Locktime is rounded down to weeks
-        uint256 power = stakeAmount / MAX_LOCK_TIME * (unlockTime - block.timestamp);
+        uint256 unlockTime = ((block.timestamp + lockDuration) / 1 weeks) * 1 weeks; // Locktime is rounded down to weeks
+        uint256 power = (stakeAmount / MAX_LOCK_TIME) * (unlockTime - block.timestamp);
         return power;
     }
 
-    function _stakeAndValidate(address staker, uint256 stakeAmount, uint256 lockDuration) internal returns (uint256) {
+    function _stakeAndValidate(
+        address staker,
+        uint256 stakeAmount,
+        uint256 lockDuration
+    ) internal returns (uint256) {
         BalanceSnapshot.Snapshot memory stakerLon = BalanceSnapshot.take(staker, address(lon));
         BalanceSnapshot.Snapshot memory veLonLon = BalanceSnapshot.take(address(veLon), address(lon));
         uint256 numberOfNftBefore = veLon.totalNFTSupply();
@@ -105,7 +109,7 @@ contract VETest is Test {
         veLon.emergencyWithdraw(tokenId);
 
         veLonLon.assertChange(-int256(DEFAULT_STAKE_AMOUNT));
-        uint256 penalty = DEFAULT_STAKE_AMOUNT * veLon.earlyWithdrawPenaltyRate() / veLon.PENALTY_RATE_PRECISION();
+        uint256 penalty = (DEFAULT_STAKE_AMOUNT * veLon.earlyWithdrawPenaltyRate()) / veLon.PENALTY_RATE_PRECISION();
         userLon.assertChange(int256(DEFAULT_STAKE_AMOUNT - penalty));
         assertEq(veLon.totalNFTSupply(), numberOfNftBefore - 1);
         assertEq(veLon.totalSupply(), totalVePowerBefore - nftPowerBefore);
