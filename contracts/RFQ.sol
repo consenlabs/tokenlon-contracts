@@ -183,40 +183,11 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
         return _settle(_order, vars);
     }
 
-    // settle
-    function _settle(RFQLibEIP712.Order memory _order, GroupedVars memory _vars) internal returns (uint256) {
-        // Transfer taker asset to maker
-        if (address(weth) == _order.takerAssetAddr) {
-            // Deposit to WETH if taker asset is ETH
-            require(msg.value == _order.takerAssetAmount, "RFQ: insufficient ETH");
-            weth.deposit{ value: msg.value }();
-            weth.transfer(_order.makerAddr, _order.takerAssetAmount);
-        } else {
-            spender.spendFromUserTo(_order.takerAddr, _order.takerAssetAddr, _order.makerAddr, _order.takerAssetAmount);
-        }
-
-        // Transfer maker asset to taker, sub fee
-        uint256 settleAmount = _order.makerAssetAmount;
-        if (_order.feeFactor > 0) {
-            // settleAmount = settleAmount * (10000 - feeFactor) / 10000
-            settleAmount = settleAmount.mul((BPS_MAX).sub(_order.feeFactor)).div(BPS_MAX);
-        }
-
-        // Transfer token/Eth to receiver
-        if (_order.makerAssetAddr == address(weth)) {
-            // Transfer from maker
-            spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, settleAmount);
-            weth.withdraw(settleAmount);
-            payable(_order.receiverAddr).transfer(settleAmount);
-        } else {
-            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount);
-        }
-        // Collect fee
-        // feeAmount = _order.makerAssetAmount - settleAmount;
-        if (_order.makerAssetAmount - settleAmount > 0) {
-            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, _order.makerAssetAmount - settleAmount);
-        }
-
+    function _emitFillOrder(
+        RFQLibEIP712.Order memory _order,
+        GroupedVars memory _vars,
+        uint256 settleAmount
+    ) internal {
         emit FillOrder(
             SOURCE,
             _vars.transactionHash,
@@ -231,6 +202,42 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
             settleAmount,
             uint16(_order.feeFactor)
         );
+    }
+
+    // settle
+    function _settle(RFQLibEIP712.Order memory _order, GroupedVars memory _vars) internal returns (uint256) {
+        // Transfer taker asset to maker
+        if (address(weth) == _order.takerAssetAddr) {
+            // Deposit to WETH if taker asset is ETH
+            require(msg.value == _order.takerAssetAmount, "RFQ: insufficient ETH");
+            weth.deposit{ value: msg.value }();
+            weth.transfer(_order.makerAddr, _order.takerAssetAmount);
+        } else {
+            spender.spendFromUserTo(_order.takerAddr, _order.takerAssetAddr, _order.makerAddr, _order.takerAssetAmount);
+        }
+
+        // Transfer maker asset to taker, sub fee
+        uint256 fee = _order.makerAssetAmount.mul(_order.feeFactor).div(BPS_MAX);
+        uint256 settleAmount = _order.makerAssetAmount;
+        if (fee > 0) {
+            settleAmount = settleAmount.sub(fee);
+        }
+
+        // Transfer token/Eth to receiver
+        if (_order.makerAssetAddr == address(weth)) {
+            // Transfer from maker
+            spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, settleAmount);
+            weth.withdraw(settleAmount);
+            payable(_order.receiverAddr).transfer(settleAmount);
+        } else {
+            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount);
+        }
+        // Collect fee
+        if (fee > 0) {
+            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, fee);
+        }
+
+        _emitFillOrder(_order, _vars, settleAmount);
 
         return settleAmount;
     }
