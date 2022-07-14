@@ -136,7 +136,7 @@ contract ve is IERC721, IERC721Metadata, Ownable, ReentrancyGuard {
 
     uint internal constant WEEK = 1 weeks;
     uint internal constant MULTIPLIER = 1 ether;
-    uint256 internal constant PENALTY_RATE_PRECISION = 10000;
+    uint256 public constant PENALTY_RATE_PRECISION = 10000;
 
     int128 internal maxtime = 365 * 86400;
 
@@ -896,7 +896,7 @@ contract ve is IERC721, IERC721Metadata, Ownable, ReentrancyGuard {
     }
 
     function setEarlyWithdrawPenaltyRate(uint256 _rate) external onlyOwner {
-        require(_rate < earlyWithdrawPenaltyRate, "withdrawal penalty is too high");
+        require(_rate < PENALTY_RATE_PRECISION, "withdrawal penalty is too high");
         uint256 oldRate = earlyWithdrawPenaltyRate;
         earlyWithdrawPenaltyRate = _rate;
 
