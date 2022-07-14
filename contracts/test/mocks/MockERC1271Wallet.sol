@@ -50,10 +50,10 @@ contract MockERC1271Wallet is ISetAllowance, IERC1271Wallet {
         return ERC1271_MAGICVALUE_BYTES32;
     }
 
-    function _ecrecover(bytes32 _hash, bytes memory signature) internal pure returns (address) {
-        uint8 v = uint8(signature[64]);
-        bytes32 r = signature.readBytes32(0);
-        bytes32 s = signature.readBytes32(32);
+    function _ecrecover(bytes32 _hash, bytes memory _signature) internal pure returns (address) {
+        uint8 v = uint8(_signature[64]);
+        bytes32 r = _signature.readBytes32(0);
+        bytes32 s = _signature.readBytes32(32);
         return ECDSA.recover(_hash, v, r, s);
     }
 }
