@@ -1124,21 +1124,21 @@ contract ve is IERC721, IERC721Metadata, Ownable, ReentrancyGuard {
         uint256 _locked_end,
         uint256 _value
     ) internal pure returns (string memory output) {
-        output = '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350"><style>.base { fill: white; font-family: serif; font-size: 14px; }</style><rect width="100%" height="100%" fill="black" /><text x="10" y="20" class="base">';
-        output = string(abi.encodePacked(output, "token ", toString(_tokenId), '</text><text x="10" y="40" class="base">'));
-        output = string(abi.encodePacked(output, "balanceOf ", toString(_balanceOf), '</text><text x="10" y="60" class="base">'));
-        output = string(abi.encodePacked(output, "locked_end ", toString(_locked_end), '</text><text x="10" y="80" class="base">'));
+        output = "<svg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox='0 0 350 350'><style>.base { fill: white; font-family: serif; font-size: 14px; }</style><rect width='100%' height='100%' fill='black' /><text x='10' y='20' class='base'>";
+        output = string(abi.encodePacked(output, "token ", toString(_tokenId), "</text><text x='10' y='40' class='base'>"));
+        output = string(abi.encodePacked(output, "balanceOf ", toString(_balanceOf), "</text><text x='10' y='60' class='base'>"));
+        output = string(abi.encodePacked(output, "locked_end ", toString(_locked_end), "</text><text x='10' y='80' class='base'>"));
         output = string(abi.encodePacked(output, "value ", toString(_value), "</text></svg>"));
 
         string memory json = Base64.encode(
             bytes(
                 string(
                     abi.encodePacked(
-                        '{"name": "lock #',
+                        "{'name': 'lock #",
                         toString(_tokenId),
-                        '", "description": "veLON NFT", "image": "data:image/svg+xml;base64,',
+                        "', 'description': 'veLON NFT', 'image': 'data:image/svg+xml;base64,",
                         Base64.encode(bytes(output)),
-                        '"}'
+                        "'}"
                     )
                 )
             )
