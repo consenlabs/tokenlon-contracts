@@ -41,19 +41,12 @@ contract MockERC1271Wallet is ISetAllowance, IERC1271Wallet {
     }
 
     function isValidSignature(bytes calldata _data, bytes calldata _signature) external view override returns (bytes4 magicValue) {
-        require(operator == _ecrecover(keccak256(_data), _signature), "MockERC1271Wallet: invalid signature");
+        require(operator == ECDSA.recover(keccak256(_data), _signature), "MockERC1271Wallet: invalid signature");
         return ERC1271_MAGICVALUE;
     }
 
     function isValidSignature(bytes32 _hash, bytes calldata _signature) external view override returns (bytes4 magicValue) {
-        require(operator == _ecrecover(_hash, _signature), "MockERC1271Wallet: invalid signature");
+        require(operator == ECDSA.recover(_hash, _signature), "MockERC1271Wallet: invalid signature");
         return ERC1271_MAGICVALUE_BYTES32;
-    }
-
-    function _ecrecover(bytes32 _hash, bytes memory _signature) internal pure returns (address) {
-        uint8 v = uint8(_signature[64]);
-        bytes32 r = _signature.readBytes32(0);
-        bytes32 s = _signature.readBytes32(32);
-        return ECDSA.recover(_hash, v, r, s);
     }
 }
