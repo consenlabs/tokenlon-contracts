@@ -25,7 +25,7 @@ contract TestAMMWrapper is StrategySharedSetup {
     IERC20 dai = IERC20(DAI_ADDRESS);
     IERC20[] tokens = [weth, usdt, dai];
 
-    uint256 SUBSIDY_FACTOR = 3;
+    uint16 DEFAULT_FEE_FACTOR = 1000;
     uint256 DEADLINE = block.timestamp + 1;
     AMMLibEIP712.Order DEFAULT_ORDER;
 
@@ -74,7 +74,7 @@ contract TestAMMWrapper is StrategySharedSetup {
     function _deployStrategyAndUpgrade() internal override returns (address) {
         ammWrapper = new AMMWrapper(
             address(this), // This contract would be the operator
-            SUBSIDY_FACTOR,
+            DEFAULT_FEE_FACTOR,
             address(userProxy),
             ISpender(address(spender)),
             permanentStorage,
