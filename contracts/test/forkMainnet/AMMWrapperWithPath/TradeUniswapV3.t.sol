@@ -209,6 +209,8 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
     }
 
     function testEmitSwappedEvent() public {
+        // this one was make compact in order to avoid stack too deep
+        // focusing on event fileds in this case
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSpecificData = _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, DEFAULT_MULTI_HOP_PATH, DEFAULT_MULTI_HOP_POOL_FEES);
