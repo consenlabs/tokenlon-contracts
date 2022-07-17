@@ -21,6 +21,7 @@ contract TestAMMWrapperWithPathTradeCurveV1 is TestAMMWrapperWithPath {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
 
+        vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
