@@ -7,6 +7,8 @@ interface IWETH {
 
     function withdraw(uint256 amount) external;
 
+    function transfer(address dst, uint256 wad) external returns (bool);
+
     function transferFrom(
         address src,
         address dst,
