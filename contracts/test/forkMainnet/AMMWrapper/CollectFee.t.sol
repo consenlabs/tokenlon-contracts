@@ -8,17 +8,17 @@ import "contracts-test/utils/BalanceSnapshot.sol";
 contract TestAMMWrapperCollectFee is TestAMMWrapper {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
-    function testFailedIfMakerAssetAmountNotDeductFee() public {
+    function testAMMOutNotEnoughForOrderPlusFee() public {
         // should fail if order.makerAssetAmount = expectedOutAmount for non-zero fee factor case
         // in this case, AMMWrapper will use higher expected amount(plus fee) which will cause revert
-        uint256 feeFactor = 100;
+        uint256 feeFactor = 1000;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
         order.makerAssetAmount = expectedOutAmount;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
-        vm.expectRevert("AMMWrapper: not the operator");
+        vm.expectRevert("UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
     }
