@@ -201,7 +201,6 @@ contract ve is IERC721, IERC721Metadata, Ownable, ReentrancyGuard {
         token = token_addr;
         voter = msg.sender;
         point_history[0].blk = block.number;
-        point_history[0].ts = block.timestamp;
 
         supportedInterfaces[ERC165_INTERFACE_ID] = true;
         supportedInterfaces[ERC721_INTERFACE_ID] = true;
