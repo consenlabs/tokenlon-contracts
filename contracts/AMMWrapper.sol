@@ -358,7 +358,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
 
     /**
      * @dev internal function of `trade`.
-     * It collects fee from the trade and xxxxxxxxxxxxxxxxxxxx.
+     * It transfer assets to receiver specified in order.
      */
     function _settle(
         AMMLibEIP712.Order memory _order,
