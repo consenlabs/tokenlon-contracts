@@ -29,6 +29,21 @@ contract TestAMMWrapper is StrategySharedSetup {
     uint256 DEADLINE = block.timestamp + 1;
     AMMLibEIP712.Order DEFAULT_ORDER;
 
+    event Swapped(
+        string source,
+        bytes32 indexed transactionHash,
+        address indexed userAddr,
+        bool relayed,
+        address takerAssetAddr,
+        uint256 takerAssetAmount,
+        address makerAddr,
+        address makerAssetAddr,
+        uint256 makerAssetAmount,
+        address receiverAddr,
+        uint256 settleAmount,
+        uint16 feeFactor
+    );
+
     // effectively a "beforeEach" block
     function setUp() public virtual {
         // Deploy and Setup Spender, AllowanceTarget, UserProxy, Tokenlon,
