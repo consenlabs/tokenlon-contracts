@@ -1,18 +1,22 @@
 pragma solidity 0.7.6;
 
+import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "contracts/utils/LibBytes.sol";
 import "../../interfaces/ISetAllowance.sol";
 import "../../interfaces/IERC1271Wallet.sol";
 
 contract MockERC1271Wallet is ISetAllowance, IERC1271Wallet {
     using SafeERC20 for IERC20;
+    using LibBytes for bytes;
+
     // bytes4(keccak256("isValidSignature(bytes,bytes)"))
     bytes4 internal constant ERC1271_MAGICVALUE = 0x20c13b0b;
-
     // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
     bytes4 internal constant ERC1271_MAGICVALUE_BYTES32 = 0x1626ba7e;
     uint256 private constant MAX_UINT = 2**256 - 1;
+
     address public operator;
 
     modifier onlyOperator() {
@@ -37,10 +41,12 @@ contract MockERC1271Wallet is ISetAllowance, IERC1271Wallet {
     }
 
     function isValidSignature(bytes calldata _data, bytes calldata _signature) external view override returns (bytes4 magicValue) {
+        require(operator == ECDSA.recover(keccak256(_data), _signature), "MockERC1271Wallet: invalid signature");
         return ERC1271_MAGICVALUE;
     }
 
     function isValidSignature(bytes32 _hash, bytes calldata _signature) external view override returns (bytes4 magicValue) {
+        require(operator == ECDSA.recover(_hash, _signature), "MockERC1271Wallet: invalid signature");
         return ERC1271_MAGICVALUE_BYTES32;
     }
 }
