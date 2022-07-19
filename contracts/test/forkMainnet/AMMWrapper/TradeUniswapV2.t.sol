@@ -7,21 +7,6 @@ import "contracts-test/utils/BalanceSnapshot.sol";
 contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
-    event Swapped(
-        string source,
-        bytes32 indexed transactionHash,
-        address indexed userAddr,
-        bool relayed,
-        address takerAssetAddr,
-        uint256 takerAssetAmount,
-        address makerAddr,
-        address makerAssetAddr,
-        uint256 makerAssetAmount,
-        address receiverAddr,
-        uint256 settleAmount,
-        uint16 feeFactor
-    );
-
     function testCannotTradeWithInvalidSignature() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
@@ -87,7 +72,7 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(true, true, true, true);
         emit Swapped(
             "Uniswap V2",
             AMMLibEIP712._getOrderHash(order),

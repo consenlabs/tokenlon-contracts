@@ -47,16 +47,31 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         uint256 feeFactor = ammWrapper.defaultFeeFactor() + 1000;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
-        uint256 fee = (expectedOutAmount * feeFactor) / BPS_MAX;
-        order.makerAssetAmount = expectedOutAmount - fee;
+        // set makerAssetAmount = expectedOutAmount - expectedFee
+        order.makerAssetAmount = expectedOutAmount - ((expectedOutAmount * feeFactor) / BPS_MAX);
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
+        uint256 actualFee = (expectedOutAmount * ammWrapper.defaultFeeFactor()) / BPS_MAX;
 
         BalanceSnapshot.Snapshot memory ammWrapperMakerAsset = BalanceSnapshot.take(address(ammWrapper), order.makerAssetAddr);
 
+        vm.expectEmit(true, true, true, true);
+        emit Swapped(
+            "Uniswap V2",
+            AMMLibEIP712._getOrderHash(order),
+            order.userAddr,
+            false, // not relayed
+            order.takerAssetAddr,
+            order.takerAssetAmount,
+            order.makerAddr,
+            order.makerAssetAddr,
+            order.makerAssetAmount,
+            order.receiverAddr,
+            expectedOutAmount - actualFee, // default fee factor will be applied
+            ammWrapper.defaultFeeFactor()
+        );
         userProxy.toAMM(payload);
 
-        uint256 actualFee = (expectedOutAmount * ammWrapper.defaultFeeFactor()) / BPS_MAX;
         ammWrapperMakerAsset.assertChange(int256(actualFee));
     }
 }
