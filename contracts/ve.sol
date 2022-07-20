@@ -811,6 +811,7 @@ contract ve is IERC721, IERC721Metadata, Ownable, ReentrancyGuard {
 
         _deposit_for(_tokenId, _value, unlock_time, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
         return _tokenId;
+
     }
 
     /// @notice Deposit `_value` tokens for `_to` and lock for `_lock_duration`
