@@ -125,7 +125,7 @@ contract ve is IERC721, IERC721Metadata, Ownable, ReentrancyGuard {
     event EmergencyWithdraw(address indexed provider, uint256 tokenId, uint256 withdrawValue, uint256 burnValue, uint256 ts);
     event Supply(uint256 prevSupply, uint256 supply);
     event UpdateEarlyWithdrawPenaltyRate(uint256 prevRate, uint256 newRate);
-    // event UpdateMaxtime(int128 previousMaxtime, int128 currentMaxtime);
+    event UpdateMaxtime(int128 indexed previousMaxtime, int128 indexed currentMaxtime, int128 previousBias, int128 currentBias, int128 previousSlope, int128 currentSlope);
 
     uint256 internal constant WEEK = 1 weeks;
     uint256 internal constant MULTIPLIER = 1 ether;
@@ -775,6 +775,75 @@ contract ve is IERC721, IERC721Metadata, Ownable, ReentrancyGuard {
     /// @notice Record global data to checkpoint
     function checkpoint() external {
         _checkpoint(0, LockedBalance(0, 0), LockedBalance(0, 0));
+    }
+
+    function updateMaxtime(int128 _new_maxtime) external onlyOwner {
+        // record global data first
+        _checkpoint(0, LockedBalance(0, 0), LockedBalance(0, 0));
+
+        // calc the max end time for `_newMaxtime`
+        uint256 max_endtime = (block.timestamp + uint256(_new_maxtime)) * WEEK / WEEK;
+
+        int128 globle_slope;
+        int128 globle_bias;
+
+        // loop the NFT list
+        for (uint256 _tokenId = 0; _tokenId <= tokenId; _tokenId++) {
+            if (idToOwner[_tokenId] == address(0)) {
+                continue;
+            }
+            if (locked[_tokenId].end < block.timestamp) {
+                continue;
+            }
+
+            uint256 user_epoch = user_point_epoch[_tokenId];
+            LockedBalance memory old_locked = locked[_tokenId];
+            LockedBalance memory new_locked = locked[_tokenId];
+            Point memory user_old;
+            Point memory user_new;
+            if (new_locked.end > max_endtime) {
+                new_locked.end = max_endtime;
+            }
+            user_old = user_point_history[_tokenId][user_epoch];
+            user_new.slope = new_locked.amount / _new_maxtime;
+            user_new.bias = user_new.slope * int128(int256(new_locked.end - block.timestamp));
+            
+            // now handle user history
+            user_epoch += 1;
+            user_point_epoch[_tokenId] = user_epoch;
+            user_new.ts = block.timestamp;
+            user_new.blk = block.number;
+            user_point_history[_tokenId][user_epoch] = user_new;
+
+            // update globe slope
+            slope_changes[old_locked.end] += user_old.slope;
+            slope_changes[new_locked.end] -= user_new.slope;
+
+            // update globe point
+            globle_slope += user_new.slope;
+            globle_bias += user_new.bias;
+        }
+
+        // write `globle_slope` and `globle_bias` into `point_history`
+        Point memory old_globle_point = point_history[epoch];
+        Point memory new_globle_point = Point({ 
+            bias: globle_bias, 
+            slope: globle_slope, 
+            ts: old_globle_point.ts, 
+            blk: old_globle_point.blk 
+        });
+        epoch += 1;
+        point_history[epoch] = new_globle_point;
+
+        emit UpdateMaxtime(
+            maxtime, 
+            _new_maxtime, 
+            old_globle_point.bias, 
+            new_globle_point.bias, 
+            old_globle_point.slope, 
+            new_globle_point.slope
+        );
+        maxtime = _new_maxtime;
     }
 
     /// @notice Deposit `_value` tokens for `_tokenId` and add to the lock
