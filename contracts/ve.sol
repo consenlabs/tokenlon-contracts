@@ -932,7 +932,7 @@ contract ve is IERC721, IERC721Metadata, Ownable, ReentrancyGuard {
     }
 
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!
-    // They measure the weights for the purpose of voting, so they don't represent
+    // They measure the weights for the purpose of voting, so they don't repres
     // real coins.
 
     /// @notice Binary search to estimate timestamp for block number
