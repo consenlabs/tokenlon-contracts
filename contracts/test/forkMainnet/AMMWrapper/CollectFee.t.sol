@@ -67,8 +67,8 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
             order.makerAssetAddr,
             order.makerAssetAmount,
             order.receiverAddr,
-            expectedOutAmount - actualFee, // default fee factor will be applied
-            ammWrapper.defaultFeeFactor()
+            expectedOutAmount - actualFee,
+            ammWrapper.defaultFeeFactor() // default fee factor will be applied
         );
         userProxy.toAMM(payload);
 
