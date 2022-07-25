@@ -8,16 +8,19 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
 
 import "./interfaces/IveLON.sol";
+import "./interfaces/ILon.sol";
 import "./Ownable.sol";
 
 contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
 
     uint256 private constant WEEK = 1 weeks;
-
+    uint256 public constant PENALTY_RATE_PRECISION = 10000;
     address public immutable token;
+
     uint256 public tokenSupply;
     uint256 public maxLockDuration = 365 days;
+    uint256 public earlyWithdrawPenaltyRate = 3000;
 
     mapping(uint256 => Point) public pointHistory; // epoch -> unsigned point
     mapping(uint256 => LockedBalance) public locked;
@@ -125,6 +128,39 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         }
 
         emit Deposit(msg.sender, _tokenId, _value, _lockedBalance.end, _depositType, block.timestamp);
+    }
+
+    /// @notice Withdraw all tokens for `_tokenId`
+    /// @param _tokenId NFT that holds lock
+    function withdraw(uint256 _tokenId) external override nonReentrant {
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "Not approved or owner");
+
+        LockedBalance memory _locked = locked[_tokenId];
+        bool expired = block.timestamp >= _locked.end;
+        uint256 amount = uint256(int256(_locked.amount));
+
+        locked[_tokenId] = LockedBalance(0, 0);
+        uint256 supplyBefore = tokenSupply;
+        tokenSupply = tokenSupply.sub(amount);
+
+        // old_locked can have either expired <= timestamp or zero end
+        // _locked has only 0 end
+        // Both can have >= 0 amount
+        _checkpoint(_tokenId, _locked, LockedBalance(0, 0));
+
+        // Burn the NFT
+        _burn(_tokenId);
+
+        address owner = ownerOf(_tokenId);
+        uint256 penalty = 0;
+        if (!expired) {
+            penalty = (amount.mul(earlyWithdrawPenaltyRate)).div(PENALTY_RATE_PRECISION);
+            amount = amount.sub(penalty);
+            ILon(token).burn(penalty);
+        }
+        require(IERC20(token).transfer(owner, amount), "Token withdraw failed");
+
+        emit Withdraw(msg.sender, expired, _tokenId, amount, penalty, block.timestamp);
     }
 
     function _checkpoint(

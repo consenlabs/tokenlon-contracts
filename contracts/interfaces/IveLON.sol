@@ -26,8 +26,10 @@ interface IveLON is IERC721, IERC721Metadata {
     }
 
     event Deposit(address indexed provider, uint256 tokenId, uint256 value, uint256 indexed locktime, DepositType depositType, uint256 ts);
-    event Withdraw(address indexed provider, uint256 tokenId, uint256 value, uint256 ts);
-    event EmergencyWithdraw(address indexed provider, uint256 tokenId, uint256 withdrawValue, uint256 burnValue, uint256 ts);
+    event Withdraw(address indexed provider, bool indexed lockExpired, uint256 tokenId, uint256 withdrawValue, uint256 burnValue, uint256 ts);
+
+    // TODO need this event?
+    // event Supply(uint256 prevSupply, uint256 supply);?
 
     function unlockTime(uint256 _tokenId) external view returns (uint256);
 
@@ -36,4 +38,6 @@ interface IveLON is IERC721, IERC721Metadata {
     function extendLock(uint256 _tokenId, uint256 _lock_duration) external;
 
     function depositFor(uint256 _tokenId, uint256 _value) external;
+
+    function withdraw(uint256 _tokenId) external;
 }
