@@ -163,6 +163,25 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         emit Withdraw(msg.sender, expired, _tokenId, amount, penalty, block.timestamp);
     }
 
+    /// @notice Merge two locking NFTs as one
+    /// @param _from NFT that holds lock and to be burned
+    /// @param _to NFT that holds lock and to be updated
+    function merge(uint256 _from, uint256 _to) external override {
+        require(_from != _to, "Same NFT ids");
+        require(_isApprovedOrOwner(msg.sender, _from), "Not approved or owner of from");
+        require(_isApprovedOrOwner(msg.sender, _to), "Not approved or owner of to");
+
+        LockedBalance memory _lockedFrom = locked[_from];
+        LockedBalance memory _lockedTo = locked[_to];
+        uint256 value0 = uint256(int256(_lockedFrom.amount));
+        uint256 end = _lockedFrom.end >= _lockedTo.end ? _lockedFrom.end : _lockedTo.end;
+
+        locked[_from] = LockedBalance(0, 0);
+        _checkpoint(_from, _lockedFrom, LockedBalance(0, 0));
+        _burn(_from);
+        _depositFor(_to, value0, end, _lockedTo, DepositType.MERGE_TYPE);
+    }
+
     function _checkpoint(
         uint256 _tokenId,
         LockedBalance memory _oldLocked,

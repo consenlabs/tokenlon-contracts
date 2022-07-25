@@ -40,4 +40,6 @@ interface IveLON is IERC721, IERC721Metadata {
     function depositFor(uint256 _tokenId, uint256 _value) external;
 
     function withdraw(uint256 _tokenId) external;
+
+    function merge(uint256 _from, uint256 _to) external;
 }
