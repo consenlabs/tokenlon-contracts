@@ -31,7 +31,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
      *************************************************************/
     constructor(
         address _operator,
-        uint256 _subsidyFactor,
+        uint16 _defaultFeeFactor,
         address _userProxy,
         ISpender _spender,
         IPermanentStorage _permStorage,
@@ -39,7 +39,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         address _uniswapV2Router,
         address _sushiwapRouter,
         address _uniswapV3Router
-    ) AMMWrapper(_operator, _subsidyFactor, _userProxy, _spender, _permStorage, _weth, _uniswapV2Router, _sushiwapRouter) {
+    ) AMMWrapper(_operator, _defaultFeeFactor, _userProxy, _spender, _permStorage, _weth, _uniswapV2Router, _sushiwapRouter) {
         UNISWAP_V3_ROUTER_ADDRESS = _uniswapV3Router;
     }
 
@@ -55,18 +55,18 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         address[] calldata _path
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         require(_order.deadline >= block.timestamp, "AMMWrapper: expired order");
-        TxMetaData memory txMetaData;
-        InternalTxData memory internalTxData;
 
         // These variables are copied straight from function parameters and
         // used to bypass stack too deep error.
-        txMetaData.subsidyFactor = uint16(subsidyFactor);
+        TxMetaData memory txMetaData;
+        InternalTxData memory internalTxData;
         txMetaData.feeFactor = uint16(_feeFactor);
+        txMetaData.relayed = permStorage.isRelayerValid(tx.origin);
         internalTxData.makerSpecificData = _makerSpecificData;
         internalTxData.path = _path;
-        if (!permStorage.isRelayerValid(tx.origin)) {
-            txMetaData.feeFactor = (txMetaData.subsidyFactor > txMetaData.feeFactor) ? txMetaData.subsidyFactor : txMetaData.feeFactor;
-            txMetaData.subsidyFactor = 0;
+        if (!txMetaData.relayed) {
+            // overwrite feeFactor with defaultFeeFactor if not from valid relayer
+            txMetaData.feeFactor = defaultFeeFactor;
         }
 
         // Assign trade vairables
@@ -86,15 +86,19 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
 
         _prepare(_order, internalTxData);
 
-        // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
-        uint256 _minAmount = _order.makerAssetAmount.mul((LibConstant.BPS_MAX.sub(txMetaData.subsidyFactor))).div(LibConstant.BPS_MAX);
-        (txMetaData.source, txMetaData.receivedAmount) = _swapWithPath(_order, internalTxData, _minAmount);
+        {
+            // Set min amount for swap = _order.makerAssetAmount * (1 + feeFactor)
+            uint256 swapMinOutAmount = _order.makerAssetAmount.mul(LibConstant.BPS_MAX.add(txMetaData.feeFactor).div(LibConstant.BPS_MAX));
+            (txMetaData.source, txMetaData.receivedAmount) = _swapWithPath(_order, internalTxData, swapMinOutAmount);
 
-        // Settle
-        txMetaData.settleAmount = _settle(_order, txMetaData, internalTxData);
+            // Settle
+            // Calculate fee using actually received from swap
+            uint256 actualFee = txMetaData.receivedAmount.mul(txMetaData.feeFactor).div(LibConstant.BPS_MAX);
+            txMetaData.settleAmount = txMetaData.receivedAmount.sub(actualFee);
+            _settle(_order, internalTxData, txMetaData.settleAmount);
+        }
 
-        emit Swapped(txMetaData, _order);
-
+        emitSwappedEvent(_order, txMetaData);
         return txMetaData.settleAmount;
     }
 
