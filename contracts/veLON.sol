@@ -140,7 +140,6 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         uint256 amount = uint256(int256(_locked.amount));
 
         locked[_tokenId] = LockedBalance(0, 0);
-        uint256 supplyBefore = tokenSupply;
         tokenSupply = tokenSupply.sub(amount);
 
         // old_locked can have either expired <= timestamp or zero end
