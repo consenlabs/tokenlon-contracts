@@ -15,6 +15,7 @@ contract TestAMMWrapper is StrategySharedSetup {
     uint256 otherPrivateKey = uint256(2);
 
     address user = vm.addr(userPrivateKey);
+    address feeCollector = address(0x133701);
     address relayer = address(0x133702);
     address[] wallet = [user, relayer];
 
@@ -95,7 +96,8 @@ contract TestAMMWrapper is StrategySharedSetup {
             permanentStorage,
             IWETH(address(weth)),
             UNISWAP_V2_ADDRESS,
-            SUSHISWAP_ADDRESS
+            SUSHISWAP_ADDRESS,
+            feeCollector
         );
         // Setup
         userProxy.upgradeAMMWrapper(address(ammWrapper), true);

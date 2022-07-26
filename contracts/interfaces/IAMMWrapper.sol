@@ -10,6 +10,7 @@ interface IAMMWrapper is ISetAllowance {
     event AllowTransfer(address spender);
     event DisallowTransfer(address spender);
     event DepositETH(uint256 ethBalance);
+    event SetFeeCollector(address newFeeCollector);
 
     event Swapped(
         string source,

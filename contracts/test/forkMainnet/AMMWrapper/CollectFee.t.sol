@@ -34,12 +34,12 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
-        BalanceSnapshot.Snapshot memory ammWrapperMakerAsset = BalanceSnapshot.take(address(ammWrapper), order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(address(feeCollector), order.makerAssetAddr);
 
         vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
 
-        ammWrapperMakerAsset.assertChange(int256(fee));
+        feeCollectorMakerAsset.assertChange(int256(fee));
     }
 
     function testFeeFactorOverwrittenWithDefault() public {
@@ -53,7 +53,7 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
         uint256 actualFee = (expectedOutAmount * ammWrapper.defaultFeeFactor()) / BPS_MAX;
 
-        BalanceSnapshot.Snapshot memory ammWrapperMakerAsset = BalanceSnapshot.take(address(ammWrapper), order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(address(feeCollector), order.makerAssetAddr);
 
         vm.expectEmit(true, true, true, true);
         emit Swapped(
@@ -72,6 +72,6 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         );
         userProxy.toAMM(payload);
 
-        ammWrapperMakerAsset.assertChange(int256(actualFee));
+        feeCollectorMakerAsset.assertChange(int256(actualFee));
     }
 }
