@@ -38,8 +38,9 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         IWETH _weth,
         address _uniswapV2Router,
         address _sushiwapRouter,
-        address _uniswapV3Router
-    ) AMMWrapper(_operator, _defaultFeeFactor, _userProxy, _spender, _permStorage, _weth, _uniswapV2Router, _sushiwapRouter) {
+        address _uniswapV3Router,
+        address feeCollector
+    ) AMMWrapper(_operator, _defaultFeeFactor, _userProxy, _spender, _permStorage, _weth, _uniswapV2Router, _sushiwapRouter, feeCollector) {
         UNISWAP_V3_ROUTER_ADDRESS = _uniswapV3Router;
     }
 
@@ -95,7 +96,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
             // Calculate fee using actually received from swap
             uint256 actualFee = txMetaData.receivedAmount.mul(txMetaData.feeFactor).div(LibConstant.BPS_MAX);
             txMetaData.settleAmount = txMetaData.receivedAmount.sub(actualFee);
-            _settle(_order, internalTxData, txMetaData.settleAmount);
+            _settle(_order, internalTxData, txMetaData.settleAmount, actualFee);
         }
 
         emitSwappedEvent(_order, txMetaData);

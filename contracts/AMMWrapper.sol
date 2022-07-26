@@ -33,6 +33,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     address public operator;
     uint16 public defaultFeeFactor;
     ISpender public spender;
+    address public feeCollector;
 
     /* Struct declaration */
 
@@ -100,7 +101,8 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         IPermanentStorage _permStorage,
         IWETH _weth,
         address _uniswapV2Router,
-        address _sushiwapRouter
+        address _sushiwapRouter,
+        address _feeCollector
     ) {
         operator = _operator;
         defaultFeeFactor = _defaultFeeFactor;
@@ -110,6 +112,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         weth = _weth;
         UNISWAP_V2_ROUTER_02_ADDRESS = _uniswapV2Router;
         SUSHISWAP_ROUTER_ADDRESS = _sushiwapRouter;
+        feeCollector = _feeCollector;
     }
 
     /************************************************************
@@ -163,6 +166,16 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
 
             emit DepositETH(balance);
         }
+    }
+
+    /**
+     * @dev set fee collector
+     */
+    function setFeeCollector(address _newFeeCollector) external onlyOperator {
+        require(_newFeeCollector != address(0), "AMMWrapper: fee collector can not be zero address");
+        feeCollector = _newFeeCollector;
+
+        emit SetFeeCollector(_newFeeCollector);
     }
 
     /************************************************************
@@ -231,7 +244,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
             // Calculate fee using actually received from swap
             uint256 actualFee = txMetaData.receivedAmount.mul(txMetaData.feeFactor).div(LibConstant.BPS_MAX);
             txMetaData.settleAmount = txMetaData.receivedAmount.sub(actualFee);
-            _settle(order, internalTxData, txMetaData.settleAmount);
+            _settle(order, internalTxData, txMetaData.settleAmount, actualFee);
         }
 
         emitSwappedEvent(order, txMetaData);
@@ -363,7 +376,8 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     function _settle(
         AMMLibEIP712.Order memory _order,
         InternalTxData memory _internalTxData,
-        uint256 _settleAmount
+        uint256 _settleAmount,
+        uint256 _feeAmount
     ) internal {
         // Transfer token/ETH to receiver
         if (_internalTxData.toEth) {
@@ -375,6 +389,20 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         } else {
             // other ERC20 tokens
             IERC20(_order.makerAssetAddr).safeTransfer(_order.receiverAddr, _settleAmount);
+        }
+        // Collect fee
+        if (_feeAmount > 0) {
+            if (_internalTxData.toEth) {
+                // Transfer WETH directly if internal maker asset is WETH
+                if (!_isInternalAssetETH(_internalTxData.makerAssetInternalAddr)) {
+                    weth.transfer(feeCollector, _feeAmount);
+                } else {
+                    payable(feeCollector).transfer(_feeAmount);
+                }
+            } else {
+                // other ERC20 tokens
+                IERC20(_order.makerAssetAddr).safeTransfer(feeCollector, _feeAmount);
+            }
         }
     }
 
