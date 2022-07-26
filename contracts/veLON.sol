@@ -148,9 +148,9 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         _checkpoint(_tokenId, _locked, LockedBalance(0, 0));
 
         // Burn the NFT
+        address owner = ownerOf(_tokenId);
         _burn(_tokenId);
 
-        address owner = ownerOf(_tokenId);
         uint256 penalty = 0;
         if (!expired) {
             penalty = (amount.mul(earlyWithdrawPenaltyRate)).div(PENALTY_RATE_PRECISION);
