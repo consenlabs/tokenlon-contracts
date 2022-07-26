@@ -44,6 +44,7 @@ contract TestAMMWrapper is StrategySharedSetup {
         uint256 settleAmount,
         uint16 feeFactor
     );
+    event SetFeeCollector(address newFeeCollector);
 
     // effectively a "beforeEach" block
     function setUp() public virtual {

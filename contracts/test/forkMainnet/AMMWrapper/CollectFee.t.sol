@@ -34,7 +34,7 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
-        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(address(feeCollector), order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
 
         vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
@@ -53,7 +53,7 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
         uint256 actualFee = (expectedOutAmount * ammWrapper.defaultFeeFactor()) / BPS_MAX;
 
-        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(address(feeCollector), order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
 
         vm.expectEmit(true, true, true, true);
         emit Swapped(

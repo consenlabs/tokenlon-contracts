@@ -11,6 +11,9 @@ contract TestAMMWrapperSetFeeCollector is TestAMMWrapper {
     }
 
     function testSetFeeCollector() public {
+        vm.expectEmit(true, true, true, true);
+        emit SetFeeCollector(user);
+
         ammWrapper.setFeeCollector(user);
         assertEq(ammWrapper.feeCollector(), user);
     }
