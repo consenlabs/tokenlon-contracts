@@ -133,11 +133,22 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     /// @notice Withdraw all tokens for `_tokenId`
     /// @param _tokenId NFT that holds lock
     function withdraw(uint256 _tokenId) external override nonReentrant {
+        _withdraw(_tokenId, false);
+    }
+
+    /// @notice Withdraw all tokens for `_tokenId` and allow penalty if not expired yet
+    /// @param _tokenId NFT that holds lock
+    function withdrawEarly(uint256 _tokenId) external override nonReentrant {
+        _withdraw(_tokenId, true);
+    }
+
+    function _withdraw(uint256 _tokenId, bool _allowPenalty) private {
         require(_isApprovedOrOwner(msg.sender, _tokenId), "Not approved or owner");
 
         LockedBalance memory _locked = locked[_tokenId];
-        bool expired = block.timestamp >= _locked.end;
         uint256 amount = uint256(int256(_locked.amount));
+        bool expired = block.timestamp >= _locked.end;
+        require(expired || _allowPenalty, "Lock has not ended");
 
         locked[_tokenId] = LockedBalance(0, 0);
         tokenSupply = tokenSupply.sub(amount);
