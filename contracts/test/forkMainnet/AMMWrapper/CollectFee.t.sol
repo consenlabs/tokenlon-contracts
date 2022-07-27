@@ -42,6 +42,53 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         feeCollectorMakerAsset.assertChange(int256(fee));
     }
 
+    function testCollectFeeWithWETH() public {
+        uint256 feeFactor = 100;
+        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.makerAssetAddr = ETH_ADDRESS;
+        order.makerAssetAmount = 0.001 ether;
+        uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
+        // order should align with user's perspective
+        // therefore it should deduct fee from expectedOutAmount as the makerAssetAmount in order
+        uint256 fee = (expectedOutAmount * feeFactor) / BPS_MAX;
+        order.makerAssetAmount = expectedOutAmount - fee;
+        bytes memory sig = _signTrade(userPrivateKey, order);
+        bytes memory payload = _genTradePayload(order, feeFactor, sig);
+
+        address feeTokenAddress = WETH_ADDRESS; // AMM other than Curve returns WETH instead of ETH
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, feeTokenAddress);
+
+        vm.prank(relayer, relayer);
+        userProxy.toAMM(payload);
+
+        feeCollectorMakerAsset.assertChange(int256(fee));
+    }
+
+    function testCollectFeeWithETH() public {
+        uint256 feeFactor = 100;
+        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.makerAddr = CURVE_ANKRETH_POOL_ADDRESS;
+        order.takerAssetAddr = ANKRETH_ADDRESS;
+        order.takerAssetAmount = 0.01 ether;
+        order.makerAssetAddr = ETH_ADDRESS;
+        order.makerAssetAmount = 0.001 ether;
+        uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
+        // order should align with user's perspective
+        // therefore it should deduct fee from expectedOutAmount as the makerAssetAmount in order
+        uint256 fee = (expectedOutAmount * feeFactor) / BPS_MAX;
+        order.makerAssetAmount = expectedOutAmount - fee;
+        bytes memory sig = _signTrade(userPrivateKey, order);
+        bytes memory payload = _genTradePayload(order, feeFactor, sig);
+
+        address feeTokenAddress = ETH_ADDRESS; // Curve ETH/ANKRETH pool returns ETH instead of WETH
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, feeTokenAddress);
+
+        vm.prank(relayer, relayer);
+        userProxy.toAMM(payload);
+
+        feeCollectorMakerAsset.assertChange(int256(fee));
+    }
+
     function testFeeFactorOverwrittenWithDefault() public {
         // set local feeFactor higher than default one to avoid insufficient output from AMM
         uint256 feeFactor = ammWrapper.defaultFeeFactor() + 1000;
