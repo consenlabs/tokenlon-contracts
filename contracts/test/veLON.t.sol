@@ -50,6 +50,7 @@ contract veLONTest is Test {
         vm.prank(other);
         lon.approve(address(veLon), type(uint256).max);
 
+
         // Label addresses for easier debugging
         vm.label(user, "User");
         vm.label(other, "Other");
@@ -165,6 +166,13 @@ contract veLONTest is Test {
         uint256 lockEndAfter = veLon.unlockTime(tokenId);
 
         require((lockEndAfter - lockEndBefore) == 1 weeks, "wrong time extended");
+    }
+    function testCannotExtendLockNotAllowance () public {
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 1 weeks);
+
+        vm.prank(other);
+        vm.expectRevert("Not approved or owner");
+        veLon.extendLock(tokenId, 1 weeks);
     }
 
     function testCannoExtendLockExpired() public {
