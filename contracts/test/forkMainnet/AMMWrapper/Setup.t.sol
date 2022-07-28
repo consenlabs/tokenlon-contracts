@@ -15,6 +15,7 @@ contract TestAMMWrapper is StrategySharedSetup {
     uint256 otherPrivateKey = uint256(2);
 
     address user = vm.addr(userPrivateKey);
+    address feeCollector = address(0x133701);
     address relayer = address(0x133702);
     address[] wallet = [user, relayer];
 
@@ -23,7 +24,8 @@ contract TestAMMWrapper is StrategySharedSetup {
     IERC20 weth = IERC20(WETH_ADDRESS);
     IERC20 usdt = IERC20(USDT_ADDRESS);
     IERC20 dai = IERC20(DAI_ADDRESS);
-    IERC20[] tokens = [weth, usdt, dai];
+    IERC20 ankreth = IERC20(ANKRETH_ADDRESS);
+    IERC20[] tokens = [weth, usdt, dai, ankreth];
 
     uint16 DEFAULT_FEE_FACTOR = 1000;
     uint256 DEADLINE = block.timestamp + 1;
@@ -43,6 +45,7 @@ contract TestAMMWrapper is StrategySharedSetup {
         uint256 settleAmount,
         uint16 feeFactor
     );
+    event SetFeeCollector(address newFeeCollector);
 
     // effectively a "beforeEach" block
     function setUp() public virtual {
@@ -95,7 +98,8 @@ contract TestAMMWrapper is StrategySharedSetup {
             permanentStorage,
             IWETH(address(weth)),
             UNISWAP_V2_ADDRESS,
-            SUSHISWAP_ADDRESS
+            SUSHISWAP_ADDRESS,
+            feeCollector
         );
         // Setup
         userProxy.upgradeAMMWrapper(address(ammWrapper), true);
