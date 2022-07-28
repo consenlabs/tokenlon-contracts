@@ -46,7 +46,6 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         uint256 feeFactor = 100;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAssetAddr = ETH_ADDRESS;
-        order.makerAssetAmount = 0.001 ether;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
         // order should align with user's perspective
         // therefore it should deduct fee from expectedOutAmount as the makerAssetAmount in order
@@ -71,7 +70,6 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         order.takerAssetAddr = ANKRETH_ADDRESS;
         order.takerAssetAmount = 0.01 ether;
         order.makerAssetAddr = ETH_ADDRESS;
-        order.makerAssetAmount = 0.001 ether;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
         // order should align with user's perspective
         // therefore it should deduct fee from expectedOutAmount as the makerAssetAmount in order
