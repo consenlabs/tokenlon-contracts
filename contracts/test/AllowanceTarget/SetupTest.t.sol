@@ -8,10 +8,6 @@ contract TestAllowanceTargetSetup is TestAllowanceTarget {
         assertEq(allowanceTarget.spender(), address(this));
     }
 
-    /*********************************
-     *    Test setup: constructor    *
-     *********************************/
-
     function testCannotConstructByZeroAddress() public {
         vm.expectRevert("AllowanceTarget: _spender should not be 0");
         allowanceTarget = new AllowanceTarget(address(0));
