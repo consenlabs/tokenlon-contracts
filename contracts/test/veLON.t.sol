@@ -24,7 +24,7 @@ contract veLONTest is Test {
     uint256 constant MAX_LOCK_TIME = 365 days;
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
 
-    uint256 public earlyWithdrawPenaltyRate = 3000;
+    uint256 public earlyWithdrawPenaltyRate;
 
     //record the balnce of Lon and VeLon in VM
     BalanceSnapshot.Snapshot stakerLon;
@@ -50,6 +50,8 @@ contract veLONTest is Test {
         vm.prank(other);
         lon.approve(address(veLon), type(uint256).max);
 
+        //set earlyWithdrawPenaltyRate from veLon 
+        earlyWithdrawPenaltyRate =  veLon.earlyWithdrawPenaltyRate();
 
         // Label addresses for easier debugging
         vm.label(user, "User");
