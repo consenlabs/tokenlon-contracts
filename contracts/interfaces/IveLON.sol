@@ -14,13 +14,13 @@ interface IveLON is IERC721, IERC721Metadata {
     }
 
     struct LockedBalance {
-        int128 amount; // FIXME use uint256?
+        uint256 amount;
         uint256 end;
     }
 
     struct Point {
-        int128 bias;
-        int128 slope; // # -dweight / dt
+        int256 bias;
+        int256 slope; // # -dweight / dt
         uint256 ts;
         uint256 blk;
     }
