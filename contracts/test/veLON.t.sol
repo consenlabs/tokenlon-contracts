@@ -99,11 +99,7 @@ contract veLONTest is Test {
         uint256 tokenId = veLon.createLock(stakeAmount, lockDuration);
         stakerLon.assertChange(-int256(stakeAmount));
         lockedLon.assertChange(int256(stakeAmount));
-        // assertEq(veLon.totalNFTSupply(), numberOfNftBefore + 1);
-        // // this part is weird
-        // uint256 increasedPower = _vePowerAdd(stakeAmount, lockDuration);
-        // assertEq(veLon.totalSupply(), totalVePowerBefore + increasedPower);
-        // assertEq(veLon.balanceOfNFT(tokenId), increasedPower);
+        //TODO check the voting power for NFT
         vm.stopPrank();
 
         return tokenId;
