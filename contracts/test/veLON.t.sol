@@ -50,8 +50,8 @@ contract veLONTest is Test {
         vm.prank(other);
         lon.approve(address(veLon), type(uint256).max);
 
-        //set earlyWithdrawPenaltyRate from veLon 
-        earlyWithdrawPenaltyRate =  veLon.earlyWithdrawPenaltyRate();
+        //set earlyWithdrawPenaltyRate from veLon
+        earlyWithdrawPenaltyRate = veLon.earlyWithdrawPenaltyRate();
 
         // Label addresses for easier debugging
         vm.label(user, "User");
@@ -165,7 +165,8 @@ contract veLONTest is Test {
 
         require((lockEndAfter - lockEndBefore) == 1 weeks, "wrong time extended");
     }
-    function testCannotExtendLockNotAllowance () public {
+
+    function testCannotExtendLockNotAllowance() public {
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 1 weeks);
 
         vm.prank(other);
