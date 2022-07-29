@@ -68,7 +68,7 @@ contract TestVeLON is Test {
     }
 
     /*********************************
-     *         Test: stake           *
+     *         Stake utils           *
      *********************************/
     // compute the power added when staking amount added
     function _vePowerAdd(uint256 stakeAmount, uint256 lockDuration) internal returns (uint256) {
