@@ -13,7 +13,6 @@ import "./Ownable.sol";
 
 contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
-    using SafeMath for int256;
 
     uint256 private constant WEEK = 1 weeks;
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
@@ -45,15 +44,15 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
     /// @notice Update the `maxLockDuration`.
     /// @param _maxLockDuration new number of seconds for `maxLockDuration`.
-    function setMaxLockDuration(uint256 _maxLockDuration) external onlyOwner {
+    function setMaxLockDuration(uint256 _maxLockDuration) external override onlyOwner {
         // flush the global voting power change into storage first
         _checkpoint(0, LockedBalance(0, 0), LockedBalance(0, 0));
 
-        uint256 constant maxEndTime = block.timestamp.add(_maxLockDuration).div(WEEK).mul(WEEK);
+        uint256 maxEndTime = block.timestamp.add(_maxLockDuration).div(WEEK).mul(WEEK);
         int256 globalSlope;
         int256 globalBias;
         // update every NFT's stored states and calculate global states
-        for (uint256 _tokenId = 0; _tokenId <= tokenId; _tokenId++) { 
+        for (uint256 _tokenId = 0; _tokenId <= tokenId; _tokenId++) {
             // skip NFTs that have been burned
             if (ownerOf(_tokenId) == address(0)) {
                 continue;
@@ -71,9 +70,9 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             if (newLocked.end > maxEndTime) {
                 newLocked.end = maxEndTime;
             }
-            pointNew.slope = newLocked.amount.div(_maxLockDuration);
+            pointNew.slope = int256(newLocked.amount.div(_maxLockDuration));
             int256 duration = int256(newLocked.end.sub(block.timestamp));
-            pointNew.bias = pointNew.slope.mul(duration);
+            pointNew.bias = duration * pointNew.slope;
 
             // update the latest user epoch and user point
             userEpoch = userEpoch.add(1);
@@ -81,16 +80,16 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             userPointHistory[_tokenId][userEpoch] = pointNew;
 
             // update slope_changes
-            slope_changes[oldLocked.end] = slope_changes[oldLocked.end].add(pointOld.slope);
-            slope_changes[newLocked.end] = slope_changes[newLocked.end].sub(pointNew.slope);
+            slope_changes[oldLocked.end] += pointOld.slope;
+            slope_changes[newLocked.end] += pointNew.slope;
 
-            globalSlope = globalSlope.add(pointNew.slope);
-            globalBias = globalBias.add(pointNew.bias);
+            globalSlope += pointNew.slope;
+            globalBias += pointNew.bias;
         }
 
         // update global point
         epoch = epoch.add(1);
-        poolPointHistory[epoch] = Point( { bias: globalBias, slope: globalSlope, ts: block.timestamp, blk: block.number } );
+        poolPointHistory[epoch] = Point({ bias: globalBias, slope: globalSlope, ts: block.timestamp, blk: block.number });
     }
 
     /// @notice Get timestamp when `_tokenId`'s lock finishes
