@@ -23,8 +23,6 @@ contract TestVeLON is Test {
     uint256 constant MAX_LOCK_TIME = 365 days;
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
 
-    uint256 public earlyWithdrawPenaltyRate;
-
     // record the balnce of Lon and VeLon in VM
     BalanceSnapshot.Snapshot public stakerLon;
     BalanceSnapshot.Snapshot public lockedLon;
@@ -48,9 +46,6 @@ contract TestVeLON is Test {
         // User approve veLON
         vm.prank(other);
         lon.approve(address(veLon), type(uint256).max);
-
-        // set earlyWithdrawPenaltyRate from veLon
-        earlyWithdrawPenaltyRate = veLon.earlyWithdrawPenaltyRate();
 
         // Label addresses for easier debugging
         vm.label(user, "User");
@@ -77,7 +72,8 @@ contract TestVeLON is Test {
      *********************************/
     // compute the power added when staking amount added
     function _vePowerAdd(uint256 stakeAmount, uint256 lockDuration) internal returns (uint256) {
-        uint256 unlockTime = ((block.timestamp + lockDuration) / 1 weeks) * 1 weeks; // Locktime is rounded down to weeks
+        // Unlocktime is rounded down to weeks
+        uint256 unlockTime = ((block.timestamp + lockDuration) / 1 weeks) * 1 weeks;
         uint256 power = (stakeAmount / MAX_LOCK_TIME) * (unlockTime - block.timestamp);
         return power;
     }
