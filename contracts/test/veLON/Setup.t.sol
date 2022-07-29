@@ -90,7 +90,7 @@ contract TestVeLON is Test {
         stakerLon = BalanceSnapshot.take(staker, address(lon));
         lockedLon = BalanceSnapshot.take(address(veLon), address(lon));
 
-        uint256 tokenMintBefore= veLon.totalSupply();
+        uint256 tokenMintBefore = veLon.totalSupply();
         uint256 tokenMintAfter;
 
         vm.startPrank(staker);
@@ -100,13 +100,11 @@ contract TestVeLON is Test {
         uint256 tokenId = veLon.createLock(stakeAmount, lockDuration);
         stakerLon.assertChange(-int256(stakeAmount));
         lockedLon.assertChange(int256(stakeAmount));
-        
+
         //check whether ERC721 token has minted
         tokenMintAfter = veLon.totalSupply();
-        assertEq((tokenMintBefore+1) , tokenMintAfter);
+        assertEq((tokenMintBefore + 1), tokenMintAfter);
 
-
-        
         //TODO check the voting power for NFT
         vm.stopPrank();
 
