@@ -74,7 +74,7 @@ contract TestVeLONDeposit is TestVeLON {
         uint256 lockTime = 1 weeks;
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, lockTime);
 
-        //pretend 1 week has passed and the lock expired
+        // pretend 1 week has passed and the lock expired
         vm.warp(block.timestamp + 1 weeks);
         vm.prank(user);
         vm.expectRevert("Lock expired");
@@ -91,7 +91,7 @@ contract TestVeLONDeposit is TestVeLON {
         vm.prank(user);
         veLon.merge(_fromTokenId, _toTokenId);
 
-        //check whether fromToken has burned
+        // check whether fromToken has burned
         vm.expectRevert("ERC721: owner query for nonexistent token");
         veLon.ownerOf(_fromTokenId);
     }

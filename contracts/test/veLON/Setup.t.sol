@@ -25,7 +25,7 @@ contract TestVeLON is Test {
 
     uint256 public earlyWithdrawPenaltyRate;
 
-    //record the balnce of Lon and VeLon in VM
+    // record the balnce of Lon and VeLon in VM
     BalanceSnapshot.Snapshot public stakerLon;
     BalanceSnapshot.Snapshot public lockedLon;
 
@@ -37,19 +37,19 @@ contract TestVeLON is Test {
         deal(user, 100 ether);
         // Mint LON to user
         lon.mint(user, 100 * 1e18);
-        // User approve LONStaking
+        // User approve veLON
         vm.prank(user);
         lon.approve(address(veLon), type(uint256).max);
 
-        // Deal 100 ETH to otherUSer
+        // Deal 100 ETH to other user(second User)
         deal(other, 100 ether);
-        // Mint LON to otherUser
+        // Mint LON to otherUser(second user)
         lon.mint(other, 100 * 1e18);
-        // User approve LONStaking
+        // User approve veLON
         vm.prank(other);
         lon.approve(address(veLon), type(uint256).max);
 
-        //set earlyWithdrawPenaltyRate from veLon
+        // set earlyWithdrawPenaltyRate from veLon
         earlyWithdrawPenaltyRate = veLon.earlyWithdrawPenaltyRate();
 
         // Label addresses for easier debugging
@@ -75,7 +75,7 @@ contract TestVeLON is Test {
     /*********************************
      *         Test: stake           *
      *********************************/
-    //compute the power added when staking amount added
+    // compute the power added when staking amount added
     function _vePowerAdd(uint256 stakeAmount, uint256 lockDuration) internal returns (uint256) {
         uint256 unlockTime = ((block.timestamp + lockDuration) / 1 weeks) * 1 weeks; // Locktime is rounded down to weeks
         uint256 power = (stakeAmount / MAX_LOCK_TIME) * (unlockTime - block.timestamp);
@@ -101,11 +101,11 @@ contract TestVeLON is Test {
         stakerLon.assertChange(-int256(stakeAmount));
         lockedLon.assertChange(int256(stakeAmount));
 
-        //check whether ERC721 token has minted
+        // check whether ERC721 token has minted
         tokenMintAfter = veLon.totalSupply();
         assertEq((tokenMintBefore + 1), tokenMintAfter);
 
-        //TODO check the voting power for NFT
+        // TODO check the voting power for NFT
         vm.stopPrank();
 
         return tokenId;
