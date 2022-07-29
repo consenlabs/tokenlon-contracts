@@ -95,7 +95,7 @@ contract TestLONStakingRedeem is TestLONStaking {
 
     function testRedeemWithBuyback() public {
         _stake(user, DEFAULT_STAKE_AMOUNT);
-        simulateBuyback(100 * 1e18);
+        _simulateBuyback(100 * 1e18);
 
         vm.prank(user);
         lonStaking.unstake();
@@ -306,7 +306,7 @@ contract TestLONStakingRedeem is TestLONStaking {
             uint256 redeemAmount = redeemAmounts[i];
             lon.mint(staker, stakeAmount);
             _stake(staker, stakeAmount);
-            simulateBuyback(buybackAmounts[i]);
+            _simulateBuyback(buybackAmounts[i]);
             // Skip if stake did not get any share due to too small stakeAmount and rounding error
             if (lonStaking.balanceOf(staker) == 0) continue;
 
@@ -345,7 +345,7 @@ contract TestLONStakingRedeem is TestLONStaking {
             lonStaking.unstake();
         }
         vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
-        simulateBuyback(buybackAmount);
+        _simulateBuyback(buybackAmount);
         // All redeem
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
             address staker = address(uint256(fuzzingUserStartAddress) + i);

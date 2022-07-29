@@ -78,7 +78,7 @@ contract TestLONStakingStake is TestLONStaking {
             uint256 stakeAmount = stakeAmounts[i];
             lon.mint(staker, stakeAmount);
             _stakeAndValidate(staker, stakeAmount);
-            simulateBuyback(buybackAmounts[i]);
+            _simulateBuyback(buybackAmounts[i]);
         }
     }
 
@@ -106,7 +106,7 @@ contract TestLONStakingStake is TestLONStaking {
             lon.mint(firstBatchUser, stakeAmount);
             _stakeAndValidate(firstBatchUser, stakeAmount);
         }
-        simulateBuyback(buybackAmount);
+        _simulateBuyback(buybackAmount);
         // Second batch of users stake
         address secondBatchUsersAddressStart = address(uint256(fuzzingUserStartAddress) + stakeAmounts.length);
         for (uint256 i = 0; i < stakeAmounts.length; i++) {

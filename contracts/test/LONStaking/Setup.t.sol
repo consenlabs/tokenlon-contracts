@@ -94,7 +94,7 @@ contract TestLONStaking is Test {
         vm.stopPrank();
     }
 
-    function simulateBuyback(uint256 amount) internal {
+    function _simulateBuyback(uint256 amount) internal {
         lon.mint(address(lonStaking), amount);
     }
 }
