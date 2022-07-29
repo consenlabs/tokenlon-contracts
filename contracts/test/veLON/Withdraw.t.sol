@@ -30,6 +30,9 @@ contract TestVeLONWithfraw is TestVeLON {
         stakerLon = BalanceSnapshot.take(user, address(lon));
         lockedLon = BalanceSnapshot.take(address(veLon), address(lon));
 
+        // set earlyWithdrawPenaltyRate from veLon
+        uint256 earlyWithdrawPenaltyRate = veLon.earlyWithdrawPenaltyRate();
+
         // pretend 1 week has passed and the lock not expired
         vm.warp(block.timestamp + 1 weeks);
         vm.prank(user);
