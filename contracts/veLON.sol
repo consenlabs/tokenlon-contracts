@@ -90,6 +90,9 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         // update global point
         epoch = epoch.add(1);
         poolPointHistory[epoch] = Point({ bias: globalBias, slope: globalSlope, ts: block.timestamp, blk: block.number });
+
+        // updatee the maxLockDuration
+        maxLockDuration = _maxLockDuration;
     }
 
     /// @notice Get timestamp when `_tokenId`'s lock finishes
