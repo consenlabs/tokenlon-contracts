@@ -329,7 +329,62 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     }
 
     // Go over weeks to fill history and calculate what the current pool point is
-    function _updateGlobalStatus(Point memory poolLastPoint, uint256 _epoch) private returns (Point memory, uint256) {}
+    function _updateGlobalStatus(Point memory poolLastPoint, uint256 _epoch) private returns (Point memory, uint256) {
+        // block slope = dBlock/dTime
+        // If last point is already recorded in this block, slope=0
+        // But that's ok because we know the block in such case
+        uint256 blockSlope = 0;
+        if (block.timestamp > poolLastPoint.ts) {
+            blockSlope = (MULTIPLIER * (block.number - poolLastPoint.blk)) / (block.timestamp - poolLastPoint.ts);
+        }
+
+        uint256 timeStart = poolLastPoint.ts;
+        // initial_poolLastPoint is used for extrapolation to calculate block number
+        // (approximately, for *At methods) and save them
+        // as we cannot figure that out exactly from inside the contract
+        Point memory initial_poolLastPoint = poolLastPoint;
+        uint256 timeEnd = ((timeStart / WEEK) * WEEK) + WEEK;
+        for (uint256 i = 0; i < 255; ++i) {
+            // Assume it won't exceed 255 weeks since last time pool point updated.
+            // If it does, users will be able to withdraw but vote weight will be broken
+            int256 dSlope = 0;
+            if (timeEnd > block.timestamp) {
+                timeEnd = block.timestamp;
+            } else {
+                dSlope = slopeChanges[timeEnd];
+            }
+
+            // update slope and bias
+            poolLastPoint.bias -= poolLastPoint.slope * (int256(timeEnd - timeStart));
+            poolLastPoint.slope += dSlope;
+            if (poolLastPoint.bias < 0) {
+                // This can happen
+                poolLastPoint.bias = 0;
+            }
+            if (poolLastPoint.slope < 0) {
+                // This cannot happen - just in case
+                poolLastPoint.slope = 0;
+            }
+
+            // update ts and block (approximately block number)
+            poolLastPoint.ts = timeEnd;
+            poolLastPoint.blk = initial_poolLastPoint.blk + (blockSlope * (timeEnd - initial_poolLastPoint.ts)) / MULTIPLIER;
+
+            if (timeEnd == block.timestamp) {
+                poolLastPoint.blk = block.number;
+                // poolLastPoint may needs to be adjusted using user points and record in new epoch index
+                return (poolLastPoint, _epoch + 1);
+            } else {
+                poolPointHistory[_epoch] = poolLastPoint;
+            }
+
+            // move time window and continue
+            _epoch += 1;
+            timeStart = timeEnd;
+            timeEnd += WEEK;
+        }
+        revert();
+    }
 
     function _lockIsActive(LockedBalance memory lock) private returns (bool) {
         return lock.end > block.timestamp && lock.amount > 0;
