@@ -80,8 +80,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             userPointHistory[_tokenId][userEpoch] = pointNew;
 
             // update slope_changes
-            slope_changes[oldLocked.end] += pointOld.slope;
-            slope_changes[newLocked.end] += pointNew.slope;
+            slopeChanges[oldLocked.end] += pointOld.slope;
+            slopeChanges[newLocked.end] += pointNew.slope;
 
             globalSlope += pointNew.slope;
             globalBias += pointNew.bias;
