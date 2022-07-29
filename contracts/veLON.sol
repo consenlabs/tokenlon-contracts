@@ -28,7 +28,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[user_epoch]
     mapping(uint256 => LockedBalance) public locked; // tokenId -> locked balance
     mapping(uint256 => uint256) public userPointEpoch; // tokenId -> epoch
-    mapping(uint256 => int256) public slope_changes; // time -> signed slope change
+    mapping(uint256 => int256) public slopeChanges; // time -> signed slope change
 
     /// @dev Current count of token
     uint256 internal tokenId;
@@ -274,12 +274,12 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             // Read values of scheduled changes in the slope
             // _oldLocked.end can be in the past and in the future
             // _newLocked.end can ONLY by in the FUTURE unless everything expired: than zeros
-            dSlopeOld = slope_changes[_oldLocked.end];
+            dSlopeOld = slopeChanges[_oldLocked.end];
             if (_newLocked.end != 0) {
                 if (_newLocked.end == _oldLocked.end) {
                     dSlopeNew = dSlopeOld;
                 } else {
-                    dSlopeNew = slope_changes[_newLocked.end];
+                    dSlopeNew = slopeChanges[_newLocked.end];
                 }
             }
         }
@@ -314,7 +314,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
                 if (timeEnd > block.timestamp) {
                     timeEnd = block.timestamp;
                 } else {
-                    dSlope = slope_changes[timeEnd];
+                    dSlope = slopeChanges[timeEnd];
                 }
 
                 // update slope and bias
@@ -375,13 +375,13 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
                 if (_newLocked.end == _oldLocked.end) {
                     dSlopeOld -= pointNew.slope; // It was a new deposit, not extension
                 }
-                slope_changes[_oldLocked.end] = dSlopeOld;
+                slopeChanges[_oldLocked.end] = dSlopeOld;
             }
 
             if (_newLocked.end > block.timestamp) {
                 if (_newLocked.end > _oldLocked.end) {
                     dSlopeNew -= pointNew.slope; // old slope disappeared at this point
-                    slope_changes[_newLocked.end] = dSlopeNew;
+                    slopeChanges[_newLocked.end] = dSlopeNew;
                 }
                 // else: we recorded it already in dSlopeOld
             }
