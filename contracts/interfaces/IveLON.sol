@@ -19,8 +19,8 @@ interface IveLON is IERC721, IERC721Metadata {
     }
 
     struct Point {
-        int256 bias;
-        int256 slope; // # -dweight / dt
+        int256 vBalance;
+        int256 decliningRate; // # -dweight / dt
         uint256 ts;
         uint256 blk;
     }
