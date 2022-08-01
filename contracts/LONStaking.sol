@@ -35,8 +35,8 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
     mapping(address => uint256) public nonces; // For EIP-2612 permit()
     mapping(address => uint256) public stakersCooldowns;
 
-    address internal veLon;
-    bool internal conversion = false;
+    address public veLon = address(0x0);
+    bool public conversion = false;
 
     /* ========== EVENTS ========== */
 
@@ -320,13 +320,14 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         }
     }
 
-    function convertXLonToVeLon(uint256 _lockDuration) public {
+    function convertXLonToVeLon(uint256 _lockDuration) public returns (uint256 tokenId) {
         require(conversion, "conversion is not enabled");
 
         uint256 userShare = balanceOf(msg.sender);
         uint256 userLonBalance = userShare.mul(lonToken.balanceOf(address(this))).div(totalSupply());
-        _redeemAndSendTo(balanceOf(msg.sender), 0, address(this));
+        _redeemAndSendTo(userShare, 0, address(this));
         IveLON veLonIntance = IveLON(veLon);
-        veLonIntance.createLockFor(userLonBalance, _lockDuration, msg.sender);
+        lonToken.approve(veLon, userLonBalance);
+        return veLonIntance.createLockFor(userLonBalance, _lockDuration, msg.sender);
     }
 }
