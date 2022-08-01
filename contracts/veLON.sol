@@ -126,7 +126,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         // Both _oldLocked.end could be current or expired (>/< block.timestamp)
         // value == 0 (extend lock) or value > 0 (add to lock or extend lock)
         // _locked.end > block.timestamp (always)
-        _updateUserStatus(_tokenId, _oldLocked, _lockedBalance);
+        _updateLockedPoint(_tokenId, _oldLocked, _lockedBalance);
 
         if (_value != 0 && _depositType != DepositType.MERGE_TYPE) {
             assert(IERC20(token).transferFrom(msg.sender, address(this), _value));
@@ -158,7 +158,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         locked[_tokenId] = LockedBalance(0, 0);
         tokenSupply = tokenSupply.sub(amount);
 
-        _updateUserStatus(_tokenId, _locked, LockedBalance(0, 0));
+        _updateLockedPoint(_tokenId, _locked, LockedBalance(0, 0));
 
         // Burn the NFT
         address owner = ownerOf(_tokenId);
@@ -189,7 +189,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         uint256 end = _lockedFrom.end >= _lockedTo.end ? _lockedFrom.end : _lockedTo.end;
 
         locked[_from] = LockedBalance(0, 0);
-        _updateUserStatus(_from, _lockedFrom, LockedBalance(0, 0));
+        _updateLockedPoint(_from, _lockedFrom, LockedBalance(0, 0));
         _burn(_from);
         _depositFor(_to, value0, end, _lockedTo, DepositType.MERGE_TYPE);
     }
@@ -198,7 +198,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     /// @param _tokenId NFT token ID. No user checkpoint if 0
     /// @param _oldLocked Pevious locked amount / end lock time for the user, to be replaced by new one
     /// @param _newLocked New locked amount / end lock time for the user
-    function _updateUserStatus(
+    function _updateLockedPoint(
         uint256 _tokenId,
         LockedBalance memory _oldLocked,
         LockedBalance memory _newLocked
@@ -237,7 +237,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             poolLastPoint = poolPointHistory[_epoch];
         }
 
-        (poolLastPoint, _epoch) = _updateGlobalStatus(poolLastPoint, _epoch);
+        (poolLastPoint, _epoch) = _syncGlobalPoints(poolLastPoint, _epoch);
 
         // If last point was in this block, the decliningRate change has been applied already
         // But in such case we have 0 decliningRate(s)
@@ -284,7 +284,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     }
 
     // Go over weeks to fill history and calculate what the current pool point is
-    function _updateGlobalStatus(Point memory poolLastPoint, uint256 _epoch) private returns (Point memory, uint256) {
+    function _syncGlobalPoints(Point memory poolLastPoint, uint256 _epoch) private returns (Point memory, uint256) {
         // block slope = dBlock/dTime
         // If last point is already recorded in this block, slope=0
         // But that's ok because we know the block in such case
