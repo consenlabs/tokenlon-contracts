@@ -393,8 +393,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
     // Go over weeks to fill history and calculate what the current pool point is
     function _syncGlobalPoints(Point memory poolLastPoint, uint256 _epoch) private returns (Point memory, uint256) {
-        // block slope = dBlock/dTime
-        // If last point is already recorded in this block, slope=0
+        // block decliningRate = dBlock/dTime
+        // If last point is already recorded in this block, decliningRate=0
         // But that's ok because we know the block in such case
         uint256 blockSlope = 0;
         if (block.timestamp > poolLastPoint.ts) {
@@ -453,5 +453,69 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
     function _lockIsActive(LockedBalance memory lock) private returns (bool) {
         return lock.end > block.timestamp && lock.amount > 0;
+    }
+
+    function totalvBalance() external view override returns (uint256) {
+        return _totalvBalanceAt(poolPointHistory[epoch], block.timestamp);
+    }
+
+    /// @notice Calculate total voting power
+    /// @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
+    /// @return Total voting power
+    function totalvBalanceAtTime(uint256 t) public view override returns (uint256) {
+        return _totalvBalanceAt(poolPointHistory[epoch], t);
+    }
+
+    /// @notice Calculate total voting power at some point in the past
+    /// @param _block Block to calculate the total voting power at
+    /// @return Total voting power at `_block`
+    function totalvBalanceAtBlk(uint256 _block) external view override returns (uint256) {
+        require(_block <= block.number, "Invalid block number");
+        uint256 _epoch = epoch;
+        uint256 targetEpoch = _findBlockEpoch(_block, _epoch);
+
+        Point memory point = poolPointHistory[targetEpoch];
+        uint256 dt = 0;
+        if (targetEpoch < _epoch) {
+            Point memory pointNext = poolPointHistory[targetEpoch + 1];
+            if (point.blk != pointNext.blk) {
+                dt = ((_block - point.blk) * (pointNext.ts - point.ts)) / (pointNext.blk - point.blk);
+            }
+        } else {
+            if (point.blk != block.number) {
+                dt = ((_block - point.blk) * (block.timestamp - point.ts)) / (block.number - point.blk);
+            }
+        }
+        // Now dt contains info on how far are we beyond point
+        return _totalvBalanceAt(point, point.ts + dt);
+    }
+
+    /// @notice Calculate total voting power at some point in the past
+    /// @param point The point (vBalance/decliningRate) to start search from
+    /// @param t Time to calculate the total voting power at
+    /// @return Total voting power at that time
+    function _totalvBalanceAt(Point memory point, uint256 t) private view returns (uint256) {
+        Point memory lastPoint = point;
+        uint256 pointTime = (lastPoint.ts / WEEK) * WEEK;
+        for (uint256 i = 0; i < 255; ++i) {
+            pointTime += WEEK;
+            int256 dRateChange = 0;
+            if (pointTime > t) {
+                pointTime = t;
+            } else {
+                dRateChange = dRateChanges[pointTime];
+            }
+            lastPoint.vBalance -= lastPoint.decliningRate * int256(pointTime - lastPoint.ts);
+            if (pointTime == t) {
+                break;
+            }
+            lastPoint.decliningRate += dRateChange;
+            lastPoint.ts = pointTime;
+        }
+
+        if (lastPoint.vBalance < 0) {
+            lastPoint.vBalance = 0;
+        }
+        return uint256(lastPoint.vBalance);
     }
 }

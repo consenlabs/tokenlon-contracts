@@ -50,4 +50,10 @@ interface IveLON is IERC721, IERC721Metadata {
     function withdrawEarly(uint256 _tokenId) external;
 
     function merge(uint256 _from, uint256 _to) external;
+
+    function totalvBalance() external view returns (uint256);
+
+    function totalvBalanceAtTime(uint256 t) external view returns (uint256);
+
+    function totalvBalanceAtBlk(uint256 _block) external view returns (uint256);
 }
