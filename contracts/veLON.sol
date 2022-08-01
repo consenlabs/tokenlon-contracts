@@ -37,7 +37,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     uint256 internal tokenId;
 
     /// @notice Contract constructor
-    /// @param _tokenAddr `ERC20CRV` token address
+    /// @param _tokenAddr token address
     constructor(address _tokenAddr) ERC721("veLON NFT", "veLON") Ownable(msg.sender) {
         token = _tokenAddr;
 
