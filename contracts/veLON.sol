@@ -28,7 +28,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[user_epoch]
     mapping(uint256 => LockedBalance) public locked; // tokenId -> locked balance
     mapping(uint256 => uint256) public userPointEpoch; // tokenId -> epoch
-    mapping(uint256 => int256) public slopeChanges; // time -> signed slope change
+    mapping(uint256 => int256) public dRateChanges; // time -> signed declining rate change
 
     /// @dev Current count of token
     uint256 internal tokenId;
@@ -209,45 +209,45 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         int256 dSlopeNew = 0;
         uint256 _epoch = epoch;
 
-        // Calculate slopes and biases
+        // Calculate decliningRates and vBalances
         // Kept at zero if not active anymore
         if (_lockIsActive(_oldLocked)) {
-            pointOld.slope = int256(_oldLocked.amount / maxLockDuration);
-            pointOld.bias = pointOld.slope * int256(_oldLocked.end - block.timestamp);
+            pointOld.decliningRate = int256(_oldLocked.amount / maxLockDuration);
+            pointOld.vBalance = pointOld.decliningRate * int256(_oldLocked.end - block.timestamp);
         }
         if (_lockIsActive(_newLocked)) {
-            pointNew.slope = int256(_newLocked.amount / maxLockDuration);
-            pointNew.bias = pointNew.slope * int256(_newLocked.end - block.timestamp);
+            pointNew.decliningRate = int256(_newLocked.amount / maxLockDuration);
+            pointNew.vBalance = pointNew.decliningRate * int256(_newLocked.end - block.timestamp);
         }
 
-        // Read values of scheduled changes in the slope
+        // Read values of scheduled changes in the decliningRate
         // _oldLocked.end can be in the past and in the future
         // _newLocked.end can ONLY by in the FUTURE unless everything expired: than zeros
-        dSlopeOld = slopeChanges[_oldLocked.end];
+        dSlopeOld = dRateChanges[_oldLocked.end];
         if (_newLocked.end != 0) {
             if (_newLocked.end == _oldLocked.end) {
                 dSlopeNew = dSlopeOld;
             } else {
-                dSlopeNew = slopeChanges[_newLocked.end];
+                dSlopeNew = dRateChanges[_newLocked.end];
             }
         }
 
-        Point memory poolLastPoint = Point({ bias: 0, slope: 0, ts: block.timestamp, blk: block.number });
+        Point memory poolLastPoint = Point({ vBalance: 0, decliningRate: 0, ts: block.timestamp, blk: block.number });
         if (_epoch > 0) {
             poolLastPoint = poolPointHistory[_epoch];
         }
 
         (poolLastPoint, _epoch) = _updateGlobalStatus(poolLastPoint, _epoch);
 
-        // If last point was in this block, the slope change has been applied already
-        // But in such case we have 0 slope(s)
-        poolLastPoint.slope += (pointNew.slope - pointOld.slope);
-        poolLastPoint.bias += (pointNew.bias - pointOld.bias);
-        if (poolLastPoint.slope < 0) {
-            poolLastPoint.slope = 0;
+        // If last point was in this block, the decliningRate change has been applied already
+        // But in such case we have 0 decliningRate(s)
+        poolLastPoint.decliningRate += (pointNew.decliningRate - pointOld.decliningRate);
+        poolLastPoint.vBalance += (pointNew.vBalance - pointOld.vBalance);
+        if (poolLastPoint.decliningRate < 0) {
+            poolLastPoint.decliningRate = 0;
         }
-        if (poolLastPoint.bias < 0) {
-            poolLastPoint.bias = 0;
+        if (poolLastPoint.vBalance < 0) {
+            poolLastPoint.vBalance = 0;
         }
 
         // Record the changed point into history
@@ -255,22 +255,22 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         // Sync storage variable now
         epoch = _epoch;
 
-        // Schedule the slope changes (slope is going down)
-        // We subtract new_user_slope from [_newLocked.end]
-        // and add old_user_slope to [_oldLocked.end]
+        // Schedule the decliningRate changes (decliningRate is going down)
+        // We subtract new_user_decliningRate from [_newLocked.end]
+        // and add old_user_decliningRate to [_oldLocked.end]
         if (_oldLocked.end > block.timestamp) {
-            // dSlopeOld was <something> - pointOld.slope, so we cancel that
-            dSlopeOld += pointOld.slope;
+            // dSlopeOld was <something> - pointOld.decliningRate, so we cancel that
+            dSlopeOld += pointOld.decliningRate;
             if (_newLocked.end == _oldLocked.end) {
-                dSlopeOld -= pointNew.slope; // It was a new deposit, not extension
+                dSlopeOld -= pointNew.decliningRate; // It was a new deposit, not extension
             }
-            slopeChanges[_oldLocked.end] = dSlopeOld;
+            dRateChanges[_oldLocked.end] = dSlopeOld;
         }
 
         if (_newLocked.end > block.timestamp) {
             if (_newLocked.end > _oldLocked.end) {
-                dSlopeNew -= pointNew.slope; // old slope disappeared at this point
-                slopeChanges[_newLocked.end] = dSlopeNew;
+                dSlopeNew -= pointNew.decliningRate; // old decliningRate disappeared at this point
+                dRateChanges[_newLocked.end] = dSlopeNew;
             }
             // else: we recorded it already in dSlopeOld
         }
@@ -306,19 +306,19 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             if (timeEnd > block.timestamp) {
                 timeEnd = block.timestamp;
             } else {
-                dSlope = slopeChanges[timeEnd];
+                dSlope = dRateChanges[timeEnd];
             }
 
-            // update slope and bias
-            poolLastPoint.bias -= poolLastPoint.slope * (int256(timeEnd - timeStart));
-            poolLastPoint.slope += dSlope;
-            if (poolLastPoint.bias < 0) {
+            // update decliningRate and vBalance
+            poolLastPoint.vBalance -= poolLastPoint.decliningRate * (int256(timeEnd - timeStart));
+            poolLastPoint.decliningRate += dSlope;
+            if (poolLastPoint.vBalance < 0) {
                 // This can happen
-                poolLastPoint.bias = 0;
+                poolLastPoint.vBalance = 0;
             }
-            if (poolLastPoint.slope < 0) {
+            if (poolLastPoint.decliningRate < 0) {
                 // This cannot happen - just in case
-                poolLastPoint.slope = 0;
+                poolLastPoint.decliningRate = 0;
             }
 
             // update ts and block (approximately block number)
