@@ -29,6 +29,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     mapping(uint256 => LockedBalance) public locked; // tokenId -> locked balance
     mapping(uint256 => uint256) public userPointEpoch; // tokenId -> epoch
     mapping(uint256 => int256) public dRateChanges; // time -> signed declining rate change
+    mapping(uint256 => uint256) public ownershipChange; // tokenId -> block number
 
     /// @dev Current count of token
     uint256 internal tokenId;
@@ -40,6 +41,113 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
         poolPointHistory[0].blk = block.number;
         poolPointHistory[0].ts = block.timestamp;
+    }
+
+    function vBalanceOf(uint256 _tokenId) external view override returns (uint256) {
+        if (ownershipChange[_tokenId] == block.number) return 0;
+        return _vBalanceOfAtTime(_tokenId, block.timestamp);
+    }
+
+    function vBalanceOfAtTime(uint256 _tokenId, uint256 _t) external view override returns (uint256) {
+        require(_t <= block.timestamp, "Invalid timestamp");
+        return _vBalanceOfAtTime(_tokenId, _t);
+    }
+
+    /// @notice Get the current voting power for `_tokenId`
+    /// @param _tokenId NFT for lock
+    /// @param _t Epoch time to return voting power at
+    /// @return User voting power
+    function _vBalanceOfAtTime(uint256 _tokenId, uint256 _t) private view returns (uint256) {
+        uint256 _epoch = userPointEpoch[_tokenId];
+        if (_epoch == 0) {
+            return 0;
+        } else {
+            Point memory lastPoint = userPointHistory[_tokenId][_epoch];
+            lastPoint.vBalance -= lastPoint.decliningRate * (int256(_t) - int256(lastPoint.ts));
+            if (lastPoint.vBalance < 0) {
+                lastPoint.vBalance = 0;
+            }
+            return uint256(lastPoint.vBalance);
+        }
+    }
+
+    function vBalanceOfAtBlk(uint256 _tokenId, uint256 _block) external view override returns (uint256) {
+        require(_block <= block.number, "Invalid block number");
+
+        // Binary search
+        uint256 _min = 0;
+        uint256 _max = userPointEpoch[_tokenId];
+        for (uint256 i = 0; i < 128; ++i) {
+            // Will be always enough for 128-bit numbers
+            if (_min >= _max) {
+                break;
+            }
+            uint256 _mid = _min.add(_max).add(1).div(2);
+            if (userPointHistory[_tokenId][_mid].blk <= _block) {
+                _min = _mid;
+            } else {
+                _max = _mid.sub(1);
+            }
+        }
+        Point memory uPoint = userPointHistory[_tokenId][_min];
+
+        uint256 maxEpoch = epoch;
+        uint256 _epoch = _findBlockEpoch(_block, maxEpoch);
+        Point memory point0 = poolPointHistory[_epoch];
+        uint256 dBlock;
+        uint256 dt;
+        if (_epoch < maxEpoch) {
+            Point memory point1 = poolPointHistory[_epoch + 1];
+            dBlock = point1.blk - point0.blk;
+            dt = point1.ts - point0.ts;
+        } else {
+            dBlock = block.number - point0.blk;
+            dt = block.timestamp - point0.ts;
+        }
+        uint256 blockTime = point0.ts;
+        if (dBlock != 0) {
+            blockTime += dt.mul(_block.sub(point0.blk)).div(dBlock);
+        }
+
+        uPoint.vBalance -= uPoint.decliningRate * int256(blockTime - uPoint.ts);
+        if (uPoint.vBalance >= 0) {
+            return uint256(uPoint.vBalance);
+        } else {
+            return 0;
+        }
+    }
+
+    /// @notice Binary search for pool epoch of block number
+    /// @param _block Block to find
+    /// @param _maxEpoch Don't go beyond this epoch
+    /// @return Approximate timestamp for block
+    function _findBlockEpoch(uint256 _block, uint256 _maxEpoch) private view returns (uint256) {
+        // Binary search
+        uint256 _min = 0;
+        uint256 _max = _maxEpoch;
+        for (uint256 i = 0; i < 128; ++i) {
+            // Will be always enough for 128-bit numbers
+            if (_min >= _max) {
+                break;
+            }
+            uint256 _mid = _min.add(_max).add(1).div(2);
+            if (poolPointHistory[_mid].blk <= _block) {
+                _min = _mid;
+            } else {
+                _max = _mid.sub(1);
+            }
+        }
+        return _min;
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal override {
+        // set the block of ownership transfer (for Flash NFT protection)
+        ownershipChange[tokenId] = block.number;
+        super._transfer(from, to, tokenId);
     }
 
     /// @notice Get timestamp when `_tokenId`'s lock finishes
