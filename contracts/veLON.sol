@@ -239,8 +239,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         _depositFor(_to, value0, end, _lockedTo, DepositType.MERGE_TYPE);
     }
 
-    /// @notice Record global and per-user data to checkpoint
-    /// @param _tokenId NFT token ID. No user checkpoint if 0
+    /// @notice Record global and per-user data to storage
+    /// @param _tokenId NFT token ID
     /// @param _oldLocked Pevious locked amount / end lock time for the user, to be replaced by new one
     /// @param _newLocked New locked amount / end lock time for the user
     function _updateLockedPoint(
@@ -383,6 +383,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             timeStart = timeEnd;
             timeEnd += WEEK;
         }
+
+        // should not reach here
         revert();
     }
 
