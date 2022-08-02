@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "./upgrade_proxy/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/proxy/TransparentUpgradeableProxy.sol";
 
 contract xLON is TransparentUpgradeableProxy {
     constructor(
