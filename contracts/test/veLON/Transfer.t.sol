@@ -4,7 +4,7 @@ import "contracts/test/veLON/Setup.t.sol";
 
 contract TestVeLONTransfer is TestVeLON {
     function testTransferByOwner() public {
-        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, MAX_LOCK_TIME);
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         vm.startPrank(user);
         veLon.approve(other, tokenId);
         veLon.transferFrom(user, other, tokenId);
@@ -13,7 +13,7 @@ contract TestVeLONTransfer is TestVeLON {
     }
 
     function testTransferByOther() public {
-        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, MAX_LOCK_TIME);
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         vm.prank(user);
         veLon.approve(other, tokenId);
         vm.prank(other);

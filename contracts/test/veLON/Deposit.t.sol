@@ -6,24 +6,24 @@ contract TestVeLONDeposit is TestVeLON {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     function testCreateLock() public {
-        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, MAX_LOCK_TIME);
+        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
     }
 
     function testFuzzCreateLock(uint256 _amount) public {
         vm.prank(user);
         vm.assume(_amount <= 100 * 1e18);
         vm.assume(_amount > 0);
-        veLon.createLock(_amount, MAX_LOCK_TIME);
+        veLon.createLock(_amount, DEFAULT_LOCK_TIME);
     }
 
     function testCannotCreateLockWithZero() public {
         vm.prank(user);
         vm.expectRevert("Zero lock amount");
-        veLon.createLock(0, MAX_LOCK_TIME);
+        veLon.createLock(0, DEFAULT_LOCK_TIME);
     }
 
     function testDepositFor() public {
-        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, MAX_LOCK_TIME);
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         require(tokenId != 0, "No lock created yet");
 
         stakerLon = BalanceSnapshot.take(user, address(lon));
@@ -38,13 +38,13 @@ contract TestVeLONDeposit is TestVeLON {
     }
 
     function testDepositForByOther() public {
-        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, MAX_LOCK_TIME);
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         vm.prank(other);
         veLon.depositFor(tokenId, 100);
     }
 
     function testFuzzDepositFor(uint256 _amount) public {
-        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, MAX_LOCK_TIME);
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         vm.prank(user);
         vm.assume(_amount <= 50 * 1e18);
         vm.assume(_amount > 0);
@@ -82,9 +82,9 @@ contract TestVeLONDeposit is TestVeLON {
     }
 
     function testMerge() public {
-        uint256 _fromTokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, MAX_LOCK_TIME);
+        uint256 _fromTokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
 
-        uint256 _toTokenId = _stakeAndValidate(other, DEFAULT_STAKE_AMOUNT, MAX_LOCK_TIME);
+        uint256 _toTokenId = _stakeAndValidate(other, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         vm.prank(other);
         veLon.approve(address(user), _toTokenId);
 

@@ -20,7 +20,7 @@ contract TestVeLON is Test {
     veLON veLon;
 
     uint256 constant DEFAULT_STAKE_AMOUNT = 1e18;
-    uint256 constant MAX_LOCK_TIME = 365 days;
+    uint256 constant DEFAULT_LOCK_TIME = 14 days;
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
 
     // record the balnce of Lon and VeLon in VM
@@ -63,7 +63,7 @@ contract TestVeLON is Test {
         assertEq(veLon.owner(), address(this));
         assertEq(address(veLon.token()), address(lon));
         assertEq(veLon.tokenSupply(), 0);
-        assertEq(veLon.maxLockDuration(), MAX_LOCK_TIME);
+        assertEq(veLon.maxLockDuration(), 365 days);
         assertEq(veLon.earlyWithdrawPenaltyRate(), 3000);
     }
 
@@ -74,7 +74,7 @@ contract TestVeLON is Test {
     function _vePowerAdd(uint256 stakeAmount, uint256 lockDuration) internal returns (uint256) {
         // Unlocktime is rounded down to weeks
         uint256 unlockTime = ((block.timestamp + lockDuration) / 1 weeks) * 1 weeks;
-        uint256 power = (stakeAmount / MAX_LOCK_TIME) * (unlockTime - block.timestamp);
+        uint256 power = (stakeAmount / veLon.maxLockDuration()) * (unlockTime - block.timestamp);
         return power;
     }
 
