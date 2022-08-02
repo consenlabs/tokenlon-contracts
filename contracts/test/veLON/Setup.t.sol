@@ -22,6 +22,7 @@ contract TestVeLON is Test {
     uint256 constant DEFAULT_STAKE_AMOUNT = 1e18;
     uint256 constant MAX_LOCK_TIME = 365 days;
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
+    uint256 constant MAX_NUM_USER = 5;
 
     // record the balnce of Lon and VeLon in VM
     BalanceSnapshot.Snapshot public stakerLon;

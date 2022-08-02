@@ -19,8 +19,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
     uint256 internal constant MULTIPLIER = 1 ether;
     address public immutable token;
-    address internal dstToken;
-    bool internal conversion = false;
+    address public dstToken = address(0x0);
+    bool public conversion = false;
 
     uint256 public tokenSupply;
     uint256 public epoch;
@@ -50,17 +50,20 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     function enableConversion(address _dstToken) external override onlyOwner {
         conversion = true;
         dstToken = _dstToken;
+        earlyWithdrawPenaltyRate = 0;
     }
 
     /// @notice Disable veLON migration.
     function disableConversion() external override onlyOwner {
         conversion = false;
         dstToken = address(0x0);
+        earlyWithdrawPenaltyRate = 3000;
     }
 
     /// @notice Help veLON holders convert their veLON to xxxLON.
     function convertVeLontoXXXLon(bytes calldata _encodeData) external override {
         require(conversion, "conversion is not enabled");
+        earlyWithdrawPenaltyRate = 0;
         
         uint256 tokensLength = balanceOf(msg.sender);
         uint256 lockedLonAmount = 0;
@@ -68,8 +71,9 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < tokensLength; i++) {
             uint256 _tokenId = tokenOfOwnerByIndex(msg.sender, i);
             lockedLonAmount = lockedLonAmount.add(locked[_tokenId].amount);
-            _withdrawTo(_tokenId, false, address(this));
+            _withdrawTo(_tokenId, true, address(this));
         }
+        IERC20(token).approve(dstToken, lockedLonAmount);
         IxxxLon xxxLon = IxxxLon(dstToken);
         xxxLon.mintFor(lockedLonAmount, _encodeData);
     }
