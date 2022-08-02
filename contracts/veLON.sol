@@ -28,13 +28,13 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[user_epoch]
     mapping(uint256 => LockedBalance) public locked; // tokenId -> locked balance
     mapping(uint256 => uint256) public userPointEpoch; // tokenId -> epoch
-    mapping(uint256 => int256) public slopeChanges; // time -> signed slope change
+    mapping(uint256 => int256) public dRateChanges; // time -> signed declining rate change
 
     /// @dev Current count of token
     uint256 internal tokenId;
 
     /// @notice Contract constructor
-    /// @param _tokenAddr `ERC20CRV` token address
+    /// @param _tokenAddr token address
     constructor(address _tokenAddr) ERC721("veLON NFT", "veLON") Ownable(msg.sender) {
         token = _tokenAddr;
 
@@ -179,7 +179,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         // Both _oldLocked.end could be current or expired (>/< block.timestamp)
         // value == 0 (extend lock) or value > 0 (add to lock or extend lock)
         // _locked.end > block.timestamp (always)
-        _checkpoint(_tokenId, _oldLocked, _lockedBalance);
+        _updateLockedPoint(_tokenId, _oldLocked, _lockedBalance);
 
         if (_value != 0 && _depositType != DepositType.MERGE_TYPE) {
             assert(IERC20(token).transferFrom(msg.sender, address(this), _value));
@@ -211,7 +211,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         locked[_tokenId] = LockedBalance(0, 0);
         tokenSupply = tokenSupply.sub(amount);
 
-        _checkpoint(_tokenId, _locked, LockedBalance(0, 0));
+        _updateLockedPoint(_tokenId, _locked, LockedBalance(0, 0));
 
         // Burn the NFT
         address owner = ownerOf(_tokenId);
@@ -242,16 +242,16 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         uint256 end = _lockedFrom.end >= _lockedTo.end ? _lockedFrom.end : _lockedTo.end;
 
         locked[_from] = LockedBalance(0, 0);
-        _checkpoint(_from, _lockedFrom, LockedBalance(0, 0));
+        _updateLockedPoint(_from, _lockedFrom, LockedBalance(0, 0));
         _burn(_from);
         _depositFor(_to, value0, end, _lockedTo, DepositType.MERGE_TYPE);
     }
 
-    /// @notice Record global and per-user data to checkpoint
-    /// @param _tokenId NFT token ID. No user checkpoint if 0
-    /// @param _oldLocked Pevious locked amount / end lock time for the user
+    /// @notice Record global and per-user data to storage
+    /// @param _tokenId NFT token ID
+    /// @param _oldLocked Pevious locked amount / end lock time for the user, to be replaced by new one
     /// @param _newLocked New locked amount / end lock time for the user
-    function _checkpoint(
+    function _updateLockedPoint(
         uint256 _tokenId,
         LockedBalance memory _oldLocked,
         LockedBalance memory _newLocked
@@ -262,36 +262,82 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         int256 dSlopeNew = 0;
         uint256 _epoch = epoch;
 
-        if (_tokenId != 0) {
-            // Calculate slopes and biases
-            // Kept at zero when they have to
-            if (_oldLocked.end > block.timestamp && _oldLocked.amount > 0) {
-                pointOld.slope = int256(_oldLocked.amount / maxLockDuration);
-                pointOld.bias = pointOld.slope * int256(_oldLocked.end - block.timestamp);
-            }
-            if (_newLocked.end > block.timestamp && _newLocked.amount > 0) {
-                pointNew.slope = int256(_newLocked.amount / maxLockDuration);
-                pointNew.bias = pointNew.slope * int256(_newLocked.end - block.timestamp);
-            }
+        // Calculate decliningRates and vBalances
+        // Kept at zero if not active anymore
+        if (_lockIsActive(_oldLocked)) {
+            pointOld.decliningRate = int256(_oldLocked.amount / maxLockDuration);
+            pointOld.vBalance = pointOld.decliningRate * int256(_oldLocked.end - block.timestamp);
+        }
+        if (_lockIsActive(_newLocked)) {
+            pointNew.decliningRate = int256(_newLocked.amount / maxLockDuration);
+            pointNew.vBalance = pointNew.decliningRate * int256(_newLocked.end - block.timestamp);
+        }
 
-            // Read values of scheduled changes in the slope
-            // _oldLocked.end can be in the past and in the future
-            // _newLocked.end can ONLY by in the FUTURE unless everything expired: than zeros
-            dSlopeOld = slopeChanges[_oldLocked.end];
-            if (_newLocked.end != 0) {
-                if (_newLocked.end == _oldLocked.end) {
-                    dSlopeNew = dSlopeOld;
-                } else {
-                    dSlopeNew = slopeChanges[_newLocked.end];
-                }
+        // Read values of scheduled changes in the decliningRate
+        // _oldLocked.end can be in the past and in the future
+        // _newLocked.end can ONLY by in the FUTURE unless everything expired: than zeros
+        dSlopeOld = dRateChanges[_oldLocked.end];
+        if (_newLocked.end != 0) {
+            if (_newLocked.end == _oldLocked.end) {
+                dSlopeNew = dSlopeOld;
+            } else {
+                dSlopeNew = dRateChanges[_newLocked.end];
             }
         }
 
-        Point memory poolLastPoint = Point({ bias: 0, slope: 0, ts: block.timestamp, blk: block.number });
+        Point memory poolLastPoint = Point({ vBalance: 0, decliningRate: 0, ts: block.timestamp, blk: block.number });
         if (_epoch > 0) {
             poolLastPoint = poolPointHistory[_epoch];
         }
 
+        (poolLastPoint, _epoch) = _syncGlobalPoints(poolLastPoint, _epoch);
+
+        // If last point was in this block, the decliningRate change has been applied already
+        // But in such case we have 0 decliningRate(s)
+        poolLastPoint.decliningRate += (pointNew.decliningRate - pointOld.decliningRate);
+        poolLastPoint.vBalance += (pointNew.vBalance - pointOld.vBalance);
+        if (poolLastPoint.decliningRate < 0) {
+            poolLastPoint.decliningRate = 0;
+        }
+        if (poolLastPoint.vBalance < 0) {
+            poolLastPoint.vBalance = 0;
+        }
+
+        // Record the changed point into history
+        poolPointHistory[_epoch] = poolLastPoint;
+        // Sync storage variable now
+        epoch = _epoch;
+
+        // Schedule the decliningRate changes (decliningRate is going down)
+        // We subtract new_user_decliningRate from [_newLocked.end]
+        // and add old_user_decliningRate to [_oldLocked.end]
+        if (_oldLocked.end > block.timestamp) {
+            // dSlopeOld was <something> - pointOld.decliningRate, so we cancel that
+            dSlopeOld += pointOld.decliningRate;
+            if (_newLocked.end == _oldLocked.end) {
+                dSlopeOld -= pointNew.decliningRate; // It was a new deposit, not extension
+            }
+            dRateChanges[_oldLocked.end] = dSlopeOld;
+        }
+
+        if (_newLocked.end > block.timestamp) {
+            if (_newLocked.end > _oldLocked.end) {
+                dSlopeNew -= pointNew.decliningRate; // old decliningRate disappeared at this point
+                dRateChanges[_newLocked.end] = dSlopeNew;
+            }
+            // else: we recorded it already in dSlopeOld
+        }
+        // Now handle user history
+        uint256 user_epoch = userPointEpoch[_tokenId] + 1;
+
+        userPointEpoch[_tokenId] = user_epoch;
+        pointNew.ts = block.timestamp;
+        pointNew.blk = block.number;
+        userPointHistory[_tokenId][user_epoch] = pointNew;
+    }
+
+    // Go over weeks to fill history and calculate what the current pool point is
+    function _syncGlobalPoints(Point memory poolLastPoint, uint256 _epoch) private returns (Point memory, uint256) {
         // block slope = dBlock/dTime
         // If last point is already recorded in this block, slope=0
         // But that's ok because we know the block in such case
@@ -300,101 +346,57 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             blockSlope = (MULTIPLIER * (block.number - poolLastPoint.blk)) / (block.timestamp - poolLastPoint.ts);
         }
 
-        // Go over weeks to fill history and calculate what the current pool point is
-        {
-            uint256 timeStart = poolLastPoint.ts;
-            // initial_poolLastPoint is used for extrapolation to calculate block number
-            // (approximately, for *At methods) and save them
-            // as we cannot figure that out exactly from inside the contract
-            Point memory initial_poolLastPoint = poolLastPoint;
-            uint256 timeEnd = ((timeStart / WEEK) * WEEK) + WEEK;
-            // start calculating from the next epoch
+        uint256 timeStart = poolLastPoint.ts;
+        // initial_poolLastPoint is used for extrapolation to calculate block number
+        // (approximately, for *At methods) and save them
+        // as we cannot figure that out exactly from inside the contract
+        Point memory initial_poolLastPoint = poolLastPoint;
+        uint256 timeEnd = ((timeStart / WEEK) * WEEK) + WEEK;
+        for (uint256 i = 0; i < 255; ++i) {
+            // Assume it won't exceed 255 weeks since last time pool point updated.
+            // If it does, users will be able to withdraw but vote weight will be broken
+            int256 dSlope = 0;
+            if (timeEnd > block.timestamp) {
+                timeEnd = block.timestamp;
+            } else {
+                dSlope = dRateChanges[timeEnd];
+            }
+
+            // update decliningRate and vBalance
+            poolLastPoint.vBalance -= poolLastPoint.decliningRate * (int256(timeEnd - timeStart));
+            poolLastPoint.decliningRate += dSlope;
+            if (poolLastPoint.vBalance < 0) {
+                // This can happen
+                poolLastPoint.vBalance = 0;
+            }
+            if (poolLastPoint.decliningRate < 0) {
+                // This cannot happen - just in case
+                poolLastPoint.decliningRate = 0;
+            }
+
+            // update ts and block (approximately block number)
+            poolLastPoint.ts = timeEnd;
+            poolLastPoint.blk = initial_poolLastPoint.blk + (blockSlope * (timeEnd - initial_poolLastPoint.ts)) / MULTIPLIER;
+
+            if (timeEnd == block.timestamp) {
+                poolLastPoint.blk = block.number;
+                // poolLastPoint may needs to be adjusted using user points and record in new epoch index
+                return (poolLastPoint, _epoch + 1);
+            } else {
+                poolPointHistory[_epoch] = poolLastPoint;
+            }
+
+            // move time window and continue
             _epoch += 1;
-            for (uint256 i = 0; i < 255; ++i) {
-                // Assume it won't exceed 255 weeks since last time pool point updated.
-                // If it does, users will be able to withdraw but vote weight will be broken
-                int256 dSlope = 0;
-                if (timeEnd > block.timestamp) {
-                    timeEnd = block.timestamp;
-                } else {
-                    dSlope = slopeChanges[timeEnd];
-                }
-
-                // update slope and bias
-                poolLastPoint.bias -= poolLastPoint.slope * (int256(timeEnd - timeStart));
-                poolLastPoint.slope += dSlope;
-                if (poolLastPoint.bias < 0) {
-                    // This can happen
-                    poolLastPoint.bias = 0;
-                }
-                if (poolLastPoint.slope < 0) {
-                    // This cannot happen - just in case
-                    poolLastPoint.slope = 0;
-                }
-
-                // update ts and block (approximately block number)
-                poolLastPoint.ts = timeEnd;
-                poolLastPoint.blk = initial_poolLastPoint.blk + (blockSlope * (timeEnd - initial_poolLastPoint.ts)) / MULTIPLIER;
-                if (timeEnd == block.timestamp) {
-                    poolLastPoint.blk = block.number;
-                    break;
-                } else {
-                    poolPointHistory[_epoch] = poolLastPoint;
-                }
-
-                // move time window and continue
-                timeStart = timeEnd;
-                timeEnd += WEEK;
-                _epoch += 1;
-            }
+            timeStart = timeEnd;
+            timeEnd += WEEK;
         }
 
-        // Now poolPointHistory is filled until t=now
-        epoch = _epoch;
+        // should not reach here
+        revert();
+    }
 
-        if (_tokenId != 0) {
-            // If last point was in this block, the slope change has been applied already
-            // But in such case we have 0 slope(s)
-            poolLastPoint.slope += (pointNew.slope - pointOld.slope);
-            poolLastPoint.bias += (pointNew.bias - pointOld.bias);
-            if (poolLastPoint.slope < 0) {
-                poolLastPoint.slope = 0;
-            }
-            if (poolLastPoint.bias < 0) {
-                poolLastPoint.bias = 0;
-            }
-        }
-
-        // Record the changed point into history
-        poolPointHistory[_epoch] = poolLastPoint;
-
-        if (_tokenId != 0) {
-            // Schedule the slope changes (slope is going down)
-            // We subtract new_user_slope from [_newLocked.end]
-            // and add old_user_slope to [_oldLocked.end]
-            if (_oldLocked.end > block.timestamp) {
-                // dSlopeOld was <something> - pointOld.slope, so we cancel that
-                dSlopeOld += pointOld.slope;
-                if (_newLocked.end == _oldLocked.end) {
-                    dSlopeOld -= pointNew.slope; // It was a new deposit, not extension
-                }
-                slopeChanges[_oldLocked.end] = dSlopeOld;
-            }
-
-            if (_newLocked.end > block.timestamp) {
-                if (_newLocked.end > _oldLocked.end) {
-                    dSlopeNew -= pointNew.slope; // old slope disappeared at this point
-                    slopeChanges[_newLocked.end] = dSlopeNew;
-                }
-                // else: we recorded it already in dSlopeOld
-            }
-            // Now handle user history
-            uint256 user_epoch = userPointEpoch[_tokenId] + 1;
-
-            userPointEpoch[_tokenId] = user_epoch;
-            pointNew.ts = block.timestamp;
-            pointNew.blk = block.number;
-            userPointHistory[_tokenId][user_epoch] = pointNew;
-        }
+    function _lockIsActive(LockedBalance memory lock) private returns (bool) {
+        return lock.end > block.timestamp && lock.amount > 0;
     }
 }

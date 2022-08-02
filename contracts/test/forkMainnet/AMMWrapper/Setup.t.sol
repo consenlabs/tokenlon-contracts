@@ -25,9 +25,24 @@ contract TestAMMWrapper is StrategySharedSetup {
     IERC20 dai = IERC20(DAI_ADDRESS);
     IERC20[] tokens = [weth, usdt, dai];
 
-    uint256 SUBSIDY_FACTOR = 3;
+    uint16 DEFAULT_FEE_FACTOR = 1000;
     uint256 DEADLINE = block.timestamp + 1;
     AMMLibEIP712.Order DEFAULT_ORDER;
+
+    event Swapped(
+        string source,
+        bytes32 indexed transactionHash,
+        address indexed userAddr,
+        bool relayed,
+        address takerAssetAddr,
+        uint256 takerAssetAmount,
+        address makerAddr,
+        address makerAssetAddr,
+        uint256 makerAssetAmount,
+        address receiverAddr,
+        uint256 settleAmount,
+        uint16 feeFactor
+    );
 
     // effectively a "beforeEach" block
     function setUp() public virtual {
@@ -74,7 +89,7 @@ contract TestAMMWrapper is StrategySharedSetup {
     function _deployStrategyAndUpgrade() internal override returns (address) {
         ammWrapper = new AMMWrapper(
             address(this), // This contract would be the operator
-            SUBSIDY_FACTOR,
+            DEFAULT_FEE_FACTOR,
             address(userProxy),
             ISpender(address(spender)),
             permanentStorage,

@@ -16,7 +16,6 @@ import * as addr from "~/test/utils/address"
 import {
     PMM,
     AllowanceTarget,
-    MockERC1271Wallet,
     MarketMakerProxy,
     PermanentStorage,
     Spender,
@@ -54,7 +53,6 @@ describe("Test PMM contract", function () {
     let makerProxy: MarketMakerProxy
     let permanentStorage: PermanentStorage
     let userProxy: UserProxy
-    let mockERC1271Wallet: MockERC1271Wallet
     let allowanceTarget: AllowanceTarget, spender: Spender
     let pmm: PMM
 
@@ -80,11 +78,6 @@ describe("Test PMM contract", function () {
             upgradeAdmin.address,
             wallet.operator.address,
         )) as UserProxy
-
-        // Deploy MockERC1271Wallet
-        mockERC1271Wallet = (await (
-            await ethers.getContractFactory("MockERC1271Wallet")
-        ).deploy(wallet.operator.address)) as MockERC1271Wallet
 
         // Deploy Spender
         spender = (await (
@@ -136,13 +129,6 @@ describe("Test PMM contract", function () {
             await TKN.approveMax(wallet.maker, zxERC20ProxyAddr)
         }
 
-        // User approve ERC1271 wallet to transfer from their assets in wallet contract
-        await mockERC1271Wallet
-            .connect(wallet.operator)
-            .setAllowance(
-                [DAI.address, SUSHI.address, USDC.address, USDT.address],
-                allowanceTarget.address,
-            )
         // Maker proxy approve zx ERC20 proxy
         await makerProxy.setAllowance(
             [DAI.address, SUSHI.address, USDC.address, USDT.address, WETH.address],
@@ -435,114 +421,6 @@ describe("Test PMM contract", function () {
             )
             expect(pmmUsdcFeeBalanceAfter.sub(pmmUsdcFeeBalanceBefore)).eq(
                 ethers.utils.parseUnits("0.3", "mwei"),
-            )
-        })
-
-        it(`Should fill 100 DAI(712 sig user using 1271 wallet) <-> 100 USDC(712 market maker) order, pmm receive fee and receiver receive funds`, async () => {
-            await DAI(200).setBalanceFor(mockERC1271Wallet.address)
-            const mockERC1271WalletDaiBalanceBefore = await DAI.balanceOf(mockERC1271Wallet.address)
-            const receiverUsdcBalanceBefore = await USDC.balanceOf(wallet.receiver.address)
-            const makerDaiBalanceBefore = await DAI.balanceOf(wallet.maker.address)
-            const pmmUsdcFeeBalanceBefore = await USDC.balanceOf(pmm.address)
-            const order = {
-                takerAddress: pmm.address.toLowerCase(),
-                takerFee: 0,
-                takerAssetData: assetDataUtils.encodeERC20AssetData(addr.DAI_ADDR.toLowerCase()),
-                takerAssetAmount: new BigNumber(100 * Math.pow(10, 18)),
-
-                makerAddress: wallet.maker.address.toLowerCase(),
-                makerAssetData: assetDataUtils.encodeERC20AssetData(addr.USDC_ADDR.toLowerCase()),
-                makerAssetAmount: new BigNumber(100 * Math.pow(10, 6)),
-                makerFee: 0,
-
-                senderAddress: pmm.address.toLowerCase(),
-                // using 1271 wallet
-                feeRecipientAddress: mockERC1271Wallet.address.toLowerCase(),
-                expirationTimeSeconds: DEFAULT_EXPIRY,
-                exchangeAddress: zxExchangeAddr.toLowerCase(),
-            }
-
-            const signedOrder = await sign712Order(order, wallet.maker, FEE_FACTOR)
-
-            const signedTx = await signTx(
-                contractWrappers(
-                    getWalletFromPrv(wallet.user.privateKey.slice(2)),
-                    zxExchangeAddr,
-                    zxERC20ProxyAddr,
-                ),
-                signedOrder,
-                // should be receiver
-                wallet.receiver.address,
-                wallet.user,
-            )
-            const payload = pmm.interface.encodeFunctionData("fill", [
-                ethers.utils.parseUnits(signedTx.salt.toString(), 0),
-                signedTx.fillData,
-                signedTx.signature,
-            ])
-            await userProxy.toPMM(payload)
-
-            const mockERC1271WalletDaiBalanceAfter = await DAI.balanceOf(mockERC1271Wallet.address)
-            const receiverUsdcBalanceAfter = await USDC.balanceOf(wallet.receiver.address)
-            const makerDaiBalanceAfter = await DAI.balanceOf(wallet.maker.address)
-            const pmmUsdcFeeBalanceAfter = await USDC.balanceOf(pmm.address)
-
-            expect(mockERC1271WalletDaiBalanceBefore.sub(mockERC1271WalletDaiBalanceAfter)).eq(
-                ethers.utils.parseUnits("100"),
-            )
-            expect(receiverUsdcBalanceAfter.sub(receiverUsdcBalanceBefore)).eq(
-                ethers.utils.parseUnits("99.7", "mwei"),
-            )
-            expect(makerDaiBalanceAfter.sub(makerDaiBalanceBefore)).eq(
-                ethers.utils.parseUnits("100"),
-            )
-            expect(pmmUsdcFeeBalanceAfter.sub(pmmUsdcFeeBalanceBefore)).eq(
-                ethers.utils.parseUnits("0.3", "mwei"),
-            )
-
-            // 0x protocol replay protection
-            await expect(userProxy.toPMM(payload)).to.be.revertedWith("INVALID_TX_HASH")
-        })
-
-        it(`Should fail to complete order if user is using a non-ERC1271 wallet`, async () => {
-            const order = {
-                takerAddress: pmm.address.toLowerCase(),
-                takerFee: 0,
-                takerAssetData: assetDataUtils.encodeERC20AssetData(addr.DAI_ADDR.toLowerCase()),
-                takerAssetAmount: new BigNumber(100 * Math.pow(10, 18)),
-
-                makerAddress: wallet.maker.address.toLowerCase(),
-                makerAssetData: assetDataUtils.encodeERC20AssetData(addr.USDC_ADDR.toLowerCase()),
-                makerAssetAmount: new BigNumber(100 * Math.pow(10, 6)),
-                makerFee: 0,
-
-                senderAddress: pmm.address.toLowerCase(),
-                // using non-ERC1271 wallet
-                feeRecipientAddress: wallet.receiver.address.toLowerCase(),
-                expirationTimeSeconds: DEFAULT_EXPIRY,
-                exchangeAddress: zxExchangeAddr.toLowerCase(),
-            }
-
-            const signedOrder = await sign712Order(order, wallet.maker, FEE_FACTOR)
-
-            const signedTx = await signTx(
-                contractWrappers(
-                    getWalletFromPrv(wallet.user.privateKey.slice(2)),
-                    zxExchangeAddr,
-                    zxERC20ProxyAddr,
-                ),
-                signedOrder,
-                // should be receiver
-                wallet.receiver.address,
-                wallet.user,
-            )
-            const payload = pmm.interface.encodeFunctionData("fill", [
-                ethers.utils.parseUnits(signedTx.salt.toString(), 0),
-                signedTx.fillData,
-                signedTx.signature,
-            ])
-            await expect(userProxy.toPMM(payload)).to.be.revertedWith(
-                "PMM: invalid contract address",
             )
         })
     })

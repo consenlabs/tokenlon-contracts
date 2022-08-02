@@ -13,7 +13,20 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
     uint24 constant INVALID_ZERO_FEE = 0;
     uint24 constant INVALID_OVER_FEE = type(uint24).max;
 
-    event Swapped(AMMWrapperWithPath.TxMetaData, AMMLibEIP712.Order order);
+    event Swapped(
+        string source,
+        bytes32 indexed transactionHash,
+        address indexed userAddr,
+        bool relayed,
+        address takerAssetAddr,
+        uint256 takerAssetAmount,
+        address makerAddr,
+        address makerAssetAddr,
+        uint256 makerAssetAmount,
+        address receiverAddr,
+        uint256 settleAmount,
+        uint16 feeFactor
+    );
 
     AMMQuoter ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
 
@@ -169,6 +182,7 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
 
+        vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
@@ -187,6 +201,7 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
 
+        vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
@@ -194,34 +209,39 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
     }
 
     function testEmitSwappedEvent() public {
+        // this one was make compact in order to avoid stack too deep
+        // focusing on event fileds in this case
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        address[] memory path = DEFAULT_MULTI_HOP_PATH;
-        uint24[] memory fees = DEFAULT_MULTI_HOP_POOL_FEES;
-        bytes memory makerSpecificData = _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, path, fees);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, makerSpecificData, path);
-        // Set subsidy factor to 0
-        ammWrapperWithPath.setSubsidyFactor(uint256(0));
+        bytes memory makerSpecificData = _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, DEFAULT_MULTI_HOP_PATH, DEFAULT_MULTI_HOP_POOL_FEES);
+        bytes memory payload = _genTradePayload(order, feeFactor, _signTrade(userPrivateKey, order), makerSpecificData, DEFAULT_MULTI_HOP_PATH);
 
-        uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
-            order.makerAddr,
-            order.takerAssetAddr,
-            order.makerAssetAddr,
-            order.takerAssetAmount,
-            path,
-            makerSpecificData
-        );
-        vm.expectEmit(false, false, false, true);
-        IAMMWrapper.TxMetaData memory txMetaData = IAMMWrapper.TxMetaData(
-            "Uniswap V3", // source
-            AMMLibEIP712._getOrderHash(order), // transactionHash
-            expectedOutAmount, // settleAmount: no fee so settled amount is the same as received amount
-            expectedOutAmount, // receivedAmount
-            uint16(feeFactor), // Fee factor: 0
-            uint16(0) // Subsidy factor: 0
-        );
-        emit Swapped(txMetaData, order);
+        {
+            uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
+                order.makerAddr,
+                order.takerAssetAddr,
+                order.makerAssetAddr,
+                order.takerAssetAmount,
+                DEFAULT_MULTI_HOP_PATH,
+                makerSpecificData
+            );
+            vm.expectEmit(false, false, false, true);
+            emit Swapped(
+                "Uniswap V3",
+                AMMLibEIP712._getOrderHash(order),
+                order.userAddr,
+                true, // relayed
+                order.takerAssetAddr,
+                order.takerAssetAmount,
+                order.makerAddr,
+                order.makerAssetAddr,
+                order.makerAssetAmount,
+                order.receiverAddr,
+                expectedOutAmount, // No fee so settled amount is the same as received amount
+                uint16(feeFactor) // Fee factor: 0
+            );
+        }
+        vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
     }
 }

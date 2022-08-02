@@ -31,7 +31,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
 
     // Below are the variables which consume storage slots.
     address public operator;
-    uint256 public subsidyFactor;
+    uint16 public defaultFeeFactor;
     ISpender public spender;
 
     /* Struct declaration */
@@ -94,7 +94,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
      *************************************************************/
     constructor(
         address _operator,
-        uint256 _subsidyFactor,
+        uint16 _defaultFeeFactor,
         address _userProxy,
         ISpender _spender,
         IPermanentStorage _permStorage,
@@ -103,7 +103,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         address _sushiwapRouter
     ) {
         operator = _operator;
-        subsidyFactor = _subsidyFactor;
+        defaultFeeFactor = _defaultFeeFactor;
         userProxy = _userProxy;
         spender = _spender;
         permStorage = _permStorage;
@@ -125,10 +125,13 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         emit UpgradeSpender(_newSpender);
     }
 
-    function setSubsidyFactor(uint256 _subsidyFactor) external onlyOperator {
-        subsidyFactor = _subsidyFactor;
+    /**
+     * @dev set default fee factor
+     */
+    function setDefaultFeeFactor(uint16 _defaultFeeFactor) external onlyOperator {
+        defaultFeeFactor = _defaultFeeFactor;
 
-        emit SetSubsidyFactor(_subsidyFactor);
+        emit SetDefaultFeeFactor(defaultFeeFactor);
     }
 
     /**
@@ -190,16 +193,16 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
             _deadline
         );
         require(order.deadline >= block.timestamp, "AMMWrapper: expired order");
-        TxMetaData memory txMetaData;
-        InternalTxData memory internalTxData;
 
         // These variables are copied straight from function parameters and
         // used to bypass stack too deep error.
-        txMetaData.subsidyFactor = uint16(subsidyFactor);
+        TxMetaData memory txMetaData;
+        InternalTxData memory internalTxData;
         txMetaData.feeFactor = uint16(_feeFactor);
-        if (!permStorage.isRelayerValid(tx.origin)) {
-            txMetaData.feeFactor = (txMetaData.subsidyFactor > txMetaData.feeFactor) ? txMetaData.subsidyFactor : txMetaData.feeFactor;
-            txMetaData.subsidyFactor = 0;
+        txMetaData.relayed = permStorage.isRelayerValid(tx.origin);
+        if (!txMetaData.relayed) {
+            // overwrite feeFactor with defaultFeeFactor if not from valid relayer
+            txMetaData.feeFactor = defaultFeeFactor;
         }
 
         // Assign trade vairables
@@ -219,29 +222,19 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
 
         _prepare(order, internalTxData);
 
-        // minAmount = makerAssetAmount * (10000 - subsidyFactor) / 10000
-        uint256 _minAmount = order.makerAssetAmount.mul((LibConstant.BPS_MAX.sub(txMetaData.subsidyFactor))).div(LibConstant.BPS_MAX);
-        (txMetaData.source, txMetaData.receivedAmount) = _swap(order, internalTxData, _minAmount);
+        {
+            // Set min amount for swap = _order.makerAssetAmount * (1 + feeFactor)
+            uint256 swapMinOutAmount = order.makerAssetAmount.mul(LibConstant.BPS_MAX.add(txMetaData.feeFactor)).div(LibConstant.BPS_MAX);
+            (txMetaData.source, txMetaData.receivedAmount) = _swap(order, internalTxData, swapMinOutAmount);
 
-        // Settle
-        txMetaData.settleAmount = _settle(order, txMetaData, internalTxData);
+            // Settle
+            // Calculate fee using actually received from swap
+            uint256 actualFee = txMetaData.receivedAmount.mul(txMetaData.feeFactor).div(LibConstant.BPS_MAX);
+            txMetaData.settleAmount = txMetaData.receivedAmount.sub(actualFee);
+            _settle(order, internalTxData, txMetaData.settleAmount);
+        }
 
-        emit Swapped(
-            txMetaData.source,
-            txMetaData.transactionHash,
-            order.userAddr,
-            order.takerAssetAddr,
-            order.takerAssetAmount,
-            order.makerAddr,
-            order.makerAssetAddr,
-            order.makerAssetAmount,
-            order.receiverAddr,
-            txMetaData.settleAmount,
-            txMetaData.receivedAmount,
-            txMetaData.feeFactor,
-            txMetaData.subsidyFactor
-        );
-
+        emitSwappedEvent(order, txMetaData);
         return txMetaData.settleAmount;
     }
 
@@ -365,68 +358,23 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
 
     /**
      * @dev internal function of `trade`.
-     * It collects fee from the trade or compensates the trade based on the actual amount swapped.
+     * It transfer assets to receiver specified in order.
      */
     function _settle(
         AMMLibEIP712.Order memory _order,
-        TxMetaData memory _txMetaData,
-        InternalTxData memory _internalTxData
-    ) internal returns (uint256 settleAmount) {
-        // Convert var type from uint16 to uint256
-        uint256 _feeFactor = _txMetaData.feeFactor;
-        uint256 _subsidyFactor = _txMetaData.subsidyFactor;
-
-        if (_txMetaData.receivedAmount == _order.makerAssetAmount) {
-            settleAmount = _txMetaData.receivedAmount;
-        } else if (_txMetaData.receivedAmount > _order.makerAssetAmount) {
-            // shouldCollectFee = ((receivedAmount - makerAssetAmount) / receivedAmount) > (feeFactor / 10000)
-            bool shouldCollectFee = _txMetaData.receivedAmount.sub(_order.makerAssetAmount).mul(LibConstant.BPS_MAX) >
-                _feeFactor.mul(_txMetaData.receivedAmount);
-            if (shouldCollectFee) {
-                // settleAmount = receivedAmount * (1 - feeFactor) / 10000
-                settleAmount = _txMetaData.receivedAmount.mul(LibConstant.BPS_MAX.sub(_feeFactor)).div(LibConstant.BPS_MAX);
-            } else {
-                settleAmount = _order.makerAssetAmount;
-            }
-        } else {
-            require(_subsidyFactor > 0, "AMMWrapper: this trade will not be subsidized");
-
-            // If fee factor is smaller than subsidy factor, choose fee factor as actual subsidy factor
-            // since we should subsidize less if we charge less.
-            uint256 actualSubsidyFactor = (_subsidyFactor < _feeFactor) ? _subsidyFactor : _feeFactor;
-
-            // inSubsidyRange = ((makerAssetAmount - receivedAmount) / receivedAmount) > (actualSubsidyFactor / 10000)
-            bool inSubsidyRange = _order.makerAssetAmount.sub(_txMetaData.receivedAmount).mul(LibConstant.BPS_MAX) <=
-                actualSubsidyFactor.mul(_txMetaData.receivedAmount);
-            require(inSubsidyRange, "AMMWrapper: amount difference larger than subsidy amount");
-
-            uint256 selfBalance = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
-            bool hasEnoughToSubsidize = selfBalance >= _order.makerAssetAmount;
-            if (!hasEnoughToSubsidize && _isInternalAssetETH(_internalTxData.makerAssetInternalAddr)) {
-                // We treat ETH and WETH the same so we have to convert WETH to ETH if ETH balance is not enough.
-                uint256 amountShort = _order.makerAssetAmount.sub(selfBalance);
-                if (amountShort <= weth.balanceOf(address(this))) {
-                    // Withdraw the amount short from WETH
-                    weth.withdraw(amountShort);
-                    // Now we have enough
-                    hasEnoughToSubsidize = true;
-                }
-            }
-            require(hasEnoughToSubsidize, "AMMWrapper: not enough savings to subsidize");
-
-            settleAmount = _order.makerAssetAmount;
-        }
-
+        InternalTxData memory _internalTxData,
+        uint256 _settleAmount
+    ) internal {
         // Transfer token/ETH to receiver
         if (_internalTxData.toEth) {
             // Withdraw from WETH if internal maker asset is WETH
             if (!_isInternalAssetETH(_internalTxData.makerAssetInternalAddr)) {
-                weth.withdraw(settleAmount);
+                weth.withdraw(_settleAmount);
             }
-            _order.receiverAddr.transfer(settleAmount);
+            _order.receiverAddr.transfer(_settleAmount);
         } else {
             // other ERC20 tokens
-            IERC20(_order.makerAssetAddr).safeTransfer(_order.receiverAddr, settleAmount);
+            IERC20(_order.makerAssetAddr).safeTransfer(_order.receiverAddr, _settleAmount);
         }
     }
 
@@ -460,5 +408,22 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         path[1] = _makerAssetAddr;
         uint256[] memory amounts = router.swapExactTokensForTokens(_takerAssetAmount, _makerAssetAmount, path, address(this), _deadline);
         return amounts[1];
+    }
+
+    function emitSwappedEvent(AMMLibEIP712.Order memory _order, TxMetaData memory _txMetaData) internal {
+        emit Swapped(
+            _txMetaData.source,
+            _txMetaData.transactionHash,
+            _order.userAddr,
+            _txMetaData.relayed,
+            _order.takerAssetAddr,
+            _order.takerAssetAmount,
+            _order.makerAddr,
+            _order.makerAssetAddr,
+            _order.makerAssetAmount,
+            _order.receiverAddr,
+            _txMetaData.settleAmount,
+            _txMetaData.feeFactor
+        );
     }
 }

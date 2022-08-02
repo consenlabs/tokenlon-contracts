@@ -6,7 +6,7 @@ interface IAMMWrapper is ISetAllowance {
     // Operator events
     event TransferOwnership(address newOperator);
     event UpgradeSpender(address newSpender);
-    event SetSubsidyFactor(uint256 newSubisdyFactor);
+    event SetDefaultFeeFactor(uint16 newDefaultFeeFactor);
     event AllowTransfer(address spender);
     event DisallowTransfer(address spender);
     event DepositETH(uint256 ethBalance);
@@ -15,6 +15,7 @@ interface IAMMWrapper is ISetAllowance {
         string source,
         bytes32 indexed transactionHash,
         address indexed userAddr,
+        bool relayed,
         address takerAssetAddr,
         uint256 takerAssetAmount,
         address makerAddr,
@@ -22,9 +23,7 @@ interface IAMMWrapper is ISetAllowance {
         uint256 makerAssetAmount,
         address receiverAddr,
         uint256 settleAmount,
-        uint256 receivedAmount,
-        uint16 feeFactor,
-        uint16 subsidyFactor
+        uint16 feeFactor
     );
 
     // Group the local variables together to prevent
@@ -35,7 +34,7 @@ interface IAMMWrapper is ISetAllowance {
         uint256 settleAmount;
         uint256 receivedAmount;
         uint16 feeFactor;
-        uint16 subsidyFactor;
+        bool relayed;
     }
 
     function trade(
