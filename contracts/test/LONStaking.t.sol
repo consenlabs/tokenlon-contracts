@@ -1193,7 +1193,6 @@ contract LONStakingTest is Test {
         uint256 userXLonAmount = lonStaking.balanceOf(user);
         lonStaking.enableConversion(address(veLon));
 
-
         vm.prank(user);
         uint256 tokenId = lonStaking.convertXLonToVeLon(convertDuration);
         // uint256 increasedPower = _calcStartingPower(convertDuration, convertAmount, veLon.maxLockDuration());
@@ -1206,7 +1205,11 @@ contract LONStakingTest is Test {
         // TODO(lambda): check tokenId's power after veLon contract supports `vBalanceOf` function.
     }
 
-    function _calcStartingPower(uint256 _duration, uint256 _amount, uint256 _maxLockDuration) internal returns (uint256) {
+    function _calcStartingPower(
+        uint256 _duration,
+        uint256 _amount,
+        uint256 _maxLockDuration
+    ) internal returns (uint256) {
         uint256 lockEnd = _duration.add(block.timestamp).div(1 weeks).mul(1 weeks);
         uint256 power = _amount.div(_maxLockDuration).mul(lockEnd.sub(block.timestamp));
         emit log_uint(power);

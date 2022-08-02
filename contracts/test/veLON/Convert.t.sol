@@ -52,7 +52,11 @@ contract TestVeLONDeposit is TestVeLON {
         assertEq(veLon.totalSupply() + 1, totalNftSupply);
     }
 
-    function testFuzz_ConvertVeLontoXXXLon(uint256 stakeAmount, uint256 lockTime, uint256 warp) public {
+    function testFuzz_ConvertVeLontoXXXLon(
+        uint256 stakeAmount,
+        uint256 lockTime,
+        uint256 warp
+    ) public {
         vm.assume(lockTime >= 7 days);
         vm.assume(lockTime <= 365 days);
         vm.assume(stakeAmount > 0);
