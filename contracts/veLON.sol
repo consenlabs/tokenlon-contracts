@@ -394,12 +394,12 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
     // Go over weeks to fill history and calculate what the current pool point is
     function _syncGlobalPoints(Point memory poolLastPoint, uint256 _epoch) private returns (Point memory, uint256) {
-        // block decliningRate = dBlock/dTime
-        // If last point is already recorded in this block, decliningRate=0
+        // blockRate = dBlock/dTime
+        // If last point is already recorded in this block, blockRate=0
         // But that's ok because we know the block in such case
-        uint256 blockSlope = 0;
+        uint256 blockRate = 0;
         if (block.timestamp > poolLastPoint.ts) {
-            blockSlope = (MULTIPLIER * (block.number - poolLastPoint.blk)) / (block.timestamp - poolLastPoint.ts);
+            blockRate = (MULTIPLIER * (block.number - poolLastPoint.blk)) / (block.timestamp - poolLastPoint.ts);
         }
 
         uint256 timeStart = poolLastPoint.ts;
@@ -432,7 +432,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
             // update ts and block (approximately block number)
             poolLastPoint.ts = timeEnd;
-            poolLastPoint.blk = initial_poolLastPoint.blk + (blockSlope * (timeEnd - initial_poolLastPoint.ts)) / MULTIPLIER;
+            poolLastPoint.blk = initial_poolLastPoint.blk + (blockRate * (timeEnd - initial_poolLastPoint.ts)) / MULTIPLIER;
 
             if (timeEnd == block.timestamp) {
                 poolLastPoint.blk = block.number;
