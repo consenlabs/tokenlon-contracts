@@ -31,9 +31,21 @@ interface IveLON is IERC721, IERC721Metadata {
     // TODO need this event?
     // event Supply(uint256 prevSupply, uint256 supply);?
 
+    function enableConversion(address _dstToken) external;
+
+    function disableConversion() external;
+
+    function convertVeLontoXXXLon(bytes calldata _encodeData) external;
+
     function unlockTime(uint256 _tokenId) external view returns (uint256);
 
     function createLock(uint256 _value, uint256 _lockDuration) external returns (uint256);
+
+    function createLockFor(
+        uint256 _value,
+        uint256 _lockDuration,
+        address _to
+    ) external returns (uint256);
 
     function extendLock(uint256 _tokenId, uint256 _lock_duration) external;
 
