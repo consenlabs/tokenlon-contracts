@@ -31,6 +31,12 @@ interface IveLON is IERC721, IERC721Metadata {
     // TODO need this event?
     // event Supply(uint256 prevSupply, uint256 supply);?
 
+    function vBalanceOf(uint256 _tokenId) external view returns (uint256);
+
+    function vBalanceOfAtTime(uint256 _tokenId, uint256 _t) external view returns (uint256);
+
+    function vBalanceOfAtBlk(uint256 _tokenId, uint256 _block) external view returns (uint256);
+
     function unlockTime(uint256 _tokenId) external view returns (uint256);
 
     function createLock(uint256 _value, uint256 _lockDuration) external returns (uint256);
@@ -44,4 +50,10 @@ interface IveLON is IERC721, IERC721Metadata {
     function withdrawEarly(uint256 _tokenId) external;
 
     function merge(uint256 _from, uint256 _to) external;
+
+    function totalvBalance() external view returns (uint256);
+
+    function totalvBalanceAtTime(uint256 t) external view returns (uint256);
+
+    function totalvBalanceAtBlk(uint256 _block) external view returns (uint256);
 }

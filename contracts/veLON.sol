@@ -29,6 +29,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     mapping(uint256 => LockedBalance) public locked; // tokenId -> locked balance
     mapping(uint256 => uint256) public userPointEpoch; // tokenId -> epoch
     mapping(uint256 => int256) public dRateChanges; // time -> signed declining rate change
+    mapping(uint256 => uint256) public ownershipChange; // tokenId -> block number
 
     /// @dev Current count of token
     uint256 internal tokenId;
@@ -40,6 +41,114 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
         poolPointHistory[0].blk = block.number;
         poolPointHistory[0].ts = block.timestamp;
+    }
+
+    function vBalanceOf(uint256 _tokenId) external view override returns (uint256) {
+        return _vBalanceOfAtTime(_tokenId, block.timestamp);
+    }
+
+    function vBalanceOfAtTime(uint256 _tokenId, uint256 _t) external view override returns (uint256) {
+        require(_t <= block.timestamp, "Invalid timestamp");
+        return _vBalanceOfAtTime(_tokenId, _t);
+    }
+
+    /// @notice Get the current voting power for `_tokenId`
+    /// @param _tokenId NFT for lock
+    /// @param _t Epoch time to return voting power at
+    /// @return User voting power
+    function _vBalanceOfAtTime(uint256 _tokenId, uint256 _t) private view returns (uint256) {
+        if (ownershipChange[_tokenId] == block.number) return 0;
+
+        uint256 _epoch = userPointEpoch[_tokenId];
+        if (_epoch == 0) {
+            return 0;
+        } else {
+            Point memory lastPoint = userPointHistory[_tokenId][_epoch];
+            lastPoint.vBalance -= lastPoint.decliningRate * (int256(_t) - int256(lastPoint.ts));
+            if (lastPoint.vBalance < 0) {
+                lastPoint.vBalance = 0;
+            }
+            return uint256(lastPoint.vBalance);
+        }
+    }
+
+    function vBalanceOfAtBlk(uint256 _tokenId, uint256 _block) external view override returns (uint256) {
+        require(_block <= block.number, "Invalid block number");
+
+        // Binary search
+        uint256 _min = 0;
+        uint256 _max = userPointEpoch[_tokenId];
+        for (uint256 i = 0; i < 128; ++i) {
+            // Will be always enough for 128-bit numbers
+            if (_min >= _max) {
+                break;
+            }
+            uint256 _mid = _min.add(_max).add(1).div(2);
+            if (userPointHistory[_tokenId][_mid].blk <= _block) {
+                _min = _mid;
+            } else {
+                _max = _mid.sub(1);
+            }
+        }
+        Point memory uPoint = userPointHistory[_tokenId][_min];
+
+        uint256 maxEpoch = epoch;
+        uint256 _epoch = _findBlockEpoch(_block, maxEpoch);
+        Point memory point0 = poolPointHistory[_epoch];
+        uint256 dBlock;
+        uint256 dt;
+        if (_epoch < maxEpoch) {
+            Point memory point1 = poolPointHistory[_epoch + 1];
+            dBlock = point1.blk - point0.blk;
+            dt = point1.ts - point0.ts;
+        } else {
+            dBlock = block.number - point0.blk;
+            dt = block.timestamp - point0.ts;
+        }
+        uint256 blockTime = point0.ts;
+        if (dBlock != 0) {
+            blockTime += dt.mul(_block.sub(point0.blk)).div(dBlock);
+        }
+
+        uPoint.vBalance -= uPoint.decliningRate * int256(blockTime - uPoint.ts);
+        if (uPoint.vBalance >= 0) {
+            return uint256(uPoint.vBalance);
+        } else {
+            return 0;
+        }
+    }
+
+    /// @notice Binary search for pool epoch of block number
+    /// @param _block Block to find
+    /// @param _maxEpoch Don't go beyond this epoch
+    /// @return Approximate timestamp for block
+    function _findBlockEpoch(uint256 _block, uint256 _maxEpoch) private view returns (uint256) {
+        // Binary search
+        uint256 _min = 0;
+        uint256 _max = _maxEpoch;
+        for (uint256 i = 0; i < 128; ++i) {
+            // Will be always enough for 128-bit numbers
+            if (_min >= _max) {
+                break;
+            }
+            uint256 _mid = _min.add(_max).add(1).div(2);
+            if (poolPointHistory[_mid].blk <= _block) {
+                _min = _mid;
+            } else {
+                _max = _mid.sub(1);
+            }
+        }
+        return _min;
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal override {
+        // set the block of ownership transfer (for Flash NFT protection)
+        ownershipChange[tokenId] = block.number;
+        super._transfer(from, to, tokenId);
     }
 
     /// @notice Get timestamp when `_tokenId`'s lock finishes
@@ -285,12 +394,12 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
     // Go over weeks to fill history and calculate what the current pool point is
     function _syncGlobalPoints(Point memory poolLastPoint, uint256 _epoch) private returns (Point memory, uint256) {
-        // block slope = dBlock/dTime
-        // If last point is already recorded in this block, slope=0
+        // blockRate = dBlock/dTime
+        // If last point is already recorded in this block, blockRate=0
         // But that's ok because we know the block in such case
-        uint256 blockSlope = 0;
+        uint256 blockRate = 0;
         if (block.timestamp > poolLastPoint.ts) {
-            blockSlope = (MULTIPLIER * (block.number - poolLastPoint.blk)) / (block.timestamp - poolLastPoint.ts);
+            blockRate = (MULTIPLIER * (block.number - poolLastPoint.blk)) / (block.timestamp - poolLastPoint.ts);
         }
 
         uint256 timeStart = poolLastPoint.ts;
@@ -323,7 +432,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
             // update ts and block (approximately block number)
             poolLastPoint.ts = timeEnd;
-            poolLastPoint.blk = initial_poolLastPoint.blk + (blockSlope * (timeEnd - initial_poolLastPoint.ts)) / MULTIPLIER;
+            poolLastPoint.blk = initial_poolLastPoint.blk + (blockRate * (timeEnd - initial_poolLastPoint.ts)) / MULTIPLIER;
 
             if (timeEnd == block.timestamp) {
                 poolLastPoint.blk = block.number;
@@ -345,5 +454,69 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
     function _lockIsActive(LockedBalance memory lock) private returns (bool) {
         return lock.end > block.timestamp && lock.amount > 0;
+    }
+
+    function totalvBalance() external view override returns (uint256) {
+        return _totalvBalanceAt(poolPointHistory[epoch], block.timestamp);
+    }
+
+    /// @notice Calculate total voting power
+    /// @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
+    /// @return Total voting power
+    function totalvBalanceAtTime(uint256 t) public view override returns (uint256) {
+        return _totalvBalanceAt(poolPointHistory[epoch], t);
+    }
+
+    /// @notice Calculate total voting power at some point in the past
+    /// @param _block Block to calculate the total voting power at
+    /// @return Total voting power at `_block`
+    function totalvBalanceAtBlk(uint256 _block) external view override returns (uint256) {
+        require(_block <= block.number, "Invalid block number");
+        uint256 _epoch = epoch;
+        uint256 targetEpoch = _findBlockEpoch(_block, _epoch);
+
+        Point memory point = poolPointHistory[targetEpoch];
+        uint256 dt = 0;
+        if (targetEpoch < _epoch) {
+            Point memory pointNext = poolPointHistory[targetEpoch + 1];
+            if (point.blk != pointNext.blk) {
+                dt = ((_block - point.blk) * (pointNext.ts - point.ts)) / (pointNext.blk - point.blk);
+            }
+        } else {
+            if (point.blk != block.number) {
+                dt = ((_block - point.blk) * (block.timestamp - point.ts)) / (block.number - point.blk);
+            }
+        }
+        // Now dt contains info on how far are we beyond point
+        return _totalvBalanceAt(point, point.ts + dt);
+    }
+
+    /// @notice Calculate total voting power at some point in the past
+    /// @param point The point (vBalance/decliningRate) to start search from
+    /// @param t Time to calculate the total voting power at
+    /// @return Total voting power at that time
+    function _totalvBalanceAt(Point memory point, uint256 t) private view returns (uint256) {
+        Point memory lastPoint = point;
+        uint256 pointTime = (lastPoint.ts / WEEK) * WEEK;
+        for (uint256 i = 0; i < 255; ++i) {
+            pointTime += WEEK;
+            int256 dRateChange = 0;
+            if (pointTime > t) {
+                pointTime = t;
+            } else {
+                dRateChange = dRateChanges[pointTime];
+            }
+            lastPoint.vBalance -= lastPoint.decliningRate * int256(pointTime - lastPoint.ts);
+            if (pointTime == t) {
+                break;
+            }
+            lastPoint.decliningRate += dRateChange;
+            lastPoint.ts = pointTime;
+        }
+
+        if (lastPoint.vBalance < 0) {
+            lastPoint.vBalance = 0;
+        }
+        return uint256(lastPoint.vBalance);
     }
 }
