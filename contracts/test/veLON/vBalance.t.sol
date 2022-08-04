@@ -53,4 +53,97 @@ contract TestVeLONDeposit is TestVeLON {
         total = total.add(expectedAliceInitvBal);
         assertEq(veLon.totalvBalance(), total);
     }
+
+    /*****************************************
+     *   Uint Test for balance of single Ve  *
+     *****************************************/
+    function testVbalanceOf() public {
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 vBalance = veLon.vBalanceOf(tokenId);
+        uint256 expectBalance = 10 * 2 weeks;
+        assertEq(vBalance, expectBalance, "Balance is not equal");
+    }
+
+    function testVBalanceOfAtTime() public {
+        uint256 aliceStakeAmount = 10 * 365 days;
+        uint256 aliceTokenId = _stakeAndValidate(alice, aliceStakeAmount, 2 weeks);
+
+        // fast forward 1 week
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
+
+        // calculate Alice's balance
+        uint256 expectAliceBalance = 10 * 7 days;
+        assertEq(veLon.vBalanceOfAtTime(aliceTokenId, block.timestamp), expectAliceBalance);
+    }
+
+    function testCannotGetVBalabnceInFuture() public {
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
+        vm.expectRevert("Invalid timestamp");
+        veLon.vBalanceOfAtTime(tokenId, block.timestamp + 1 weeks);
+    }
+
+    function testVBalanceOfAtBlk() public {
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
+
+        // next block and 1 week later
+        uint256 expectBalance = 10 * 1 weeks;
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 1 weeks);
+        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number), expectBalance);
+    }
+
+    function testCannotGetVBalabnceAtFutureBlk() public {
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        vm.expectRevert("Invalid block number");
+        // get balance in future block
+        veLon.vBalanceOfAtBlk(tokenId, block.number + 1);
+    }
+
+    /***********************************
+     *   Uint Test for Total Balance *
+     ***********************************/
+    function testTotalvBalance() public {
+        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 totalvBalance = veLon.totalvBalance();
+        uint256 expectvBalance = 10 * 2 weeks;
+        assertEq(totalvBalance, expectvBalance);
+    }
+
+    function testTotalvBalanceAtTime() public {
+        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 totalvBalance = veLon.totalvBalanceAtTime(block.timestamp);
+        uint256 expectvBalance = 10 * 2 weeks;
+        assertEq(totalvBalance, expectvBalance);
+
+        // test 1 week has passed
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
+        totalvBalance = veLon.totalvBalanceAtTime(block.timestamp);
+        expectvBalance = 10 * 1 weeks;
+        assertEq(totalvBalance, expectvBalance);
+    }
+
+    function testCannotGetTotalvBalanceInFuture() public {
+        vm.expectRevert("Invalid timestamp");
+        veLon.totalvBalanceAtTime(block.timestamp + 1 weeks);
+    }
+
+    function testTotalvBalanceAtBlk() public {
+        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 totalvBalance = veLon.totalvBalanceAtBlk(block.number);
+        uint256 expectvBalance = 10 * 2 weeks;
+        assertEq(totalvBalance, expectvBalance);
+
+        // next block and 1 week has passed
+        expectvBalance = 10 * 1 weeks;
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 1 weeks);
+        assertEq(veLon.totalvBalanceAtBlk(block.number), expectvBalance);
+    }
+
+    function testCannotGetTotalvBalanceAtFutureBlk() public {
+        vm.expectRevert("Invalid block number");
+        veLon.totalvBalanceAtBlk(block.number + 1);
+    }
 }
