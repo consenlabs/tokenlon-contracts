@@ -10,17 +10,17 @@ contract TestVeLON is Test {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
     using SafeMath for uint256;
 
-    uint256 userPrivateKey = uint256(1);
-    uint256 otherPricateKey = uint256(2);
-
-    address user = vm.addr(userPrivateKey);
-    address other = vm.addr(otherPricateKey);
+    address user = vm.addr(uint256(1));
+    address bob = vm.addr(uint256(2));
+    address alice = vm.addr(uint256(3));
+    address other = vm.addr(uint256(4));
 
     Lon lon = new Lon(address(this), address(this));
     veLON veLon;
 
-    uint256 constant DEFAULT_STAKE_AMOUNT = 1e18;
-    uint256 constant MAX_LOCK_TIME = 365 days;
+    // set default stake amount to 10 years in order to have integer initial vBalance easily
+    uint256 constant DEFAULT_STAKE_AMOUNT = 10 * (365 days);
+    uint256 constant DEFAULT_LOCK_TIME = 2 weeks;
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
 
     // record the balnce of Lon and VeLon in VM
@@ -31,21 +31,32 @@ contract TestVeLON is Test {
         // Setup
         veLon = new veLON(address(lon));
 
-        // Deal 100 ETH to user
+        // deal eth and mint lon to user, approve lon to veLON
         deal(user, 100 ether);
-        // Mint LON to user
         lon.mint(user, 100 * 1e18);
-        // User approve veLON
         vm.prank(user);
         lon.approve(address(veLon), type(uint256).max);
 
-        // Deal 100 ETH to other user(second User)
+        // deal eth and mint lon to user, approve lon to veLON
+        deal(bob, 100 ether);
+        lon.mint(bob, 100 * 1e18);
+        vm.prank(bob);
+        lon.approve(address(veLon), type(uint256).max);
+
+        // deal eth and mint lon to user, approve lon to veLON
+        deal(alice, 100 ether);
+        lon.mint(alice, 100 * 1e18);
+        vm.prank(alice);
+        lon.approve(address(veLon), type(uint256).max);
+
+        // deal eth and mint lon to user, approve lon to veLON
         deal(other, 100 ether);
-        // Mint LON to otherUser(second user)
         lon.mint(other, 100 * 1e18);
-        // User approve veLON
         vm.prank(other);
         lon.approve(address(veLon), type(uint256).max);
+
+        uint256 ts = (block.timestamp).div(1 weeks).mul(1 weeks);
+        vm.warp(ts);
 
         // Label addresses for easier debugging
         vm.label(user, "User");
@@ -63,19 +74,22 @@ contract TestVeLON is Test {
         assertEq(veLon.owner(), address(this));
         assertEq(address(veLon.token()), address(lon));
         assertEq(veLon.tokenSupply(), 0);
-        assertEq(veLon.maxLockDuration(), MAX_LOCK_TIME);
+        assertEq(veLon.maxLockDuration(), 365 days);
         assertEq(veLon.earlyWithdrawPenaltyRate(), 3000);
     }
 
     /*********************************
      *         Stake utils           *
      *********************************/
-    // compute the power added when staking amount added
-    function _vePowerAdd(uint256 stakeAmount, uint256 lockDuration) internal returns (uint256) {
+    // compute the initial voting power added when staking
+    function _initialvBalance(uint256 stakeAmount, uint256 lockDuration) internal returns (uint256) {
         // Unlocktime is rounded down to weeks
-        uint256 unlockTime = ((block.timestamp + lockDuration) / 1 weeks) * 1 weeks;
-        uint256 power = (stakeAmount / MAX_LOCK_TIME) * (unlockTime - block.timestamp);
-        return power;
+        uint256 unlockTime = (block.timestamp.add(lockDuration)).mul(1 weeks).div(1 weeks);
+
+        // Calculate declining rate first in order to get exactly vBalance as veLON has
+        uint256 dRate = stakeAmount.div(veLon.maxLockDuration());
+        uint256 vBalance = dRate.mul(unlockTime.sub(block.timestamp));
+        return vBalance;
     }
 
     function _stakeAndValidate(
@@ -83,27 +97,12 @@ contract TestVeLON is Test {
         uint256 stakeAmount,
         uint256 lockDuration
     ) internal returns (uint256) {
-        stakerLon = BalanceSnapshot.take(staker, address(lon));
-        lockedLon = BalanceSnapshot.take(address(veLon), address(lon));
-
-        uint256 tokenMintBefore = veLon.totalSupply();
-        uint256 tokenMintAfter;
-
         vm.startPrank(staker);
         if (lon.allowance(staker, address(veLon)) == 0) {
             lon.approve(address(veLon), type(uint256).max);
         }
         uint256 tokenId = veLon.createLock(stakeAmount, lockDuration);
-        stakerLon.assertChange(-int256(stakeAmount));
-        lockedLon.assertChange(int256(stakeAmount));
-
-        // check whether ERC721 token has minted
-        tokenMintAfter = veLon.totalSupply();
-        assertEq((tokenMintBefore + 1), tokenMintAfter);
-
-        // TODO check the voting power for NFT
         vm.stopPrank();
-
         return tokenId;
     }
 }

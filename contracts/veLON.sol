@@ -165,7 +165,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         require(_value > 0, "Zero lock amount");
 
         // unlockTime is rounded down to weeks
-        uint256 unlockTime = (block.timestamp).add(_lockDuration).div(WEEK).mul(WEEK);
+        uint256 unlockTime = ((block.timestamp).add(_lockDuration)).div(WEEK).mul(WEEK);
         require(unlockTime > block.timestamp, "Lock duration too short");
         require(unlockTime <= (block.timestamp).add(maxLockDuration), "Unlock time exceed maximun");
 
@@ -187,7 +187,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         LockedBalance memory _locked = locked[_tokenId];
         require(_locked.amount > 0, "No existing lock found");
         require(_locked.end > block.timestamp, "Cannot add to expired lock");
-        _depositFor(_tokenId, _value, 0, _locked, DepositType.DEPOSIT_FOR_TYPE);
+        _depositFor(_tokenId, _value, 0, _locked, DepositType.INCREASE_LOCK_AMOUNT);
     }
 
     /// @notice Extend the unlock time for `_tokenId`
@@ -200,7 +200,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         require(_locked.end > block.timestamp, "Lock expired");
         require(_locked.amount > 0, "Nothing is locked");
 
-        uint256 unlockTime = (block.timestamp).add(_lockDuration).div(WEEK).mul(WEEK);
+        uint256 unlockTime = ((block.timestamp).add(_lockDuration)).div(WEEK).mul(WEEK);
         require(unlockTime > _locked.end, "Can only increase lock duration");
         require(unlockTime <= (block.timestamp).add(maxLockDuration), "Unlock time exceed maximun");
 

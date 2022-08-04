@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
 
 interface IveLON is IERC721, IERC721Metadata {
     enum DepositType {
-        DEPOSIT_FOR_TYPE,
         CREATE_LOCK_TYPE,
         INCREASE_LOCK_AMOUNT,
         INCREASE_UNLOCK_TIME,
