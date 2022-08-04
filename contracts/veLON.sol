@@ -464,6 +464,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     /// @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
     /// @return Total voting power
     function totalvBalanceAtTime(uint256 t) public view override returns (uint256) {
+        require(t <= block.timestamp, "Invalid timestamp");
         return _totalvBalanceAt(poolPointHistory[epoch], t);
     }
 
