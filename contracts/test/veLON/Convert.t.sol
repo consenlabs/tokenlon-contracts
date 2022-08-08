@@ -45,11 +45,12 @@ contract TestVeLONDeposit is TestVeLON {
         uint256 totalNftSupply = veLon.totalSupply();
         veLon.enableConversion(address(xxxLon));
         vm.prank(staker);
-        veLon.convertVeLontoXXXLon("some thing");
+        uint256 convertedAmount = veLon.convert("some thing");
 
         veLonLon.assertChange(-int256(stakeAmount));
         xxxLonLon.assertChange(int256(stakeAmount));
         assertEq(veLon.totalSupply() + 1, totalNftSupply);
+        assertEq(convertedAmount, stakeAmount);
     }
 
     function testFuzz_ConvertVeLontoXXXLon(
