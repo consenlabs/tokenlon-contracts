@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
 
 interface IveLON is IERC721, IERC721Metadata {
     enum DepositType {
-        DEPOSIT_FOR_TYPE,
         CREATE_LOCK_TYPE,
         INCREASE_LOCK_AMOUNT,
         INCREASE_UNLOCK_TIME,
@@ -37,6 +36,12 @@ interface IveLON is IERC721, IERC721Metadata {
 
     function convertVeLontoXXXLon(bytes calldata _encodeData) external;
 
+    function vBalanceOf(uint256 _tokenId) external view returns (uint256);
+
+    function vBalanceOfAtTime(uint256 _tokenId, uint256 _t) external view returns (uint256);
+
+    function vBalanceOfAtBlk(uint256 _tokenId, uint256 _block) external view returns (uint256);
+
     function unlockTime(uint256 _tokenId) external view returns (uint256);
 
     function createLock(uint256 _value, uint256 _lockDuration) external returns (uint256);
@@ -56,4 +61,10 @@ interface IveLON is IERC721, IERC721Metadata {
     function withdrawEarly(uint256 _tokenId) external;
 
     function merge(uint256 _from, uint256 _to) external;
+
+    function totalvBalance() external view returns (uint256);
+
+    function totalvBalanceAtTime(uint256 t) external view returns (uint256);
+
+    function totalvBalanceAtBlk(uint256 _block) external view returns (uint256);
 }

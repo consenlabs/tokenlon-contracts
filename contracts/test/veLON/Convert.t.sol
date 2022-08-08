@@ -32,7 +32,7 @@ contract TestVeLONDeposit is TestVeLON {
     }
 
     function testConvertVeLontoXXXLon() public {
-        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, MAX_LOCK_TIME);
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         require(tokenId != 0, "No lock created yet");
         _convertVeLontoXXXLonAndValidate(user, DEFAULT_STAKE_AMOUNT);
     }
