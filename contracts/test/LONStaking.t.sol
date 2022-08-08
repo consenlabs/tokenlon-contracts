@@ -1218,7 +1218,7 @@ contract LONStakingTest is Test {
     }
 
     function testConvertXLonToVeLon() public {
-        // make sure `_calcPower` behave correctly. 
+        // make sure `_calcPower` behave correctly.
         // decliningRate = 10, lock duration = 2 weeks (exactly)
         uint256 ts = (block.timestamp).div(1 weeks).mul(1 weeks);
         vm.warp(ts);
