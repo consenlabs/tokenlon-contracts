@@ -73,8 +73,8 @@ contract TestVeLONDeposit is TestVeLON {
         vm.roll(block.number + 1);
 
         // calculate Alice's balance
-        // declineRate  = locking_amount / MAX_lock_duration = (10 * 365 days)/ 365days = 10 
-        // exptectedBalance = initial balance - decline balance = 10 * 2 weeks - 10 * 1 weeks = 10 * 1 week 
+        // declineRate  = locking_amount / MAX_lock_duration = (10 * 365 days)/ 365days = 10
+        // exptectedBalance = initial balance - decline balance = 10 * 2 weeks - 10 * 1 weeks = 10 * 1 week
         uint256 expectAliceBalance = 10 * 7 days;
         assertEq(veLon.vBalanceOfAtTime(aliceTokenId, block.timestamp), expectAliceBalance);
     }
@@ -106,9 +106,10 @@ contract TestVeLONDeposit is TestVeLON {
      *   Uint Test for Total Balance *
      ***********************************/
     function testTotalvBalance() public {
-        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        _stakeAndValidate(alice, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        _stakeAndValidate(bob, DEFAULT_STAKE_AMOUNT, 2 weeks);
         uint256 totalvBalance = veLon.totalvBalance();
-        uint256 expectvBalance = 10 * 2 weeks;
+        uint256 expectvBalance = _initialvBalance(2 * DEFAULT_STAKE_AMOUNT, 2 weeks);
         assertEq(totalvBalance, expectvBalance);
     }
 
@@ -137,9 +138,9 @@ contract TestVeLONDeposit is TestVeLON {
         uint256 expectvBalance = 10 * 2 weeks;
         assertEq(totalvBalance, expectvBalance);
 
-        // next block and 1 week has passed
+        // 10 blocks and 1 week has passed
         expectvBalance = 10 * 1 weeks;
-        vm.roll(block.number + 1);
+        vm.roll(block.number + 10);
         vm.warp(block.timestamp + 1 weeks);
         assertEq(veLon.totalvBalanceAtBlk(block.number), expectvBalance);
     }
