@@ -46,13 +46,13 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     /// @param _maxLockDuration new number of seconds for `maxLockDuration`.
     function setMaxLockDuration(uint256 _maxLockDuration) external override onlyOwner {
         // flush the global voting power change into storage first
-        _checkpoint(0, LockedBalance(0, 0), LockedBalance(0, 0));
+        _updateLockedPoint(0, LockedBalance(0, 0), LockedBalance(0, 0));
 
         uint256 maxEndTime = block.timestamp.add(_maxLockDuration).div(WEEK).mul(WEEK);
-        int256 globalSlope;
-        int256 globalBias;
+        int256 globalDecliningRate;
+        int256 globalVBalance;
         // update every NFT's stored states and calculate global states
-        for (uint256 _tokenId = 0; _tokenId <= tokenId; _tokenId++) {
+        for (uint256 _tokenId = 1; _tokenId <= tokenId; _tokenId++) {
             // skip NFTs that have been burned
             if (ownerOf(_tokenId) == address(0)) {
                 continue;
@@ -66,30 +66,31 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             LockedBalance memory oldLocked = locked[_tokenId];
             LockedBalance memory newLocked = locked[_tokenId];
             Point memory pointOld = userPointHistory[_tokenId][userEpoch];
-            Point memory pointNew = Point({ bias: 0, slope: 0, ts: block.timestamp, blk: block.number });
+            Point memory pointNew = Point({ vBalance: 0, decliningRate: 0, ts: block.timestamp, blk: block.number });
             if (newLocked.end > maxEndTime) {
                 newLocked.end = maxEndTime;
             }
-            pointNew.slope = int256(newLocked.amount.div(_maxLockDuration));
+            pointNew.decliningRate = int256(newLocked.amount.div(_maxLockDuration));
             int256 duration = int256(newLocked.end.sub(block.timestamp));
-            pointNew.bias = duration * pointNew.slope;
+            pointNew.vBalance = duration * pointNew.decliningRate;
 
             // update the latest user epoch and user point
             userEpoch = userEpoch.add(1);
             userPointEpoch[_tokenId] = userEpoch;
             userPointHistory[_tokenId][userEpoch] = pointNew;
+            locked[_tokenId] = newLocked;
 
-            // update slope_changes
-            slopeChanges[oldLocked.end] += pointOld.slope;
-            slopeChanges[newLocked.end] += pointNew.slope;
+            // update dRateChanges
+            dRateChanges[oldLocked.end] += pointOld.decliningRate;
+            dRateChanges[newLocked.end] += pointNew.decliningRate;
 
-            globalSlope += pointNew.slope;
-            globalBias += pointNew.bias;
+            globalDecliningRate += pointNew.decliningRate;
+            globalVBalance += pointNew.vBalance;
         }
 
         // update global point
         epoch = epoch.add(1);
-        poolPointHistory[epoch] = Point({ bias: globalBias, slope: globalSlope, ts: block.timestamp, blk: block.number });
+        poolPointHistory[epoch] = Point({ vBalance: globalVBalance, decliningRate: globalDecliningRate, ts: block.timestamp, blk: block.number });
 
         // update the maxLockDuration
         maxLockDuration = _maxLockDuration;
