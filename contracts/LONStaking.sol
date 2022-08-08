@@ -279,13 +279,13 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         uint256 _share,
         uint256 _penalty,
         address _destination
-    ) internal {
+    ) internal returns (uint256 userTotalAmount) {
         require(_share != 0, "cannot redeem 0 share");
 
         uint256 totalLon = lonToken.balanceOf(address(this));
         uint256 totalShares = totalSupply();
 
-        uint256 userTotalAmount = _share.add(_penalty).mul(totalLon).div(totalShares);
+        userTotalAmount = _share.add(_penalty).mul(totalLon).div(totalShares);
         uint256 redeemAmount = _share.mul(totalLon).div(totalShares);
         uint256 penaltyAmount = userTotalAmount.sub(redeemAmount);
         _burn(msg.sender, _share.add(_penalty));
@@ -296,6 +296,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         lonToken.transfer(_destination, redeemAmount);
 
         emit Redeem(msg.sender, _share, redeemAmount, penaltyAmount);
+        return userTotalAmount;
     }
 
     function redeem(uint256 _share) public nonReentrant {
@@ -328,8 +329,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         require(conversion, "conversion is not enabled");
 
         uint256 userShare = balanceOf(msg.sender);
-        uint256 userLonBalance = userShare.mul(lonToken.balanceOf(address(this))).div(totalSupply());
-        _redeemAndSendTo(userShare, 0, address(this));
+        uint256 userLonBalance = _redeemAndSendTo(userShare, 0, address(this));
         IveLON veLonIntance = IveLON(veLon);
         lonToken.approve(veLon, userLonBalance);
 
