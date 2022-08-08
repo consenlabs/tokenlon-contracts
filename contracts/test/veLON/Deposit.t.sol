@@ -140,7 +140,8 @@ contract TestVeLONDeposit is TestVeLON {
         veLon.merge(_fromTokenId, _toTokenId);
 
         // check wether the _toToken balance was increased as expected
-        uint256 expectedToBalance = _initialvBalance(_stakeAmountFrom, 15 weeks) + (_initialvBalance(DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME));
+        // _fromToken lock is longer(15 weeks) then _toToken(2 weeks), so the merged token's lock end would be 15 weeks
+        uint256 expectedToBalance = _initialvBalance(_stakeAmountFrom + DEFAULT_STAKE_AMOUNT, _stakeDurationFrom);
         assertEq(expectedToBalance, veLon.vBalanceOf(_toTokenId));
         assertEq(expectedToBalance, veLon.totalvBalance());
 
