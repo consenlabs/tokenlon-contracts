@@ -73,6 +73,8 @@ contract TestVeLONDeposit is TestVeLON {
         vm.roll(block.number + 1);
 
         // calculate Alice's balance
+        // declineRate  = locking_amount / MAX_lock_duration = (10 * 365 days)/ 365days = 10 
+        // exptectedBalance = initial balance - decline balance = 10 * 2 weeks - 10 * 1 weeks = 10 * 1 week 
         uint256 expectAliceBalance = 10 * 7 days;
         assertEq(veLon.vBalanceOfAtTime(aliceTokenId, block.timestamp), expectAliceBalance);
     }
