@@ -50,6 +50,8 @@ contract TestVeLONWithfraw is TestVeLON {
         emit Withdraw(user, false, tokenId, expectedAmount, expectedPanalty, block.timestamp);
         vm.prank(user);
         veLon.withdrawEarly(tokenId);
+        uint256 balanceChange = DEFAULT_STAKE_AMOUNT.mul(earlyWithdrawPenaltyRate).div(PENALTY_RATE_PRECISION);
+        stakerLon.assertChange(int256(DEFAULT_STAKE_AMOUNT.sub(balanceChange)));
 
         // check whether token has burned after withdraw
         vm.expectRevert("ERC721: owner query for nonexistent token");
