@@ -40,7 +40,8 @@ contract LONStakingTest is Test {
 
     uint256 DEFAULT_STAKE_AMOUNT = 1e18;
     uint256 DEFAULT_BUYBACK_AMOUNT = 100 * 1e18;
-    uint256 DEFAULT_DURATION = 365 days;
+    uint256 DEFAULT_LOCK_TIME = 2 weeks;
+    uint256 DEFAULT_VELON_STAKE_AMOUNT = 10 * (365 days);
     uint256 DEADLINE = block.timestamp + 1;
 
     struct StakeWithPermit {
@@ -1195,29 +1196,35 @@ contract LONStakingTest is Test {
 
         vm.prank(user);
         uint256 tokenId = lonStaking.convertXLonToVeLon(convertDuration);
-        // uint256 increasedPower = _calcStartingPower(convertDuration, convertAmount, veLon.maxLockDuration());
+        uint256 expectedPower = _calcPower(convertDuration, convertAmount, veLon.maxLockDuration());
 
         veLonLon.assertChange(int256(convertAmount));
         lonStakingLon.assertChange(-int256(convertAmount));
         userXLon.assertChange(-int256(userXLonAmount));
 
         assertGe(tokenId, 0);
-        // TODO(lambda): check tokenId's power after veLon contract supports `vBalanceOf` function.
+        uint256 actualPower = veLon.vBalanceOf(tokenId);
+        assertEq(actualPower, expectedPower);
     }
 
-    function _calcStartingPower(
+    function _calcPower(
         uint256 _duration,
         uint256 _amount,
         uint256 _maxLockDuration
     ) internal returns (uint256) {
         uint256 lockEnd = _duration.add(block.timestamp).div(1 weeks).mul(1 weeks);
         uint256 power = _amount.div(_maxLockDuration).mul(lockEnd.sub(block.timestamp));
-        emit log_uint(power);
         return power;
     }
 
     function testConvertXLonToVeLon() public {
-        _convertXLonToVeLonAndValidate(DEFAULT_STAKE_AMOUNT, DEFAULT_DURATION);
+        // make sure `_calcPower` behave correctly. 
+        // decliningRate = 10, lock duration = 2 weeks (exactly)
+        uint256 ts = (block.timestamp).div(1 weeks).mul(1 weeks);
+        vm.warp(ts);
+        assertEq(_calcPower(DEFAULT_LOCK_TIME, DEFAULT_VELON_STAKE_AMOUNT, 365 days), 2 * 10 weeks);
+
+        _convertXLonToVeLonAndValidate(DEFAULT_VELON_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
     }
 
     function testFuzz_ConvertXLonToVeLon(uint256 convertAmount, uint256 convertDuration) public {
@@ -1232,12 +1239,12 @@ contract LONStakingTest is Test {
     }
 
     function testCannotConvert() public {
-        _stake(user, DEFAULT_STAKE_AMOUNT);
+        _stake(user, DEFAULT_VELON_STAKE_AMOUNT);
 
         assertEq(lonStaking.conversion(), false);
         vm.startPrank(user);
         vm.expectRevert("conversion is not enabled");
-        lonStaking.convertXLonToVeLon(DEFAULT_DURATION);
+        lonStaking.convertXLonToVeLon(DEFAULT_LOCK_TIME);
         vm.stopPrank();
     }
 
