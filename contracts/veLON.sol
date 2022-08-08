@@ -62,7 +62,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     }
 
     /// @notice Help veLON holders convert their veLON to xxxLON.
-    function convertVeLontoXXXLon(bytes calldata _encodeData) external override {
+    function convert(bytes calldata _encodeData) external override returns (uint256) {
         require(conversion, "conversion is not enabled");
         earlyWithdrawPenaltyRate = 0;
 
@@ -77,6 +77,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         IERC20(token).approve(dstToken, lockedLonAmount);
         IxxxLon xxxLon = IxxxLon(dstToken);
         xxxLon.mintFor(lockedLonAmount, _encodeData);
+        return lockedLonAmount;
     }
 
     function vBalanceOf(uint256 _tokenId) external view override returns (uint256) {

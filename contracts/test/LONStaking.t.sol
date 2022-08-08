@@ -1195,7 +1195,7 @@ contract LONStakingTest is Test {
         lonStaking.enableConversion(address(veLon));
 
         vm.prank(user);
-        uint256 tokenId = lonStaking.convertXLonToVeLon(convertDuration);
+        uint256 tokenId = lonStaking.convert(abi.encode(convertDuration));
         uint256 expectedPower = _calcPower(convertDuration, convertAmount, veLon.maxLockDuration());
 
         veLonLon.assertChange(int256(convertAmount));
@@ -1244,7 +1244,7 @@ contract LONStakingTest is Test {
         assertEq(lonStaking.conversion(), false);
         vm.startPrank(user);
         vm.expectRevert("conversion is not enabled");
-        lonStaking.convertXLonToVeLon(DEFAULT_LOCK_TIME);
+        lonStaking.convert(abi.encode(DEFAULT_LOCK_TIME));
         vm.stopPrank();
     }
 

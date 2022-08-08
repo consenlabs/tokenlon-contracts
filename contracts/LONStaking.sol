@@ -15,10 +15,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "./interfaces/ILon.sol";
 import "./interfaces/IveLON.sol";
+import "./interfaces/IConversion.sol";
 import "./upgradeable/ERC20ForUpgradeable.sol";
 import "./upgradeable/OwnableForUpgradeable.sol";
 
-contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGuard, Pausable {
+contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGuard, Pausable, IConversion {
     using SafeMath for uint256;
     using SafeERC20 for ILon;
     using SafeERC20 for IERC20;
@@ -108,13 +109,13 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
 
     /// @notice Enable xLon migration and set the veLon.
     /// @param _veLon The destination address which xLon is converted to.
-    function enableConversion(address _veLon) external onlyOwner {
+    function enableConversion(address _veLon) external override onlyOwner {
         conversion = true;
         veLon = IveLON(_veLon);
     }
 
     /// @notice Disable xLON migration.
-    function disableConversion() external onlyOwner {
+    function disableConversion() external override onlyOwner {
         conversion = false;
         veLon = IveLON(address(0x0));
     }
@@ -325,9 +326,9 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         }
     }
 
-    function convertXLonToVeLon(uint256 _lockDuration) public returns (uint256 tokenId) {
+    function convert(bytes calldata _encodeData) external override returns (uint256 tokenId) {
         require(conversion, "conversion is not enabled");
-
+        uint256 _lockDuration = abi.decode(_encodeData, (uint256));
         uint256 userShare = balanceOf(msg.sender);
         uint256 userLonBalance = _redeemAndSendTo(userShare, 0, address(this));
         lonToken.approve(address(veLon), userLonBalance);

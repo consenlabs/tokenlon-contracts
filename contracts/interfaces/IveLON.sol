@@ -4,7 +4,9 @@ pragma solidity >=0.7.0;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
 
-interface IveLON is IERC721, IERC721Metadata {
+import "./IConversion.sol";
+
+interface IveLON is IERC721, IERC721Metadata, IConversion {
     enum DepositType {
         CREATE_LOCK_TYPE,
         INCREASE_LOCK_AMOUNT,
@@ -29,12 +31,6 @@ interface IveLON is IERC721, IERC721Metadata {
 
     // TODO need this event?
     // event Supply(uint256 prevSupply, uint256 supply);?
-
-    function enableConversion(address _dstToken) external;
-
-    function disableConversion() external;
-
-    function convertVeLontoXXXLon(bytes calldata _encodeData) external;
 
     function vBalanceOf(uint256 _tokenId) external view returns (uint256);
 
