@@ -1165,19 +1165,19 @@ contract LONStakingTest is Test {
     function testEnableAndDisableConversion() public {
         veLON veLon = new veLON(address(lon));
 
-        assertEq(lonStaking.veLon(), address(0x0));
+        assertEq(address(lonStaking.veLon()), address(0x0));
         assertEq(lonStaking.conversion(), false);
 
         // enable the conversion
         lonStaking.enableConversion(address(veLon));
 
-        assertEq(lonStaking.veLon(), address(veLon));
+        assertEq(address(lonStaking.veLon()), address(veLon));
         assertEq(lonStaking.conversion(), true);
 
         // disable the conversion
         lonStaking.disableConversion();
 
-        assertEq(lonStaking.veLon(), address(0x0));
+        assertEq(address(lonStaking.veLon()), address(0x0));
         assertEq(lonStaking.conversion(), false);
     }
 
