@@ -2,7 +2,7 @@
 pragma solidity 0.7.6;
 import "contracts/test/veLON/Setup.t.sol";
 
-contract TestVeLONWithfraw is TestVeLON {
+contract TestVeLONWithdraw is TestVeLON {
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 

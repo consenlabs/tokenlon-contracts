@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "contracts/test/veLON/Setup.t.sol";
 
-contract TestVeLONDeposit is TestVeLON {
+contract TestVeLONBalance is TestVeLON {
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
@@ -77,11 +77,8 @@ contract TestVeLONDeposit is TestVeLON {
 
         // fast forward 1 weeks, bob's lock is expired
         uint256 dt = 1 days;
-        vm.roll(block.timestamp + 7 * dt);
-        vm.warp(block.number + 1);
-        emit log(Strings.toString(veLon.vBalanceOf(bobTokenId)));
-        emit log(Strings.toString(veLon.vBalanceOf(aliceTokenId)));
-        emit log(Strings.toString(veLon.vBalanceOfAtTime(aliceTokenId, block.timestamp)));
+        vm.warp(block.timestamp + 7 * dt);
+        vm.roll(block.number + 1);
         // sub Bob's all balance
         totalBalance = totalBalance.sub(bobBalance);
         // sub Alice's delined balance ()
@@ -116,10 +113,10 @@ contract TestVeLONDeposit is TestVeLON {
         // fast forward 1 week
         vm.warp(block.timestamp + 1 weeks);
 
-        // Alice early withdraw 1 week beforehand, 
+        // Alice early withdraw 1 week beforehand,
         // calculate the balacence for alice and bob respectively
         uint256 aliceDeclineBalance = aliceBalance;
-        uint256 bobDeclineBalance =  5  * 1 weeks;
+        uint256 bobDeclineBalance = 5 * 1 weeks;
         totalBalance = totalBalance.sub(aliceDeclineBalance + bobDeclineBalance);
         vm.prank(alice);
         veLon.withdrawEarly(aliceTokenId);
