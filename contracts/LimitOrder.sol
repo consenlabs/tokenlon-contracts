@@ -316,7 +316,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
         (uint256 makerTokenAmount, uint256 takerTokenAmount, uint256 remainingAmount) = _quoteOrder(_order, orderHash, _params.takerTokenAmount);
 
-        uint256 takerTokenProfit = _settleForProtocol(
+        uint256 relayerTakerTokenProfit = _settleForProtocol(
             ProtocolSettlement({
                 orderHash: orderHash,
                 allowFillHash: allowFillHash,
@@ -339,7 +339,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
         _recordOrderFilled(orderHash, takerTokenAmount);
 
-        return takerTokenProfit;
+        return relayerTakerTokenProfit;
     }
 
     function _getProtocolAddress(Protocol protocol) internal view returns (address) {
@@ -379,9 +379,9 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
         require(takerTokenOut >= _settlement.takerTokenAmount, "LimitOrder: Insufficient token amount out from protocol");
 
-        uint256 takerTokenProfit = takerTokenOut.sub(_settlement.takerTokenAmount);
+        uint256 relayerTakerTokenProfit = takerTokenOut.sub(_settlement.takerTokenAmount);
         // Distribute taker token profit to profit recipient assigned by relayer
-        _settlement.takerToken.safeTransfer(_settlement.profitRecipient, takerTokenProfit);
+        _settlement.takerToken.safeTransfer(_settlement.profitRecipient, relayerTakerTokenProfit);
 
         // Calculate maker fee (maker receives taker token so fee is charged in taker token)
         uint256 takerTokenFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
@@ -409,11 +409,11 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
                 remainingAmount: _settlement.remainingAmount,
                 makerTokenFee: 0,
                 takerTokenFee: takerTokenFee,
-                takerTokenProfit: takerTokenProfit
+                relayerTakerTokenProfit: relayerTakerTokenProfit
             })
         );
 
-        return takerTokenProfit;
+        return relayerTakerTokenProfit;
     }
 
     function _swapByProtocol(ProtocolSettlement memory _settlement) internal returns (uint256 amountOut) {
@@ -581,7 +581,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         uint256 remainingAmount;
         uint256 makerTokenFee;
         uint256 takerTokenFee;
-        uint256 takerTokenProfit;
+        uint256 relayerTakerTokenProfit;
     }
 
     function _emitLimitOrderFilledByProtocol(LimitOrderFilledByProtocolParams memory _params) internal {
@@ -601,7 +601,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
                 makerTokenFee: _params.makerTokenFee,
                 takerTokenFee: _params.takerTokenFee
             }),
-            _params.takerTokenProfit
+            _params.relayerTakerTokenProfit
         );
     }
 }
