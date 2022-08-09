@@ -1102,7 +1102,6 @@ contract LimitOrderTest is StrategySharedSetup {
         vm.stopPrank();
 
         // whole profit should be given to relayer
-        console.logUint(profit);
         relayerTakerAsset.assertChange(int256(profit));
         // no token should left in limitOrder
         assertEq(order.makerToken.balanceOf(address(limitOrder)), 0);
