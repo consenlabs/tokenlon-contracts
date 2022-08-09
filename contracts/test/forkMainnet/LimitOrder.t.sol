@@ -38,9 +38,7 @@ contract LimitOrderTest is StrategySharedSetup {
         address relayer,
         address profitRecipient,
         ILimitOrder.FillReceipt fillReceipt,
-        uint256 takerTokenProfit,
-        uint256 takerTokenProfitFee,
-        uint256 takerTokenProfitBackToMaker
+        uint256 takerTokenProfit
     );
 
     uint256 userPrivateKey = uint256(1);
@@ -178,8 +176,6 @@ contract LimitOrderTest is StrategySharedSetup {
 
         assertEq(uint256(limitOrder.makerFeeFactor()), 0);
         assertEq(uint256(limitOrder.takerFeeFactor()), 0);
-        assertEq(uint256(limitOrder.profitFeeFactor()), 0);
-        assertEq(uint256(limitOrder.profitCapFactor()), uint256(LibConstant.BPS_MAX));
     }
 
     /*********************************
@@ -294,21 +290,15 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function testCannotSetFactorsIfLargerThanBpsMax() public {
         vm.expectRevert("LimitOrder: Invalid maker fee factor");
-        limitOrder.setFactors(LibConstant.BPS_MAX + 1, 1, 1, 1);
+        limitOrder.setFactors(LibConstant.BPS_MAX + 1, 1);
         vm.expectRevert("LimitOrder: Invalid taker fee factor");
-        limitOrder.setFactors(1, LibConstant.BPS_MAX + 1, 1, 1);
-        vm.expectRevert("LimitOrder: Invalid profit fee factor");
-        limitOrder.setFactors(1, 1, LibConstant.BPS_MAX + 1, 1);
-        vm.expectRevert("LimitOrder: Invalid profit cap factor");
-        limitOrder.setFactors(1, 1, 1, LibConstant.BPS_MAX + 1);
+        limitOrder.setFactors(1, LibConstant.BPS_MAX + 1);
     }
 
     function testSetFactors() public {
-        limitOrder.setFactors(1, 2, 3, 4);
+        limitOrder.setFactors(1, 2);
         assertEq(uint256(limitOrder.makerFeeFactor()), 1);
         assertEq(uint256(limitOrder.takerFeeFactor()), 2);
-        assertEq(uint256(limitOrder.profitFeeFactor()), 3);
-        assertEq(uint256(limitOrder.profitCapFactor()), 4);
     }
 
     /*********************************
@@ -594,8 +584,7 @@ contract LimitOrderTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.takerToken));
 
         // makerFeeFactor/takerFeeFactor : 10%
-        // profitFeeFactor/profitCapFactor : 20%
-        limitOrder.setFactors(1000, 1000, 2000, 2000);
+        limitOrder.setFactors(1000, 1000);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectEmit(true, true, true, true);
@@ -1017,8 +1006,7 @@ contract LimitOrderTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.takerToken));
 
         // makerFeeFactor/takerFeeFactor : 10%
-        // profitFeeFactor/profitCapFactor : 20%
-        limitOrder.setFactors(1000, 1000, 2000, 2000);
+        limitOrder.setFactors(1000, 1000);
 
         // get quote from AMM
         uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);
@@ -1044,9 +1032,7 @@ contract LimitOrderTest is StrategySharedSetup {
                 0, // makerTokenFee should be zero in protocol case
                 DEFAULT_ORDER.takerTokenAmount.mul(10).div(100) // takerTokenFee = 10% takerTokenAmount
             ),
-            profit, // takerTokenProfit
-            profit.mul(20).div(100), // takerTokenProfitFee = 20% takerTokenProfit
-            0 // takerTokenProfitBackToMaker
+            profit // takerTokenProfit
         );
         userProxy.toLimitOrder(payload);
         vm.stopPrank();
@@ -1056,9 +1042,71 @@ contract LimitOrderTest is StrategySharedSetup {
         receiverTakerAsset.assertChangeGt(int256(profit.mul(80).div(100)));
         makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(90).div(100)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
-        uint256 feeTotal = DEFAULT_ORDER.takerTokenAmount.mul(10).div(100);
-        feeTotal = feeTotal.add(profit.mul(20).div(100));
-        fcTakerAsset.assertChange(int256(feeTotal));
+        uint256 fee = DEFAULT_ORDER.takerTokenAmount.mul(10).div(100);
+        fcTakerAsset.assertChange(int256(fee));
+    }
+
+    function testFillByProtocolRelayerProfit() public {
+        address relayer = 0x52D82cD20F092DB55fb1e006a2C2773AB17F6Ff2;
+        BalanceSnapshot.Snapshot memory relayerTakerAsset = BalanceSnapshot.take(relayer, address(DEFAULT_ORDER.takerToken));
+
+        // set order with extreme low price leaving huge profit for relayer
+        LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.takerTokenAmount = 1 * 1e6;
+        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+
+        // update protocolParams
+        ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
+        protocolParams.takerTokenAmount = order.takerTokenAmount;
+        protocolParams.profitRecipient = relayer;
+
+        // update allowFill
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = orderHash;
+        allowFill.executor = relayer;
+        allowFill.fillAmount = order.takerTokenAmount;
+
+        // update crdParams
+        ILimitOrder.CoordinatorParams memory crdParams = ILimitOrder.CoordinatorParams(
+            _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712),
+            allowFill.salt,
+            allowFill.expiry
+        );
+
+        // get expected profit for relayer
+        uint256 profit = quoteUniswapV3ExactInput(protocolParams.data, order.makerTokenAmount).sub(order.takerTokenAmount);
+
+        vm.startPrank(relayer, relayer);
+        vm.expectEmit(true, true, true, true);
+        ILimitOrder.FillReceipt memory fillReceipt = ILimitOrder.FillReceipt(
+            address(order.makerToken),
+            address(order.takerToken),
+            order.makerTokenAmount,
+            order.takerTokenAmount,
+            0, // remainingAmount should be zero after order fully filled
+            0, // makerTokenFee should be zero in protocol case
+            0 // takerTokenFee = 0 since feeFactor = 0
+        );
+        emit LimitOrderFilledByProtocol(
+            orderHash,
+            order.maker,
+            UNISWAP_V3_ADDRESS,
+            _getEIP712Hash(LimitOrderLibEIP712._getAllowFillStructHash(allowFill)),
+            relayer, // relayer
+            relayer, // profitRecipient
+            fillReceipt,
+            profit // takerTokenProfit
+        );
+        userProxy.toLimitOrder(_genFillByProtocolPayload(order, makerSig, protocolParams, crdParams));
+        vm.stopPrank();
+
+        // whole profit should be given to relayer
+        console.logUint(profit);
+        relayerTakerAsset.assertChange(int256(profit));
+        // no token should left in limitOrder
+        assertEq(order.makerToken.balanceOf(address(limitOrder)), 0);
+        assertEq(order.takerToken.balanceOf(address(limitOrder)), 0);
     }
 
     function testFullyFillBySushiSwap() public {
