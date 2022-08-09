@@ -59,17 +59,17 @@ contract TestVeLONDeposit is TestVeLON {
         // alice and bob despoit for different amount and time
         uint256 totalBalance = 0;
         uint256 aliceStakeAmount = 1 * 365 days;
-        uint256 aliceTokenId = _stakeAndValidate(alice, aliceStakeAmount,  2 weeks);
-        uint256 initialAliceBalance = _initialvBalance(aliceStakeAmount, 2 weeks);
-        totalBalance = totalBalance.add(initialAliceBalance);
-        assertEq(veLon.vBalanceOf(aliceTokenId), initialAliceBalance);
+        uint256 aliceTokenId = _stakeAndValidate(alice, aliceStakeAmount, 2 weeks);
+        uint256 aliceBalance = _initialvBalance(aliceStakeAmount, 2 weeks);
+        totalBalance = totalBalance.add(aliceBalance);
+        assertEq(veLon.vBalanceOf(aliceTokenId), aliceBalance);
         assertEq(veLon.totalvBalance(), totalBalance);
 
         uint256 bobStakeAmount = 5 * 365 days;
         uint256 bobTokenId = _stakeAndValidate(bob, bobStakeAmount, 1 weeks);
-        uint256 initialBobBalance = _initialvBalance(bobStakeAmount, 1 weeks);
-        totalBalance = totalBalance.add(initialBobBalance);
-        assertEq(veLon.vBalanceOf(bobTokenId), initialBobBalance);
+        uint256 bobBalance = _initialvBalance(bobStakeAmount, 1 weeks);
+        totalBalance = totalBalance.add(bobBalance);
+        assertEq(veLon.vBalanceOf(bobTokenId), bobBalance);
         assertEq(veLon.totalvBalance(), totalBalance);
 
         // check the totalSupply
@@ -83,12 +83,47 @@ contract TestVeLONDeposit is TestVeLON {
         emit log(Strings.toString(veLon.vBalanceOf(aliceTokenId)));
         emit log(Strings.toString(veLon.vBalanceOfAtTime(aliceTokenId, block.timestamp)));
         // sub Bob's all balance
-        totalBalance = totalBalance.sub(initialBobBalance);
+        totalBalance = totalBalance.sub(bobBalance);
         // sub Alice's delined balance ()
         totalBalance = totalBalance.sub((1 * 7 days));
+
+        // alice's balance
+        uint256 expectedAliceBalance = 1 weeks;
+        assertEq(veLon.vBalanceOf(aliceTokenId), expectedAliceBalance, "Alice's balance is not as expected");
+
         vm.prank(bob);
         veLon.withdraw(bobTokenId);
         assertEq(veLon.totalvBalance(), totalBalance, "expectedBalance is not equal");
+    }
+
+    function testCreateLock_and_OneEarlyWithdraw() public {
+        // alice and bob despoit for different amount and time
+        uint256 totalBalance = 0;
+        uint256 aliceStakeAmount = 5 * 365 days;
+        uint256 aliceTokenId = _stakeAndValidate(alice, aliceStakeAmount, 2 weeks);
+        uint256 aliceBalance = _initialvBalance(aliceStakeAmount, 2 weeks);
+        totalBalance = totalBalance.add(aliceBalance);
+        assertEq(veLon.vBalanceOf(aliceTokenId), aliceBalance);
+        assertEq(veLon.totalvBalance(), totalBalance);
+
+        uint256 bobStakeAmount = 5 * 365 days;
+        uint256 bobTokenId = _stakeAndValidate(bob, bobStakeAmount, 2 weeks);
+        uint256 bobBalance = _initialvBalance(bobStakeAmount, 2 weeks);
+        totalBalance = totalBalance.add(bobBalance);
+        assertEq(veLon.vBalanceOf(bobTokenId), bobBalance);
+        assertEq(veLon.totalvBalance(), totalBalance);
+
+        // fast forward 1 week
+        vm.warp(block.timestamp + 1 weeks);
+
+        // Alice early withdraw 1 week beforehand, 
+        // calculate the balacence for alice and bob respectively
+        uint256 aliceDeclineBalance = aliceBalance;
+        uint256 bobDeclineBalance =  5  * 1 weeks;
+        totalBalance = totalBalance.sub(aliceDeclineBalance + bobDeclineBalance);
+        vm.prank(alice);
+        veLon.withdrawEarly(aliceTokenId);
+        assertEq(veLon.totalvBalance(), totalBalance, "totalBalance not equal");
     }
 
     /*****************************************
@@ -99,7 +134,7 @@ contract TestVeLONDeposit is TestVeLON {
         uint256 vBalance = veLon.vBalanceOf(tokenId);
         uint256 expectBalance = 10 * 2 weeks;
         assertEq(vBalance, expectBalance, "Balance is not equal");
-        
+
         // fast forward 1 week
         vm.warp(block.timestamp + 1 weeks);
         expectBalance = 10 * 1 weeks;
@@ -136,6 +171,23 @@ contract TestVeLONDeposit is TestVeLON {
         vm.roll(block.number + 1);
         vm.warp(block.timestamp + 1 weeks);
         assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number), expectBalance);
+    }
+
+    // test testVBalanceOfAtBlk() when target block != current block
+    function testVBalanceOfAtBlkPast() public {
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 initialBalacne = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+
+        // Assume current block.number is 0, then fast forward to 10 blocks and 2 weeks later,
+        // but query the 5th block at the beginning of second week (1 weeks later)
+        uint256 dBlock = 1;
+        uint256 dt = 1 days;
+        uint256 targetBlock = (block.number + 5);
+        vm.roll(block.number + 10 * dBlock);
+        vm.warp(block.timestamp + 14 * dt);
+
+        uint256 expectedBalance = initialBalacne - 10 * 7 * dt;
+        assertEq(veLon.vBalanceOfAtBlk(tokenId, targetBlock), expectedBalance);
     }
 
     function testCannotGetVBalabnceAtFutureBlk() public {
@@ -191,5 +243,36 @@ contract TestVeLONDeposit is TestVeLON {
     function testCannotGetTotalvBalanceAtFutureBlk() public {
         vm.expectRevert("Invalid block number");
         veLon.totalvBalanceAtBlk(block.number + 1);
+    }
+
+    // test totalVbalanceAtBlk when target block != current block
+    function testTotalVBalanceAtBlkPast() public {
+        // alice and bob despoit for same amount and same time
+        uint256 totalBalance = 0;
+        uint256 aliceStakeAmount = 10 * 365 days;
+        uint256 aliceTokenId = _stakeAndValidate(alice, aliceStakeAmount, 2 weeks);
+        uint256 aliceBalance = _initialvBalance(aliceStakeAmount, 2 weeks);
+        totalBalance = totalBalance.add(aliceBalance);
+        assertEq(veLon.vBalanceOf(aliceTokenId), aliceBalance);
+        assertEq(veLon.totalvBalance(), totalBalance);
+
+        uint256 bobStakeAmount = 10 * 365 days;
+        uint256 bobTokenId = _stakeAndValidate(bob, bobStakeAmount, 2 weeks);
+        uint256 bobBalance = _initialvBalance(bobStakeAmount, 2 weeks);
+        totalBalance = totalBalance.add(bobBalance);
+        assertEq(veLon.vBalanceOf(bobTokenId), bobBalance);
+        assertEq(veLon.totalvBalance(), totalBalance);
+
+        // Assume current block.number is 0, then fast forward to 10 blocks and 2 weeks later,
+        // but query the 5th block at the beginning of second week (1 weeks later)
+        uint256 dBlock = 1;
+        uint256 dt = 1 days;
+        uint256 targetBlock = (block.number + 5);
+        vm.roll(block.number + 10 * dBlock);
+        vm.warp(block.timestamp + 14 * dt);
+
+        // total balance -= (Alice_DeclineRate * 7 days + Bob_DeclineRate * 7 days)
+        totalBalance = totalBalance - (2 * 10 * 7 * dt);
+        assertEq(veLon.totalvBalanceAtBlk(targetBlock), totalBalance);
     }
 }
