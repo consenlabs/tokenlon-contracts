@@ -52,7 +52,7 @@ contract TestVeLONWithdraw is TestVeLON {
         veLon.withdrawEarly(tokenId);
         uint256 balanceChange = DEFAULT_STAKE_AMOUNT.mul(earlyWithdrawPenaltyRate).div(PENALTY_RATE_PRECISION);
         stakerLon.assertChange(int256(DEFAULT_STAKE_AMOUNT.sub(balanceChange)));
-
+        lockedLon.assertChange(-int256(expectedAmount + expectedPanalty));
         // check whether token has burned after withdraw
         vm.expectRevert("ERC721: owner query for nonexistent token");
         veLon.ownerOf(tokenId);
@@ -60,6 +60,10 @@ contract TestVeLONWithdraw is TestVeLON {
 
     function testWithdrawByOther() public {
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
+
+        stakerLon = BalanceSnapshot.take(user, address(lon));
+        lockedLon = BalanceSnapshot.take(address(veLon), address(lon));
+
         vm.prank(user);
         // check Approval event
         vm.expectEmit(true, true, true, true);
@@ -72,5 +76,8 @@ contract TestVeLONWithdraw is TestVeLON {
         vm.expectEmit(true, true, true, true);
         emit Withdraw(other, true, tokenId, DEFAULT_STAKE_AMOUNT, 0, block.timestamp);
         veLon.withdraw(tokenId);
+
+        stakerLon.assertChange(int256(DEFAULT_STAKE_AMOUNT));
+        lockedLon.assertChange(-int256(DEFAULT_STAKE_AMOUNT));
     }
 }
