@@ -87,7 +87,7 @@ contract TestVeLONBalance is TestVeLON {
         uint256 expectedAliceBalance = 1 weeks;
         assertEq(veLon.vBalanceOf(aliceTokenId), expectedAliceBalance, "Alice's balance is not as expected");
 
-        // bob's balance 
+        // bob's balance
         // bob's lock has ended so the balance is 0
         uint256 expectedBobBalance = 0;
         assertEq(veLon.vBalanceOf(bobTokenId), expectedBobBalance);
