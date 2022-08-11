@@ -87,13 +87,20 @@ contract TestVeLONBalance is TestVeLON {
         uint256 expectedAliceBalance = 1 weeks;
         assertEq(veLon.vBalanceOf(aliceTokenId), expectedAliceBalance, "Alice's balance is not as expected");
 
+        // bob's balance 
+        // bob's lock has ended so the balance is 0
+        uint256 expectedBobBalance = 0;
+        assertEq(veLon.vBalanceOf(bobTokenId), expectedBobBalance);
+
+        // check the toatalBalance before bob withdraw
+        assertEq(veLon.totalvBalance(), totalBalance);
         vm.prank(bob);
         veLon.withdraw(bobTokenId);
         assertEq(veLon.totalvBalance(), totalBalance, "expectedBalance is not equal");
     }
 
     function testCreateLock_and_OneEarlyWithdraw() public {
-        // alice and bob despoit for different amount and time
+        // alice and bob despoit for same amount and time
         uint256 totalBalance = 0;
         uint256 aliceStakeAmount = 5 * 365 days;
         uint256 aliceTokenId = _stakeAndValidate(alice, aliceStakeAmount, 2 weeks);
