@@ -40,7 +40,6 @@ contract TestVeLONDeposit is TestVeLON {
         vm.prank(user);
         vm.expectRevert("conversion is not enabled");
         veLon.convert("some thing");
-
     }
 
     function testConvertVeLontoMigrateStake() public {
