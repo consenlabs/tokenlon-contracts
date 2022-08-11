@@ -177,6 +177,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         assertEq(uint256(limitOrder.makerFeeFactor()), 0);
         assertEq(uint256(limitOrder.takerFeeFactor()), 0);
+        assertEq(uint256(limitOrder.profitFeeFactor()), 0);
     }
 
     /*********************************
