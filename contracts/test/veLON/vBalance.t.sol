@@ -92,11 +92,7 @@ contract TestVeLONBalance is TestVeLON {
         uint256 expectedBobBalance = 0;
         assertEq(veLon.vBalanceOf(bobTokenId), expectedBobBalance);
 
-        // check the toatalBalance before bob withdraw
         assertEq(veLon.totalvBalance(), totalBalance);
-        vm.prank(bob);
-        veLon.withdraw(bobTokenId);
-        assertEq(veLon.totalvBalance(), totalBalance, "expectedBalance is not equal");
     }
 
     function testCreateLock_and_OneEarlyWithdraw() public {
