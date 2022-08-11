@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
 
 import "./interfaces/IveLON.sol";
 import "./interfaces/ILon.sol";
-import "./interfaces/IxxxLon.sol";
+import "./interfaces/IMigrateStake.sol";
 import "./Ownable.sol";
 
 contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
@@ -61,10 +61,10 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         earlyWithdrawPenaltyRate = 3000;
     }
 
-    /// @notice Help veLON holders convert their veLON to xxxLON.
+    /// @notice Help veLON holders convert their veLON to migrateStake.
     function convert(bytes calldata _encodeData) external override returns (uint256) {
         require(conversion, "conversion is not enabled");
-        earlyWithdrawPenaltyRate = 0;
+        require(earlyWithdrawPenaltyRate == 0, "early withdraw penalty should be zero");
 
         uint256 tokensLength = balanceOf(msg.sender);
         uint256 lockedLonAmount = 0;
@@ -75,8 +75,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             _withdrawTo(_tokenId, true, address(this));
         }
         IERC20(token).approve(dstToken, lockedLonAmount);
-        IxxxLon xxxLon = IxxxLon(dstToken);
-        xxxLon.mintFor(lockedLonAmount, _encodeData);
+        IMigrateStake migrateStake = IMigrateStake(dstToken);
+        migrateStake.mintFor(lockedLonAmount, _encodeData);
         return lockedLonAmount;
     }
 

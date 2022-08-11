@@ -3,23 +3,29 @@ pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/test/veLON/Setup.t.sol";
-import "contracts/test/mocks/MockxxxLon.sol";
+import "contracts/test/mocks/MockMigrateStake.sol";
 
 contract TestVeLONDeposit is TestVeLON {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
     using SafeMath for uint256;
 
     function testEnableAndDisableConversion() public {
-        MockxxxLon xxxLon = new MockxxxLon(address(lon));
+        MockMigrateStake migrateStake = new MockMigrateStake(address(lon));
+        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         uint256 penaltyRateBefore = veLon.earlyWithdrawPenaltyRate();
 
         assertEq(veLon.dstToken(), address(0x0));
         assertEq(veLon.conversion(), false);
+        vm.prank(user);
+        vm.expectRevert("conversion is not enabled");
+        veLon.convert("some thing");
 
         // enable the conversion
-        veLon.enableConversion(address(xxxLon));
+        veLon.enableConversion(address(migrateStake));
+        vm.prank(user);
+        veLon.convert("some thing");
 
-        assertEq(veLon.dstToken(), address(xxxLon));
+        assertEq(veLon.dstToken(), address(migrateStake));
         assertEq(veLon.conversion(), true);
         assertEq(veLon.earlyWithdrawPenaltyRate(), 0);
 
@@ -29,31 +35,37 @@ contract TestVeLONDeposit is TestVeLON {
         assertEq(veLon.dstToken(), address(0x0));
         assertEq(veLon.conversion(), false);
         assertEq(veLon.earlyWithdrawPenaltyRate(), penaltyRateBefore);
+
+        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
+        vm.prank(user);
+        vm.expectRevert("conversion is not enabled");
+        veLon.convert("some thing");
+
     }
 
-    function testConvertVeLontoXXXLon() public {
+    function testConvertVeLontoMigrateStake() public {
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
-        require(tokenId != 0, "No lock created yet");
-        _convertVeLontoXXXLonAndValidate(user, DEFAULT_STAKE_AMOUNT);
+        assertGt(tokenId, 0);
+        _convertVeLontoMigrateStakeAndValidate(user, DEFAULT_STAKE_AMOUNT);
     }
 
-    function _convertVeLontoXXXLonAndValidate(address staker, uint256 stakeAmount) public {
-        MockxxxLon xxxLon = new MockxxxLon(address(lon));
+    function _convertVeLontoMigrateStakeAndValidate(address staker, uint256 stakeAmount) internal {
+        MockMigrateStake migrateStake = new MockMigrateStake(address(lon));
         BalanceSnapshot.Snapshot memory veLonLon = BalanceSnapshot.take(address(veLon), address(lon));
-        BalanceSnapshot.Snapshot memory xxxLonLon = BalanceSnapshot.take(address(xxxLon), address(lon));
+        BalanceSnapshot.Snapshot memory migrateStakeLon = BalanceSnapshot.take(address(migrateStake), address(lon));
 
         uint256 totalNftSupply = veLon.totalSupply();
-        veLon.enableConversion(address(xxxLon));
+        veLon.enableConversion(address(migrateStake));
         vm.prank(staker);
         uint256 convertedAmount = veLon.convert("some thing");
 
         veLonLon.assertChange(-int256(stakeAmount));
-        xxxLonLon.assertChange(int256(stakeAmount));
+        migrateStakeLon.assertChange(int256(stakeAmount));
         assertEq(veLon.totalSupply() + 1, totalNftSupply);
         assertEq(convertedAmount, stakeAmount);
     }
 
-    function testFuzz_ConvertVeLontoXXXLon(
+    function testFuzz_ConvertVeLontoMigrateStake(
         uint256 stakeAmount,
         uint256 lockTime,
         uint256 warp
@@ -71,6 +83,6 @@ contract TestVeLONDeposit is TestVeLON {
         uint256 tokenId = _stakeAndValidate(user, stakeAmount, lockTime);
         require(tokenId != 0, "No lock created yet");
         vm.warp(block.timestamp + warp);
-        _convertVeLontoXXXLonAndValidate(user, stakeAmount);
+        _convertVeLontoMigrateStakeAndValidate(user, stakeAmount);
     }
 }

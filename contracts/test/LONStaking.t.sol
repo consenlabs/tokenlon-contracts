@@ -1165,9 +1165,14 @@ contract LONStakingTest is Test {
 
     function testEnableAndDisableConversion() public {
         veLON veLon = new veLON(address(lon));
+        _stake(user, DEFAULT_VELON_STAKE_AMOUNT);
 
         assertEq(address(lonStaking.veLon()), address(0x0));
         assertEq(lonStaking.conversion(), false);
+
+        vm.prank(user);
+        vm.expectRevert("conversion is not enabled");
+        lonStaking.convert(abi.encode(DEFAULT_LOCK_TIME));
 
         // enable the conversion
         lonStaking.enableConversion(address(veLon));
@@ -1175,22 +1180,28 @@ contract LONStakingTest is Test {
         assertEq(address(lonStaking.veLon()), address(veLon));
         assertEq(lonStaking.conversion(), true);
 
+        vm.prank(user);
+        lonStaking.convert(abi.encode(DEFAULT_LOCK_TIME));
+
         // disable the conversion
         lonStaking.disableConversion();
+        _stake(user, DEFAULT_VELON_STAKE_AMOUNT);
 
         assertEq(address(lonStaking.veLon()), address(0x0));
         assertEq(lonStaking.conversion(), false);
+
+        vm.prank(user);
+        vm.expectRevert("conversion is not enabled");
+        lonStaking.convert(abi.encode(DEFAULT_LOCK_TIME));
     }
 
     function _convertXLonToVeLonAndValidate(uint256 convertAmount, uint256 convertDuration) internal {
-        _stake(user, convertAmount);
         veLON veLon = new veLON(address(lon));
 
         BalanceSnapshot.Snapshot memory veLonLon = BalanceSnapshot.take(address(veLon), address(lon));
         BalanceSnapshot.Snapshot memory lonStakingLon = BalanceSnapshot.take(address(lonStaking), address(lon));
         BalanceSnapshot.Snapshot memory userXLon = BalanceSnapshot.take(user, address(lonStaking));
 
-        uint256 veLonTotalPower = veLon.totalSupply();
         uint256 userXLonAmount = lonStaking.balanceOf(user);
         lonStaking.enableConversion(address(veLon));
 
@@ -1203,8 +1214,8 @@ contract LONStakingTest is Test {
         userXLon.assertChange(-int256(userXLonAmount));
 
         assertGe(tokenId, 0);
-        uint256 actualPower = veLon.vBalanceOf(tokenId);
-        assertEq(actualPower, expectedPower);
+        assertEq(veLon.vBalanceOf(tokenId), expectedPower);
+        assertEq(veLon.totalvBalance(), expectedPower);
     }
 
     function _calcPower(
@@ -1224,6 +1235,7 @@ contract LONStakingTest is Test {
         vm.warp(ts);
         assertEq(_calcPower(DEFAULT_LOCK_TIME, DEFAULT_VELON_STAKE_AMOUNT, 365 days), 2 * 10 weeks);
 
+        _stake(user, DEFAULT_VELON_STAKE_AMOUNT);
         _convertXLonToVeLonAndValidate(DEFAULT_VELON_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
     }
 
@@ -1235,17 +1247,8 @@ contract LONStakingTest is Test {
         vm.assume(convertDuration <= 365 days);
 
         lon.mint(user, convertAmount);
+        _stake(user, convertAmount);
         _convertXLonToVeLonAndValidate(convertAmount, convertDuration);
-    }
-
-    function testCannotConvert() public {
-        _stake(user, DEFAULT_VELON_STAKE_AMOUNT);
-
-        assertEq(lonStaking.conversion(), false);
-        vm.startPrank(user);
-        vm.expectRevert("conversion is not enabled");
-        lonStaking.convert(abi.encode(DEFAULT_LOCK_TIME));
-        vm.stopPrank();
     }
 
     /*********************************
