@@ -13,7 +13,7 @@ interface ILimitOrder {
     event AllowTransfer(address spender);
     event DisallowTransfer(address spender);
     event DepositETH(uint256 ethBalance);
-    event FactorsUpdated(uint16 makerFeeFactor, uint16 takerFeeFactor);
+    event FactorsUpdated(uint16 makerFeeFactor, uint16 takerFeeFactor, uint16 profitFeeFactor);
     event SetFeeCollector(address newFeeCollector);
     event LimitOrderFilledByTrader(
         bytes32 indexed orderHash,
@@ -31,7 +31,8 @@ interface ILimitOrder {
         address relayer,
         address profitRecipient,
         FillReceipt fillReceipt,
-        uint256 takerTokenProfit
+        uint256 relayerTakerTokenProfit,
+        uint256 relayerProfitFee
     );
     event OrderCancelled(bytes32 orderHash, address maker);
 
