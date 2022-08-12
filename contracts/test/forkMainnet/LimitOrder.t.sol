@@ -1054,7 +1054,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         // fee = taker fee + relayer profit fee
         uint256 fee = DEFAULT_ORDER.takerTokenAmount.mul(10).div(100);
-        fee = fee.add(ammOutputExtra.mul(20).div(100));
+        fee = fee.add(relayerProfitFee);
         fcTakerAsset.assertChangeGt(int256(fee));
     }
 
