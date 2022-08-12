@@ -238,14 +238,12 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         _updateLockedPoint(_tokenId, _oldLocked, _lockedBalance);
 
         if (_value != 0 && _depositType != DepositType.MERGE_TYPE) {
+            tokenSupply = tokenSupply.add(_value);
+            emit Supply(prevSupply, tokenSupply);
             assert(IERC20(token).transferFrom(msg.sender, address(this), _value));
         }
 
         emit Deposit(msg.sender, _tokenId, _value, _lockedBalance.end, _depositType, block.timestamp);
-        if (_depositType != DepositType.MERGE_TYPE && _depositType != DepositType.INCREASE_UNLOCK_TIME) {
-            tokenSupply = tokenSupply.add(_value);
-            emit Supply(prevSupply, tokenSupply);
-        }
     }
 
     /// @notice Withdraw all tokens for `_tokenId`

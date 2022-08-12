@@ -34,11 +34,12 @@ contract TestVeLONDeposit is TestVeLON {
         uint256 tokenSupplyBefore = veLon.totalSupply();
         uint256 expectedUnlockTime = block.timestamp + DEFAULT_LOCK_TIME;
 
-        vm.expectEmit(true, true, true, true);
-        emit Deposit(user, tokenSupplyBefore + 1, DEFAULT_STAKE_AMOUNT, expectedUnlockTime, DepositType.CREATE_LOCK_TYPE, block.timestamp);
         uint256 supply = DEFAULT_STAKE_AMOUNT;
         vm.expectEmit(true, true, true, true);
         emit Supply(prevSupply, supply);
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(user, tokenSupplyBefore + 1, DEFAULT_STAKE_AMOUNT, expectedUnlockTime, DepositType.CREATE_LOCK_TYPE, block.timestamp);
+
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
 
         stakerLon.assertChange(-int256(DEFAULT_STAKE_AMOUNT));
@@ -70,9 +71,9 @@ contract TestVeLONDeposit is TestVeLON {
         uint256 supply = prevSupply + deposit2nd;
         vm.prank(user);
         vm.expectEmit(true, true, true, true);
-        emit Deposit(user, tokenId, deposit2nd, lockEnd, DepositType.INCREASE_LOCK_AMOUNT, block.timestamp);
-        vm.expectEmit(true, true, true, true);
         emit Supply(prevSupply, supply);
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(user, tokenId, deposit2nd, lockEnd, DepositType.INCREASE_LOCK_AMOUNT, block.timestamp);
         veLon.depositFor(tokenId, deposit2nd);
 
         stakerLon.assertChange(-(int256(deposit2nd)));
