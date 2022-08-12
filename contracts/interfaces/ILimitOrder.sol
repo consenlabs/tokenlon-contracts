@@ -32,7 +32,7 @@ interface ILimitOrder {
         address profitRecipient,
         FillReceipt fillReceipt,
         uint256 relayerTakerTokenProfit,
-        uint256 relayerProfitFee
+        uint256 relayerTakerTokenProfitFee
     );
     event OrderCancelled(bytes32 orderHash, address maker);
 

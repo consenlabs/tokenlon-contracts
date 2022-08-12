@@ -39,7 +39,7 @@ contract LimitOrderTest is StrategySharedSetup {
         address profitRecipient,
         ILimitOrder.FillReceipt fillReceipt,
         uint256 relayerTakerTokenProfit,
-        uint256 relayerProfitFee
+        uint256 relayerTakerTokenProfitFee
     );
 
     uint256 userPrivateKey = uint256(1);
@@ -1018,7 +1018,7 @@ contract LimitOrderTest is StrategySharedSetup {
         // get quote from AMM
         uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);
         uint256 ammOutputExtra = ammTakerTokenOut.sub(DEFAULT_ORDER.takerTokenAmount);
-        uint256 relayerProfitFee = ammOutputExtra.mul(20).div(100);
+        uint256 relayerTakerTokenProfitFee = ammOutputExtra.mul(20).div(100);
 
         // Allow fill is bound by tx.origin in protocol case.
         vm.startPrank(user, user);
@@ -1040,8 +1040,8 @@ contract LimitOrderTest is StrategySharedSetup {
                 0, // makerTokenFee should be zero in protocol case
                 DEFAULT_ORDER.takerTokenAmount.mul(10).div(100) // takerTokenFee = 10% takerTokenAmount
             ),
-            ammOutputExtra.sub(relayerProfitFee), // relayerTakerTokenProfit
-            relayerProfitFee // relayerProfitFee
+            ammOutputExtra.sub(relayerTakerTokenProfitFee), // relayerTakerTokenProfit
+            relayerTakerTokenProfitFee // relayerTakerTokenProfitFee
         );
         userProxy.toLimitOrder(payload);
         vm.stopPrank();
@@ -1054,7 +1054,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         // fee = taker fee + relayer profit fee
         uint256 fee = DEFAULT_ORDER.takerTokenAmount.mul(10).div(100);
-        fee = fee.add(relayerProfitFee);
+        fee = fee.add(relayerTakerTokenProfitFee);
         fcTakerAsset.assertChangeGt(int256(fee));
     }
 
