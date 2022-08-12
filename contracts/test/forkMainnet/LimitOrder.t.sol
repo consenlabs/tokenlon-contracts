@@ -1047,7 +1047,7 @@ contract LimitOrderTest is StrategySharedSetup {
         vm.stopPrank();
 
         userTakerAsset.assertChange(0);
-        // To avoid precision issue, use great than instread
+        // To avoid precision issue, use great than instead
         receiverTakerAsset.assertChangeGt(int256(ammOutputExtra.mul(80).div(100)));
         makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(90).div(100)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
