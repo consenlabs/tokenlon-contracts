@@ -139,6 +139,12 @@ contract TestVeLONDeposit is TestVeLON {
         emit Deposit(user, _toTokenId, _stakeAmountFrom, _fromUnlockTime, DepositType.MERGE_TYPE, block.timestamp);
         veLon.merge(_fromTokenId, _toTokenId);
 
+        // check wether the _toToken balance was increased as expected
+        // _fromToken lock is longer(15 weeks) then _toToken(2 weeks), so the merged token's lock end would be 15 weeks
+        uint256 expectedToBalance = _initialvBalance(_stakeAmountFrom + DEFAULT_STAKE_AMOUNT, _stakeDurationFrom);
+        assertEq(expectedToBalance, veLon.vBalanceOf(_toTokenId));
+        assertEq(expectedToBalance, veLon.totalvBalance());
+
         // check whether fromToken has burned
         vm.expectRevert("ERC721: owner query for nonexistent token");
         veLon.ownerOf(_fromTokenId);
