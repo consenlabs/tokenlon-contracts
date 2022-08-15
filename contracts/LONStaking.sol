@@ -16,6 +16,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/ILon.sol";
 import "./upgradeable/ERC20ForUpgradeable.sol";
 import "./upgradeable/OwnableForUpgradeable.sol";
+import "./utils/LibConstant.sol";
 
 contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGuard, Pausable {
     using SafeMath for uint256;
@@ -24,7 +25,6 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
 
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
     bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
-    uint256 private constant BPS_MAX = 10000;
 
     ILon public lonToken;
     bytes32 public DOMAIN_SEPARATOR;
@@ -56,7 +56,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         _initializeERC20("Wrapped Tokenlon", "xLON");
 
         require(_COOLDOWN_IN_DAYS >= 1, "COOLDOWN_IN_DAYS less than 1 day");
-        require(_BPS_RAGE_EXIT_PENALTY <= BPS_MAX, "BPS_RAGE_EXIT_PENALTY larger than BPS_MAX");
+        require(_BPS_RAGE_EXIT_PENALTY <= LibConstant.BPS_MAX, "BPS_RAGE_EXIT_PENALTY larger than BPS_MAX");
         COOLDOWN_IN_DAYS = _COOLDOWN_IN_DAYS;
         COOLDOWN_SECONDS = _COOLDOWN_IN_DAYS * 86400;
         BPS_RAGE_EXIT_PENALTY = _BPS_RAGE_EXIT_PENALTY;
@@ -88,7 +88,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
 
     function setCooldownAndRageExitParam(uint256 _COOLDOWN_IN_DAYS, uint256 _BPS_RAGE_EXIT_PENALTY) public onlyOwner {
         require(_COOLDOWN_IN_DAYS >= 1, "COOLDOWN_IN_DAYS less than 1 day");
-        require(_BPS_RAGE_EXIT_PENALTY <= BPS_MAX, "BPS_RAGE_EXIT_PENALTY larger than BPS_MAX");
+        require(_BPS_RAGE_EXIT_PENALTY <= LibConstant.BPS_MAX, "BPS_RAGE_EXIT_PENALTY larger than BPS_MAX");
 
         COOLDOWN_IN_DAYS = _COOLDOWN_IN_DAYS;
         COOLDOWN_SECONDS = _COOLDOWN_IN_DAYS * 86400;
@@ -125,7 +125,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         } else {
             uint256 timeDiffInDays = Math.min(COOLDOWN_IN_DAYS, (cooldownEndTimestamp.sub(block.timestamp)).div(86400).add(1));
             // Penalty share = share * (number_of_days_to_cooldown_end / number_of_days_in_cooldown) * (BPS_RAGE_EXIT_PENALTY / BPS_MAX)
-            uint256 penaltyShare = share.mul(timeDiffInDays).mul(BPS_RAGE_EXIT_PENALTY).div(BPS_MAX).div(COOLDOWN_IN_DAYS);
+            uint256 penaltyShare = share.mul(timeDiffInDays).mul(BPS_RAGE_EXIT_PENALTY).div(LibConstant.BPS_MAX).div(COOLDOWN_IN_DAYS);
             receiveAmount = share.sub(penaltyShare).mul(totalLon).div(totalShares);
             penaltyAmount = userTotalAmount.sub(receiveAmount);
         }
@@ -298,7 +298,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         } else {
             uint256 timeDiffInDays = Math.min(COOLDOWN_IN_DAYS, (cooldownEndTimestamp.sub(block.timestamp)).div(86400).add(1));
             // Penalty = share * (number_of_days_to_cooldown_end / number_of_days_in_cooldown) * (BPS_RAGE_EXIT_PENALTY / BPS_MAX)
-            uint256 penalty = share.mul(timeDiffInDays).mul(BPS_RAGE_EXIT_PENALTY).div(BPS_MAX).div(COOLDOWN_IN_DAYS);
+            uint256 penalty = share.mul(timeDiffInDays).mul(BPS_RAGE_EXIT_PENALTY).div(LibConstant.BPS_MAX).div(COOLDOWN_IN_DAYS);
             _redeem(share.sub(penalty), penalty);
         }
     }

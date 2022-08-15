@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import "./interfaces/IWeth.sol";
+import "./utils/LibConstant.sol";
 import "./Ownable.sol";
 
 interface IIMBTC {
@@ -18,7 +19,6 @@ interface IWBTC {
 contract MarketMakerProxy is Ownable {
     using SafeERC20 for IERC20;
 
-    uint256 private constant MAX_UINT = 2**256 - 1;
     address public SIGNER;
     address public operator;
 
@@ -63,7 +63,7 @@ contract MarketMakerProxy is Ownable {
     function setAllowance(address[] memory token_addrs, address spender) public onlyOperator {
         for (uint256 i = 0; i < token_addrs.length; i++) {
             address token = token_addrs[i];
-            IERC20(token).safeApprove(spender, MAX_UINT);
+            IERC20(token).safeApprove(spender, LibConstant.MAX_UINT);
         }
     }
 
