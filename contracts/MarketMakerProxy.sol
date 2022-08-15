@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import "./interfaces/IWeth.sol";
-import "./utils/pmm/LibDecoder.sol";
 import "./Ownable.sol";
 
 interface IIMBTC {
@@ -16,7 +15,7 @@ interface IWBTC {
     function burn(uint256 value) external;
 }
 
-contract MarketMakerProxy is Ownable, LibDecoder {
+contract MarketMakerProxy is Ownable {
     using SafeERC20 for IERC20;
 
     string public constant version = "5.0.0";
@@ -100,12 +99,7 @@ contract MarketMakerProxy is Ownable, LibDecoder {
     }
 
     function isValidSignature(bytes32 orderHash, bytes memory signature) public view returns (bytes32) {
-        require(SIGNER == _ecrecoverAddress(orderHash, signature), "MarketMakerProxy: invalid signature");
+        require(SIGNER == ECDSA.recover(ECDSA.toEthSignedMessageHash(orderHash), signature), "MarketMakerProxy: invalid signature");
         return keccak256("isValidWalletSignature(bytes32,address,bytes)");
-    }
-
-    function _ecrecoverAddress(bytes32 orderHash, bytes memory signature) internal pure returns (address) {
-        (uint8 v, bytes32 r, bytes32 s) = decodeMmSignature(signature);
-        return ECDSA.recover(ECDSA.toEthSignedMessageHash(orderHash), v, r, s);
     }
 }

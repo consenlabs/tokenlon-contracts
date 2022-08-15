@@ -460,7 +460,7 @@ contract RFQTest is StrategySharedSetup {
             sig = abi.encodePacked(r, s, v, uint8(sigType));
         } else if (sigType == SignatureValidator.SignatureType.Wallet) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
-            sig = abi.encodePacked(v, r, s, uint8(sigType));
+            sig = abi.encodePacked(r, s, v, uint8(sigType));
         } else {
             revert("Invalid signature type");
         }
