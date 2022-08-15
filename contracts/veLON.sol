@@ -220,7 +220,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         LockedBalance memory _lockedBalance,
         DepositType _depositType
     ) private {
-        tokenSupply = tokenSupply.add(_value);
+        uint256 prevSupply = tokenSupply;
 
         LockedBalance memory _oldLocked = LockedBalance(_lockedBalance.amount, _lockedBalance.end);
 
@@ -238,6 +238,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         _updateLockedPoint(_tokenId, _oldLocked, _lockedBalance);
 
         if (_value != 0 && _depositType != DepositType.MERGE_TYPE) {
+            tokenSupply = prevSupply.add(_value);
+            emit Supply(prevSupply, tokenSupply);
             assert(IERC20(token).transferFrom(msg.sender, address(this), _value));
         }
 
@@ -259,6 +261,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     function _withdraw(uint256 _tokenId, bool _allowPenalty) private {
         require(_isApprovedOrOwner(msg.sender, _tokenId), "Not approved or owner");
 
+        uint256 prevSupply = tokenSupply;
         LockedBalance memory _locked = locked[_tokenId];
         uint256 amount = _locked.amount;
         bool expired = block.timestamp >= _locked.end;
@@ -282,6 +285,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         require(IERC20(token).transfer(owner, amount), "Token withdraw failed");
 
         emit Withdraw(msg.sender, expired, _tokenId, amount, penalty, block.timestamp);
+        emit Supply(prevSupply, tokenSupply);
     }
 
     /// @notice Merge two locking NFTs as one

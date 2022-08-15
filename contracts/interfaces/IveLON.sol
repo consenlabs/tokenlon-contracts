@@ -26,9 +26,7 @@ interface IveLON is IERC721, IERC721Metadata {
 
     event Deposit(address indexed provider, uint256 tokenId, uint256 value, uint256 indexed locktime, DepositType depositType, uint256 ts);
     event Withdraw(address indexed provider, bool indexed lockExpired, uint256 tokenId, uint256 withdrawValue, uint256 burnValue, uint256 ts);
-
-    // TODO need this event?
-    // event Supply(uint256 prevSupply, uint256 supply);?
+    event Supply(uint256 prevSupply, uint256 supply);
 
     function vBalanceOf(uint256 _tokenId) external view returns (uint256);
 

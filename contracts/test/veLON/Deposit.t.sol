@@ -12,6 +12,7 @@ contract TestVeLONDeposit is TestVeLON {
         MERGE_TYPE
     }
     event Deposit(address indexed provider, uint256 tokenId, uint256 value, uint256 indexed locktime, DepositType depositType, uint256 ts);
+    event Supply(uint256 prevSupply, uint256 supply);
 
     function testFuzzCreateLock(uint256 _amount) public {
         vm.prank(user);
@@ -27,13 +28,18 @@ contract TestVeLONDeposit is TestVeLON {
     }
 
     function testCreateLock() public {
+        uint256 prevSupply = 0;
         stakerLon = BalanceSnapshot.take(user, address(lon));
         lockedLon = BalanceSnapshot.take(address(veLon), address(lon));
         uint256 tokenSupplyBefore = veLon.totalSupply();
         uint256 expectedUnlockTime = block.timestamp + DEFAULT_LOCK_TIME;
 
+        uint256 supply = DEFAULT_STAKE_AMOUNT;
+        vm.expectEmit(true, true, true, true);
+        emit Supply(prevSupply, supply);
         vm.expectEmit(true, true, true, true);
         emit Deposit(user, tokenSupplyBefore + 1, DEFAULT_STAKE_AMOUNT, expectedUnlockTime, DepositType.CREATE_LOCK_TYPE, block.timestamp);
+
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
 
         stakerLon.assertChange(-int256(DEFAULT_STAKE_AMOUNT));
@@ -53,6 +59,7 @@ contract TestVeLONDeposit is TestVeLON {
     }
 
     function testDepositFor() public {
+        uint256 prevSupply = DEFAULT_STAKE_AMOUNT;
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         require(tokenId != 0, "No lock created yet");
         uint256 lockEnd = veLon.unlockTime(tokenId);
@@ -61,7 +68,10 @@ contract TestVeLONDeposit is TestVeLON {
         lockedLon = BalanceSnapshot.take(address(veLon), address(lon));
 
         uint256 deposit2nd = 5 * 365 days;
+        uint256 supply = prevSupply + deposit2nd;
         vm.prank(user);
+        vm.expectEmit(true, true, true, true);
+        emit Supply(prevSupply, supply);
         vm.expectEmit(true, true, true, true);
         emit Deposit(user, tokenId, deposit2nd, lockEnd, DepositType.INCREASE_LOCK_AMOUNT, block.timestamp);
         veLon.depositFor(tokenId, deposit2nd);
