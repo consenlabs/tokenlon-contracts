@@ -11,7 +11,6 @@ contract TestVeLONDeposit is TestVeLON {
 
     function testEnableAndDisableConversion() public {
         MockMigrateStake migrateStake = new MockMigrateStake(address(lon));
-        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         uint256 penaltyRateBefore = veLon.earlyWithdrawPenaltyRate();
 
         assertEq(veLon.dstToken(), address(0x0));
