@@ -4,7 +4,9 @@ pragma solidity >=0.7.0;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
 
-interface IveLON is IERC721, IERC721Metadata {
+import "./IConversion.sol";
+
+interface IveLON is IERC721, IERC721Metadata, IConversion {
     enum DepositType {
         CREATE_LOCK_TYPE,
         INCREASE_LOCK_AMOUNT,
@@ -37,6 +39,12 @@ interface IveLON is IERC721, IERC721Metadata {
     function unlockTime(uint256 _tokenId) external view returns (uint256);
 
     function createLock(uint256 _value, uint256 _lockDuration) external returns (uint256);
+
+    function createLockFor(
+        uint256 _value,
+        uint256 _lockDuration,
+        address _to
+    ) external returns (uint256);
 
     function extendLock(uint256 _tokenId, uint256 _lock_duration) external;
 

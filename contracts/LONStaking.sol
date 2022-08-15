@@ -14,10 +14,12 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "./interfaces/ILon.sol";
+import "./interfaces/IveLON.sol";
+import "./interfaces/IConversion.sol";
 import "./upgradeable/ERC20ForUpgradeable.sol";
 import "./upgradeable/OwnableForUpgradeable.sol";
 
-contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGuard, Pausable {
+contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGuard, Pausable, IConversion {
     using SafeMath for uint256;
     using SafeERC20 for ILon;
     using SafeERC20 for IERC20;
@@ -33,6 +35,9 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
     uint256 public COOLDOWN_IN_DAYS;
     mapping(address => uint256) public nonces; // For EIP-2612 permit()
     mapping(address => uint256) public stakersCooldowns;
+
+    IveLON public veLon;
+    bool public conversion = false;
 
     /* ========== EVENTS ========== */
 
@@ -100,6 +105,19 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         require(_tokenAddress != address(lonToken), "cannot withdraw lon token");
         IERC20(_tokenAddress).safeTransfer(owner, _tokenAmount);
         emit Recovered(_tokenAddress, _tokenAmount);
+    }
+
+    /// @notice Enable xLon migration and set the veLon.
+    /// @param _veLon The destination address which xLon is converted to.
+    function enableConversion(address _veLon) external override onlyOwner {
+        conversion = true;
+        veLon = IveLON(_veLon);
+    }
+
+    /// @notice Disable xLON migration.
+    function disableConversion() external override onlyOwner {
+        conversion = false;
+        veLon = IveLON(address(0x0));
     }
 
     /* ========== VIEWS ========== */
@@ -258,13 +276,17 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         emit Cooldown(msg.sender);
     }
 
-    function _redeem(uint256 _share, uint256 _penalty) internal {
+    function _redeemAndSendTo(
+        uint256 _share,
+        uint256 _penalty,
+        address _destination
+    ) internal returns (uint256 userTotalAmount) {
         require(_share != 0, "cannot redeem 0 share");
 
         uint256 totalLon = lonToken.balanceOf(address(this));
         uint256 totalShares = totalSupply();
 
-        uint256 userTotalAmount = _share.add(_penalty).mul(totalLon).div(totalShares);
+        userTotalAmount = _share.add(_penalty).mul(totalLon).div(totalShares);
         uint256 redeemAmount = _share.mul(totalLon).div(totalShares);
         uint256 penaltyAmount = userTotalAmount.sub(redeemAmount);
         _burn(msg.sender, _share.add(_penalty));
@@ -272,9 +294,10 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
             stakersCooldowns[msg.sender] = 0;
         }
 
-        lonToken.transfer(msg.sender, redeemAmount);
+        lonToken.transfer(_destination, redeemAmount);
 
         emit Redeem(msg.sender, _share, redeemAmount, penaltyAmount);
+        return userTotalAmount;
     }
 
     function redeem(uint256 _share) public nonReentrant {
@@ -283,7 +306,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
 
         require(block.timestamp > cooldownStartTimestamp.add(COOLDOWN_SECONDS), "Still in cooldown");
 
-        _redeem(_share, 0);
+        _redeemAndSendTo(_share, 0, msg.sender);
     }
 
     function rageExit() public nonReentrant {
@@ -294,12 +317,22 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         uint256 share = balanceOf(msg.sender);
         if (block.timestamp > cooldownEndTimestamp) {
             // Normal redeem if cooldown period already passed
-            _redeem(share, 0);
+            _redeemAndSendTo(share, 0, msg.sender);
         } else {
             uint256 timeDiffInDays = Math.min(COOLDOWN_IN_DAYS, (cooldownEndTimestamp.sub(block.timestamp)).div(86400).add(1));
             // Penalty = share * (number_of_days_to_cooldown_end / number_of_days_in_cooldown) * (BPS_RAGE_EXIT_PENALTY / BPS_MAX)
             uint256 penalty = share.mul(timeDiffInDays).mul(BPS_RAGE_EXIT_PENALTY).div(BPS_MAX).div(COOLDOWN_IN_DAYS);
-            _redeem(share.sub(penalty), penalty);
+            _redeemAndSendTo(share.sub(penalty), penalty, msg.sender);
         }
+    }
+
+    function convert(bytes calldata _encodeData) external override returns (uint256 tokenId) {
+        require(conversion, "conversion is not enabled");
+        uint256 _lockDuration = abi.decode(_encodeData, (uint256));
+        uint256 userShare = balanceOf(msg.sender);
+        uint256 userLonBalance = _redeemAndSendTo(userShare, 0, address(this));
+        lonToken.approve(address(veLon), userLonBalance);
+
+        return veLon.createLockFor(userLonBalance, _lockDuration, msg.sender);
     }
 }

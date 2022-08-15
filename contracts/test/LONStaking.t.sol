@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/Lon.sol";
 import "contracts/LONStaking.sol";
 import "contracts/xLON.sol";
+import "contracts/veLON.sol";
 import "contracts/interfaces/ILon.sol";
 import "contracts/utils/LibConstant.sol";
 import "contracts-test/mocks/MockERC20.sol";
@@ -39,6 +40,8 @@ contract LONStakingTest is Test {
 
     uint256 DEFAULT_STAKE_AMOUNT = 1e18;
     uint256 DEFAULT_BUYBACK_AMOUNT = 100 * 1e18;
+    uint256 DEFAULT_LOCK_TIME = 2 weeks;
+    uint256 DEFAULT_VELON_STAKE_AMOUNT = 10 * (365 days);
     uint256 DEADLINE = block.timestamp + 1;
 
     struct StakeWithPermit {
@@ -1154,6 +1157,98 @@ contract LONStakingTest is Test {
 
         vm.expectRevert("invalid signature");
         lonStaking.permit(permit.owner, permit.spender, permit.value, permit.deadline, v, r, s);
+    }
+
+    /*********************************
+     *         Test: conversion      *
+     *********************************/
+
+    function testEnableAndDisableConversion() public {
+        veLON veLon = new veLON(address(lon));
+        _stake(user, DEFAULT_VELON_STAKE_AMOUNT);
+
+        assertEq(address(lonStaking.veLon()), address(0x0));
+        assertEq(lonStaking.conversion(), false);
+
+        vm.prank(user);
+        vm.expectRevert("conversion is not enabled");
+        lonStaking.convert(abi.encode(DEFAULT_LOCK_TIME));
+
+        // enable the conversion
+        lonStaking.enableConversion(address(veLon));
+
+        assertEq(address(lonStaking.veLon()), address(veLon));
+        assertEq(lonStaking.conversion(), true);
+
+        vm.prank(user);
+        lonStaking.convert(abi.encode(DEFAULT_LOCK_TIME));
+
+        // disable the conversion
+        lonStaking.disableConversion();
+        _stake(user, DEFAULT_VELON_STAKE_AMOUNT);
+
+        assertEq(address(lonStaking.veLon()), address(0x0));
+        assertEq(lonStaking.conversion(), false);
+
+        vm.prank(user);
+        vm.expectRevert("conversion is not enabled");
+        lonStaking.convert(abi.encode(DEFAULT_LOCK_TIME));
+    }
+
+    function _convertXLonToVeLonAndValidate(uint256 convertAmount, uint256 convertDuration) internal {
+        veLON veLon = new veLON(address(lon));
+
+        BalanceSnapshot.Snapshot memory veLonLon = BalanceSnapshot.take(address(veLon), address(lon));
+        BalanceSnapshot.Snapshot memory lonStakingLon = BalanceSnapshot.take(address(lonStaking), address(lon));
+        BalanceSnapshot.Snapshot memory userXLon = BalanceSnapshot.take(user, address(lonStaking));
+
+        uint256 userXLonAmount = lonStaking.balanceOf(user);
+        lonStaking.enableConversion(address(veLon));
+
+        vm.prank(user);
+        uint256 tokenId = lonStaking.convert(abi.encode(convertDuration));
+        uint256 expectedPower = _calcPower(convertDuration, convertAmount, veLon.maxLockDuration());
+
+        veLonLon.assertChange(int256(convertAmount));
+        lonStakingLon.assertChange(-int256(convertAmount));
+        userXLon.assertChange(-int256(userXLonAmount));
+
+        assertGe(tokenId, 0);
+        assertEq(veLon.vBalanceOf(tokenId), expectedPower);
+        assertEq(veLon.totalvBalance(), expectedPower);
+    }
+
+    function _calcPower(
+        uint256 _duration,
+        uint256 _amount,
+        uint256 _maxLockDuration
+    ) internal returns (uint256) {
+        uint256 lockEnd = _duration.add(block.timestamp).div(1 weeks).mul(1 weeks);
+        uint256 power = _amount.div(_maxLockDuration).mul(lockEnd.sub(block.timestamp));
+        return power;
+    }
+
+    function testConvertXLonToVeLon() public {
+        // make sure `_calcPower` behave correctly.
+        // decliningRate = 10, lock duration = 2 weeks (exactly)
+        uint256 ts = (block.timestamp).div(1 weeks).mul(1 weeks);
+        vm.warp(ts);
+        assertEq(_calcPower(DEFAULT_LOCK_TIME, DEFAULT_VELON_STAKE_AMOUNT, 365 days), 2 * 10 weeks);
+
+        _stake(user, DEFAULT_VELON_STAKE_AMOUNT);
+        _convertXLonToVeLonAndValidate(DEFAULT_VELON_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
+    }
+
+    function testFuzz_ConvertXLonToVeLon(uint256 convertAmount, uint256 convertDuration) public {
+        vm.assume(convertAmount > 0);
+        vm.assume(convertAmount <= lon.cap());
+        vm.assume(convertAmount.add(lon.totalSupply()) <= lon.cap());
+        vm.assume(convertDuration >= 1 weeks);
+        vm.assume(convertDuration <= 365 days);
+
+        lon.mint(user, convertAmount);
+        _stake(user, convertAmount);
+        _convertXLonToVeLonAndValidate(convertAmount, convertDuration);
     }
 
     /*********************************

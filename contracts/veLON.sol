@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
 
 import "./interfaces/IveLON.sol";
 import "./interfaces/ILon.sol";
+import "./interfaces/IMigrateStake.sol";
 import "./Ownable.sol";
 
 contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
@@ -18,6 +19,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
     uint256 internal constant MULTIPLIER = 1 ether;
     address public immutable token;
+    address public dstToken;
+    bool public conversion = false;
 
     uint256 public tokenSupply;
     uint256 public epoch;
@@ -41,6 +44,40 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
         poolPointHistory[0].blk = block.number;
         poolPointHistory[0].ts = block.timestamp;
+    }
+
+    /// @notice Enable veLON migration and set the dstToken.
+    /// @param _dstToken The destination address which veLON is converted to.
+    function enableConversion(address _dstToken) external override onlyOwner {
+        conversion = true;
+        dstToken = _dstToken;
+        earlyWithdrawPenaltyRate = 0;
+    }
+
+    /// @notice Disable veLON migration.
+    function disableConversion() external override onlyOwner {
+        conversion = false;
+        dstToken = address(0x0);
+        earlyWithdrawPenaltyRate = 3000;
+    }
+
+    /// @notice Help veLON holders convert their veLON to migrateStake.
+    function convert(bytes calldata _encodeData) external override returns (uint256) {
+        require(conversion, "conversion is not enabled");
+        require(earlyWithdrawPenaltyRate == 0, "early withdraw penalty should be zero");
+
+        uint256 tokensLength = balanceOf(msg.sender);
+        uint256 lockedLonAmount = 0;
+        // get all tokenIds belonging to `msg.sender`
+        for (uint256 i = 0; i < tokensLength; i++) {
+            uint256 _tokenId = tokenOfOwnerByIndex(msg.sender, i);
+            lockedLonAmount = lockedLonAmount.add(locked[_tokenId].amount);
+            _withdrawTo(_tokenId, true, address(this));
+        }
+        IERC20(token).approve(dstToken, lockedLonAmount);
+        IMigrateStake migrateStake = IMigrateStake(dstToken);
+        migrateStake.mintFor(lockedLonAmount, _encodeData);
+        return lockedLonAmount;
     }
 
     function vBalanceOf(uint256 _tokenId) external view override returns (uint256) {
@@ -162,6 +199,26 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     /// @param _value Amount to deposit
     /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
     function createLock(uint256 _value, uint256 _lockDuration) external override nonReentrant returns (uint256) {
+        return _createLock(_value, _lockDuration, msg.sender);
+    }
+
+    /// @notice Deposit `_value` tokens for `_to` and lock for `_lock_duration`.
+    /// @param _value Amount to deposit
+    /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
+    /// @param _to The owner of NFT
+    function createLockFor(
+        uint256 _value,
+        uint256 _lockDuration,
+        address _to
+    ) external override nonReentrant returns (uint256) {
+        return _createLock(_value, _lockDuration, _to);
+    }
+
+    function _createLock(
+        uint256 _value,
+        uint256 _lockDuration,
+        address _to
+    ) internal returns (uint256) {
         require(_value > 0, "Zero lock amount");
 
         // unlockTime is rounded down to weeks
@@ -171,7 +228,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
         ++tokenId;
         uint256 _tokenId = tokenId;
-        _safeMint(msg.sender, _tokenId);
+        _safeMint(_to, _tokenId);
         _depositFor(_tokenId, _value, unlockTime, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
         return _tokenId;
     }
@@ -249,16 +306,22 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     /// @notice Withdraw all tokens for `_tokenId`
     /// @param _tokenId NFT that holds lock
     function withdraw(uint256 _tokenId) external override nonReentrant {
-        _withdraw(_tokenId, false);
+        address owner = ownerOf(_tokenId);
+        _withdrawTo(_tokenId, false, owner);
     }
 
     /// @notice Withdraw all tokens for `_tokenId` and allow penalty if not expired yet
     /// @param _tokenId NFT that holds lock
     function withdrawEarly(uint256 _tokenId) external override nonReentrant {
-        _withdraw(_tokenId, true);
+        address owner = ownerOf(_tokenId);
+        _withdrawTo(_tokenId, true, owner);
     }
 
-    function _withdraw(uint256 _tokenId, bool _allowPenalty) private {
+    function _withdrawTo(
+        uint256 _tokenId,
+        bool _allowPenalty,
+        address _dstAddress
+    ) private {
         require(_isApprovedOrOwner(msg.sender, _tokenId), "Not approved or owner");
 
         uint256 prevSupply = tokenSupply;
@@ -273,7 +336,6 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         _updateLockedPoint(_tokenId, _locked, LockedBalance(0, 0));
 
         // Burn the NFT
-        address owner = ownerOf(_tokenId);
         _burn(_tokenId);
 
         uint256 penalty = 0;
@@ -282,7 +344,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             amount = amount.sub(penalty);
             ILon(token).burn(penalty);
         }
-        require(IERC20(token).transfer(owner, amount), "Token withdraw failed");
+        require(IERC20(token).transfer(_dstAddress, amount), "Token withdraw failed");
 
         emit Withdraw(msg.sender, expired, _tokenId, amount, penalty, block.timestamp);
         emit Supply(prevSupply, tokenSupply);
