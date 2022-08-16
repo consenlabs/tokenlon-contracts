@@ -138,7 +138,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         uint256 _amountToReceive,
         address _toAddress,
         uint256 _toBalance
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         uint256 toCooldownTimestamp = stakersCooldowns[_toAddress];
         if (toCooldownTimestamp == 0) {
             return 0;

@@ -68,7 +68,7 @@ library LibUniswapV3 {
         bytes memory _path,
         address _tokenIn,
         address _tokenOut
-    ) internal {
+    ) internal pure {
         (address tokenA, address tokenB, ) = _path.decodeFirstPool();
 
         if (_path.hasMultiplePools()) {
