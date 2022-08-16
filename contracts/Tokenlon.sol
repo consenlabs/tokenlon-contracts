@@ -8,5 +8,5 @@ contract Tokenlon is TransparentUpgradeableProxy {
         address _logic,
         address _admin,
         bytes memory _data
-    ) public payable TransparentUpgradeableProxy(_logic, _admin, _data) {}
+    ) payable TransparentUpgradeableProxy(_logic, _admin, _data) {}
 }
