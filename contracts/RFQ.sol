@@ -21,7 +21,6 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     using Address for address;
 
     // Constants do not have storage slot.
-    string public constant version = "5.2.0";
     uint256 private constant MAX_UINT = 2**256 - 1;
     string public constant SOURCE = "RFQ v1";
     uint256 private constant BPS_MAX = 10000;

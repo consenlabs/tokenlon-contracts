@@ -24,7 +24,6 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    string public constant version = "1.0.0";
     IPermanentStorage public immutable permStorage;
     address public immutable userProxy;
     IWETH public immutable weth;

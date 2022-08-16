@@ -22,7 +22,6 @@ contract AMMQuoter {
     using LibBytes for bytes;
 
     /* Constants */
-    string public constant version = "5.2.0";
     address private constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address private constant ZERO_ADDRESS = address(0);
     address public constant UNISWAP_V2_ROUTER_02_ADDRESS = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;

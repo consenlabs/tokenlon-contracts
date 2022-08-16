@@ -18,7 +18,6 @@ interface IWBTC {
 contract MarketMakerProxy is Ownable {
     using SafeERC20 for IERC20;
 
-    string public constant version = "5.0.0";
     uint256 private constant MAX_UINT = 2**256 - 1;
     address public SIGNER;
     address public operator;
