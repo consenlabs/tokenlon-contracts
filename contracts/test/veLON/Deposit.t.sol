@@ -31,14 +31,14 @@ contract TestVeLONDeposit is TestVeLON {
         uint256 prevSupply = 0;
         stakerLon = BalanceSnapshot.take(user, address(lon));
         lockedLon = BalanceSnapshot.take(address(veLon), address(lon));
-        uint256 tokenSupplyBefore = veLon.totalSupply();
+        uint256 nftSupplyBefore = veLon.totalSupply();
         uint256 expectedUnlockTime = block.timestamp + DEFAULT_LOCK_TIME;
 
         uint256 supply = DEFAULT_STAKE_AMOUNT;
         vm.expectEmit(true, true, true, true);
         emit Supply(prevSupply, supply);
         vm.expectEmit(true, true, true, true);
-        emit Deposit(user, tokenSupplyBefore + 1, DEFAULT_STAKE_AMOUNT, expectedUnlockTime, DepositType.CREATE_LOCK_TYPE, block.timestamp);
+        emit Deposit(user, nftSupplyBefore + 1, DEFAULT_STAKE_AMOUNT, expectedUnlockTime, DepositType.CREATE_LOCK_TYPE, block.timestamp);
 
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
 
@@ -46,8 +46,8 @@ contract TestVeLONDeposit is TestVeLON {
         lockedLon.assertChange(int256(DEFAULT_STAKE_AMOUNT));
 
         // check whether ERC721 token has minted
-        uint256 tokenSupplyAfter = veLon.totalSupply();
-        assertEq((tokenSupplyBefore + 1), tokenSupplyAfter);
+        uint256 nftSupplyAfter = veLon.totalSupply();
+        assertEq((nftSupplyBefore + 1), nftSupplyAfter);
 
         uint256 vBalance = veLon.vBalanceOf(tokenId);
         // decliningRate = 10, lock duration = 2 weeks (exactly)
