@@ -461,32 +461,34 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
     // Go over weeks to fill history and calculate what the current pool point is
     function _syncGlobalPoints(Point memory poolLastPoint, uint256 _epoch) private returns (Point memory, uint256) {
+        // storedPoolLastPoint is used for extrapolation to calculate block number
+        // (approximately, for *At methods) and save them
+        // as we cannot figure that out exactly from inside the contract
+        Point memory storedPoolLastPoint = poolLastPoint;
+
         // blockRate = dBlock/dTime
         // If last point is already recorded in this block, blockRate=0
         // But that's ok because we know the block in such case
         uint256 blockRate = 0;
-        if (block.timestamp > poolLastPoint.ts) {
-            blockRate = (MULTIPLIER * (block.number - poolLastPoint.blk)) / (block.timestamp - poolLastPoint.ts);
+        if (block.timestamp > storedPoolLastPoint.ts) {
+            blockRate = (MULTIPLIER * (block.number - storedPoolLastPoint.blk)) / (block.timestamp - storedPoolLastPoint.ts);
         }
 
-        uint256 timeStart = poolLastPoint.ts;
-        // initial_poolLastPoint is used for extrapolation to calculate block number
-        // (approximately, for *At methods) and save them
-        // as we cannot figure that out exactly from inside the contract
-        Point memory initial_poolLastPoint = poolLastPoint;
-        uint256 timeEnd = ((timeStart / WEEK) * WEEK) + WEEK;
+        uint256 lastPointTs = poolLastPoint.ts;
+        uint256 nextPointTs = ((lastPointTs / WEEK) * WEEK) + WEEK;
+
+        // Assume it won't exceed 255 weeks since last time pool point updated.
+        // If it does, users will be able to withdraw but vote weight will be broken
         for (uint256 i = 0; i < 255; ++i) {
-            // Assume it won't exceed 255 weeks since last time pool point updated.
-            // If it does, users will be able to withdraw but vote weight will be broken
             int256 dSlope = 0;
-            if (timeEnd > block.timestamp) {
-                timeEnd = block.timestamp;
+            if (nextPointTs > block.timestamp) {
+                nextPointTs = block.timestamp;
             } else {
-                dSlope = dRateChanges[timeEnd];
+                dSlope = dRateChanges[nextPointTs];
             }
 
             // update decliningRate and vBalance
-            poolLastPoint.vBalance -= poolLastPoint.decliningRate * (int256(timeEnd - timeStart));
+            poolLastPoint.vBalance -= poolLastPoint.decliningRate * (int256(nextPointTs - lastPointTs));
             poolLastPoint.decliningRate += dSlope;
             if (poolLastPoint.vBalance < 0) {
                 // This can happen
@@ -498,21 +500,23 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             }
 
             // update ts and block (approximately block number)
-            poolLastPoint.ts = timeEnd;
-            poolLastPoint.blk = initial_poolLastPoint.blk + (blockRate * (timeEnd - initial_poolLastPoint.ts)) / MULTIPLIER;
+            poolLastPoint.ts = nextPointTs;
+            poolLastPoint.blk = storedPoolLastPoint.blk + (blockRate * (nextPointTs - storedPoolLastPoint.ts)) / MULTIPLIER;
 
-            if (timeEnd == block.timestamp) {
+            // record or return last point
+            _epoch += 1;
+            if (nextPointTs == block.timestamp) {
+                // overwrite to exact block.number if possible (at the last point)
                 poolLastPoint.blk = block.number;
-                // poolLastPoint may needs to be adjusted using user points and record in new epoch index
-                return (poolLastPoint, _epoch + 1);
+                // return poolLastPoint, may be adjusted by caller and saved into storage using new epoch index
+                return (poolLastPoint, _epoch);
             } else {
                 poolPointHistory[_epoch] = poolLastPoint;
             }
 
             // move time window and continue
-            _epoch += 1;
-            timeStart = timeEnd;
-            timeEnd += WEEK;
+            lastPointTs = nextPointTs;
+            nextPointTs += WEEK;
         }
 
         // should not reach here
