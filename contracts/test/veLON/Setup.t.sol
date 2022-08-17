@@ -29,7 +29,7 @@ contract TestVeLON is Test {
 
     function setUp() public {
         // Setup
-        veLon = new veLON(address(lon));
+        veLon = new veLON(address(this), address(lon));
 
         // deal eth and mint lon to user, approve lon to veLON
         deal(user, 100 ether);

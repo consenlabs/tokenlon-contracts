@@ -1164,7 +1164,7 @@ contract LONStakingTest is Test {
      *********************************/
 
     function testEnableAndDisableConversion() public {
-        veLON veLon = new veLON(address(lon));
+        veLON veLon = new veLON(address(this), address(lon));
         _stake(user, DEFAULT_VELON_STAKE_AMOUNT);
 
         assertEq(address(lonStaking.veLon()), address(0x0));
@@ -1196,7 +1196,7 @@ contract LONStakingTest is Test {
     }
 
     function _convertXLonToVeLonAndValidate(uint256 convertAmount, uint256 convertDuration) internal {
-        veLON veLon = new veLON(address(lon));
+        veLON veLon = new veLON(address(this), address(lon));
 
         BalanceSnapshot.Snapshot memory veLonLon = BalanceSnapshot.take(address(veLon), address(lon));
         BalanceSnapshot.Snapshot memory lonStakingLon = BalanceSnapshot.take(address(lonStaking), address(lon));
