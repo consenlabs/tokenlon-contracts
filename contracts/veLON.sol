@@ -278,11 +278,16 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         LockedBalance memory _lockedBalance,
         DepositType _depositType
     ) private {
+        // update supply and transfer token first, if needed
         uint256 prevSupply = tokenSupply;
+        if (_value != 0 && _depositType != DepositType.MERGE_TYPE) {
+            tokenSupply = prevSupply.add(_value);
+            emit Supply(prevSupply, tokenSupply);
+            assert(IERC20(token).transferFrom(msg.sender, address(this), _value));
+        }
 
+        // update user locked balance
         LockedBalance memory _oldLocked = LockedBalance(_lockedBalance.amount, _lockedBalance.end);
-
-        // Adding to existing lock, or if a lock is expired - creating a new one
         _lockedBalance.amount += _value;
         if (_unlockTime != 0) {
             _lockedBalance.end = _unlockTime;
@@ -294,12 +299,6 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         // value == 0 (extend lock) or value > 0 (add to lock or extend lock)
         // _locked.end > block.timestamp (always)
         _updateLockedPoint(_tokenId, _oldLocked, _lockedBalance);
-
-        if (_value != 0 && _depositType != DepositType.MERGE_TYPE) {
-            tokenSupply = prevSupply.add(_value);
-            emit Supply(prevSupply, tokenSupply);
-            assert(IERC20(token).transferFrom(msg.sender, address(this), _value));
-        }
 
         emit Deposit(msg.sender, _tokenId, _value, _lockedBalance.end, _depositType, block.timestamp);
     }
@@ -397,7 +396,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         }
 
         // Read values of scheduled changes in the decliningRate
-        // _oldLocked.end can be in the past and in the future
+        // old_locked.end can be in the past (expired and withdraw) and in the future (deposit more or extend lock)
         // _newLocked.end can ONLY by in the FUTURE unless everything expired: than zeros
         dSlopeOld = dRateChanges[_oldLocked.end];
         if (_newLocked.end != 0) {
@@ -415,7 +414,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
         (poolLastPoint, _epoch) = _syncGlobalPoints(poolLastPoint, _epoch);
 
-        // If last point was in this block, the decliningRate change has been applied already
+        // If user last point was in this block, the decliningRate change has been applied already
         // But in such case we have 0 decliningRate(s)
         poolLastPoint.decliningRate += (pointNew.decliningRate - pointOld.decliningRate);
         poolLastPoint.vBalance += (pointNew.vBalance - pointOld.vBalance);
