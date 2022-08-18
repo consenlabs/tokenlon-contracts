@@ -15,9 +15,9 @@ import "./Ownable.sol";
 contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
 
-    uint256 private constant WEEK = 1 weeks;
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
-    uint256 internal constant MULTIPLIER = 1 ether;
+    uint256 private constant WEEK = 1 weeks;
+    uint256 private constant MULTIPLIER = 1 ether;
     address public immutable token;
     address public dstToken;
     bool public conversion = false;
@@ -27,7 +27,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     uint256 public maxLockDuration = 365 days;
     uint256 public earlyWithdrawPenaltyRate = 3000;
 
-    mapping(uint256 => Point) public poolPointHistory; // epoch -> unsignd point
+    mapping(uint256 => Point) public poolPointHistory; // epoch -> point
     mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[user_epoch]
     mapping(uint256 => LockedBalance) public locked; // tokenId -> locked balance
     mapping(uint256 => uint256) public userPointEpoch; // tokenId -> epoch
