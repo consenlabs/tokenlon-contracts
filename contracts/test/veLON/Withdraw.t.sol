@@ -37,6 +37,12 @@ contract TestVeLONWithdraw is TestVeLON {
         // check whether token has burned after withdraw
         vm.expectRevert("ERC721: owner query for nonexistent token");
         veLon.ownerOf(tokenId);
+
+        // check epoch index
+        // global has 2 points : creat lock, week point
+        // user has 2 points : creat lock, withdraw
+        assertEq(veLon.epoch(), 2);
+        assertEq(veLon.userPointEpoch(tokenId), 2);
     }
 
     function testWithdrawEarly() public {
@@ -68,9 +74,16 @@ contract TestVeLONWithdraw is TestVeLON {
         uint256 balanceChange = DEFAULT_STAKE_AMOUNT.mul(earlyWithdrawPenaltyRate).div(PENALTY_RATE_PRECISION);
         stakerLon.assertChange(int256(DEFAULT_STAKE_AMOUNT.sub(balanceChange)));
         lockedLon.assertChange(-int256(expectedAmount + expectedPanalty));
+
         // check whether token has burned after withdraw
         vm.expectRevert("ERC721: owner query for nonexistent token");
         veLon.ownerOf(tokenId);
+
+        // check epoch index
+        // global has 2 points : creat lock, week point
+        // user has 2 points : creat lock, withdraw
+        assertEq(veLon.epoch(), 2);
+        assertEq(veLon.userPointEpoch(tokenId), 2);
     }
 
     function testWithdrawByOther() public {
@@ -101,5 +114,11 @@ contract TestVeLONWithdraw is TestVeLON {
 
         stakerLon.assertChange(int256(DEFAULT_STAKE_AMOUNT));
         lockedLon.assertChange(-int256(DEFAULT_STAKE_AMOUNT));
+
+        // check epoch index
+        // global has 3 points : creat lock, week point*2
+        // user has 2 points : creat lock, withdraw
+        assertEq(veLon.epoch(), 3);
+        assertEq(veLon.userPointEpoch(tokenId), 2);
     }
 }
