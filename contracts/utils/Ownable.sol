@@ -5,8 +5,16 @@ abstract contract Ownable {
     address public owner;
     address public nominatedOwner;
 
+    event OwnerNominated(address indexed newOwner);
+    event OwnerChanged(address indexed oldOwner, address indexed newOwner);
+
     constructor(address _owner) {
         owner = _owner;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "not owner");
+        _;
     }
 
     function acceptOwnership() external {
@@ -26,12 +34,4 @@ abstract contract Ownable {
         nominatedOwner = newOwner;
         emit OwnerNominated(newOwner);
     }
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "not owner");
-        _;
-    }
-
-    event OwnerNominated(address indexed newOwner);
-    event OwnerChanged(address indexed oldOwner, address indexed newOwner);
 }
