@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./interfaces/IEmergency.sol";
 import "./interfaces/IEIP2612.sol";
 import "./interfaces/IStakingRewards.sol";
-import "./Ownable.sol";
+import "./utils/Ownable.sol";
 import "./RewardsDistributionRecipient.sol";
 
 contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, ReentrancyGuard, IEmergency {

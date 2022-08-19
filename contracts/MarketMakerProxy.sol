@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import "./interfaces/IWeth.sol";
 import "./utils/LibConstant.sol";
-import "./Ownable.sol";
+import "./utils/Ownable.sol";
 
 interface IIMBTC {
     function burn(uint256 amount, bytes calldata data) external;

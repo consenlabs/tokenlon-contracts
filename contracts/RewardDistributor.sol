@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ILon.sol";
 import "./utils/LibConstant.sol";
-import "./Ownable.sol";
+import "./utils/Ownable.sol";
 
 contract RewardDistributor is Ownable, Pausable {
     using SafeMath for uint256;
