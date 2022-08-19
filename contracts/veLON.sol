@@ -95,18 +95,27 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     /// @return User voting power
     function _vBalanceOfAtTime(uint256 _tokenId, uint256 _t) private view returns (uint256) {
         if (ownershipChange[_tokenId] == block.number) return 0;
+        Point memory lastPoint;
 
         uint256 _epoch = userPointEpoch[_tokenId];
         if (_epoch == 0) {
             return 0;
         } else {
-            Point memory lastPoint = userPointHistory[_tokenId][_epoch];
-            lastPoint.vBalance -= lastPoint.decliningRate * (int256(_t) - int256(lastPoint.ts));
-            if (lastPoint.vBalance < 0) {
-                lastPoint.vBalance = 0;
+            // search for the userEpoch where _t is bigger then userPointHistory[_tokenId][_epoch].ts, 
+            // but smaller then userPointHistory[_tokenId][_epoch+1].ts
+            for (uint256 i = _epoch; i > 0; i--) {
+                if (userPointHistory[_tokenId][i].ts <= _t) {
+                    lastPoint = userPointHistory[_tokenId][i];
+                    break;
+                }
             }
-            return uint256(lastPoint.vBalance);
         }
+
+        lastPoint.vBalance -= lastPoint.decliningRate * (int256(_t) - int256(lastPoint.ts));
+        if (lastPoint.vBalance < 0) {
+            lastPoint.vBalance = 0;
+        }
+        return uint256(lastPoint.vBalance);
     }
 
     function vBalanceOfAtBlk(uint256 _tokenId, uint256 _block) external view override returns (uint256) {
