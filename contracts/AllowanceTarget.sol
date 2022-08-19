@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
+
 import "@openzeppelin/contracts/utils/Address.sol";
 
 import "./interfaces/IAllowanceTarget.sol";
