@@ -189,6 +189,38 @@ contract TestVeLONBalance is TestVeLON {
         assertEq(veLon.vBalanceOfAtBlk(tokenId, targetBlock), expectedBalance);
     }
 
+    // test vBalanceOfAtTime() when the target _t is before lastPoint.ts
+    function testVBalanceOfAtTimeBeforeLastPoint() public {
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 expectedBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+
+        assertEq(veLon.userPointEpoch(1), 1);
+        assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp), expectedBalance);
+
+        // fast forward 1 weeks and user extend lock for 2 weeks, so the the vBalance is 1 week more
+        // The userEpoch should be 2 (createLock, extendLock)
+        // And the lastPoint of user should be updated now becase user extendedLock
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
+        vm.prank(user);
+        veLon.extendLock(tokenId, 2 weeks);
+
+        // expetedBalance  = initialBalance - 1 weeks passed + 1 week extended
+        assertEq(veLon.userPointEpoch(tokenId), 2);
+        expectedBalance = (expectedBalance - (10 * 1 weeks) + (10 * 1 weeks));
+        assertEq(veLon.vBalanceOf(tokenId), expectedBalance);
+        assertEq(veLon.userPointEpoch(tokenId), 2);
+
+        // Continue fast forward 1 week, so now is the third week(2 weeks passed since createLock)
+        // Query the vBalanceOfAtime in first week (the time lock was created)
+        // The traget time is before lastPoint.ts(the time lock was extended)
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
+        uint256 initialBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+        assertEq(veLon.userPointEpoch(tokenId), 2);
+        assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp - 2 weeks), initialBalance);
+    }
+
     function testCannotGetVBalabnceAtFutureBlk() public {
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
         vm.expectRevert("Invalid block number");
