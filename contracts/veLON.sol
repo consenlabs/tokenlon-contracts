@@ -101,7 +101,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         if (_epoch == 0) {
             return 0;
         } else {
-            // search for the userEpoch where _t is bigger then userPointHistory[_tokenId][_epoch].ts, 
+            // search for the userEpoch where _t is bigger then userPointHistory[_tokenId][_epoch].ts,
             // but smaller then userPointHistory[_tokenId][_epoch+1].ts
             for (uint256 i = _epoch; i > 0; i--) {
                 if (userPointHistory[_tokenId][i].ts <= _t) {

@@ -197,17 +197,17 @@ contract TestVeLONBalance is TestVeLON {
         assertEq(veLon.userPointEpoch(1), 1);
         assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp), expectedBalance);
 
-        // fast forward 1 weeks and user extend lock for 2 weeks, so the the vBalance is 1 week more
+        // fast forward 1 weeks and user extend lock for 3 weeks, so the the vBalance is 2 week more
         // The userEpoch should be 2 (createLock, extendLock)
         // And the lastPoint of user should be updated now becase user extendedLock
         vm.warp(block.timestamp + 1 weeks);
         vm.roll(block.number + 1);
         vm.prank(user);
-        veLon.extendLock(tokenId, 2 weeks);
+        veLon.extendLock(tokenId, 3 weeks);
 
-        // expetedBalance  = initialBalance - 1 weeks passed + 1 week extended
+        // expetedBalance  = initialBalance - 1 weeks passed + 2 week extended
         assertEq(veLon.userPointEpoch(tokenId), 2);
-        expectedBalance = (expectedBalance - (10 * 1 weeks) + (10 * 1 weeks));
+        expectedBalance = (expectedBalance - (10 * 1 weeks) + (10 * 2 weeks));
         assertEq(veLon.vBalanceOf(tokenId), expectedBalance);
         assertEq(veLon.userPointEpoch(tokenId), 2);
 
@@ -219,6 +219,15 @@ contract TestVeLONBalance is TestVeLON {
         uint256 initialBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
         assertEq(veLon.userPointEpoch(tokenId), 2);
         assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp - 2 weeks), initialBalance);
+
+        // Fast forward 1 week
+        // ExtendLock in forth week(3 weeks passed), and query the first week(creatLock)
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
+        vm.prank(user);
+        veLon.extendLock(tokenId, 2 weeks);
+        assertEq(veLon.userPointEpoch(tokenId), 3);
+        assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp - 3 weeks), initialBalance);
     }
 
     function testCannotGetVBalabnceAtFutureBlk() public {
