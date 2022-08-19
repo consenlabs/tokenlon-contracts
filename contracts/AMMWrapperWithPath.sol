@@ -209,7 +209,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         address[] memory _path,
         address _takerAssetAddr,
         address _makerAssetAddr
-    ) internal {
+    ) internal pure {
         require(_path.length >= 2, "AMMWrapper: path length must be at least two");
         require(_path[0] == _takerAssetAddr, "AMMWrapper: first element of path must match taker asset");
         require(_path[_path.length - 1] == _makerAssetAddr, "AMMWrapper: last element of path must match maker asset");

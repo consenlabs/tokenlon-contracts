@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
+import "./utils/LibConstant.sol";
 import "./interfaces/ISpender.sol";
 import "./interfaces/IAllowanceTarget.sol";
 
@@ -15,8 +15,6 @@ contract Spender is ISpender {
     using SafeMath for uint256;
 
     // Constants do not have storage slot.
-    address private constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    address private constant ZERO_ADDRESS = address(0);
     uint256 private constant TIME_LOCK_DURATION = 1 days;
 
     // Below are the variables which consume storage slots.
@@ -235,7 +233,7 @@ contract Spender is ISpender {
     ) internal {
         require(!tokenBlacklist[_tokenAddr], "Spender: token is blacklisted");
 
-        if (_tokenAddr == ETH_ADDRESS || _tokenAddr == ZERO_ADDRESS) {
+        if (_tokenAddr == LibConstant.ETH_ADDRESS || _tokenAddr == LibConstant.ZERO_ADDRESS) {
             return;
         }
         // Fix gas stipend for non standard ERC20 transfer in case token contract's SafeMath violation is triggered

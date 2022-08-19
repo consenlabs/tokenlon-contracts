@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
@@ -6,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+
 import "./interfaces/ISpender.sol";
 import "./interfaces/IWeth.sol";
 import "./interfaces/IRFQ.sol";
@@ -14,6 +16,7 @@ import "./interfaces/IERC1271Wallet.sol";
 import "./utils/RFQLibEIP712.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
+import "./utils/LibConstant.sol";
 
 contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     using SafeMath for uint256;
@@ -21,10 +24,7 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     using Address for address;
 
     // Constants do not have storage slot.
-    string public constant version = "5.2.0";
-    uint256 private constant MAX_UINT = 2**256 - 1;
     string public constant SOURCE = "RFQ v1";
-    uint256 private constant BPS_MAX = 10000;
     address public immutable userProxy;
     IPermanentStorage public immutable permStorage;
     IWETH public immutable weth;
@@ -121,7 +121,7 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
      */
     function setAllowance(address[] calldata _tokenList, address _spender) external override onlyOperator {
         for (uint256 i = 0; i < _tokenList.length; i++) {
-            IERC20(_tokenList[i]).safeApprove(_spender, MAX_UINT);
+            IERC20(_tokenList[i]).safeApprove(_spender, LibConstant.MAX_UINT);
 
             emit AllowTransfer(_spender);
         }
@@ -167,7 +167,7 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         // check the order deadline and fee factor
         require(_order.deadline >= block.timestamp, "RFQ: expired order");
-        require(_order.feeFactor < BPS_MAX, "RFQ: invalid fee factor");
+        require(_order.feeFactor < LibConstant.BPS_MAX, "RFQ: invalid fee factor");
 
         GroupedVars memory vars;
 
@@ -217,7 +217,7 @@ contract RFQ is IRFQ, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
         }
 
         // Transfer maker asset to taker, sub fee
-        uint256 fee = _order.makerAssetAmount.mul(_order.feeFactor).div(BPS_MAX);
+        uint256 fee = _order.makerAssetAmount.mul(_order.feeFactor).div(LibConstant.BPS_MAX);
         uint256 settleAmount = _order.makerAssetAmount;
         if (fee > 0) {
             settleAmount = settleAmount.sub(fee);

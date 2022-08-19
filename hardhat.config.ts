@@ -4,7 +4,7 @@ import { subtask } from "hardhat/config"
 subtask(TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS).setAction(async (_, __, runSuper) => {
     const paths = await runSuper()
 
-    return paths.filter((p) => !(p.endsWith(".t.sol") || p.includes("test/utils")))
+    return paths.filter((p) => !p.includes("test"))
 })
 
 const MAINNET_NODE_RPC_URL = process.env.MAINNET_NODE_RPC_URL || ""

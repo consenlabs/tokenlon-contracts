@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 
 import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ILon.sol";
+import "./utils/LibConstant.sol";
 import "./Ownable.sol";
 
 contract RewardDistributor is Ownable, Pausable {
@@ -17,7 +18,6 @@ contract RewardDistributor is Ownable, Pausable {
     using SafeERC20 for IERC20;
 
     // Constants do not have storage slot.
-    uint256 private constant MAX_UINT = 2**256 - 1;
     address public immutable LON_TOKEN_ADDR;
 
     // Below are the variables which consume storage slots.
@@ -363,7 +363,7 @@ contract RewardDistributor is Ownable, Pausable {
         uint256 _minLonAmount
     ) internal returns (uint256 swappedLonAmount) {
         // Approve exchange contract
-        IERC20(_feeTokenAddr).safeApprove(_exchangeAddr, MAX_UINT);
+        IERC20(_feeTokenAddr).safeApprove(_exchangeAddr, LibConstant.MAX_UINT);
 
         // Swap fee token for Lon
         IUniswapRouterV2 router = IUniswapRouterV2(_exchangeAddr);

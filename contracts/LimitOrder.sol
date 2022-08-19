@@ -24,7 +24,6 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    string public constant version = "1.0.0";
     IPermanentStorage public immutable permStorage;
     address public immutable userProxy;
     IWETH public immutable weth;
@@ -540,7 +539,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
     /* math utils */
 
-    function _mulFactor(uint256 amount, uint256 factor) internal returns (uint256) {
+    function _mulFactor(uint256 amount, uint256 factor) internal pure returns (uint256) {
         return amount.mul(factor).div(LibConstant.BPS_MAX);
     }
 
