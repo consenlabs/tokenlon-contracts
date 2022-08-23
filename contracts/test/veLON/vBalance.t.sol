@@ -315,4 +315,22 @@ contract TestVeLONBalance is TestVeLON {
         totalBalance = totalBalance - (2 * 10 * 7 * dt);
         assertEq(veLon.totalvBalanceAtBlk(targetBlock), totalBalance);
     }
+
+    // test vBalanceOfAtTime() when the target _t is before lastPoint.ts
+    function testTotalVBalanceAtTimeBeforeLastPoint() public {
+        uint256 aliceTokenId = _stakeAndValidate(alice, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 aliceBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+
+        assertEq(veLon.epoch(), 1);
+        assertEq(veLon.totalvBalanceAtTime(block.timestamp), aliceBalance);
+
+        // fast forward 1 week and second user createlock
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
+        uint256 bobTokenId = _stakeAndValidate(bob, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 bobBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+
+        
+        assertEq(veLon.totalvBalanceAtTime(block.timestamp - 1 weeks), aliceBalance);
+    }
 }
