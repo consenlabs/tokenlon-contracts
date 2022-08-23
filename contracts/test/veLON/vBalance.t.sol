@@ -189,6 +189,34 @@ contract TestVeLONBalance is TestVeLON {
         assertEq(veLon.vBalanceOfAtBlk(tokenId, targetBlock), expectedBalance);
     }
 
+    // test vBalanceOfAtBlk() when the target block is before lastPoint.blk
+    function testVBalanceOfAtBlkBeforeLastPoint() public {
+        uint256 aliceTokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 aliceBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+
+        assertEq(veLon.epoch(), 1);
+        assertEq(veLon.vBalanceOfAtBlk(aliceTokenId, block.number), aliceBalance);
+
+        // fast forward 1 week and second user createlock
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
+        uint256 bobTokenId = _stakeAndValidate(bob, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 bobBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+
+        // verify the vBalanceOfAtblk of 1st block when Alcie createLock
+        assertEq(veLon.vBalanceOfAtBlk(aliceTokenId, block.number - 1), aliceBalance);
+
+        // Continue fast forward 1 week
+        // Bob extend lock for 2 weeks
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
+        vm.prank(bob);
+        veLon.extendLock(bobTokenId, 2 weeks);
+
+        // Verify the vBalanceOfAtBlk when first block Alice createLock
+        assertEq(veLon.vBalanceOfAtBlk(aliceTokenId, block.number - 2), aliceBalance);
+    }
+
     // test vBalanceOfAtTime() when the target _t is before lastPoint.ts
     function testVBalanceOfAtTimeBeforeLastPoint() public {
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
@@ -327,10 +355,50 @@ contract TestVeLONBalance is TestVeLON {
         // fast forward 1 week and second user createlock
         vm.warp(block.timestamp + 1 weeks);
         vm.roll(block.number + 1);
+        uint256 bobTokenId = _stakeAndValidate(bob, DEFAULT_STAKE_AMOUNT, 3 weeks);
+        uint256 bobBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+
+        // verify the totalBalance of 1st week when Alcie createLock
+        assertEq(veLon.totalvBalanceAtTime(block.timestamp - 1 weeks), aliceBalance);
+
+        // Continue fast forward 2 week
+        // Bob extend lock for 2 weeks
+        vm.warp(block.timestamp + 2 weeks);
+        vm.roll(block.number + 1);
+        vm.prank(bob);
+        veLon.extendLock(bobTokenId, 2 weeks);
+
+        // Query the totalvBalance of third week when Alice's lock has expired
+        // and Bob's lock has passed 1 week
+        uint256 totalBalance = bobBalance - 10 * 1 weeks;
+        assertEq(veLon.totalvBalanceAtTime(block.timestamp - 2 weeks), totalBalance);
+    }
+
+    // test totalVBalanceAtBlk() when the target block is before lastPoint.blk
+    function testTotalVBalanceAtBlkBeforeLastPoint() public {
+        uint256 aliceTokenId = _stakeAndValidate(alice, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 aliceBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+
+        assertEq(veLon.epoch(), 1);
+        assertEq(veLon.totalvBalanceAtBlk(block.number), aliceBalance);
+
+        // fast forward 1 week and second user createlock
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
         uint256 bobTokenId = _stakeAndValidate(bob, DEFAULT_STAKE_AMOUNT, 2 weeks);
         uint256 bobBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
 
-        
-        assertEq(veLon.totalvBalanceAtTime(block.timestamp - 1 weeks), aliceBalance);
+        // verify the totalBalance of 1st week when Alcie createLock
+        assertEq(veLon.totalvBalanceAtBlk(block.number - 1), aliceBalance);
+
+        // Continue fast forward 1 week
+        // Bob extend lock for 2 weeks
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
+        vm.prank(bob);
+        veLon.extendLock(bobTokenId, 2 weeks);
+
+        // Verify the totalvBalanceAtBlk when first week Alice createLock
+        assertEq(veLon.totalvBalanceAtBlk(block.number - 2), aliceBalance);
     }
 }
