@@ -186,6 +186,25 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         }
         return _min;
     }
+    // Binary search for pool epoch of _t 
+    function _findTimeEpoch(uint256 _t, uint256 _maxEpoch) private view returns (uint256) {
+        // Binary search
+        uint256 _min = 0;
+        uint256 _max = _maxEpoch;
+        for (uint256 i = 0; i < 128; ++i) {
+            // Will be always enough for 128-bit numbers
+            if (_min >= _max) {
+                break;
+            }
+            uint256 _mid = _min.add(_max).add(1).div(2);
+            if (poolPointHistory[_mid].ts <= _t) {
+                _min = _mid;
+            } else {
+                _max = _mid.sub(1);
+            }
+        }
+        return _min;
+    }
 
     function _transfer(
         address from,
@@ -540,7 +559,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     /// @return Total voting power
     function totalvBalanceAtTime(uint256 t) public view override returns (uint256) {
         require(t <= block.timestamp, "Invalid timestamp");
-        return _totalvBalanceAt(poolPointHistory[epoch], t);
+        uint256 targetEpoch = _findTimeEpoch(t, epoch);
+        return _totalvBalanceAt(poolPointHistory[targetEpoch], t);
     }
 
     /// @notice Calculate total voting power at some point in the past
