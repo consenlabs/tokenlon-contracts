@@ -186,7 +186,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         }
         return _min;
     }
-    // Binary search for pool epoch of _t 
+
+    // Binary search for pool epoch of _t
     function _findTimeEpoch(uint256 _t, uint256 _maxEpoch) private view returns (uint256) {
         // Binary search
         uint256 _min = 0;
