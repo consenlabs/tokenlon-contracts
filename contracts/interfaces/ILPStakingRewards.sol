@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.0;
 
-interface IStakingRewards {
+interface ILPStakingRewards {
     // Views
     function lastTimeRewardApplicable() external view returns (uint256);
 
