@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./interfaces/IEmergency.sol";
-import "./Ownable.sol";
+import "./utils/Ownable.sol";
 import "./utils/MerkleProof.sol";
 
 contract MerkleRedeem is Ownable, ReentrancyGuard, IEmergency {

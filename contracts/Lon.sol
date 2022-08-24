@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./interfaces/ILon.sol";
-import "./Ownable.sol";
+import "./utils/Ownable.sol";
 
 contract Lon is ERC20, ILon, Ownable {
     using SafeMath for uint256;
