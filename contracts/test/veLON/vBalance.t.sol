@@ -24,6 +24,11 @@ contract TestVeLONBalance is TestVeLON {
         assertEq(veLon.vBalanceOf(aliceTokenId), expectedAliceInitvBal);
         total = total.add(expectedAliceInitvBal);
         assertEq(veLon.totalvBalance(), total);
+
+        // check epoch index
+        assertEq(veLon.epoch(), 2);
+        assertEq(veLon.userPointEpoch(bobTokenId), 1);
+        assertEq(veLon.userPointEpoch(aliceTokenId), 1);
     }
 
     function testCreateLockTwoUsersDifferentBlock() public {
@@ -52,6 +57,11 @@ contract TestVeLONBalance is TestVeLON {
         assertEq(veLon.vBalanceOf(aliceTokenId), expectedAliceInitvBal);
         total = total.add(expectedAliceInitvBal);
         assertEq(veLon.totalvBalance(), total);
+
+        // check epoch index
+        assertEq(veLon.epoch(), 2);
+        assertEq(veLon.userPointEpoch(bobTokenId), 1);
+        assertEq(veLon.userPointEpoch(aliceTokenId), 1);
     }
 
     function testCreateLock_and_Withdraw_DifferentTime() public {
@@ -123,6 +133,11 @@ contract TestVeLONBalance is TestVeLON {
         vm.prank(alice);
         veLon.withdrawEarly(aliceTokenId);
         assertEq(veLon.totalvBalance(), totalBalance, "totalBalance not equal");
+
+        // check epoch index
+        assertEq(veLon.epoch(), 3);
+        assertEq(veLon.userPointEpoch(bobTokenId), 1);
+        assertEq(veLon.userPointEpoch(aliceTokenId), 2);
     }
 
     /*****************************************
