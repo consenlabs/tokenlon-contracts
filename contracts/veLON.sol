@@ -15,9 +15,9 @@ import "./Ownable.sol";
 contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
 
-    uint256 private constant WEEK = 1 weeks;
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
-    uint256 internal constant MULTIPLIER = 1 ether;
+    uint256 private constant WEEK = 1 weeks;
+    uint256 private constant MULTIPLIER = 1 ether;
     address public immutable token;
     address public dstToken;
     bool public conversion = false;
@@ -27,7 +27,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     uint256 public maxLockDuration = 365 days;
     uint256 public earlyWithdrawPenaltyRate = 3000;
 
-    mapping(uint256 => Point) public poolPointHistory; // epoch -> unsignd point
+    mapping(uint256 => Point) public poolPointHistory; // epoch -> point
     mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[user_epoch]
     mapping(uint256 => LockedBalance) public locked; // tokenId -> locked balance
     mapping(uint256 => uint256) public userPointEpoch; // tokenId -> epoch
@@ -38,8 +38,9 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     uint256 internal tokenId;
 
     /// @notice Contract constructor
+    /// @param _owner owner address
     /// @param _tokenAddr token address
-    constructor(address _tokenAddr) ERC721("veLON NFT", "veLON") Ownable(msg.sender) {
+    constructor(address _owner, address _tokenAddr) ERC721("veLON NFT", "veLON") Ownable(_owner) {
         token = _tokenAddr;
 
         poolPointHistory[0].blk = block.number;
@@ -277,11 +278,16 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         LockedBalance memory _lockedBalance,
         DepositType _depositType
     ) private {
+        // update supply and transfer token first, if needed
         uint256 prevSupply = tokenSupply;
+        if (_value != 0 && _depositType != DepositType.MERGE_TYPE) {
+            tokenSupply = prevSupply.add(_value);
+            emit Supply(prevSupply, tokenSupply);
+            assert(IERC20(token).transferFrom(msg.sender, address(this), _value));
+        }
 
+        // update user locked balance
         LockedBalance memory _oldLocked = LockedBalance(_lockedBalance.amount, _lockedBalance.end);
-
-        // Adding to existing lock, or if a lock is expired - creating a new one
         _lockedBalance.amount += _value;
         if (_unlockTime != 0) {
             _lockedBalance.end = _unlockTime;
@@ -293,12 +299,6 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         // value == 0 (extend lock) or value > 0 (add to lock or extend lock)
         // _locked.end > block.timestamp (always)
         _updateLockedPoint(_tokenId, _oldLocked, _lockedBalance);
-
-        if (_value != 0 && _depositType != DepositType.MERGE_TYPE) {
-            tokenSupply = prevSupply.add(_value);
-            emit Supply(prevSupply, tokenSupply);
-            assert(IERC20(token).transferFrom(msg.sender, address(this), _value));
-        }
 
         emit Deposit(msg.sender, _tokenId, _value, _lockedBalance.end, _depositType, block.timestamp);
     }
@@ -396,7 +396,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         }
 
         // Read values of scheduled changes in the decliningRate
-        // _oldLocked.end can be in the past and in the future
+        // old_locked.end can be in the past (expired and withdraw) and in the future (deposit more or extend lock)
         // _newLocked.end can ONLY by in the FUTURE unless everything expired: than zeros
         dSlopeOld = dRateChanges[_oldLocked.end];
         if (_newLocked.end != 0) {
@@ -414,7 +414,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
         (poolLastPoint, _epoch) = _syncGlobalPoints(poolLastPoint, _epoch);
 
-        // If last point was in this block, the decliningRate change has been applied already
+        // If user last point was in this block, the decliningRate change has been applied already
         // But in such case we have 0 decliningRate(s)
         poolLastPoint.decliningRate += (pointNew.decliningRate - pointOld.decliningRate);
         poolLastPoint.vBalance += (pointNew.vBalance - pointOld.vBalance);
@@ -460,32 +460,34 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
     // Go over weeks to fill history and calculate what the current pool point is
     function _syncGlobalPoints(Point memory poolLastPoint, uint256 _epoch) private returns (Point memory, uint256) {
+        // storedPoolLastPoint is used for extrapolation to calculate block number
+        // (approximately, for *At methods) and save them
+        // as we cannot figure that out exactly from inside the contract
+        Point memory storedPoolLastPoint = poolLastPoint;
+
         // blockRate = dBlock/dTime
         // If last point is already recorded in this block, blockRate=0
         // But that's ok because we know the block in such case
         uint256 blockRate = 0;
-        if (block.timestamp > poolLastPoint.ts) {
-            blockRate = (MULTIPLIER * (block.number - poolLastPoint.blk)) / (block.timestamp - poolLastPoint.ts);
+        if (block.timestamp > storedPoolLastPoint.ts) {
+            blockRate = (MULTIPLIER * (block.number - storedPoolLastPoint.blk)) / (block.timestamp - storedPoolLastPoint.ts);
         }
 
-        uint256 timeStart = poolLastPoint.ts;
-        // initial_poolLastPoint is used for extrapolation to calculate block number
-        // (approximately, for *At methods) and save them
-        // as we cannot figure that out exactly from inside the contract
-        Point memory initial_poolLastPoint = poolLastPoint;
-        uint256 timeEnd = ((timeStart / WEEK) * WEEK) + WEEK;
+        uint256 lastPointTs = poolLastPoint.ts;
+        uint256 nextPointTs = ((lastPointTs / WEEK) * WEEK) + WEEK;
+
+        // Assume it won't exceed 255 weeks since last time pool point updated.
+        // If it does, users will be able to withdraw but vote weight will be broken
         for (uint256 i = 0; i < 255; ++i) {
-            // Assume it won't exceed 255 weeks since last time pool point updated.
-            // If it does, users will be able to withdraw but vote weight will be broken
             int256 dSlope = 0;
-            if (timeEnd > block.timestamp) {
-                timeEnd = block.timestamp;
+            if (nextPointTs > block.timestamp) {
+                nextPointTs = block.timestamp;
             } else {
-                dSlope = dRateChanges[timeEnd];
+                dSlope = dRateChanges[nextPointTs];
             }
 
             // update decliningRate and vBalance
-            poolLastPoint.vBalance -= poolLastPoint.decliningRate * (int256(timeEnd - timeStart));
+            poolLastPoint.vBalance -= poolLastPoint.decliningRate * (int256(nextPointTs - lastPointTs));
             poolLastPoint.decliningRate += dSlope;
             if (poolLastPoint.vBalance < 0) {
                 // This can happen
@@ -497,21 +499,23 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             }
 
             // update ts and block (approximately block number)
-            poolLastPoint.ts = timeEnd;
-            poolLastPoint.blk = initial_poolLastPoint.blk + (blockRate * (timeEnd - initial_poolLastPoint.ts)) / MULTIPLIER;
+            poolLastPoint.ts = nextPointTs;
+            poolLastPoint.blk = storedPoolLastPoint.blk + (blockRate * (nextPointTs - storedPoolLastPoint.ts)) / MULTIPLIER;
 
-            if (timeEnd == block.timestamp) {
+            // record or return last point
+            _epoch += 1;
+            if (nextPointTs == block.timestamp) {
+                // overwrite to exact block.number if possible (at the last point)
                 poolLastPoint.blk = block.number;
-                // poolLastPoint may needs to be adjusted using user points and record in new epoch index
-                return (poolLastPoint, _epoch + 1);
+                // return poolLastPoint, may be adjusted by caller and saved into storage using new epoch index
+                return (poolLastPoint, _epoch);
             } else {
                 poolPointHistory[_epoch] = poolLastPoint;
             }
 
             // move time window and continue
-            _epoch += 1;
-            timeStart = timeEnd;
-            timeEnd += WEEK;
+            lastPointTs = nextPointTs;
+            nextPointTs += WEEK;
         }
 
         // should not reach here

@@ -35,7 +35,6 @@ contract TestVeLONDeposit is TestVeLON {
         assertEq(veLon.conversion(), false);
         assertEq(veLon.earlyWithdrawPenaltyRate(), penaltyRateBefore);
 
-        _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
         vm.prank(user);
         vm.expectRevert("conversion is not enabled");
         veLon.convert("some thing");

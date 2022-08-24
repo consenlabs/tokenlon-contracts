@@ -31,14 +31,14 @@ contract TestVeLONDeposit is TestVeLON {
         uint256 prevSupply = 0;
         stakerLon = BalanceSnapshot.take(user, address(lon));
         lockedLon = BalanceSnapshot.take(address(veLon), address(lon));
-        uint256 tokenSupplyBefore = veLon.totalSupply();
+        uint256 nftSupplyBefore = veLon.totalSupply();
         uint256 expectedUnlockTime = block.timestamp + DEFAULT_LOCK_TIME;
 
         uint256 supply = DEFAULT_STAKE_AMOUNT;
         vm.expectEmit(true, true, true, true);
         emit Supply(prevSupply, supply);
         vm.expectEmit(true, true, true, true);
-        emit Deposit(user, tokenSupplyBefore + 1, DEFAULT_STAKE_AMOUNT, expectedUnlockTime, DepositType.CREATE_LOCK_TYPE, block.timestamp);
+        emit Deposit(user, nftSupplyBefore + 1, DEFAULT_STAKE_AMOUNT, expectedUnlockTime, DepositType.CREATE_LOCK_TYPE, block.timestamp);
 
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
 
@@ -46,8 +46,12 @@ contract TestVeLONDeposit is TestVeLON {
         lockedLon.assertChange(int256(DEFAULT_STAKE_AMOUNT));
 
         // check whether ERC721 token has minted
-        uint256 tokenSupplyAfter = veLon.totalSupply();
-        assertEq((tokenSupplyBefore + 1), tokenSupplyAfter);
+        uint256 nftSupplyAfter = veLon.totalSupply();
+        assertEq((nftSupplyBefore + 1), nftSupplyAfter);
+
+        // check epoch index
+        assertEq(veLon.epoch(), 1);
+        assertEq(veLon.userPointEpoch(tokenId), 1);
 
         uint256 vBalance = veLon.vBalanceOf(tokenId);
         // decliningRate = 10, lock duration = 2 weeks (exactly)
@@ -64,9 +68,14 @@ contract TestVeLONDeposit is TestVeLON {
         require(tokenId != 0, "No lock created yet");
         uint256 lockEnd = veLon.unlockTime(tokenId);
 
+        // check epoch index
+        assertEq(veLon.epoch(), 1);
+        assertEq(veLon.userPointEpoch(tokenId), 1);
+
         stakerLon = BalanceSnapshot.take(user, address(lon));
         lockedLon = BalanceSnapshot.take(address(veLon), address(lon));
 
+        // deposit more on exsisting lock
         uint256 deposit2nd = 5 * 365 days;
         uint256 supply = prevSupply + deposit2nd;
         vm.prank(user);
@@ -81,7 +90,9 @@ contract TestVeLONDeposit is TestVeLON {
         assertEq(veLon.vBalanceOf(tokenId), (10 + 5) * 2 weeks);
         assertEq(veLon.unlockTime(tokenId), lockEnd);
 
-        vm.stopPrank();
+        // check epoch index
+        assertEq(veLon.epoch(), 2);
+        assertEq(veLon.userPointEpoch(tokenId), 2);
     }
 
     function testDepositForByOther() public {
@@ -113,6 +124,8 @@ contract TestVeLONDeposit is TestVeLON {
 
         assertEq(veLon.vBalanceOf(tokenId), 10 * (2 weeks + 1 weeks));
         assertEq(veLon.unlockTime(tokenId), expectedNewEnd);
+        assertEq(veLon.epoch(), 2);
+        assertEq(veLon.userPointEpoch(tokenId), 2);
     }
 
     function testCannotExtendLockNotAllowance() public {
@@ -158,5 +171,8 @@ contract TestVeLONDeposit is TestVeLON {
         // check whether fromToken has burned
         vm.expectRevert("ERC721: owner query for nonexistent token");
         veLon.ownerOf(_fromTokenId);
+
+        // create 2 locks and merge will generate 2 points
+        assertEq(veLon.epoch(), 4);
     }
 }
