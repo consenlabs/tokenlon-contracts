@@ -11,15 +11,15 @@ import "./interfaces/IEmergency.sol";
 import "./interfaces/IEIP2612.sol";
 import "./interfaces/IStakingRewards.sol";
 import "./utils/Ownable.sol";
-import "./RewardsDistributionRecipient.sol";
 
-contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, ReentrancyGuard, IEmergency {
+contract StakingRewards is IStakingRewards, ReentrancyGuard, IEmergency {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     IERC20 public rewardsToken;
     IERC20 public stakingToken;
 
+    address public rewardsDistribution;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
     uint256 public rewardsDuration;
@@ -33,6 +33,11 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     mapping(address => uint256) private _balances;
 
     address public emergencyRecipient;
+
+    modifier onlyRewardsDistribution() {
+        require(msg.sender == rewardsDistribution, "not rewards distribution");
+        _;
+    }
 
     constructor(
         address _emergencyRecipient,
