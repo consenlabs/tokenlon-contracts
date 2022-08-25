@@ -206,71 +206,75 @@ contract TestVeLONBalance is TestVeLON {
 
     // test vBalanceOfAtBlk() when the target block is before lastPoint.blk
     function testVBalanceOfAtBlkBeforeLastPoint() public {
-        uint256 aliceTokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
-        uint256 aliceBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 4 weeks);
+        uint256 initialBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 4 weeks);
+        console.log("initial balance is :" , initialBalance);
 
-        assertEq(veLon.epoch(), 1);
-        assertEq(veLon.vBalanceOfAtBlk(aliceTokenId, block.number), aliceBalance);
+        assertEq(veLon.userPointEpoch(1), 1);
+        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number), initialBalance, "0");
 
-        // fast forward 1 week and second user createlock
-        vm.warp(block.timestamp + 1 weeks);
-        vm.roll(block.number + 1);
-        uint256 bobTokenId = _stakeAndValidate(bob, DEFAULT_STAKE_AMOUNT, 2 weeks);
-        uint256 bobBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+        // fast forward 2 weeks and user extend lock for 4 weeks, so the the vBalance is 2 weeks more
+        // The userEpoch should be 2 (createLock, extendLock)
+        // And the lastPoint of user should be updated now becase user extendedLock
+        vm.warp(block.timestamp + 2 weeks);
+        vm.roll(block.number + 2);
+        vm.prank(user);
+        veLon.extendLock(tokenId, 4 weeks);
+        uint256 expectedBalance = (initialBalance - 10 * 2 weeks) + (10 * 2 weeks);
+        assertEq(veLon.userPointEpoch(tokenId), 2);
+        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number), expectedBalance);
 
-        // verify the vBalanceOfAtblk of 1st block when Alcie createLock
-        assertEq(veLon.vBalanceOfAtBlk(aliceTokenId, block.number - 1), aliceBalance);
+        // Query the second week balance (1 week passed since created)
+        // expetedBalance  = initialBalance - 1 week passed
+        expectedBalance = initialBalance - 10 * 1 weeks;
+        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number - 1 ), expectedBalance, "1");
 
-        // Continue fast forward 1 week
-        // Bob extend lock for 2 weeks
-        vm.warp(block.timestamp + 1 weeks);
-        vm.roll(block.number + 1);
-        vm.prank(bob);
-        veLon.extendLock(bobTokenId, 2 weeks);
+        // Query the first week balance (createLock) to verify
+        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number - 2), initialBalance, "2");
 
-        // Verify the vBalanceOfAtBlk when first block Alice createLock
-        assertEq(veLon.vBalanceOfAtBlk(aliceTokenId, block.number - 2), aliceBalance);
     }
 
     // test vBalanceOfAtTime() when the target _t is before lastPoint.ts
     function testVBalanceOfAtTimeBeforeLastPoint() public {
-        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
-        uint256 expectedBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 userEpoch = 0;
+        uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 4 weeks);
+        uint256 initialBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 4 weeks);
 
-        assertEq(veLon.userPointEpoch(1), 1);
-        assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp), expectedBalance);
+        assertEq(veLon.userPointEpoch(1), ++userEpoch);
+        assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp), initialBalance);
 
-        // fast forward 1 weeks and user extend lock for 3 weeks, so the the vBalance is 2 week more
+        // fast forward 2 weeks and user extend lock for 3 weeks, so the the vBalance is 1 week more
         // The userEpoch should be 2 (createLock, extendLock)
         // And the lastPoint of user should be updated now becase user extendedLock
+        vm.warp(block.timestamp + 2 weeks);
+        vm.roll(block.number + 1);
+        vm.prank(user);
+        veLon.extendLock(tokenId, 3 weeks);
+        assertEq(veLon.userPointEpoch(tokenId), ++userEpoch);
+
+        // Query the second week balance (1 week passed since created)
+        // expetedBalance  = initialBalance - 1 week passed
+        uint256 expectedBalance = (initialBalance - (10 * 1 weeks));
+        assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp - 1 weeks), expectedBalance);
+
+        // Continue fast forward 1 week, so now is the 4th week(3 weeks passed since createLock)
+        // User extend lock for 3 weeks, so the lock 1 weeek more (expired in 7th week)
         vm.warp(block.timestamp + 1 weeks);
         vm.roll(block.number + 1);
         vm.prank(user);
         veLon.extendLock(tokenId, 3 weeks);
+        assertEq(veLon.userPointEpoch(tokenId), ++userEpoch);
 
-        // expetedBalance  = initialBalance - 1 weeks passed + 2 week extended
-        assertEq(veLon.userPointEpoch(tokenId), 2);
-        expectedBalance = (expectedBalance - (10 * 1 weeks) + (10 * 2 weeks));
-        assertEq(veLon.vBalanceOf(tokenId), expectedBalance);
-        assertEq(veLon.userPointEpoch(tokenId), 2);
-
-        // Continue fast forward 1 week, so now is the third week(2 weeks passed since createLock)
-        // Query the vBalanceOfAtime in first week (the time lock was created)
-        // The traget time is before lastPoint.ts(the time lock was extended)
-        vm.warp(block.timestamp + 1 weeks);
+        // Fast forward 2 week, now is 6th week(5 weeks passed since created)
+        // Query the 3rd week balance
+        // expetedBalance = (initialBalance - 2 weeks passed) + (1 week extended at that time);
+        vm.warp(block.timestamp + 2 weeks);
         vm.roll(block.number + 1);
-        uint256 initialBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
-        assertEq(veLon.userPointEpoch(tokenId), 2);
-        assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp - 2 weeks), initialBalance);
+        expectedBalance = ((initialBalance - 10 * 2 weeks) + (10 * 1 weeks));
+        assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp - 3 weeks), expectedBalance);
 
-        // Fast forward 1 week
-        // ExtendLock in forth week(3 weeks passed), and query the first week(creatLock)
-        vm.warp(block.timestamp + 1 weeks);
-        vm.roll(block.number + 1);
-        vm.prank(user);
-        veLon.extendLock(tokenId, 2 weeks);
-        assertEq(veLon.userPointEpoch(tokenId), 3);
-        assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp - 3 weeks), initialBalance);
+        // Query the 1st week balance to verify
+        assertEq(veLon.vBalanceOfAtTime(tokenId, block.timestamp - 5 weeks), initialBalance);
     }
 
     function testCannotGetVBalabnceAtFutureBlk() public {
@@ -371,21 +375,29 @@ contract TestVeLONBalance is TestVeLON {
         vm.warp(block.timestamp + 1 weeks);
         vm.roll(block.number + 1);
         uint256 bobTokenId = _stakeAndValidate(bob, DEFAULT_STAKE_AMOUNT, 3 weeks);
-        uint256 bobBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
+        uint256 bobBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 3 weeks);
+        assertEq(veLon.epoch(), 2);
 
         // verify the totalBalance of 1st week when Alcie createLock
         assertEq(veLon.totalvBalanceAtTime(block.timestamp - 1 weeks), aliceBalance);
 
         // Continue fast forward 2 week
-        // Bob extend lock for 2 weeks
+        // Bob extend lock for 2 weeks, so now Bob's balance is 1 week more(expired in 6th week)
         vm.warp(block.timestamp + 2 weeks);
         vm.roll(block.number + 1);
         vm.prank(bob);
         veLon.extendLock(bobTokenId, 2 weeks);
+        // epoch times = (alice createLock, bob createLock, 3rd weekPoint, Bob extendLock)
+        assertEq(veLon.epoch(), 4);
 
         // Query the totalvBalance of third week when Alice's lock has expired
-        // and Bob's lock has passed 1 week
+        // Bob's lock has passed 1 week
         uint256 totalBalance = bobBalance - 10 * 1 weeks;
+        assertEq(veLon.totalvBalanceAtTime(block.timestamp - 1 weeks), totalBalance);
+
+        // Query the second week when Alice's lock has passed 1 week,
+        // And Bob just credted lock
+        totalBalance = (aliceBalance - 10 * 1 weeks) + bobBalance;
         assertEq(veLon.totalvBalanceAtTime(block.timestamp - 2 weeks), totalBalance);
     }
 
