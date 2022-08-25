@@ -74,7 +74,7 @@ contract PermanentStorageTest is Test {
     function testCannotInitializeAgain() public {
         PermanentStorage ps = new PermanentStorage();
         ps.initialize(address(this));
-        assertEq(ps.version(), "5.3.0");
+        assertEq(ps.version(), "5.4.0");
         assertEq(ps.operator(), address(this));
 
         vm.expectRevert("PermanentStorage: not upgrading from empty");
