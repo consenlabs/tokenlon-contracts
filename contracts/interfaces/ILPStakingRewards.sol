@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.0;
 
-interface IStakingRewards {
+interface ILPStakingRewards {
     // Views
     function lastTimeRewardApplicable() external view returns (uint256);
 
@@ -16,6 +16,8 @@ interface IStakingRewards {
     function balanceOf(address account) external view returns (uint256);
 
     // Mutative
+    function notifyRewardAmount(uint256 reward) external;
+
     function stake(uint256 amount) external;
 
     function withdraw(uint256 amount) external;

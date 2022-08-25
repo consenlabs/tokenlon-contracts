@@ -9,17 +9,17 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./interfaces/IEmergency.sol";
 import "./interfaces/IEIP2612.sol";
-import "./interfaces/IStakingRewards.sol";
+import "./interfaces/ILPStakingRewards.sol";
 import "./utils/Ownable.sol";
-import "./RewardsDistributionRecipient.sol";
 
-contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, ReentrancyGuard, IEmergency {
+contract LPStakingRewards is ILPStakingRewards, ReentrancyGuard, IEmergency {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     IERC20 public rewardsToken;
-    IERC20 public stakingToken;
+    IERC20 public lpToken;
 
+    address public rewardsDistribution;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
     uint256 public rewardsDuration;
@@ -34,18 +34,23 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
 
     address public emergencyRecipient;
 
+    modifier onlyRewardsDistribution() {
+        require(msg.sender == rewardsDistribution, "not rewards distribution");
+        _;
+    }
+
     constructor(
         address _emergencyRecipient,
         address _rewardsDistribution,
         address _rewardsToken,
-        address _stakingToken,
+        address _lpToken,
         uint256 _rewardsDuration
     ) {
         require(_rewardsDuration > 0, "rewards duration is 0");
 
         emergencyRecipient = _emergencyRecipient;
         rewardsToken = IERC20(_rewardsToken);
-        stakingToken = IERC20(_stakingToken);
+        lpToken = IERC20(_lpToken);
         rewardsDistribution = _rewardsDistribution;
         rewardsDuration = _rewardsDuration;
     }
@@ -89,9 +94,9 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
         _balances[msg.sender] = _balances[msg.sender].add(amount);
 
         // permit
-        IEIP2612(address(stakingToken)).permit(msg.sender, address(this), amount, deadline, v, r, s);
+        IEIP2612(address(lpToken)).permit(msg.sender, address(this), amount, deadline, v, r, s);
 
-        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
+        lpToken.safeTransferFrom(msg.sender, address(this), amount);
         emit Staked(msg.sender, amount);
     }
 
@@ -99,7 +104,7 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
         require(amount > 0, "cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);
-        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
+        lpToken.safeTransferFrom(msg.sender, address(this), amount);
         emit Staked(msg.sender, amount);
     }
 
@@ -107,7 +112,7 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
         require(amount > 0, "cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
-        stakingToken.safeTransfer(msg.sender, amount);
+        lpToken.safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount);
     }
 
@@ -126,7 +131,7 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     }
 
     function emergencyWithdraw(IERC20 token) external override {
-        require(address(token) != address(rewardsToken) && address(token) != address(stakingToken), "forbidden token");
+        require(address(token) != address(rewardsToken) && address(token) != address(lpToken), "forbidden token");
 
         token.transfer(emergencyRecipient, token.balanceOf(address(this)));
     }
