@@ -30,32 +30,11 @@ contract PermanentStorage is IPermanentStorage {
     string public version; // Current version of the contract
     mapping(bytes32 => mapping(address => bool)) private permission;
 
-    // Operator events
-    event TransferOwnership(address newOperator);
-    event SetPermission(bytes32 storageId, address role, bool enabled);
-    event UpgradeAMMWrapper(address newAMMWrapper);
-    event UpgradePMM(address newPMM);
-    event UpgradeRFQ(address newRFQ);
-    event UpgradeLimitOrder(address newLimitOrder);
-    event UpgradeWETH(address newWETH);
-    event SetCurvePoolInfo(address makerAddr, address[] underlyingCoins, address[] coins, bool supportGetD);
-    event SetRelayerValid(address relayer, bool valid);
-
     /************************************************************
      *          Access control and ownership management          *
      *************************************************************/
     modifier onlyOperator() {
         require(operator == msg.sender, "PermanentStorage: not the operator");
-        _;
-    }
-
-    modifier validRole(bool _enabled, address _role) {
-        if (_enabled) {
-            require(
-                (_role == operator) || (_role == ammWrapperAddr()) || (_role == pmmAddr()) || (_role == rfqAddr()) || (_role == limitOrderAddr()),
-                "PermanentStorage: not a valid role"
-            );
-        }
         _;
     }
 
@@ -76,7 +55,13 @@ contract PermanentStorage is IPermanentStorage {
         bytes32 _storageId,
         address _role,
         bool _enabled
-    ) external onlyOperator validRole(_enabled, _role) {
+    ) external onlyOperator {
+        if (_enabled) {
+            require(
+                (_role == operator) || (_role == ammWrapperAddr()) || (_role == rfqAddr()) || (_role == limitOrderAddr()),
+                "PermanentStorage: not a valid role"
+            );
+        }
         permission[_storageId][_role] = _enabled;
 
         emit SetPermission(_storageId, _role, _enabled);
@@ -92,29 +77,25 @@ contract PermanentStorage is IPermanentStorage {
         operator = _operator;
 
         // Upgrade version
-        version = "5.3.0";
+        version = "5.4.0";
     }
 
     /************************************************************
      *                     Getter functions                      *
      *************************************************************/
-    function hasPermission(bytes32 _storageId, address _role) external view returns (bool) {
+    function hasPermission(bytes32 _storageId, address _role) external view override returns (bool) {
         return permission[_storageId][_role];
     }
 
-    function ammWrapperAddr() public view returns (address) {
+    function ammWrapperAddr() public view override returns (address) {
         return PSStorage.getStorage().ammWrapperAddr;
     }
 
-    function pmmAddr() public view returns (address) {
-        return PSStorage.getStorage().pmmAddr;
-    }
-
-    function rfqAddr() public view returns (address) {
+    function rfqAddr() public view override returns (address) {
         return PSStorage.getStorage().rfqAddr;
     }
 
-    function limitOrderAddr() public view returns (address) {
+    function limitOrderAddr() public view override returns (address) {
         return PSStorage.getStorage().limitOrderAddr;
     }
 
@@ -165,14 +146,6 @@ contract PermanentStorage is IPermanentStorage {
         return (takerAssetIndex, makerAssetIndex, swapMethod, supportGetDx);
     }
 
-    /* 
-    NOTE: `isTransactionSeen` is replaced by `isAMMTransactionSeen`. It is kept for backward compatability.
-    It should be removed from AMM 5.2.1 upward.
-    */
-    function isTransactionSeen(bytes32 _transactionHash) external view override returns (bool) {
-        return AMMWrapperStorage.getStorage().transactionSeen[_transactionHash];
-    }
-
     function isAMMTransactionSeen(bytes32 _transactionHash) external view override returns (bool) {
         return AMMWrapperStorage.getStorage().transactionSeen[_transactionHash];
     }
@@ -201,13 +174,6 @@ contract PermanentStorage is IPermanentStorage {
         PSStorage.getStorage().ammWrapperAddr = _newAMMWrapper;
 
         emit UpgradeAMMWrapper(_newAMMWrapper);
-    }
-
-    /// @dev Update PMM contract address.
-    function upgradePMM(address _newPMM) external onlyOperator {
-        PSStorage.getStorage().pmmAddr = _newPMM;
-
-        emit UpgradePMM(_newPMM);
     }
 
     /// @dev Update RFQ contract address.
@@ -256,15 +222,6 @@ contract PermanentStorage is IPermanentStorage {
 
         AMMWrapperStorage.getStorage().curveSupportGetDx[_makerAddr] = _supportGetDx;
         emit SetCurvePoolInfo(_makerAddr, _underlyingCoins, _coins, _supportGetDx);
-    }
-
-    /* 
-    NOTE: `setTransactionSeen` is replaced by `setAMMTransactionSeen`. It is kept for backward compatability.
-    It should be removed from AMM 5.2.1 upward.
-    */
-    function setTransactionSeen(bytes32 _transactionHash) external override isPermitted(transactionSeenStorageId, msg.sender) {
-        require(!AMMWrapperStorage.getStorage().transactionSeen[_transactionHash], "PermanentStorage: transaction seen before");
-        AMMWrapperStorage.getStorage().transactionSeen[_transactionHash] = true;
     }
 
     function setAMMTransactionSeen(bytes32 _transactionHash) external override isPermitted(transactionSeenStorageId, msg.sender) {

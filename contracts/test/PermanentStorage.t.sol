@@ -9,7 +9,6 @@ contract PermanentStorageTest is Test {
     event TransferOwnership(address newOperator);
     event SetPermission(bytes32 storageId, address role, bool enabled);
     event UpgradeAMMWrapper(address newAMMWrapper);
-    event UpgradePMM(address newPMM);
     event UpgradeRFQ(address newRFQ);
     event UpgradeLimitOrder(address newLimitOrder);
     event UpgradeWETH(address newWETH);
@@ -75,7 +74,7 @@ contract PermanentStorageTest is Test {
     function testCannotInitializeAgain() public {
         PermanentStorage ps = new PermanentStorage();
         ps.initialize(address(this));
-        assertEq(ps.version(), "5.3.0");
+        assertEq(ps.version(), "5.4.0");
         assertEq(ps.operator(), address(this));
 
         vm.expectRevert("PermanentStorage: not upgrading from empty");
@@ -98,20 +97,6 @@ contract PermanentStorageTest is Test {
         emit UpgradeAMMWrapper(strategy);
         permanentStorage.upgradeAMMWrapper(strategy);
         assertEq(permanentStorage.ammWrapperAddr(), strategy);
-    }
-
-    function testCannotUpgradePMMByNotOperator() public {
-        vm.expectRevert("PermanentStorage: not the operator");
-        vm.prank(user);
-        permanentStorage.upgradePMM(strategy);
-    }
-
-    function testUpgradePMM() public {
-        assertEq(permanentStorage.pmmAddr(), address(0));
-        vm.expectEmit(false, false, false, true);
-        emit UpgradePMM(strategy);
-        permanentStorage.upgradePMM(strategy);
-        assertEq(permanentStorage.pmmAddr(), strategy);
     }
 
     function testCannotUpgradeRFQByNotOperator() public {
@@ -195,27 +180,6 @@ contract PermanentStorageTest is Test {
     /***************************************************
      *            Test: set TransactionSeen            *
      ***************************************************/
-
-    function testCannotSetTransactionSeenWithoutPermission() public {
-        vm.expectRevert("PermanentStorage: has no permission");
-        vm.prank(user);
-        permanentStorage.setTransactionSeen(DEFAULT_TRANSACION_HASH);
-    }
-
-    function testSetTransactionSeen() public {
-        permanentStorage.upgradeAMMWrapper(strategy);
-        bytes32 storageId = permanentStorage.transactionSeenStorageId();
-        permanentStorage.setPermission(storageId, strategy, true);
-
-        vm.startPrank(strategy);
-        assertFalse(permanentStorage.isTransactionSeen(DEFAULT_TRANSACION_HASH));
-        permanentStorage.setTransactionSeen(DEFAULT_TRANSACION_HASH);
-        assertTrue(permanentStorage.isTransactionSeen(DEFAULT_TRANSACION_HASH));
-
-        vm.expectRevert("PermanentStorage: transaction seen before");
-        permanentStorage.setTransactionSeen(DEFAULT_TRANSACION_HASH);
-        vm.stopPrank();
-    }
 
     function testCannotSetAMMTransactionSeenWithoutPermission() public {
         vm.expectRevert("PermanentStorage: has no permission");

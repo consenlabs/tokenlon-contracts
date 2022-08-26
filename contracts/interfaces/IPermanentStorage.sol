@@ -2,6 +2,24 @@
 pragma solidity >=0.7.0;
 
 interface IPermanentStorage {
+    // Operator events
+    event TransferOwnership(address newOperator);
+    event SetPermission(bytes32 storageId, address role, bool enabled);
+    event UpgradeAMMWrapper(address newAMMWrapper);
+    event UpgradeRFQ(address newRFQ);
+    event UpgradeLimitOrder(address newLimitOrder);
+    event UpgradeWETH(address newWETH);
+    event SetCurvePoolInfo(address makerAddr, address[] underlyingCoins, address[] coins, bool supportGetD);
+    event SetRelayerValid(address relayer, bool valid);
+
+    function hasPermission(bytes32 _storageId, address _role) external view returns (bool);
+
+    function ammWrapperAddr() external view returns (address);
+
+    function rfqAddr() external view returns (address);
+
+    function limitOrderAddr() external view returns (address);
+
     function wethAddr() external view returns (address);
 
     function getCurvePoolInfo(
@@ -25,8 +43,6 @@ interface IPermanentStorage {
         bool _supportGetDx
     ) external;
 
-    function isTransactionSeen(bytes32 _transactionHash) external view returns (bool); // Kept for backward compatability. Should be removed from AMM 5.2.1 upward
-
     function isAMMTransactionSeen(bytes32 _transactionHash) external view returns (bool);
 
     function isRFQTransactionSeen(bytes32 _transactionHash) external view returns (bool);
@@ -36,8 +52,6 @@ interface IPermanentStorage {
     function isLimitOrderAllowFillSeen(bytes32 _allowFillHash) external view returns (bool);
 
     function isRelayerValid(address _relayer) external view returns (bool);
-
-    function setTransactionSeen(bytes32 _transactionHash) external; // Kept for backward compatability. Should be removed from AMM 5.2.1 upward
 
     function setAMMTransactionSeen(bytes32 _transactionHash) external;
 
