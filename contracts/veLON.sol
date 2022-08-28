@@ -492,14 +492,15 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         // storedPoolLastPoint is used for extrapolation to calculate block number
         // (approximately, for *At methods) and save them
         // as we cannot figure that out exactly from inside the contract
-        Point memory storedPoolLastPoint = poolLastPoint;
+        Point memory storedPoolLastPoint = Point({ vBalance: 0, decliningRate: 0, ts: poolLastPoint.ts, blk: poolLastPoint.blk });
 
         // blockRate = dBlock/dTime
         // If last point is already recorded in this block, blockRate=0
         // But that's ok because we know the block in such case
         uint256 blockRate = 0;
-        if (block.timestamp > storedPoolLastPoint.ts) {
-            blockRate = (MULTIPLIER * (block.number - storedPoolLastPoint.blk)) / (block.timestamp - storedPoolLastPoint.ts);
+        if (block.number > storedPoolLastPoint.blk) {
+            // blockRate = (MULTIPLIER * (block.number - storedPoolLastPoint.blk)) / (block.timestamp - storedPoolLastPoint.ts);
+            blockRate = (MULTIPLIER * (block.timestamp - storedPoolLastPoint.ts)) / (block.number - storedPoolLastPoint.blk);
         }
 
         uint256 lastPointTs = poolLastPoint.ts;
@@ -529,7 +530,11 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
             // update ts and block (approximately block number)
             poolLastPoint.ts = nextPointTs;
-            poolLastPoint.blk = storedPoolLastPoint.blk + (blockRate * (nextPointTs - storedPoolLastPoint.ts)) / MULTIPLIER;
+            if (blockRate > 0) {
+                poolLastPoint.blk = storedPoolLastPoint.blk + ((nextPointTs - storedPoolLastPoint.ts) *  MULTIPLIER) / blockRate;
+            } else {
+                poolLastPoint.blk = storedPoolLastPoint.blk;
+            }
 
             // record or return last point
             _epoch += 1;
