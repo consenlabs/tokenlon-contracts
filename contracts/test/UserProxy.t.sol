@@ -105,40 +105,6 @@ contract UserProxyTest is Test {
     }
 
     /***************************************************
-     *                Test: set PMM               *
-     ***************************************************/
-
-    function testSetPMMStatusByNotOperator() public {
-        vm.expectRevert("UserProxy: not the operator");
-        vm.prank(user);
-        userProxy.setPMMStatus(true);
-    }
-
-    function testUpgradePMMByNotOperator() public {
-        vm.expectRevert("UserProxy: not the operator");
-        vm.prank(user);
-        userProxy.upgradePMM(address(strategy), true);
-    }
-
-    function testSetPMMStatus() public {
-        assertFalse(userProxy.isPMMEnabled());
-
-        userProxy.setPMMStatus(true);
-
-        assertTrue(userProxy.isPMMEnabled());
-    }
-
-    function testUpgradePMM() public {
-        assertFalse(userProxy.isPMMEnabled());
-        assertEq(userProxy.pmmAddr(), address(0));
-
-        userProxy.upgradePMM(address(strategy), true);
-
-        assertTrue(userProxy.isPMMEnabled());
-        assertEq(userProxy.pmmAddr(), address(strategy));
-    }
-
-    /***************************************************
      *                Test: set RFQ               *
      ***************************************************/
 
@@ -228,39 +194,6 @@ contract UserProxyTest is Test {
     function testToAMM() public {
         userProxy.upgradeAMMWrapper(address(strategy), true);
         userProxy.toAMM(abi.encode(MockStrategy.execute.selector));
-    }
-
-    /***************************************************
-     *                 Test: call PMM                  *
-     ***************************************************/
-
-    function testCannotToPMMWhenDisabled() public {
-        userProxy.setPMMStatus(false);
-        vm.expectRevert("UserProxy: PMM is disabled");
-        userProxy.toPMM(abi.encode(MockStrategy.execute.selector));
-    }
-
-    function testCannotToPMMByNotEOA() public {
-        userProxy.setPMMStatus(true);
-        vm.expectRevert("UserProxy: only EOA");
-        userProxy.toPMM(abi.encode(MockStrategy.execute.selector));
-    }
-
-    function testToPMM() public {
-        userProxy.upgradePMM(address(strategy), true);
-        vm.prank(relayer, relayer);
-        userProxy.toPMM(abi.encode(MockStrategy.execute.selector));
-    }
-
-    function testCannotToPMMWithWrongFunction() public {
-        userProxy.upgradePMM(address(strategy), true);
-        vm.expectRevert();
-        vm.prank(relayer, relayer);
-        userProxy.toPMM("0x");
-
-        vm.expectRevert();
-        vm.prank(relayer, relayer);
-        userProxy.toPMM(abi.encode(userProxy.setAMMStatus.selector));
     }
 
     /***************************************************
