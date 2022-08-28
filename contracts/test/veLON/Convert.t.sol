@@ -63,15 +63,12 @@ contract TestVeLONDeposit is TestVeLON {
     }
 
     function testFuzz_ConvertVeLontoMigrateStake(
-        uint256 stakeAmount,
         uint256 lockTime,
         uint256 warp
     ) public {
+        uint256 stakeAmount = DEFAULT_STAKE_AMOUNT;
         vm.assume(lockTime >= 7 days);
         vm.assume(lockTime <= 365 days);
-        vm.assume(stakeAmount > 0);
-        vm.assume(stakeAmount <= lon.cap());
-        vm.assume(stakeAmount.add(lon.totalSupply()) <= lon.cap());
         vm.assume(warp > 0);
         vm.assume(warp <= 365 days);
 
