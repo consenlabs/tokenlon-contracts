@@ -531,7 +531,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             // update ts and block (approximately block number)
             poolLastPoint.ts = nextPointTs;
             if (blockRate > 0) {
-                poolLastPoint.blk = storedPoolLastPoint.blk + ((nextPointTs - storedPoolLastPoint.ts) *  MULTIPLIER) / blockRate;
+                poolLastPoint.blk = storedPoolLastPoint.blk + ((nextPointTs - storedPoolLastPoint.ts) * MULTIPLIER) / blockRate;
             } else {
                 poolLastPoint.blk = storedPoolLastPoint.blk;
             }
