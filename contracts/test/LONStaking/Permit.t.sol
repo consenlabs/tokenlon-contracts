@@ -3,6 +3,7 @@ pragma solidity 0.7.6;
 pragma abicoder v2;
 
 import "contracts-test/LONStaking/Setup.t.sol";
+import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract TestLONStakingPermit is TestLONStaking {
     struct Permit {
@@ -91,7 +92,7 @@ contract TestLONStakingPermit is TestLONStaking {
         )
     {
         bytes32 permitHash = _getPermitHash(permit);
-        bytes32 EIP712SignDigest = _getEIP712Hash(permitHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(lonStaking.DOMAIN_SEPARATOR(), permitHash);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         return (v, r, s);

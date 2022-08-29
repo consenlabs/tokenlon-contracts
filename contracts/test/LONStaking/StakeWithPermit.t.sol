@@ -3,6 +3,7 @@ pragma solidity 0.7.6;
 pragma abicoder v2;
 
 import "contracts-test/LONStaking/Setup.t.sol";
+import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract TestLONStakingStakeWithPermit is TestLONStaking {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
@@ -110,12 +111,6 @@ contract TestLONStakingStakeWithPermit is TestLONStaking {
             );
     }
 
-    function _getLONEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
-        string memory EIP191_HEADER = "\x19\x01";
-        bytes32 DOMAIN_SEPARATOR = lon.DOMAIN_SEPARATOR();
-        return keccak256(abi.encodePacked(EIP191_HEADER, DOMAIN_SEPARATOR, structHash));
-    }
-
     function _signStakeWithPermit(uint256 privateKey, StakeWithPermit memory stakeWithPermit)
         internal
         returns (
@@ -125,7 +120,7 @@ contract TestLONStakingStakeWithPermit is TestLONStaking {
         )
     {
         bytes32 stakeWithPermitHash = _getStakeWithPermitHash(stakeWithPermit);
-        bytes32 EIP712SignDigest = _getLONEIP712Hash(stakeWithPermitHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(lon.DOMAIN_SEPARATOR(), stakeWithPermitHash);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         return (v, r, s);

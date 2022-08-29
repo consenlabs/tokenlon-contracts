@@ -7,6 +7,7 @@ import "contracts/interfaces/IPermanentStorage.sol";
 import "contracts/interfaces/ISpender.sol";
 import "contracts/utils/AMMLibEIP712.sol";
 import "contracts-test/utils/StrategySharedSetup.sol"; // Using the deployment Strategy Contract function
+import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract TestAMMWrapper is StrategySharedSetup {
     uint256 constant BPS_MAX = 10000;
@@ -112,15 +113,9 @@ contract TestAMMWrapper is StrategySharedSetup {
      *          Test Helpers         *
      *********************************/
 
-    function _getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
-        string memory EIP191_HEADER = "\x19\x01";
-        bytes32 EIP712_DOMAIN_SEPARATOR = ammWrapper.EIP712_DOMAIN_SEPARATOR();
-        return keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, structHash));
-    }
-
     function _signTrade(uint256 privateKey, AMMLibEIP712.Order memory order) internal returns (bytes memory sig) {
         bytes32 orderHash = AMMLibEIP712._getOrderHash(order);
-        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(ammWrapper.EIP712_DOMAIN_SEPARATOR(), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
