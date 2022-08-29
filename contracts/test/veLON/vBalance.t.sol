@@ -208,10 +208,9 @@ contract TestVeLONBalance is TestVeLON {
     function testVBalanceOfAtBlkBeforeLastPoint() public {
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 4 weeks);
         uint256 initialBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 4 weeks);
-        console.log("initial balance is :", initialBalance);
 
         assertEq(veLon.userPointEpoch(tokenId), 1);
-        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number), initialBalance, "0");
+        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number), initialBalance);
 
         // fast forward 2 weeks and user extend lock for 4 weeks, so the the vBalance is 2 weeks more
         // The userEpoch should be 2 (createLock, extendLock)
@@ -228,10 +227,10 @@ contract TestVeLONBalance is TestVeLON {
         // Query the second week balance (1 week passed since created)
         // expetedBalance  = initialBalance - 1 week passed
         expectedBalance = initialBalance - 10 * 1 weeks;
-        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number - 1), expectedBalance, "1");
+        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number - 1), expectedBalance);
 
         // Query the first week balance (createLock) to verify
-        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number - 2), initialBalance, "2");
+        assertEq(veLon.vBalanceOfAtBlk(tokenId, block.number - 2), initialBalance);
     }
 
     // test vBalanceOfAtTime() when the target _t is before lastPoint.ts
@@ -407,7 +406,7 @@ contract TestVeLONBalance is TestVeLON {
         uint256 aliceBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 4 weeks);
 
         assertEq(veLon.epoch(), 1);
-        assertEq(veLon.totalvBalanceAtBlk(block.number), aliceBalance, "0");
+        assertEq(veLon.totalvBalanceAtBlk(block.number), aliceBalance);
 
         // fast forward 2 weeks and 2 blocks, second user createlock
         vm.warp(block.timestamp + 2 weeks);
@@ -423,9 +422,9 @@ contract TestVeLONBalance is TestVeLON {
 
         // verify the totalBalance of second  week when Alice's lock has passed 1 week
         expectedBalance = aliceBalance - 10 * 1 weeks;
-        assertEq(veLon.totalvBalanceAtBlk(block.number - 1), expectedBalance, "1");
+        assertEq(veLon.totalvBalanceAtBlk(block.number - 1), expectedBalance);
 
         // Verify the totalvBalanceAtBlk when first week Alice createLock
-        assertEq(veLon.totalvBalanceAtBlk(block.number - 2), aliceBalance, "2");
+        assertEq(veLon.totalvBalanceAtBlk(block.number - 2), aliceBalance);
     }
 }
