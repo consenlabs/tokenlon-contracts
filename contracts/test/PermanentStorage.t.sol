@@ -11,6 +11,7 @@ contract PermanentStorageTest is Test {
     event UpgradeAMMWrapper(address newAMMWrapper);
     event UpgradeRFQ(address newRFQ);
     event UpgradeLimitOrder(address newLimitOrder);
+    event UpgradeL2Deposit(address newL2Deposit);
     event UpgradeWETH(address newWETH);
     event SetCurvePoolInfo(address makerAddr, address[] underlyingCoins, address[] coins, bool supportGetD);
     event SetRelayerValid(address relayer, bool valid);
@@ -127,6 +128,20 @@ contract PermanentStorageTest is Test {
         assertEq(permanentStorage.limitOrderAddr(), strategy);
     }
 
+    function testCannotUpgradeL2DepositByNotOperator() public {
+        vm.expectRevert("PermanentStorage: not the operator");
+        vm.prank(user);
+        permanentStorage.upgradeL2Deposit(strategy);
+    }
+
+    function testUpgradeL2Deposit() public {
+        assertEq(permanentStorage.l2DepositAddr(), address(0));
+        vm.expectEmit(true, true, true, true);
+        emit UpgradeL2Deposit(strategy);
+        permanentStorage.upgradeL2Deposit(strategy);
+        assertEq(permanentStorage.l2DepositAddr(), strategy);
+    }
+
     function testCannotUpgradeWETHByNotOperator() public {
         vm.expectRevert("PermanentStorage: not the operator");
         vm.prank(user);
@@ -241,6 +256,27 @@ contract PermanentStorageTest is Test {
 
         vm.expectRevert("PermanentStorage: transaction seen before");
         permanentStorage.setLimitOrderTransactionSeen(DEFAULT_TRANSACION_HASH);
+        vm.stopPrank();
+    }
+
+    function testCannotSetL2DepositSeenWithoutPermission() public {
+        vm.expectRevert("PermanentStorage: has no permission");
+        vm.prank(user);
+        permanentStorage.setL2DepositSeen(DEFAULT_TRANSACION_HASH);
+    }
+
+    function testSetSetL2DepositSeen() public {
+        permanentStorage.upgradeL2Deposit(strategy);
+        bytes32 storageId = permanentStorage.l2DepositSeenStorageId();
+        permanentStorage.setPermission(storageId, strategy, true);
+
+        vm.startPrank(strategy);
+        assertFalse(permanentStorage.isL2DepositSeen(DEFAULT_TRANSACION_HASH));
+        permanentStorage.setL2DepositSeen(DEFAULT_TRANSACION_HASH);
+        assertTrue(permanentStorage.isL2DepositSeen(DEFAULT_TRANSACION_HASH));
+
+        vm.expectRevert("PermanentStorage: L2 deposit seen before");
+        permanentStorage.setL2DepositSeen(DEFAULT_TRANSACION_HASH);
         vm.stopPrank();
     }
 
