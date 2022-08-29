@@ -37,8 +37,8 @@ contract TestLONStaking is Test {
     function setUp() public virtual {
         // Setup
         LONStaking lonStakingImpl = new LONStaking();
-        bytes memory initData = abi.encodeWithSignature(
-            "initialize(address,address,uint256,uint256)",
+        bytes memory initData = abi.encodeWithSelector(
+            LONStaking.initialize.selector,
             address(lon), // LON
             address(this), // Owner
             COOLDOWN_IN_DAYS,
