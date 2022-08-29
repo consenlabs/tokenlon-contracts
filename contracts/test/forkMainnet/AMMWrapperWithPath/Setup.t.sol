@@ -106,6 +106,7 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
             UNISWAP_V2_ADDRESS,
             SUSHISWAP_ADDRESS,
             UNISWAP_V3_ADDRESS,
+            BALANCER_V2_ADDRESS,
             feeCollector
         );
         // Setup

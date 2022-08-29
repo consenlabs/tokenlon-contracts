@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./interfaces/ISpender.sol";
 import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ICurveFi.sol";
+import "./interfaces/ICurveFiV2.sol";
 import "./interfaces/IAMMWrapper.sol";
 import "./interfaces/IWeth.sol";
 import "./interfaces/IPermanentStorage.sol";
@@ -355,6 +356,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
                 uint256 balanceBeforeTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
                 _tradeCurveTokenToToken(
                     _order.makerAddr,
+                    1, // AMMWrapper call only interact with curveV1
                     curveData.fromTokenCurveIndex,
                     curveData.toTokenCurveIndex,
                     _order.takerAssetAmount,
@@ -408,18 +410,28 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
 
     function _tradeCurveTokenToToken(
         address _makerAddr,
+        uint8 _version,
         int128 i,
         int128 j,
         uint256 _takerAssetAmount,
         uint256 _makerAssetAmount,
         uint16 _swapMethod
     ) internal {
-        ICurveFi curve = ICurveFi(_makerAddr);
-        if (_swapMethod == 1) {
-            curve.exchange{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
-        } else if (_swapMethod == 2) {
-            curve.exchange_underlying{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+        if (_version == 1) {
+            ICurveFi curve = ICurveFi(_makerAddr);
+            if (_swapMethod == 1) {
+                curve.exchange{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+            } else if (_swapMethod == 2) {
+                curve.exchange_underlying{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+            }
+            return;
+        } else if (_version == 2) {
+            ICurveFiV2 curve = ICurveFiV2(_makerAddr);
+            require(_swapMethod == 1, "AMMWrapper: Curve v2 no underlying");
+            curve.exchange{ value: msg.value }(uint256(i), uint256(j), _takerAssetAmount, _makerAssetAmount, true);
+            return;
         }
+        revert("AMMWrapper: Invalid Curve version");
     }
 
     function _tradeUniswapV2TokenToToken(
