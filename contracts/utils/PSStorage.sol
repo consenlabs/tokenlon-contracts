@@ -97,3 +97,24 @@ library LimitOrderStorage {
         }
     }
 }
+
+library L2DepositStorage {
+    bytes32 private constant STORAGE_SLOT = 0x6121983e370c77faf77a1d810c45f4d7db2f93a5f689c69a2ac659e2db43e95d;
+
+    struct Storage {
+        mapping(bytes32 => bool) l2DepositSeen;
+    }
+
+    /// @dev Get the storage bucket for this contract.
+    function getStorage() internal pure returns (Storage storage stor) {
+        assert(STORAGE_SLOT == bytes32(uint256(keccak256("permanent.l2deposit.storage")) - 1));
+        bytes32 slot = STORAGE_SLOT;
+
+        // Dip into assembly to change the slot pointed to by the local
+        // variable `stor`.
+        // See https://solidity.readthedocs.io/en/v0.6.8/assembly.html?highlight=slot#access-to-external-variables-functions-and-libraries
+        assembly {
+            stor.slot := slot
+        }
+    }
+}
