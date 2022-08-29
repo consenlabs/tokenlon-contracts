@@ -503,12 +503,6 @@ contract RFQTest is StrategySharedSetup {
         bytes memory makerSig,
         bytes memory userSig
     ) internal view returns (bytes memory payload) {
-        return
-            abi.encodeWithSignature(
-                "fill((address,address,address,address,uint256,uint256,address,uint256,uint256,uint256),bytes,bytes)",
-                order,
-                makerSig,
-                userSig
-            );
+        return abi.encodeWithSelector(rfq.fill.selector, order, makerSig, userSig);
     }
 }

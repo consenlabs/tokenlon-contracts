@@ -1305,14 +1305,7 @@ contract LimitOrderTest is StrategySharedSetup {
         ILimitOrder.TraderParams memory params,
         ILimitOrder.CoordinatorParams memory crdParams
     ) internal view returns (bytes memory payload) {
-        return
-            abi.encodeWithSignature(
-                "fillLimitOrderByTrader((address,address,uint256,uint256,address,address,uint256,uint64),bytes,(address,address,uint256,uint256,uint64,bytes),(bytes,uint256,uint64))",
-                order,
-                orderMakerSig,
-                params,
-                crdParams
-            );
+        return abi.encodeWithSelector(limitOrder.fillLimitOrderByTrader.selector, order, orderMakerSig, params, crdParams);
     }
 
     function _genFillByProtocolPayload(
@@ -1321,14 +1314,7 @@ contract LimitOrderTest is StrategySharedSetup {
         ILimitOrder.ProtocolParams memory params,
         ILimitOrder.CoordinatorParams memory crdParams
     ) internal view returns (bytes memory payload) {
-        return
-            abi.encodeWithSignature(
-                "fillLimitOrderByProtocol((address,address,uint256,uint256,address,address,uint256,uint64),bytes,(uint8,bytes,address,uint256,uint256,uint64),(bytes,uint256,uint64))",
-                order,
-                orderMakerSig,
-                params,
-                crdParams
-            );
+        return abi.encodeWithSelector(limitOrder.fillLimitOrderByProtocol.selector, order, orderMakerSig, params, crdParams);
     }
 
     function _genCancelLimitOrderPayload(LimitOrderLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
@@ -1336,6 +1322,6 @@ contract LimitOrderTest is StrategySharedSetup {
         view
         returns (bytes memory payload)
     {
-        return abi.encodeWithSignature("cancelLimitOrder((address,address,uint256,uint256,address,address,uint256,uint64),bytes)", order, cancelOrderMakerSig);
+        return abi.encodeWithSelector(limitOrder.cancelLimitOrder.selector, order, cancelOrderMakerSig);
     }
 }
