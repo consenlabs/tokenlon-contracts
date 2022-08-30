@@ -17,8 +17,6 @@ contract UserProxy is Multicall {
     event TransferOwnership(address newOperator);
     event SetAMMStatus(bool enable);
     event UpgradeAMMWrapper(address newAMMWrapper);
-    event SetPMMStatus(bool enable);
-    event UpgradePMM(address newPMM);
     event SetRFQStatus(bool enable);
     event UpgradeRFQ(address newRFQ);
     event SetLimitOrderStatus(bool enable);
@@ -65,14 +63,6 @@ contract UserProxy is Multicall {
         return AMMWrapperStorage.getStorage().isEnabled;
     }
 
-    function pmmAddr() public view returns (address) {
-        return PMMStorage.getStorage().pmmAddr;
-    }
-
-    function isPMMEnabled() public view returns (bool) {
-        return PMMStorage.getStorage().isEnabled;
-    }
-
     function rfqAddr() public view returns (address) {
         return RFQStorage.getStorage().rfqAddr;
     }
@@ -108,24 +98,6 @@ contract UserProxy is Multicall {
 
         emit UpgradeAMMWrapper(_newAMMWrapperAddr);
         emit SetAMMStatus(_enable);
-    }
-
-    function setPMMStatus(bool _enable) public onlyOperator {
-        PMMStorage.getStorage().isEnabled = _enable;
-
-        emit SetPMMStatus(_enable);
-    }
-
-    /**
-     * @dev Update PMM contract address. Used only when ABI of PMM remain unchanged.
-     * Otherwise, UserProxy contract should be upgraded altogether.
-     */
-    function upgradePMM(address _newPMMAddr, bool _enable) external onlyOperator {
-        PMMStorage.getStorage().pmmAddr = _newPMMAddr;
-        PMMStorage.getStorage().isEnabled = _enable;
-
-        emit UpgradePMM(_newPMMAddr);
-        emit SetPMMStatus(_enable);
     }
 
     function setRFQStatus(bool _enable) public onlyOperator {
@@ -174,25 +146,6 @@ contract UserProxy is Multicall {
         require(isAMMEnabled(), "UserProxy: AMM is disabled");
 
         (bool callSucceed, ) = ammWrapperAddr().call{ value: msg.value }(_payload);
-        if (callSucceed == false) {
-            // Get the error message returned
-            assembly {
-                let ptr := mload(0x40)
-                let size := returndatasize()
-                returndatacopy(ptr, 0, size)
-                revert(ptr, size)
-            }
-        }
-    }
-
-    /**
-     * @dev proxy the call to PMM
-     */
-    function toPMM(bytes calldata _payload) external payable {
-        require(isPMMEnabled(), "UserProxy: PMM is disabled");
-        require(msg.sender == tx.origin, "UserProxy: only EOA");
-
-        (bool callSucceed, ) = pmmAddr().call{ value: msg.value }(_payload);
         if (callSucceed == false) {
             // Get the error message returned
             assembly {
