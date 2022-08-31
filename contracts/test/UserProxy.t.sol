@@ -253,7 +253,14 @@ contract UserProxyTest is Test {
 
         // tx should succeed even one of subcall failed (RFQ)
         vm.prank(relayer, relayer);
-        userProxy.multicall(data, false);
+
+        (bool[] memory successes, bytes[] memory results) = userProxy.multicall(data, false);
+        bytes[] memory expectedResult = new bytes[](2);
+        expectedResult[1] = abi.encodeWithSignature("Error(string)", "Execution failed");
+        assertEq(successes[0], true);
+        assertEq0(results[0], expectedResult[0]);
+        assertEq(successes[1], false);
+        assertEq0(results[1], expectedResult[1]);
     }
 
     function testMulticallRevertOnFail() public {
