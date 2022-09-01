@@ -97,29 +97,29 @@ contract SpenderTest is BalanceUtil {
      *    Test: set new operator     *
      *********************************/
 
-    function testCannotSetNewOperatorByUser() public {
+    function testCannotNominateNewOwnerByUser() public {
         vm.expectRevert("Spender: not the operator");
         vm.prank(user);
-        spender.setNewOperator(user);
+        spender.nominateNewOwner(user);
     }
 
-    function testSetNewOperator() public {
-        spender.setNewOperator(user);
+    function testNominateNewOwner() public {
+        spender.nominateNewOwner(user);
         assertEq(spender.pendingOperator(), user);
     }
 
-    function testCannotAcceptAsOperatorByNonPendingOperator() public {
-        spender.setNewOperator(user);
+    function testCannotAcceptAsOwnerByNonPendingOperator() public {
+        spender.nominateNewOwner(user);
         vm.prank(unauthorized);
         vm.expectRevert("Spender: only nominated one can accept as new operator");
-        spender.acceptAsOperator();
+        spender.acceptOwnership();
     }
 
-    function testAcceptAsOperator() public {
-        spender.setNewOperator(user);
+    function testAcceptAsOwner() public {
+        spender.nominateNewOwner(user);
         vm.prank(user);
-        spender.acceptAsOperator();
-        assertEq(spender.operator(), user);
+        spender.acceptOwnership();
+        assertEq(spender.owner(), user);
     }
 
     /***************************************************
