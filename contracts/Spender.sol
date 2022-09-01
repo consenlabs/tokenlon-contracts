@@ -30,21 +30,8 @@ contract Spender is ISpender {
 
     mapping(address => bool) public consumeGasERC20Tokens;
     mapping(uint256 => address) public pendingAuthorized;
-
     mapping(address => bool) private authorized;
     mapping(address => bool) private tokenBlacklist;
-
-    // System events
-    event TimeLockActivated(uint256 activatedTimeStamp);
-    // Operator events
-    event SetPendingOperator(address pendingOperator);
-    event TransferOwnership(address newOperator);
-    event SetAllowanceTarget(address allowanceTarget);
-    event SetNewSpender(address newSpender);
-    event SetConsumeGasERC20Token(address token);
-    event TearDownAllowanceTarget(uint256 tearDownTimeStamp);
-    event BlackListToken(address token, bool isBlacklisted);
-    event AuthorizeSpender(address spender, bool isAuthorized);
 
     /************************************************************
      *          Access control and ownership management          *
