@@ -26,7 +26,7 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
     IERC20 wbtc = IERC20(WBTC_ADDRESS);
     IERC20[] tokens = [weth, usdt, usdc, dai, wbtc];
 
-    uint16 DEFAULT_FEE_FACTOR = 1000;
+    uint16 DEFAULT_FEE_FACTOR = 500;
     uint256 DEADLINE = block.timestamp + 1;
     AMMLibEIP712.Order DEFAULT_ORDER;
     // UniswapV3
