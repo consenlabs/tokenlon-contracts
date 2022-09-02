@@ -145,11 +145,14 @@ contract UserProxy is Multicall {
     function toAMM(bytes calldata _payload) external payable {
         require(isAMMEnabled(), "UserProxy: AMM is disabled");
 
-        (bool callSucceed, bytes memory result) = ammWrapperAddr().call{ value: msg.value }(_payload);
+        (bool callSucceed, ) = ammWrapperAddr().call{ value: msg.value }(_payload);
         if (!callSucceed) {
-            // revert with message from last call
+            // revert with data from last call
             assembly {
-                revert(add(result, 0x20), returndatasize())
+                let ptr := mload(0x40)
+                let size := returndatasize()
+                returndatacopy(ptr, 0, size)
+                revert(ptr, size)
             }
         }
     }
@@ -161,24 +164,33 @@ contract UserProxy is Multicall {
         require(isRFQEnabled(), "UserProxy: RFQ is disabled");
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
-        (bool callSucceed, bytes memory result) = rfqAddr().call{ value: msg.value }(_payload);
+        (bool callSucceed, ) = rfqAddr().call{ value: msg.value }(_payload);
         if (!callSucceed) {
-            // revert with message from last call
+            // revert with data from last call
             assembly {
-                revert(add(result, 0x20), returndatasize())
+                let ptr := mload(0x40)
+                let size := returndatasize()
+                returndatacopy(ptr, 0, size)
+                revert(ptr, size)
             }
         }
     }
 
+    /**
+     * @dev proxy the call to Limit Order
+     */
     function toLimitOrder(bytes calldata _payload) external {
         require(isLimitOrderEnabled(), "UserProxy: Limit Order is disabled");
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
-        (bool callSucceed, bytes memory result) = limitOrderAddr().call(_payload);
+        (bool callSucceed, ) = limitOrderAddr().call(_payload);
         if (!callSucceed) {
-            // revert with message from last call
+            // revert with data from last call
             assembly {
-                revert(add(result, 0x20), returndatasize())
+                let ptr := mload(0x40)
+                let size := returndatasize()
+                returndatacopy(ptr, 0, size)
+                revert(ptr, size)
             }
         }
     }
