@@ -44,5 +44,5 @@ jobs:
           FORK_BLOCK_NUMBER: 14340000
         run: |
           yarn run test-hardhat
-          yarn run test-foundry-local
+          yarn run test-foundry-local-no-fuzz
           yarn run test-foundry-fork
