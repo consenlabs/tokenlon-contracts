@@ -9,9 +9,9 @@ import "contracts-test/utils/BalanceSnapshot.sol";
 contract TestL2DepositTopUp is TestL2Deposit {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
-    uint256 arbMaxSubmissionCost = 1e6;
+    uint256 arbMaxSubmissionCost = 1e18;
     uint256 arbMaxGas = 1e6;
-    uint256 arbGasPriceBid = 1;
+    uint256 arbGasPriceBid = 1e6;
 
     function testCannotDepositIfExpired() public {
         // overwrite expiry
