@@ -78,8 +78,8 @@ contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, Signa
         uint256 maxSubmissionCost,
         uint256 maxGas,
         uint256 gasPriceBid
-    ) external onlyOwner {
-        uint256 seqNum = arbitrumL1Inbox.createRetryableTicket(
+    ) external payable onlyOwner {
+        uint256 seqNum = arbitrumL1Inbox.createRetryableTicket{ value: msg.value }(
             arbitrumL2RefundCollector,
             amount,
             maxSubmissionCost,

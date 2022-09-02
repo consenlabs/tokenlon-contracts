@@ -38,15 +38,6 @@ contract TestL2Deposit is StrategySharedSetup {
     uint256 DEFAULT_DEADLINE = block.timestamp + 1;
     L2DepositLibEIP712.Deposit DEFAULT_DEPOSIT;
 
-    event CollectArbitrumL2Refund(
-        address indexed arbitrumL2RefundCollector,
-        uint256 indexed seqNum,
-        uint256 indexed amount,
-        uint256 maxSubmissionCost,
-        uint256 maxGas,
-        uint256 gasPriceBid
-    );
-
     event Deposited(
         L2DepositLibEIP712.L2Identifier indexed l2Identifier,
         address indexed l1TokenAddr,
