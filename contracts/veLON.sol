@@ -17,7 +17,6 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
     uint256 private constant WEEK = 1 weeks;
-    uint256 private constant MULTIPLIER = 1 ether;
     address public immutable token;
     address public dstToken;
     bool public conversion = false;
