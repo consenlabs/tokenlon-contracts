@@ -494,12 +494,12 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         // as we cannot figure that out exactly from inside the contract
         Point memory storedPoolLastPoint = Point({ vBalance: 0, decliningRate: 0, ts: poolLastPoint.ts, blk: poolLastPoint.blk });
 
-        // blockRate = dTime/dBlock
-        // If last point is already recorded in this block, blockRate=0
+        // avgBlktime = dTime/dBlock
+        // If last point is already recorded in this block, avgBlkTime=0
         // But that's ok because we know the block in such case
-        uint256 blockRate = 0;
+        uint256 avgBlkTime = 0;
         if (block.number > storedPoolLastPoint.blk) {
-            blockRate = (MULTIPLIER * (block.timestamp - storedPoolLastPoint.ts)) / (block.number - storedPoolLastPoint.blk);
+            avgBlkTime = (block.timestamp - storedPoolLastPoint.ts) / (block.number - storedPoolLastPoint.blk);
         }
 
         uint256 lastPointTs = poolLastPoint.ts;
@@ -529,8 +529,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
             // update ts and block (approximately block number)
             poolLastPoint.ts = nextPointTs;
-            if (blockRate > 0) {
-                poolLastPoint.blk = storedPoolLastPoint.blk + ((nextPointTs - storedPoolLastPoint.ts) * MULTIPLIER) / blockRate;
+            if (avgBlkTime > 0) {
+                poolLastPoint.blk = storedPoolLastPoint.blk + (nextPointTs - storedPoolLastPoint.ts) / avgBlkTime;
             } else {
                 poolLastPoint.blk = storedPoolLastPoint.blk;
             }
