@@ -146,8 +146,8 @@ contract UserProxy is Multicall {
         require(isAMMEnabled(), "UserProxy: AMM is disabled");
 
         (bool callSucceed, ) = ammWrapperAddr().call{ value: msg.value }(_payload);
-        if (callSucceed == false) {
-            // Get the error message returned
+        if (!callSucceed) {
+            // revert with data from last call
             assembly {
                 let ptr := mload(0x40)
                 let size := returndatasize()
@@ -165,8 +165,8 @@ contract UserProxy is Multicall {
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
         (bool callSucceed, ) = rfqAddr().call{ value: msg.value }(_payload);
-        if (callSucceed == false) {
-            // Get the error message returned
+        if (!callSucceed) {
+            // revert with data from last call
             assembly {
                 let ptr := mload(0x40)
                 let size := returndatasize()
@@ -176,13 +176,16 @@ contract UserProxy is Multicall {
         }
     }
 
+    /**
+     * @dev proxy the call to Limit Order
+     */
     function toLimitOrder(bytes calldata _payload) external {
         require(isLimitOrderEnabled(), "UserProxy: Limit Order is disabled");
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
         (bool callSucceed, ) = limitOrderAddr().call(_payload);
-        if (callSucceed == false) {
-            // Get the error message returned
+        if (!callSucceed) {
+            // revert with data from last call
             assembly {
                 let ptr := mload(0x40)
                 let size := returndatasize()

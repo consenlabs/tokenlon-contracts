@@ -8,6 +8,7 @@ import "contracts-test/mocks/MockStrategy.sol";
 
 contract UserProxyTest is Test {
     event TearDownAllowanceTarget(uint256 tearDownTimeStamp);
+    event MulticallFailure(uint256 index, string reason);
 
     address user = address(0x133701);
     address relayer = address(0x133702);
@@ -233,27 +234,51 @@ contract UserProxyTest is Test {
      *                Test: multicall                  *
      ***************************************************/
 
-    function testMulticallAMMandRFQ() public {
-        userProxy.upgradeAMMWrapper(address(strategy), true);
-        userProxy.upgradeRFQ(address(strategy), false);
+    function testMulticallNoRevertOnFail() public {
+        MockStrategy mockAMM = new MockStrategy();
+        mockAMM.setShouldFail(false);
+        userProxy.upgradeAMMWrapper(address(mockAMM), true);
+        MockStrategy mockRFQ = new MockStrategy();
+        mockRFQ.setShouldFail(true);
+        userProxy.upgradeRFQ(address(mockRFQ), true);
 
         bytes[] memory data = new bytes[](2);
-        data[0] = abi.encodeWithSelector(UserProxy.toAMM.selector, MockStrategy.execute.selector);
-        data[1] = abi.encodeWithSelector(UserProxy.toRFQ.selector, MockStrategy.execute.selector);
+        bytes memory strategyData = abi.encodeWithSelector(MockStrategy.execute.selector);
+        data[0] = abi.encodeWithSelector(UserProxy.toAMM.selector, strategyData);
+        data[1] = abi.encodeWithSelector(UserProxy.toRFQ.selector, strategyData);
+
+        // MulticallFailure event should be emitted to indicate failures
+        vm.expectEmit(true, true, true, true);
+        emit MulticallFailure(1, "Execution failed");
+
+        // tx should succeed even one of subcall failed (RFQ)
         vm.prank(relayer, relayer);
-        // should succeed even RFQ is disabled
-        userProxy.multicall(data, false);
+
+        (bool[] memory successes, bytes[] memory results) = userProxy.multicall(data, false);
+        bytes[] memory expectedResult = new bytes[](2);
+        expectedResult[1] = abi.encodeWithSignature("Error(string)", "Execution failed");
+        assertEq(successes[0], true);
+        assertEq0(results[0], expectedResult[0]);
+        assertEq(successes[1], false);
+        assertEq0(results[1], expectedResult[1]);
     }
 
     function testMulticallRevertOnFail() public {
-        userProxy.upgradeAMMWrapper(address(strategy), true);
-        userProxy.upgradeRFQ(address(strategy), false);
+        MockStrategy mockAMM = new MockStrategy();
+        mockAMM.setShouldFail(false);
+        userProxy.upgradeAMMWrapper(address(mockAMM), true);
+        MockStrategy mockRFQ = new MockStrategy();
+        mockRFQ.setShouldFail(true);
+        userProxy.upgradeRFQ(address(mockRFQ), true);
 
         bytes[] memory data = new bytes[](2);
-        data[0] = abi.encodeWithSelector(UserProxy.toAMM.selector, MockStrategy.execute.selector);
-        data[1] = abi.encodeWithSelector(UserProxy.toRFQ.selector, MockStrategy.execute.selector);
+        bytes memory strategyData = abi.encodeWithSelector(MockStrategy.execute.selector);
+        data[0] = abi.encodeWithSelector(UserProxy.toAMM.selector, strategyData);
+        data[1] = abi.encodeWithSelector(UserProxy.toRFQ.selector, strategyData);
+
+        // Should revert with message from MockStrategy
+        vm.expectRevert("Execution failed");
         vm.prank(relayer, relayer);
-        vm.expectRevert("Delegatecall failed");
         userProxy.multicall(data, true);
     }
 }
