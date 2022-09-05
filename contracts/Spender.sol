@@ -44,18 +44,6 @@ contract Spender is ISpender, Ownable {
     }
 
     /************************************************************
-     *                    Timelock management                    *
-     *************************************************************/
-    /// @dev Everyone can activate timelock after the contract has been deployed for more than 1 day.
-    function activateTimelock() external {
-        bool canActivate = block.timestamp.sub(contractDeployedTime) > 1 days;
-        require(canActivate && !timelockActivated, "Spender: can not activate timelock yet or has been activated");
-        timelockActivated = true;
-
-        emit TimeLockActivated(block.timestamp);
-    }
-
-    /************************************************************
      *              Constructor and init functions               *
      *************************************************************/
     constructor(address _owner, address[] memory _consumeGasERC20Tokens) Ownable(_owner) {
@@ -74,6 +62,18 @@ contract Spender is ISpender, Ownable {
         allowanceTarget = _allowanceTarget;
 
         emit SetAllowanceTarget(_allowanceTarget);
+    }
+
+    /************************************************************
+     *                    Timelock management                    *
+     *************************************************************/
+    /// @dev Everyone can activate timelock after the contract has been deployed for more than 1 day.
+    function activateTimelock() external {
+        bool canActivate = block.timestamp.sub(contractDeployedTime) > 1 days;
+        require(canActivate && !timelockActivated, "Spender: can not activate timelock yet or has been activated");
+        timelockActivated = true;
+
+        emit TimeLockActivated(block.timestamp);
     }
 
     /************************************************************
