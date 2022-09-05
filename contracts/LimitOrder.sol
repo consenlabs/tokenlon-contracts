@@ -12,6 +12,7 @@ import "./interfaces/ILimitOrder.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/ISpender.sol";
 import "./interfaces/IWeth.sol";
+import "./utils/StrategyBase.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
 import "./utils/LibUniswapV2.sol";
@@ -20,22 +21,16 @@ import "./utils/LibOrderStorage.sol";
 import "./utils/LimitOrderLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
-contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, ReentrancyGuard {
+contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValidator, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-
-    IPermanentStorage public immutable permStorage;
-    address public immutable userProxy;
-    IWETH public immutable weth;
 
     // AMM
     address public immutable uniswapV3RouterAddress;
     address public immutable sushiswapRouterAddress;
 
     // Below are the variables which consume storage slots.
-    address public operator;
     address public coordinator;
-    ISpender public spender;
     address public feeCollector;
 
     // Factors
@@ -44,22 +39,17 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     uint16 public profitFeeFactor = 0;
 
     constructor(
-        address _operator,
-        address _coordinator,
+        address _owner,
         address _userProxy,
-        ISpender _spender,
-        IPermanentStorage _permStorage,
-        IWETH _weth,
+        address _weth,
+        address _permStorage,
+        address _spender,
+        address _coordinator,
         address _uniswapV3RouterAddress,
         address _sushiswapRouterAddress,
         address _feeCollector
-    ) {
-        operator = _operator;
+    ) StrategyBase(_owner, _userProxy, _weth, _permStorage, _spender) {
         coordinator = _coordinator;
-        userProxy = _userProxy;
-        spender = _spender;
-        permStorage = _permStorage;
-        weth = _weth;
         uniswapV3RouterAddress = _uniswapV3RouterAddress;
         sushiswapRouterAddress = _sushiswapRouterAddress;
         feeCollector = _feeCollector;
@@ -67,73 +57,18 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
     receive() external payable {}
 
-    modifier onlyOperator() {
-        require(operator == msg.sender, "LimitOrder: not operator");
-        _;
-    }
-
-    modifier onlyUserProxy() {
-        require(address(userProxy) == msg.sender, "LimitOrder: not the UserProxy contract");
-        _;
-    }
-
-    function transferOwnership(address _newOperator) external onlyOperator {
-        require(_newOperator != address(0), "LimitOrder: operator can not be zero address");
-        operator = _newOperator;
-
-        emit TransferOwnership(_newOperator);
-    }
-
-    function upgradeSpender(address _newSpender) external onlyOperator {
-        require(_newSpender != address(0), "LimitOrder: spender can not be zero address");
-        spender = ISpender(_newSpender);
-
-        emit UpgradeSpender(_newSpender);
-    }
-
-    function upgradeCoordinator(address _newCoordinator) external onlyOperator {
+    function upgradeCoordinator(address _newCoordinator) external onlyOwner {
         require(_newCoordinator != address(0), "LimitOrder: coordinator can not be zero address");
         coordinator = _newCoordinator;
 
         emit UpgradeCoordinator(_newCoordinator);
     }
 
-    /**
-     * @dev approve spender to transfer tokens from this contract. This is used to collect fee.
-     */
-    function setAllowance(address[] calldata _tokenList, address _spender) external onlyOperator {
-        for (uint256 i = 0; i < _tokenList.length; i++) {
-            IERC20(_tokenList[i]).safeApprove(_spender, LibConstant.MAX_UINT);
-
-            emit AllowTransfer(_spender);
-        }
-    }
-
-    function closeAllowance(address[] calldata _tokenList, address _spender) external onlyOperator {
-        for (uint256 i = 0; i < _tokenList.length; i++) {
-            IERC20(_tokenList[i]).safeApprove(_spender, 0);
-
-            emit DisallowTransfer(_spender);
-        }
-    }
-
-    /**
-     * @dev convert collected ETH to WETH
-     */
-    function depositETH() external onlyOperator {
-        uint256 balance = address(this).balance;
-        if (balance > 0) {
-            weth.deposit{ value: balance }();
-
-            emit DepositETH(balance);
-        }
-    }
-
     function setFactors(
         uint16 _makerFeeFactor,
         uint16 _takerFeeFactor,
         uint16 _profitFeeFactor
-    ) external onlyOperator {
+    ) external onlyOwner {
         require(_makerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid maker fee factor");
         require(_takerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid taker fee factor");
         require(_profitFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid profit fee factor");
@@ -148,7 +83,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     /**
      * @dev set fee collector
      */
-    function setFeeCollector(address _newFeeCollector) external onlyOperator {
+    function setFeeCollector(address _newFeeCollector) external onlyOwner {
         require(_newFeeCollector != address(0), "LimitOrder: fee collector can not be zero address");
         feeCollector = _newFeeCollector;
 

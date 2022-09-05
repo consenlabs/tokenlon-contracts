@@ -4,15 +4,11 @@ pragma abicoder v2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import "./IStrategyBase.sol";
 import "../utils/LimitOrderLibEIP712.sol";
 
-interface ILimitOrder {
-    event TransferOwnership(address newOperator);
-    event UpgradeSpender(address newSpender);
+interface ILimitOrder is IStrategyBase {
     event UpgradeCoordinator(address newCoordinator);
-    event AllowTransfer(address spender);
-    event DisallowTransfer(address spender);
-    event DepositETH(uint256 ethBalance);
     event FactorsUpdated(uint16 makerFeeFactor, uint16 takerFeeFactor, uint16 profitFeeFactor);
     event SetFeeCollector(address newFeeCollector);
     event LimitOrderFilledByTrader(
