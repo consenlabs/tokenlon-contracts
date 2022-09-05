@@ -4,20 +4,20 @@ pragma solidity 0.7.6;
 import "contracts-test/forkMainnet/AMMWrapper/Setup.t.sol";
 
 contract TestAMMWrapperAllowance is TestAMMWrapper {
-    function testCannotSetByNotOperator() public {
+    function testCannotSetByNotOwner() public {
         address[] memory allowanceTokenList = new address[](1);
         allowanceTokenList[0] = address(usdt);
 
-        vm.expectRevert("AMMWrapper: not the operator");
+        vm.expectRevert("not owner");
         vm.prank(user);
         ammWrapper.setAllowance(allowanceTokenList, address(this));
     }
 
-    function testCannotCloseByNotOperator() public {
+    function testCannotCloseByNotOwner() public {
         address[] memory allowanceTokenList = new address[](1);
         allowanceTokenList[0] = address(usdt);
 
-        vm.expectRevert("AMMWrapper: not the operator");
+        vm.expectRevert("not owner");
         vm.prank(user);
         ammWrapper.closeAllowance(allowanceTokenList, address(this));
     }

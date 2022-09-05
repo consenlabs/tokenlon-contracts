@@ -11,7 +11,7 @@ contract TestAMMWrapperSetup is TestAMMWrapper {
     }
 
     function testAMMWrapperSetup() public {
-        assertEq(ammWrapper.operator(), address(this));
+        assertEq(ammWrapper.owner(), address(this));
         assertEq(uint256(ammWrapper.defaultFeeFactor()), uint256(DEFAULT_FEE_FACTOR));
         assertEq(ammWrapper.userProxy(), address(userProxy));
         assertEq(address(ammWrapper.spender()), address(spender));

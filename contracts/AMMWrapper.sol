@@ -13,27 +13,23 @@ import "./interfaces/ICurveFiV2.sol";
 import "./interfaces/IAMMWrapper.sol";
 import "./interfaces/IWeth.sol";
 import "./interfaces/IPermanentStorage.sol";
+import "./utils/StrategyBase.sol";
 import "./utils/AMMLibEIP712.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
 import "./utils/SignatureValidator.sol";
 
-contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
+contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
     using SafeMath for uint16;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     // Constants do not have storage slot.
-    address public immutable userProxy;
-    IWETH public immutable weth;
-    IPermanentStorage public immutable permStorage;
     address public immutable UNISWAP_V2_ROUTER_02_ADDRESS;
     address public immutable SUSHISWAP_ROUTER_ADDRESS;
 
     // Below are the variables which consume storage slots.
-    address public operator;
     uint16 public defaultFeeFactor;
-    ISpender public spender;
     address public feeCollector;
 
     /* Struct declaration */
@@ -56,26 +52,6 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     receive() external payable {}
 
     /************************************************************
-     *          Access control and ownership management          *
-     *************************************************************/
-    modifier onlyOperator() {
-        require(operator == msg.sender, "AMMWrapper: not the operator");
-        _;
-    }
-
-    modifier onlyUserProxy() {
-        require(address(userProxy) == msg.sender, "AMMWrapper: not the UserProxy contract");
-        _;
-    }
-
-    function transferOwnership(address _newOperator) external onlyOperator {
-        require(_newOperator != address(0), "AMMWrapper: operator can not be zero address");
-        operator = _newOperator;
-
-        emit TransferOwnership(_newOperator);
-    }
-
-    /************************************************************
      *                 Internal function modifier                *
      *************************************************************/
     modifier approveTakerAsset(
@@ -95,22 +71,17 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
      *              Constructor and init functions               *
      *************************************************************/
     constructor(
-        address _operator,
-        uint16 _defaultFeeFactor,
+        address _owner,
         address _userProxy,
-        ISpender _spender,
-        IPermanentStorage _permStorage,
-        IWETH _weth,
+        address _weth,
+        address _permStorage,
+        address _spender,
+        uint16 _defaultFeeFactor,
         address _uniswapV2Router,
         address _sushiwapRouter,
         address _feeCollector
-    ) {
-        operator = _operator;
+    ) StrategyBase(_owner, _userProxy, _weth, _permStorage, _spender) {
         defaultFeeFactor = _defaultFeeFactor;
-        userProxy = _userProxy;
-        spender = _spender;
-        permStorage = _permStorage;
-        weth = _weth;
         UNISWAP_V2_ROUTER_02_ADDRESS = _uniswapV2Router;
         SUSHISWAP_ROUTER_ADDRESS = _sushiwapRouter;
         feeCollector = _feeCollector;
@@ -119,60 +90,20 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     /************************************************************
      *           Management functions for Operator               *
      *************************************************************/
-    /**
-     * @dev set new Spender
-     */
-    function upgradeSpender(address _newSpender) external onlyOperator {
-        require(_newSpender != address(0), "AMMWrapper: spender can not be zero address");
-        spender = ISpender(_newSpender);
-
-        emit UpgradeSpender(_newSpender);
-    }
 
     /**
      * @dev set default fee factor
      */
-    function setDefaultFeeFactor(uint16 _defaultFeeFactor) external onlyOperator {
+    function setDefaultFeeFactor(uint16 _defaultFeeFactor) external onlyOwner {
         defaultFeeFactor = _defaultFeeFactor;
 
         emit SetDefaultFeeFactor(defaultFeeFactor);
     }
 
     /**
-     * @dev approve spender to transfer tokens from this contract. This is used to collect fee.
-     */
-    function setAllowance(address[] calldata _tokenList, address _spender) external override onlyOperator {
-        for (uint256 i = 0; i < _tokenList.length; i++) {
-            IERC20(_tokenList[i]).safeApprove(_spender, LibConstant.MAX_UINT);
-
-            emit AllowTransfer(_spender);
-        }
-    }
-
-    function closeAllowance(address[] calldata _tokenList, address _spender) external override onlyOperator {
-        for (uint256 i = 0; i < _tokenList.length; i++) {
-            IERC20(_tokenList[i]).safeApprove(_spender, 0);
-
-            emit DisallowTransfer(_spender);
-        }
-    }
-
-    /**
-     * @dev convert collected ETH to WETH
-     */
-    function depositETH() external onlyOperator {
-        uint256 balance = address(this).balance;
-        if (balance > 0) {
-            weth.deposit{ value: balance }();
-
-            emit DepositETH(balance);
-        }
-    }
-
-    /**
      * @dev set fee collector
      */
-    function setFeeCollector(address _newFeeCollector) external onlyOperator {
+    function setFeeCollector(address _newFeeCollector) external onlyOwner {
         require(_newFeeCollector != address(0), "AMMWrapper: fee collector can not be zero address");
         feeCollector = _newFeeCollector;
 
