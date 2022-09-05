@@ -1239,10 +1239,8 @@ contract LONStakingTest is Test {
         _convertXLonToVeLonAndValidate(DEFAULT_VELON_STAKE_AMOUNT, DEFAULT_LOCK_TIME);
     }
 
-    function testFuzz_ConvertXLonToVeLon(uint256 convertAmount, uint256 convertDuration) public {
-        vm.assume(convertAmount > 0);
-        vm.assume(convertAmount <= lon.cap());
-        vm.assume(convertAmount.add(lon.totalSupply()) <= lon.cap());
+    function testFuzz_ConvertXLonToVeLon(uint256 convertDuration) public {
+        uint256 convertAmount = DEFAULT_VELON_STAKE_AMOUNT;
         vm.assume(convertDuration >= 1 weeks);
         vm.assume(convertDuration <= 365 days);
 

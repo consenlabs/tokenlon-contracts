@@ -17,7 +17,6 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
     uint256 private constant WEEK = 1 weeks;
-    uint256 private constant MULTIPLIER = 1 ether;
     address public immutable token;
     address public dstToken;
     bool public conversion = false;
@@ -96,18 +95,27 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     /// @return User voting power
     function _vBalanceOfAtTime(uint256 _tokenId, uint256 _t) private view returns (uint256) {
         if (ownershipChange[_tokenId] == block.number) return 0;
+        Point memory lastPoint;
 
         uint256 _epoch = userPointEpoch[_tokenId];
         if (_epoch == 0) {
             return 0;
         } else {
-            Point memory lastPoint = userPointHistory[_tokenId][_epoch];
-            lastPoint.vBalance -= lastPoint.decliningRate * (int256(_t) - int256(lastPoint.ts));
-            if (lastPoint.vBalance < 0) {
-                lastPoint.vBalance = 0;
+            // search for the userEpoch where _t is bigger then userPointHistory[_tokenId][_epoch].ts,
+            // but smaller then userPointHistory[_tokenId][_epoch+1].ts
+            for (uint256 i = _epoch; i > 0; i--) {
+                lastPoint = userPointHistory[_tokenId][i];
+                if (lastPoint.ts <= _t) {
+                    break;
+                }
             }
-            return uint256(lastPoint.vBalance);
         }
+
+        lastPoint.vBalance -= lastPoint.decliningRate * (int256(_t) - int256(lastPoint.ts));
+        if (lastPoint.vBalance < 0) {
+            lastPoint.vBalance = 0;
+        }
+        return uint256(lastPoint.vBalance);
     }
 
     function vBalanceOfAtBlk(uint256 _tokenId, uint256 _block) external view override returns (uint256) {
@@ -171,6 +179,26 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
             }
             uint256 _mid = _min.add(_max).add(1).div(2);
             if (poolPointHistory[_mid].blk <= _block) {
+                _min = _mid;
+            } else {
+                _max = _mid.sub(1);
+            }
+        }
+        return _min;
+    }
+
+    // Binary search for pool epoch of _t
+    function _findTimeEpoch(uint256 _t, uint256 _maxEpoch) private view returns (uint256) {
+        // Binary search
+        uint256 _min = 0;
+        uint256 _max = _maxEpoch;
+        for (uint256 i = 0; i < 128; ++i) {
+            // Will be always enough for 128-bit numbers
+            if (_min >= _max) {
+                break;
+            }
+            uint256 _mid = _min.add(_max).add(1).div(2);
+            if (poolPointHistory[_mid].ts <= _t) {
                 _min = _mid;
             } else {
                 _max = _mid.sub(1);
@@ -463,14 +491,14 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         // storedPoolLastPoint is used for extrapolation to calculate block number
         // (approximately, for *At methods) and save them
         // as we cannot figure that out exactly from inside the contract
-        Point memory storedPoolLastPoint = poolLastPoint;
+        Point memory storedPoolLastPoint = Point({ vBalance: 0, decliningRate: 0, ts: poolLastPoint.ts, blk: poolLastPoint.blk });
 
-        // blockRate = dBlock/dTime
-        // If last point is already recorded in this block, blockRate=0
+        // avgBlktime = dTime/dBlock
+        // If last point is already recorded in this block, avgBlkTime=0
         // But that's ok because we know the block in such case
-        uint256 blockRate = 0;
-        if (block.timestamp > storedPoolLastPoint.ts) {
-            blockRate = (MULTIPLIER * (block.number - storedPoolLastPoint.blk)) / (block.timestamp - storedPoolLastPoint.ts);
+        uint256 avgBlkTime = 0;
+        if (block.number > storedPoolLastPoint.blk) {
+            avgBlkTime = (block.timestamp - storedPoolLastPoint.ts) / (block.number - storedPoolLastPoint.blk);
         }
 
         uint256 lastPointTs = poolLastPoint.ts;
@@ -500,7 +528,11 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
 
             // update ts and block (approximately block number)
             poolLastPoint.ts = nextPointTs;
-            poolLastPoint.blk = storedPoolLastPoint.blk + (blockRate * (nextPointTs - storedPoolLastPoint.ts)) / MULTIPLIER;
+            if (avgBlkTime > 0) {
+                poolLastPoint.blk = storedPoolLastPoint.blk + (nextPointTs - storedPoolLastPoint.ts) / avgBlkTime;
+            } else {
+                poolLastPoint.blk = storedPoolLastPoint.blk;
+            }
 
             // record or return last point
             _epoch += 1;
@@ -535,7 +567,8 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     /// @return Total voting power
     function totalvBalanceAtTime(uint256 t) public view override returns (uint256) {
         require(t <= block.timestamp, "Invalid timestamp");
-        return _totalvBalanceAt(poolPointHistory[epoch], t);
+        uint256 targetEpoch = _findTimeEpoch(t, epoch);
+        return _totalvBalanceAt(poolPointHistory[targetEpoch], t);
     }
 
     /// @notice Calculate total voting power at some point in the past
