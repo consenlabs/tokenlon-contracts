@@ -507,7 +507,7 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order,
         bytes memory makerSig,
         bytes memory userSig
-    ) internal view returns (bytes memory payload) {
+    ) internal pure returns (bytes memory payload) {
         return
             abi.encodeWithSignature(
                 "fill((address,address,address,address,uint256,uint256,address,uint256,uint256,uint256),bytes,bytes)",

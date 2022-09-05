@@ -8,7 +8,7 @@ contract MockStrategy {
         shouldFail = _shouldFail;
     }
 
-    function execute() external {
+    function execute() external view {
         if (shouldFail) revert("Execution failed");
         return;
     }

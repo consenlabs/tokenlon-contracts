@@ -166,7 +166,7 @@ contract TreasuryVesterTest is Test {
         uint256 lastUpdate,
         uint256 beginTimestamp,
         uint256 endTimestamp
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         return vestingAmount.mul(block.timestamp - lastUpdate).div(endTimestamp.sub(beginTimestamp));
     }
 

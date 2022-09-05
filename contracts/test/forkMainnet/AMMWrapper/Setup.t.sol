@@ -129,7 +129,7 @@ contract TestAMMWrapper is StrategySharedSetup {
         AMMLibEIP712.Order memory order,
         uint256 feeFactor,
         bytes memory sig
-    ) internal view returns (bytes memory payload) {
+    ) internal pure returns (bytes memory payload) {
         return
             abi.encodeWithSignature(
                 "trade(address,address,address,uint256,uint256,uint256,address,address,uint256,uint256,bytes)",

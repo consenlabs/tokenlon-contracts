@@ -29,7 +29,7 @@ interface IQuoter {
     ) external returns (uint256 amountIn);
 }
 
-function encodePath(address[] memory path, uint24[] memory fees) returns (bytes memory) {
+function encodePath(address[] memory path, uint24[] memory fees) pure returns (bytes memory) {
     bytes memory res;
     for (uint256 i = 0; i < fees.length; i++) {
         res = abi.encodePacked(res, path[i], fees[i]);

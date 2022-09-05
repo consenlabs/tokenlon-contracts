@@ -847,13 +847,18 @@ contract RewardDistributorTest is Test {
         miningTreasuryLON.assertChange(int256(lonToMiningTreasury));
     }
 
-    function _splitBuyback(SetFeeTokenParams memory feeToken, uint256 buybackAmount) internal returns (uint256 buybackToFeeRecipient, uint256 buybackToSwap) {
+    function _splitBuyback(SetFeeTokenParams memory feeToken, uint256 buybackAmount)
+        internal
+        pure
+        returns (uint256 buybackToFeeRecipient, uint256 buybackToSwap)
+    {
         buybackToFeeRecipient = buybackAmount.mul(feeToken.LFactor).div(100);
         buybackToSwap = buybackAmount.sub(buybackToFeeRecipient);
     }
 
     function _splitBuybackLON(SetFeeTokenParams memory feeToken, uint256 lonAmount)
         internal
+        view
         returns (
             uint256 lonToTreasury,
             uint256 lonToStaking,
@@ -918,7 +923,7 @@ contract RewardDistributorTest is Test {
         minLonAmounts[1] = 0;
 
         uint256 buybackAmount = amounts[1];
-        (uint256 buybackToFeeRecipient, uint256 buybackToSwap) = _splitBuyback(feeToken, buybackAmount);
+        (, uint256 buybackToSwap) = _splitBuyback(feeToken, buybackAmount);
 
         uint256[] memory outs = uniswapV2.getAmountsOut(buybackToSwap, USDT_FEE_TOKEN_PATH);
         uint256 lonOut = outs[USDT_FEE_TOKEN_PATH.length - 1];
