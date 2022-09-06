@@ -13,23 +13,6 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
     uint24 constant INVALID_ZERO_FEE = 0;
     uint24 constant INVALID_OVER_FEE = type(uint24).max;
 
-    event Swapped(
-        string source,
-        bytes32 indexed transactionHash,
-        address indexed userAddr,
-        bool relayed,
-        address takerAssetAddr,
-        uint256 takerAssetAmount,
-        address makerAddr,
-        address makerAssetAddr,
-        uint256 makerAssetAmount,
-        address receiverAddr,
-        uint256 settleAmount,
-        uint16 feeFactor
-    );
-
-    AMMQuoter ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
-
     function testCannotTradeWithInvalidSignature() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;

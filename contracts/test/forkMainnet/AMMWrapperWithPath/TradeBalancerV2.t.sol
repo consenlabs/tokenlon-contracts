@@ -172,4 +172,149 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
     }
+
+    function testCannotTradeBalancerV2_UnsupportedMakerAsset() public {
+        uint256 feeFactor = 0;
+        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
+        // give an unsurpoted MakerAsset
+        // use LON address to test
+        order.makerAssetAddr = LON_ADDRESS;
+        order.makerAddr = BALANCER_V2_ADDRESS;
+        bytes memory sig = _signTrade(userPrivateKey, order);
+        address[] memory path = new address[](2);
+        path[0] = order.takerAssetAddr;
+        path[1] = order.makerAssetAddr;
+        IBalancerV2Vault.BatchSwapStep[] memory swapSteps = new IBalancerV2Vault.BatchSwapStep[](1);
+        swapSteps[0] = IBalancerV2Vault.BatchSwapStep(
+            BALANCER_DAI_USDT_USDC_POOL, // poolId
+            0, // assetInIndex
+            1, // assetOutIndex
+            order.takerAssetAmount, // amount
+            new bytes(0) // userData
+        );
+        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeBalancerData(swapSteps), path);
+
+        // Balancer shoud revert with BAL#521, which means Token is not register
+        vm.expectRevert("BAL#521");
+        userProxy.toAMM(payload);
+    }
+
+    function testCannotTradeBalancerV2_UnsupportedTakerAsset() public {
+        uint256 feeFactor = 0;
+        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
+        // give an unsurpoted TakerAsset
+        // use LON address to test
+        order.takerAssetAddr = LON_ADDRESS;
+        order.makerAddr = BALANCER_V2_ADDRESS;
+        bytes memory sig = _signTrade(userPrivateKey, order);
+        address[] memory path = new address[](2);
+        path[0] = order.takerAssetAddr;
+        path[1] = order.makerAssetAddr;
+        IBalancerV2Vault.BatchSwapStep[] memory swapSteps = new IBalancerV2Vault.BatchSwapStep[](1);
+        swapSteps[0] = IBalancerV2Vault.BatchSwapStep(
+            BALANCER_DAI_USDT_USDC_POOL, // poolId
+            0, // assetInIndex
+            1, // assetOutIndex
+            order.takerAssetAmount, // amount
+            new bytes(0) // userData
+        );
+        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeBalancerData(swapSteps), path);
+
+        // Balancer shoud revert with BAL#521, which means Token is not register
+        vm.expectRevert("BAL#521");
+        userProxy.toAMM(payload);
+    }
+
+    function testTradeBalanerV2EmitSwappedevent_SingleHop() public {
+        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.makerAddr = BALANCER_V2_ADDRESS;
+        address[] memory path = new address[](2);
+        path[0] = order.takerAssetAddr;
+        path[1] = order.makerAssetAddr;
+        IBalancerV2Vault.BatchSwapStep[] memory swapSteps = new IBalancerV2Vault.BatchSwapStep[](1);
+        swapSteps[0] = IBalancerV2Vault.BatchSwapStep(
+            BALANCER_DAI_USDT_USDC_POOL, // poolId
+            0, // assetInIndex
+            1, // assetOutIndex
+            order.takerAssetAmount, // amount
+            new bytes(0) // userData
+        );
+        bytes memory payload = _genTradePayload(order, 0, _signTrade(userPrivateKey, order), _encodeBalancerData(swapSteps), path);
+        {
+            uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
+                order.makerAddr,
+                order.takerAssetAddr,
+                order.makerAssetAddr,
+                order.takerAssetAmount,
+                path,
+                _encodeBalancerData(swapSteps)
+            );
+            vm.expectEmit(true, true, true, true);
+            emit Swapped(
+                "Balancer V2",
+                AMMLibEIP712._getOrderHash(order),
+                order.userAddr,
+                true, // relayed
+                order.takerAssetAddr,
+                order.takerAssetAmount,
+                order.makerAddr,
+                order.makerAssetAddr,
+                order.makerAssetAmount,
+                order.receiverAddr,
+                expectedOutAmount, // No fee so settled amount is the same as received amount
+                uint16(0) // Fee factor: 0
+            );
+        }
+        vm.prank(relayer, relayer);
+        userProxy.toAMM(payload);
+    }
+
+    function testTradeBalanerV2EmitSwappedevent_MultiHop() public {
+        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.makerAddr = BALANCER_V2_ADDRESS;
+        address[] memory path = DEFAULT_MULTI_HOP_PATH;
+        IBalancerV2Vault.BatchSwapStep[] memory swapSteps = new IBalancerV2Vault.BatchSwapStep[](2);
+        swapSteps[0] = IBalancerV2Vault.BatchSwapStep(
+            BALANCER_WETH_USDC_POOL, // poolId
+            0, // assetInIndex
+            1, // assetOutIndex
+            order.takerAssetAmount, // amount
+            new bytes(0) // userData
+        );
+        swapSteps[1] = IBalancerV2Vault.BatchSwapStep(
+            BALANCER_WETH_DAI_POOL, // poolId
+            1, // assetInIndex
+            2, // assetOutIndex
+            0, // amount
+            new bytes(0) // userData
+        );
+        bytes memory payload = _genTradePayload(order, 0, _signTrade(userPrivateKey, order), _encodeBalancerData(swapSteps), path);
+        {
+            uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
+                order.makerAddr,
+                order.takerAssetAddr,
+                order.makerAssetAddr,
+                order.takerAssetAmount,
+                path,
+                _encodeBalancerData(swapSteps)
+            );
+            vm.expectEmit(true, true, true, true);
+            emit Swapped(
+                "Balancer V2",
+                AMMLibEIP712._getOrderHash(order),
+                order.userAddr,
+                true, // relayed
+                order.takerAssetAddr,
+                order.takerAssetAmount,
+                order.makerAddr,
+                order.makerAssetAddr,
+                order.makerAssetAmount,
+                order.receiverAddr,
+                expectedOutAmount, // No fee so settled amount is the same as received amount
+                uint16(0) // Fee factor: 0
+            );
+        }
+        vm.prank(relayer, relayer);
+        userProxy.toAMM(payload);
+    }
 }
