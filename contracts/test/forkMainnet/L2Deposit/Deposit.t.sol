@@ -6,6 +6,10 @@ import "contracts/interfaces/IL2Deposit.sol";
 import "contracts-test/forkMainnet/L2Deposit/Setup.t.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 
+interface IArbitrumBriege {
+    function delayedMessageCount() external view returns (uint256);
+}
+
 contract TestL2DepositTopUp is TestL2Deposit {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
@@ -44,8 +48,9 @@ contract TestL2DepositTopUp is TestL2Deposit {
         bytes memory payload = abi.encodeWithSelector(L2Deposit.deposit.selector, IL2Deposit.DepositParams(DEFAULT_DEPOSIT, sig));
         uint256 callValue = arbMaxSubmissionCost + (arbMaxGas * arbGasPriceBid);
 
-        // Response from bridge is unknown
-        vm.expectEmit(true, true, true, false);
+        vm.expectEmit(true, true, true, true);
+        uint256 seqNum = IArbitrumBriege(ARBITRUM_L1_BRIDGE_ADDR).delayedMessageCount();
+        console.logUint(seqNum);
         emit Deposited(
             DEFAULT_DEPOSIT.l2Identifier,
             DEFAULT_DEPOSIT.l1TokenAddr,
@@ -54,7 +59,7 @@ contract TestL2DepositTopUp is TestL2Deposit {
             DEFAULT_DEPOSIT.recipient,
             DEFAULT_DEPOSIT.amount,
             DEFAULT_DEPOSIT.data,
-            bytes("")
+            abi.encode(seqNum)
         );
         userProxy.toL2Deposit{ value: callValue }(payload);
 
