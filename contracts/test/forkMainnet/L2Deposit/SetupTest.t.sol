@@ -11,7 +11,6 @@ contract TestL2DepositSetup is TestL2Deposit {
         assertEq(address(l2Deposit.permStorage()), address(permanentStorage));
         assertEq(address(l2Deposit.arbitrumL1GatewayRouter()), address(arbitrumL1GatewayRouter));
         assertEq(address(l2Deposit.arbitrumL1Inbox()), address(arbitrumL1Inbox));
-        assertEq(address(l2Deposit.arbitrumL2RefundCollector()), address(arbitrumL2RefundCollector));
         assertEq(address(l2Deposit.optimismL1StandardBridge()), address(optimismL1StandardBridge));
     }
 }
