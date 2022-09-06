@@ -6,7 +6,7 @@ import "contracts/interfaces/IL2Deposit.sol";
 import "contracts-test/forkMainnet/L2Deposit/Setup.t.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 
-interface IArbitrumBriege {
+interface IArbitrumBridge {
     function delayedMessageCount() external view returns (uint256);
 }
 
@@ -49,7 +49,7 @@ contract TestL2DepositTopUp is TestL2Deposit {
         uint256 callValue = arbMaxSubmissionCost + (arbMaxGas * arbGasPriceBid);
 
         vm.expectEmit(true, true, true, true);
-        uint256 seqNum = IArbitrumBriege(ARBITRUM_L1_BRIDGE_ADDR).delayedMessageCount();
+        uint256 seqNum = IArbitrumBridge(ARBITRUM_L1_BRIDGE_ADDR).delayedMessageCount();
         console.logUint(seqNum);
         emit Deposited(
             DEFAULT_DEPOSIT.l2Identifier,
@@ -106,7 +106,7 @@ contract TestL2DepositTopUp is TestL2Deposit {
         bytes memory sig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
         bytes memory payload = abi.encodeWithSelector(L2Deposit.deposit.selector, IL2Deposit.DepositParams(DEFAULT_DEPOSIT, sig));
 
-        // conpose inbox revert data with defined error
+        // compose inbox revert data with defined error
         uint256 l2Callvalue = 0; // l2 call value 0 by default
         uint256 l1Cost = arbMaxSubmissionCost + l2Callvalue + (arbMaxGas * arbGasPriceBid);
         // Sig : error InsufficientValue(uint256 expected, uint256 actual)
