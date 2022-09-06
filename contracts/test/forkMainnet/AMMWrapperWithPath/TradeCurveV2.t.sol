@@ -91,7 +91,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeCurveData(2), new address[](0));
 
-        vm.expectRevert(); 
+        vm.expectRevert();
         userProxy.toAMM(payload);
     }
 
@@ -103,19 +103,18 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         order.takerAssetAmount = 100 * 1e6;
         order.makerAssetAddr = address(wbtc);
         order.makerAssetAmount = 0.001 * 1e8;
-        address[] memory path  = new address[](2);
-
+        address[] memory path = new address[](2);
 
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeCurveData(2), new address[](0));
 
         {
             uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
-                order.makerAddr, 
-                order.takerAssetAddr, 
-                order.makerAssetAddr, 
-                order.takerAssetAmount, 
-                path, 
+                order.makerAddr,
+                order.takerAssetAddr,
+                order.makerAssetAddr,
+                order.takerAssetAmount,
+                path,
                 _encodeCurveData(2)
             );
             vm.expectEmit(true, true, true, true);
@@ -130,7 +129,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
                 order.makerAssetAddr,
                 order.makerAssetAmount,
                 order.receiverAddr,
-                expectedOutAmount + 1 , // No fee so settled amount is the same as received amount
+                expectedOutAmount + 1, // No fee so settled amount is the same as received amount
                 // the difference betwween actualAmount and expectedAmount is 1
                 uint16(0) // Fee factor: 0
             );
