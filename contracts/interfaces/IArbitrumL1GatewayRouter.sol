@@ -6,8 +6,9 @@ interface IArbitrumL1GatewayRouter {
     // Put it here since we would only interact with gateway router.
     event DepositInitiated(address l1Token, address indexed from, address indexed to, uint256 indexed sequenceNumber, uint256 amount);
 
-    function outboundTransfer(
-        address _token,
+    function outboundTransferCustomRefund(
+        address _l1Token,
+        address _refundTo,
         address _to,
         uint256 _amount,
         uint256 _maxGas,

@@ -32,9 +32,6 @@ contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, Signa
     // Below are the variables which consume storage slots.
     ISpender public spender;
 
-    // Refund collector contract address on Arbitrum
-    address public arbitrumL2RefundCollector;
-
     constructor(
         address _owner,
         address _userProxy,
@@ -42,7 +39,6 @@ contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, Signa
         IPermanentStorage _permStorage,
         IArbitrumL1GatewayRouter _arbitrumL1GatewayRouter,
         IArbitrumL1Inbox _arbitrumL1Inbox,
-        address _arbitrumL2RefundCollector,
         IOptimismL1StandardBridge _optimismL1StandardBridge
     ) Ownable(_owner) {
         userProxy = _userProxy;
@@ -50,7 +46,6 @@ contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, Signa
         permStorage = _permStorage;
         arbitrumL1GatewayRouter = _arbitrumL1GatewayRouter;
         arbitrumL1Inbox = _arbitrumL1Inbox;
-        arbitrumL2RefundCollector = _arbitrumL2RefundCollector;
         optimismL1StandardBridge = _optimismL1StandardBridge;
     }
 
@@ -59,38 +54,11 @@ contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, Signa
         _;
     }
 
-    function setArbitrumL2RefundCollector(address _newArbitrumL2RefundCollector) external onlyOwner {
-        require(_newArbitrumL2RefundCollector != address(0), "L2Deposit: Arbitrum L2 refund collector cannot be zero address");
-        arbitrumL2RefundCollector = _newArbitrumL2RefundCollector;
-
-        emit SetArbitrumL2RefundCollector(_newArbitrumL2RefundCollector);
-    }
-
     function upgradeSpender(address _newSpender) external onlyOwner {
         require(_newSpender != address(0), "L2Deposit: spender can not be zero address");
         spender = ISpender(_newSpender);
 
         emit UpgradeSpender(_newSpender);
-    }
-
-    function collectArbitrumL2Refund(
-        uint256 amount,
-        uint256 maxSubmissionCost,
-        uint256 maxGas,
-        uint256 gasPriceBid
-    ) external payable onlyOwner {
-        uint256 seqNum = arbitrumL1Inbox.createRetryableTicket{ value: msg.value }(
-            arbitrumL2RefundCollector,
-            amount,
-            maxSubmissionCost,
-            arbitrumL2RefundCollector,
-            arbitrumL2RefundCollector,
-            maxGas,
-            gasPriceBid,
-            bytes("")
-        );
-
-        emit CollectArbitrumL2Refund(arbitrumL2RefundCollector, seqNum, amount, maxSubmissionCost, maxGas, gasPriceBid);
     }
 
     function deposit(IL2Deposit.DepositParams calldata _params) external payable override nonReentrant onlyUserProxy {
@@ -111,6 +79,7 @@ contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, Signa
             _params.deposit.l2TokenAddr,
             _params.deposit.sender,
             _params.deposit.recipient,
+            _params.deposit.arbitrumRefundAddr,
             _params.deposit.amount,
             _params.deposit.data
         );
@@ -123,6 +92,7 @@ contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, Signa
         address l2TokenAddr;
         address sender;
         address recipient;
+        address arbitrumRefundAddr;
         uint256 amount;
         bytes data;
     }
@@ -162,8 +132,9 @@ contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, Signa
         IERC20(_depositInfo.l1TokenAddr).safeApprove(l1TokenGatewayAddr, _depositInfo.amount);
 
         // Deposit token through gateway router
-        response = arbitrumL1GatewayRouter.outboundTransfer{ value: msg.value }(
+        response = arbitrumL1GatewayRouter.outboundTransferCustomRefund{ value: msg.value }(
             _depositInfo.l1TokenAddr,
+            _depositInfo.arbitrumRefundAddr,
             _depositInfo.recipient,
             _depositInfo.amount,
             maxGas,

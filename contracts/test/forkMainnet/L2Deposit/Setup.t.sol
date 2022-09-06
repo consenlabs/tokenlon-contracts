@@ -22,7 +22,6 @@ contract TestL2Deposit is StrategySharedSetup {
     uint256 userPrivateKey = uint256(1);
     uint256 bobPrivateKey = uint256(2);
     address user = vm.addr(userPrivateKey);
-    address arbitrumL2RefundCollector = address(0x133702);
 
     L2Deposit l2Deposit;
 
@@ -63,6 +62,7 @@ contract TestL2Deposit is StrategySharedSetup {
             address(arbitrumLONAddr), // l2TokenAddr
             user, // sender
             user, // recipient
+            user, // arbitrumRefundAddr
             1 ether, // amount
             1234, // salt
             DEFAULT_DEADLINE, // expiry
@@ -71,7 +71,6 @@ contract TestL2Deposit is StrategySharedSetup {
 
         // Label addresses for easier debugging
         vm.label(user, "User");
-        vm.label(arbitrumL2RefundCollector, "arbitrumL2RefundCollector");
         vm.label(address(this), "TestingContract");
     }
 
@@ -83,7 +82,6 @@ contract TestL2Deposit is StrategySharedSetup {
             permanentStorage,
             arbitrumL1GatewayRouter,
             arbitrumL1Inbox,
-            arbitrumL2RefundCollector,
             optimismL1StandardBridge
         );
 
@@ -95,7 +93,38 @@ contract TestL2Deposit is StrategySharedSetup {
     }
 
     function _signDeposit(uint256 privateKey, L2DepositLibEIP712.Deposit memory deposit) internal returns (bytes memory) {
-        bytes32 depositHash = L2DepositLibEIP712._getDepositHash(deposit);
+        // Calculate EIP-712 sig without Lib712 deliberately.
+        bytes32 DEPOSIT_TYPEHASH = keccak256(
+            abi.encodePacked(
+                "Deposit(",
+                "uint8 l2Identifier,",
+                "address l1TokenAddr,",
+                "address l2TokenAddr,",
+                "address sender,",
+                "address recipient,",
+                "address arbitrumRefundAddr,",
+                "uint256 amount,",
+                "uint256 salt,",
+                "uint256 expiry,",
+                "bytes data",
+                ")"
+            )
+        );
+        bytes32 depositHash = keccak256(
+            abi.encode(
+                DEPOSIT_TYPEHASH,
+                deposit.l2Identifier,
+                deposit.l1TokenAddr,
+                deposit.l2TokenAddr,
+                deposit.sender,
+                deposit.recipient,
+                deposit.arbitrumRefundAddr,
+                deposit.amount,
+                deposit.salt,
+                deposit.expiry,
+                keccak256(deposit.data)
+            )
+        );
         bytes32 EIP712SignDigest = getEIP712Hash(l2Deposit.EIP712_DOMAIN_SEPARATOR(), depositHash);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
