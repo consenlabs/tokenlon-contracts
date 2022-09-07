@@ -138,7 +138,7 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
         bytes memory sig,
         bytes memory makerSpecificData,
         address[] memory path
-    ) internal view returns (bytes memory payload) {
+    ) internal pure returns (bytes memory payload) {
         return
             abi.encodeWithSignature(
                 "trade((address,address,address,uint256,uint256,address,address,uint256,uint256),uint256,bytes,bytes,address[])",

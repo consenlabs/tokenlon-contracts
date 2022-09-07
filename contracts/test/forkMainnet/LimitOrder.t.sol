@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
@@ -1309,7 +1309,7 @@ contract LimitOrderTest is StrategySharedSetup {
         bytes memory orderMakerSig,
         ILimitOrder.TraderParams memory params,
         ILimitOrder.CoordinatorParams memory crdParams
-    ) internal view returns (bytes memory payload) {
+    ) internal pure returns (bytes memory payload) {
         return
             abi.encodeWithSignature(
                 "fillLimitOrderByTrader((address,address,uint256,uint256,address,address,uint256,uint64),bytes,(address,address,uint256,uint256,uint64,bytes),(bytes,uint256,uint64))",
@@ -1325,7 +1325,7 @@ contract LimitOrderTest is StrategySharedSetup {
         bytes memory orderMakerSig,
         ILimitOrder.ProtocolParams memory params,
         ILimitOrder.CoordinatorParams memory crdParams
-    ) internal view returns (bytes memory payload) {
+    ) internal pure returns (bytes memory payload) {
         return
             abi.encodeWithSignature(
                 "fillLimitOrderByProtocol((address,address,uint256,uint256,address,address,uint256,uint64),bytes,(uint8,bytes,address,uint256,uint256,uint64),(bytes,uint256,uint64))",
@@ -1338,7 +1338,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function _genCancelLimitOrderPayload(LimitOrderLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
         internal
-        view
+        pure
         returns (bytes memory payload)
     {
         return abi.encodeWithSignature("cancelLimitOrder((address,address,uint256,uint256,address,address,uint256,uint64),bytes)", order, cancelOrderMakerSig);
