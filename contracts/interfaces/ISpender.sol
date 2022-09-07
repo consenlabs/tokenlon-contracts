@@ -4,7 +4,7 @@ pragma solidity >=0.7.0;
 interface ISpender {
     // System events
     event TimeLockActivated(uint256 activatedTimeStamp);
-    // Operator events
+    // Owner events
     event SetPendingOperator(address pendingOperator);
     event SetAllowanceTarget(address allowanceTarget);
     event SetNewSpender(address newSpender);
