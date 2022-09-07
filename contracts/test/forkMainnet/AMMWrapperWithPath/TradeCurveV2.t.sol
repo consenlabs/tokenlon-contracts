@@ -60,11 +60,11 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         order.makerAddr = CURVE_USDT_POOL_ADDRESS;
         // give an unpsorted token to swap
         // Eq: CURVE_USDT_POOL does not support USDC
-        order.takerAssetAddr = USDC_ADDRESS;
+        order.takerAssetAddr = LON_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeCurveData(1), new address[](0));
 
-        vm.expectRevert("AMMWrapper: Invalid swapMethod for CurveV1");
+        vm.expectRevert("PermanentStorage: invalid pair");
         userProxy.toAMM(payload);
     }
 

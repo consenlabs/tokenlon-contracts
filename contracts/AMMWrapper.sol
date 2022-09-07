@@ -421,8 +421,10 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
             ICurveFi curve = ICurveFi(_makerAddr);
             if (_swapMethod == 1) {
                 curve.exchange{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+                return;
             } else if (_swapMethod == 2) {
                 curve.exchange_underlying{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+                return;
             }
             revert("AMMWrapper: Invalid swapMethod for CurveV1");
         } else if (_version == 2) {
