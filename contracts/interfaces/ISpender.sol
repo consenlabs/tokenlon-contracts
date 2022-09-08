@@ -5,7 +5,6 @@ interface ISpender {
     // System events
     event TimeLockActivated(uint256 activatedTimeStamp);
     // Owner events
-    event SetPendingOperator(address pendingOperator);
     event SetAllowanceTarget(address allowanceTarget);
     event SetNewSpender(address newSpender);
     event SetConsumeGasERC20Token(address token);
