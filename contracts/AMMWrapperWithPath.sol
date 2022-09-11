@@ -197,7 +197,6 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
             );
             uint256 balanceAfterTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
             receivedAmount = balanceAfterTrade.sub(balanceBeforeTrade);
-            require(receivedAmount > 0, "AMMWrapper: No output from curve");
         }
     }
 
