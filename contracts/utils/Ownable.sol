@@ -9,6 +9,7 @@ abstract contract Ownable {
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
 
     constructor(address _owner) {
+        require(_owner != address(0), "owner should not be 0");
         owner = _owner;
     }
 

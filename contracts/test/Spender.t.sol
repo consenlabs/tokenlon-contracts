@@ -97,29 +97,29 @@ contract SpenderTest is BalanceUtil {
      *    Test: set new operator     *
      *********************************/
 
-    function testCannotSetNewOperatorByUser() public {
-        vm.expectRevert("Spender: not the operator");
+    function testCannotNominateNewOwnerByUser() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
-        spender.setNewOperator(user);
+        spender.nominateNewOwner(user);
     }
 
-    function testSetNewOperator() public {
-        spender.setNewOperator(user);
-        assertEq(spender.pendingOperator(), user);
+    function testNominateNewOwner() public {
+        spender.nominateNewOwner(user);
+        assertEq(spender.nominatedOwner(), user);
     }
 
-    function testCannotAcceptAsOperatorByNonPendingOperator() public {
-        spender.setNewOperator(user);
+    function testCannotAcceptAsOwnerByNonPendingOwner() public {
+        spender.nominateNewOwner(user);
         vm.prank(unauthorized);
-        vm.expectRevert("Spender: only nominated one can accept as new operator");
-        spender.acceptAsOperator();
+        vm.expectRevert("not nominated");
+        spender.acceptOwnership();
     }
 
-    function testAcceptAsOperator() public {
-        spender.setNewOperator(user);
+    function testAcceptAsOwner() public {
+        spender.nominateNewOwner(user);
         vm.prank(user);
-        spender.acceptAsOperator();
-        assertEq(spender.operator(), user);
+        spender.acceptOwnership();
+        assertEq(spender.owner(), user);
     }
 
     /***************************************************
@@ -154,7 +154,7 @@ contract SpenderTest is BalanceUtil {
      *********************************/
 
     function testCannotAuthorizeByUser() public {
-        vm.expectRevert("Spender: not the operator");
+        vm.expectRevert("not owner");
         vm.prank(user);
         spender.authorize(wallet);
     }
