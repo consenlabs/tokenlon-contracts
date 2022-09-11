@@ -1319,7 +1319,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function _genCancelLimitOrderPayload(LimitOrderLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
         internal
-        pure
+        view
         returns (bytes memory payload)
     {
         return abi.encodeWithSelector(limitOrder.cancelLimitOrder.selector, order, cancelOrderMakerSig);
