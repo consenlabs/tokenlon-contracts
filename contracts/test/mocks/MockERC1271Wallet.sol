@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "contracts/utils/LibBytes.sol";
-import "../../interfaces/ISetAllowance.sol";
-import "../../interfaces/IERC1271Wallet.sol";
+import "contracts/interfaces/ISetAllowance.sol";
+import "contracts/interfaces/IERC1271Wallet.sol";
 
 contract MockERC1271Wallet is ISetAllowance, IERC1271Wallet {
     using SafeERC20 for IERC20;

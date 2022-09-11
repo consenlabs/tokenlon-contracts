@@ -5,13 +5,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./utils/LibConstant.sol";
+import "./utils/Ownable.sol";
 import "./interfaces/ISpender.sol";
 import "./interfaces/IAllowanceTarget.sol";
 
 /**
  * @dev Spender contract
  */
-contract Spender is ISpender {
+contract Spender is ISpender, Ownable {
     using SafeMath for uint256;
 
     // Constants do not have storage slot.
@@ -30,48 +31,37 @@ contract Spender is ISpender {
 
     mapping(address => bool) public consumeGasERC20Tokens;
     mapping(uint256 => address) public pendingAuthorized;
-
     mapping(address => bool) private authorized;
     mapping(address => bool) private tokenBlacklist;
 
-    // System events
-    event TimeLockActivated(uint256 activatedTimeStamp);
-    // Operator events
-    event SetPendingOperator(address pendingOperator);
-    event TransferOwnership(address newOperator);
-    event SetAllowanceTarget(address allowanceTarget);
-    event SetNewSpender(address newSpender);
-    event SetConsumeGasERC20Token(address token);
-    event TearDownAllowanceTarget(uint256 tearDownTimeStamp);
-    event BlackListToken(address token, bool isBlacklisted);
-    event AuthorizeSpender(address spender, bool isAuthorized);
-
     /************************************************************
-     *          Access control and ownership management          *
+     *                      Access control                       *
      *************************************************************/
-    modifier onlyOperator() {
-        require(operator == msg.sender, "Spender: not the operator");
-        _;
-    }
 
     modifier onlyAuthorized() {
         require(authorized[msg.sender], "Spender: not authorized");
         _;
     }
 
-    function setNewOperator(address _newOperator) external onlyOperator {
-        require(_newOperator != address(0), "Spender: operator can not be zero address");
-        pendingOperator = _newOperator;
+    /************************************************************
+     *              Constructor and init functions               *
+     *************************************************************/
+    constructor(address _owner, address[] memory _consumeGasERC20Tokens) Ownable(_owner) {
+        timelockActivated = false;
+        contractDeployedTime = block.timestamp;
 
-        emit SetPendingOperator(_newOperator);
+        for (uint256 i = 0; i < _consumeGasERC20Tokens.length; i++) {
+            consumeGasERC20Tokens[_consumeGasERC20Tokens[i]] = true;
+        }
     }
 
-    function acceptAsOperator() external {
-        require(pendingOperator == msg.sender, "Spender: only nominated one can accept as new operator");
-        operator = pendingOperator;
-        pendingOperator = address(0);
+    function setAllowanceTarget(address _allowanceTarget) external onlyOwner {
+        require(allowanceTarget == address(0), "Spender: can not reset allowance target");
 
-        emit TransferOwnership(operator);
+        // Set allowanceTarget
+        allowanceTarget = _allowanceTarget;
+
+        emit SetAllowanceTarget(_allowanceTarget);
     }
 
     /************************************************************
@@ -87,40 +77,15 @@ contract Spender is ISpender {
     }
 
     /************************************************************
-     *              Constructor and init functions               *
-     *************************************************************/
-    constructor(address _operator, address[] memory _consumeGasERC20Tokens) {
-        require(_operator != address(0), "Spender: _operator should not be 0");
-
-        // Set operator
-        operator = _operator;
-        timelockActivated = false;
-        contractDeployedTime = block.timestamp;
-
-        for (uint256 i = 0; i < _consumeGasERC20Tokens.length; i++) {
-            consumeGasERC20Tokens[_consumeGasERC20Tokens[i]] = true;
-        }
-    }
-
-    function setAllowanceTarget(address _allowanceTarget) external onlyOperator {
-        require(allowanceTarget == address(0), "Spender: can not reset allowance target");
-
-        // Set allowanceTarget
-        allowanceTarget = _allowanceTarget;
-
-        emit SetAllowanceTarget(_allowanceTarget);
-    }
-
-    /************************************************************
      *          AllowanceTarget interaction functions            *
      *************************************************************/
-    function setNewSpender(address _newSpender) external onlyOperator {
+    function setNewSpender(address _newSpender) external onlyOwner {
         IAllowanceTarget(allowanceTarget).setSpenderWithTimelock(_newSpender);
 
         emit SetNewSpender(_newSpender);
     }
 
-    function teardownAllowanceTarget() external onlyOperator {
+    function teardownAllowanceTarget() external onlyOwner {
         IAllowanceTarget(allowanceTarget).teardown();
 
         emit TearDownAllowanceTarget(block.timestamp);
@@ -133,7 +98,7 @@ contract Spender is ISpender {
         return tokenBlacklist[_tokenAddr];
     }
 
-    function blacklist(address[] calldata _tokenAddrs, bool[] calldata _isBlacklisted) external onlyOperator {
+    function blacklist(address[] calldata _tokenAddrs, bool[] calldata _isBlacklisted) external onlyOwner {
         require(_tokenAddrs.length == _isBlacklisted.length, "Spender: length mismatch");
         for (uint256 i = 0; i < _tokenAddrs.length; i++) {
             tokenBlacklist[_tokenAddrs[i]] = _isBlacklisted[i];
@@ -146,7 +111,7 @@ contract Spender is ISpender {
         return authorized[_caller];
     }
 
-    function authorize(address[] calldata _pendingAuthorized) external onlyOperator {
+    function authorize(address[] calldata _pendingAuthorized) external onlyOwner {
         require(_pendingAuthorized.length > 0, "Spender: authorize list is empty");
         require(numPendingAuthorized == 0 && timelockExpirationTime == 0, "Spender: an authorize current in progress");
 
@@ -180,7 +145,7 @@ contract Spender is ISpender {
         numPendingAuthorized = 0;
     }
 
-    function deauthorize(address[] calldata _deauthorized) external onlyOperator {
+    function deauthorize(address[] calldata _deauthorized) external onlyOwner {
         for (uint256 i = 0; i < _deauthorized.length; i++) {
             authorized[_deauthorized[i]] = false;
 
@@ -188,7 +153,7 @@ contract Spender is ISpender {
         }
     }
 
-    function setConsumeGasERC20Tokens(address[] memory _consumeGasERC20Tokens) external onlyOperator {
+    function setConsumeGasERC20Tokens(address[] memory _consumeGasERC20Tokens) external onlyOwner {
         for (uint256 i = 0; i < _consumeGasERC20Tokens.length; i++) {
             consumeGasERC20Tokens[_consumeGasERC20Tokens[i]] = true;
 

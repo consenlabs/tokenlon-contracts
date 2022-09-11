@@ -1,4 +1,5 @@
-pragma solidity ^0.7.6;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.7.6;
 
 contract MockStrategy {
     bool shouldFail;
@@ -7,7 +8,7 @@ contract MockStrategy {
         shouldFail = _shouldFail;
     }
 
-    function execute() external {
+    function execute() external view {
         if (shouldFail) revert("Execution failed");
         return;
     }
