@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
-    function testCannotTradeBalancerV2_NoSwapSteps() public {
+    function testCannotTradeBalancerV2NoSwapSteps() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
@@ -24,7 +24,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testCannotTradeBalancerV2_NoPath() public {
+    function testCannotTradeBalancerV2NoPath() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
@@ -43,7 +43,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testCannotTradeBalancerV2_MismatchAsset() public {
+    function testCannotTradeBalancerV2MismatchAsset() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
@@ -75,7 +75,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testTradeBalancerV2_SingleHop() public {
+    function testTradeBalancerV2SingleHop() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
@@ -102,7 +102,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
     }
 
-    function testCannotTradeBalancerV2_InvalidAmountInSwapSteps() public {
+    function testCannotTradeBalancerV2InvalidAmountInSwapSteps() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
@@ -138,7 +138,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testTradeBalancerV2_MultiHop() public {
+    function testTradeBalancerV2MultiHop() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
@@ -170,7 +170,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
     }
 
-    function testCannotTradeBalancerV2_UnsupportedMakerAsset() public {
+    function testCannotTradeBalancerV2UnsupportedMakerAsset() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         // give an unsurpoted MakerAsset
@@ -196,7 +196,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testCannotTradeBalancerV2_UnsupportedTakerAsset() public {
+    function testCannotTradeBalancerV2UnsupportedTakerAsset() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         // give an unsurpoted TakerAsset
@@ -222,7 +222,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testTradeBalanerV2EmitSwappedevent_SingleHop() public {
+    function testTradeBalanerV2EmitSwappedeventSingleHop() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
         address[] memory path = new address[](2);
@@ -267,7 +267,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testTradeBalanerV2EmitSwappedevent_MultiHop() public {
+    function testTradeBalanerV2EmitSwappedeventMultiHop() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
         address[] memory path = DEFAULT_MULTI_HOP_PATH;

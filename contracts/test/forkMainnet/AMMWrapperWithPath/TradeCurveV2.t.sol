@@ -28,7 +28,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
     }
 
-    function testCannotTradeCurveWithMismatchVersion_Version1PoolAndSpecifyVersion2() public {
+    function testCannotTradeCurveV2WithV1Method() public {
         // maker asset is v1 underlying
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = CURVE_USDT_POOL_ADDRESS;
@@ -51,7 +51,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testCannotTradeCurveV2_With_MismatchSwapToken() public {
+    function testCannotTradeCurveV2WithMismatchedAsset() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = CURVE_TRICRYPTO2_POOL_ADDRESS;
         // give an unpsorted token to swap
@@ -63,7 +63,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testCannotTradeCurveWithUnknownVersion() public {
+    function testCannotTradeCurveV2WithUnknownVersion() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = CURVE_TRICRYPTO2_POOL_ADDRESS;
         order.takerAssetAddr = address(usdt);
@@ -75,7 +75,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testCannotTradeCurveWithZeroAmount() public {
+    function testCannotTradeCurveV2WithZeroAmount() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = CURVE_TRICRYPTO2_POOL_ADDRESS;
         order.takerAssetAddr = address(usdt);
@@ -132,7 +132,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
-    function testTradeCurveVersion2InsufficientOutput() public {
+    function testCannotTradeCurveV2InsufficientOutput() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = CURVE_TRICRYPTO2_POOL_ADDRESS;
         order.takerAssetAddr = address(usdt);
