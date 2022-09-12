@@ -325,7 +325,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         address _makerAssetAddr,
         uint256 _takerAssetAmount,
         bytes memory _makerSpecificData
-    ) internal returns (IBalancerV2Vault.BatchSwapStep[] memory) {
+    ) internal pure returns (IBalancerV2Vault.BatchSwapStep[] memory) {
         IBalancerV2Vault.BatchSwapStep[] memory swapSteps = abi.decode(_makerSpecificData, (IBalancerV2Vault.BatchSwapStep[]));
 
         require(swapSteps.length > 0, "AMMWrapper: BalancerV2 requires at least one swap step");
@@ -344,7 +344,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         address[] memory _path,
         uint256 _takerAssetAmount,
         uint256 _makerAssetAmount
-    ) internal returns (int256[] memory) {
+    ) internal pure returns (int256[] memory) {
         int256[] memory limits = new int256[](_path.length);
         // amount swapped in to balancer will denoted with positive sign
         limits[0] = int256(_takerAssetAmount);
