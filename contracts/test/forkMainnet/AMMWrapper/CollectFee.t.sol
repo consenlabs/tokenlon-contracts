@@ -27,10 +27,11 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         uint256 feeFactor = 100;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
+        uint256 actualFee = (expectedOutAmount * feeFactor) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
         // order should align with user's perspective
         // therefore it should deduct fee from expectedOutAmount as the makerAssetAmount in order
-        uint256 fee = (expectedOutAmount * feeFactor) / BPS_MAX;
-        order.makerAssetAmount = expectedOutAmount - fee;
+        order.makerAssetAmount = settleAmount;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
@@ -39,7 +40,7 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
 
-        feeCollectorMakerAsset.assertChange(int256(fee));
+        feeCollectorMakerAsset.assertChange(int256(actualFee));
     }
 
     function testCollectFeeWithWETH() public {
@@ -47,10 +48,11 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAssetAddr = ETH_ADDRESS;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
+        uint256 actualFee = (expectedOutAmount * feeFactor) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
         // order should align with user's perspective
         // therefore it should deduct fee from expectedOutAmount as the makerAssetAmount in order
-        uint256 fee = (expectedOutAmount * feeFactor) / BPS_MAX;
-        order.makerAssetAmount = expectedOutAmount - fee;
+        order.makerAssetAmount = settleAmount;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
@@ -60,7 +62,7 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
 
-        feeCollectorMakerAsset.assertChange(int256(fee));
+        feeCollectorMakerAsset.assertChange(int256(actualFee));
     }
 
     function testCollectFeeWithETH() public {
@@ -68,13 +70,14 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = CURVE_ANKRETH_POOL_ADDRESS;
         order.takerAssetAddr = ANKRETH_ADDRESS;
-        order.takerAssetAmount = 0.01 ether;
+        order.takerAssetAmount = 1 ether;
         order.makerAssetAddr = ETH_ADDRESS;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
+        uint256 actualFee = (expectedOutAmount * feeFactor) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
         // order should align with user's perspective
         // therefore it should deduct fee from expectedOutAmount as the makerAssetAmount in order
-        uint256 fee = (expectedOutAmount * feeFactor) / BPS_MAX;
-        order.makerAssetAmount = expectedOutAmount - fee;
+        order.makerAssetAmount = settleAmount;
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
@@ -84,19 +87,25 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
 
-        feeCollectorMakerAsset.assertChange(int256(fee));
+        feeCollectorMakerAsset.assertChange(int256(actualFee));
     }
 
     function testFeeFactorOverwrittenWithDefault() public {
         // set local feeFactor higher than default one to avoid insufficient output from AMM
-        uint256 feeFactor = ammWrapper.defaultFeeFactor() + 1000;
+        uint256 feeFactor = DEFAULT_FEE_FACTOR + 1000;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
-        // set makerAssetAmount = expectedOutAmount - expectedFee
-        order.makerAssetAmount = expectedOutAmount - ((expectedOutAmount * feeFactor) / BPS_MAX);
+
+        // try to avoid stack too deep
+        {
+            uint256 expectedFee = (expectedOutAmount * feeFactor) / LibConstant.BPS_MAX;
+            // calculate order.makerAssetAmount using local fee factor, expect to receive more since default fee factor is smaller
+            order.makerAssetAmount = expectedOutAmount - expectedFee;
+        }
+
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
-        uint256 actualFee = (expectedOutAmount * ammWrapper.defaultFeeFactor()) / BPS_MAX;
+        uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
 
         BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
 
@@ -113,7 +122,7 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
             order.makerAssetAmount,
             order.receiverAddr,
             expectedOutAmount - actualFee,
-            ammWrapper.defaultFeeFactor() // default fee factor will be applied
+            DEFAULT_FEE_FACTOR // default fee factor will be applied
         );
         userProxy.toAMM(payload);
 

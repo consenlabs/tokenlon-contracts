@@ -8,20 +8,18 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     function testCannotTradeWithInvalidSignature() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory sig = _signTrade(otherPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
 
         vm.expectRevert("AMMWrapper: invalid user signature");
         userProxy.toAMM(payload);
     }
 
     function testCannotTradeWhenPayloadSeenBefore() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
 
         userProxy.toAMM(payload);
 
@@ -30,48 +28,60 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
     }
 
     function testTradeWithOldEIP712Signature() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerAssetAddr = ETH_ADDRESS;
         order.takerAssetAmount = 0.1 ether;
         bytes memory sig = _signTradeWithOldEIP712Method(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
+
+        uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
+        uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
 
         vm.prank(user);
         userProxy.toAMM{ value: order.takerAssetAmount }(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
+        userMakerAsset.assertChange(int256(settleAmount));
+        feeCollectorMakerAsset.assertChange(int256(actualFee));
     }
 
     function testTradeUniswapV2() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerAssetAddr = ETH_ADDRESS;
         order.takerAssetAmount = 0.1 ether;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
+
+        uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
+        uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
 
         vm.prank(user);
         userProxy.toAMM{ value: order.takerAssetAmount }(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
+        userMakerAsset.assertChange(int256(settleAmount));
+        feeCollectorMakerAsset.assertChange(int256(actualFee));
     }
 
     function testEmitSwappedEvent() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
 
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
+        uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
+
         vm.expectEmit(true, true, true, true);
         emit Swapped(
             "Uniswap V2",
@@ -84,8 +94,8 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
             order.makerAssetAddr,
             order.makerAssetAmount,
             order.receiverAddr,
-            expectedOutAmount, // No fee so settled amount is the same as received amount
-            uint16(feeFactor) // Fee factor: 0
+            settleAmount,
+            DEFAULT_FEE_FACTOR
         );
         vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
