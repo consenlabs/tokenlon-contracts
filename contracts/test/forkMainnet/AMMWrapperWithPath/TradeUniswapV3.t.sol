@@ -128,6 +128,33 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
     }
 
+    function testCannotTradeWithMoreThanSettleAmount() public {
+        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
+        address[] memory path = DEFAULT_MULTI_HOP_PATH;
+        uint24[] memory fees = DEFAULT_MULTI_HOP_POOL_FEES;
+        bytes memory makerSpecificData = _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, path, fees);
+
+        // set order.makerAssetAmount = (ammQuote - fee) + 1, which should cause insufficient output error from AMM
+        uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
+            order.makerAddr,
+            order.takerAssetAddr,
+            order.makerAssetAddr,
+            order.takerAssetAmount,
+            path,
+            makerSpecificData
+        );
+        uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
+        order.makerAssetAmount = settleAmount + 1;
+
+        bytes memory sig = _signTrade(userPrivateKey, order);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, makerSpecificData, path);
+
+        vm.prank(relayer, relayer);
+        vm.expectRevert("Too little received");
+        userProxy.toAMM(payload);
+    }
+
     function testTradeWithSingleExactInput() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAssetAddr = ETH_ADDRESS;
@@ -208,6 +235,41 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
         );
         uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
         uint256 settleAmount = expectedOutAmount - actualFee;
+
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
+
+        vm.prank(relayer, relayer);
+        userProxy.toAMM(payload);
+
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        userMakerAsset.assertChange(int256(settleAmount));
+        feeCollectorMakerAsset.assertChange(int256(actualFee));
+    }
+
+    function testTradeWithExactSettleAmount() public {
+        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
+        address[] memory path = DEFAULT_MULTI_HOP_PATH;
+        uint24[] memory fees = DEFAULT_MULTI_HOP_POOL_FEES;
+        bytes memory makerSpecificData = _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, path, fees);
+
+        // set order.makerAssetAmount = ammQuote - fee, which is the maximum amount that user can receive
+        // with specified taker amount in order
+        uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
+            order.makerAddr,
+            order.takerAssetAddr,
+            order.makerAssetAddr,
+            order.takerAssetAmount,
+            path,
+            makerSpecificData
+        );
+        uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
+        order.makerAssetAmount = settleAmount;
+
+        bytes memory sig = _signTrade(userPrivateKey, order);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, makerSpecificData, path);
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
