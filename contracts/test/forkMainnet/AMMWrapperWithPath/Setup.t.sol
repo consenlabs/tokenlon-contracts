@@ -7,6 +7,7 @@ import "contracts/interfaces/IPermanentStorage.sol";
 import "contracts/utils/AMMLibEIP712.sol";
 import "contracts-test/utils/UniswapV3Util.sol";
 import "contracts-test/utils/StrategySharedSetup.sol"; // Using the deployment Strategy Contract function
+import "contracts/AMMQuoter.sol";
 
 contract TestAMMWrapperWithPath is StrategySharedSetup {
     using SafeERC20 for IERC20;
@@ -17,16 +18,17 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
     address feeCollector = address(0x133701);
     address relayer = address(0x133702);
     address[] wallet = [user, relayer];
-
+    AMMQuoter ammQuoter;
     AMMWrapperWithPath ammWrapperWithPath;
     IERC20 weth = IERC20(WETH_ADDRESS);
     IERC20 usdt = IERC20(USDT_ADDRESS);
     IERC20 usdc = IERC20(USDC_ADDRESS);
     IERC20 dai = IERC20(DAI_ADDRESS);
     IERC20 wbtc = IERC20(WBTC_ADDRESS);
-    IERC20[] tokens = [weth, usdt, usdc, dai, wbtc];
+    IERC20 lon = IERC20(LON_ADDRESS);
+    IERC20[] tokens = [weth, usdt, usdc, dai, wbtc, lon];
 
-    uint16 DEFAULT_FEE_FACTOR = 1000;
+    uint16 DEFAULT_FEE_FACTOR = 500;
     uint256 DEADLINE = block.timestamp + 1;
     AMMLibEIP712.Order DEFAULT_ORDER;
     // UniswapV3
@@ -40,6 +42,21 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
     bytes32 constant BALANCER_DAI_USDT_USDC_POOL = 0x06df3b2bbb68adc8b0e302443692037ed9f91b42000000000000000000000063;
     bytes32 constant BALANCER_WETH_DAI_POOL = 0x0b09dea16768f0799065c475be02919503cb2a3500020000000000000000001a;
     bytes32 constant BALANCER_WETH_USDC_POOL = 0x96646936b91d6b9d7d0c47c496afbf3d6ec7b6f8000200000000000000000019;
+
+    event Swapped(
+        string source,
+        bytes32 indexed transactionHash,
+        address indexed userAddr,
+        bool relayed,
+        address takerAssetAddr,
+        uint256 takerAssetAmount,
+        address makerAddr,
+        address makerAssetAddr,
+        uint256 makerAssetAmount,
+        address receiverAddr,
+        uint256 settleAmount,
+        uint16 feeFactor
+    );
 
     // effectively a "beforeEach" block
     function setUp() public virtual {
@@ -56,6 +73,8 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
         dealWallet(wallet, 100 ether);
         // Set token balance and approve
         setEOABalanceAndApprove(user, tokens, uint256(100));
+
+        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
 
         // Default order
         DEFAULT_ORDER = AMMLibEIP712.Order(
@@ -106,6 +125,7 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
             UNISWAP_V2_ADDRESS,
             SUSHISWAP_ADDRESS,
             UNISWAP_V3_ADDRESS,
+            BALANCER_V2_ADDRESS,
             feeCollector
         );
         // Setup
