@@ -52,7 +52,15 @@ contract TestAMMWrapper is StrategySharedSetup {
         // Deploy and Setup Spender, AllowanceTarget, UserProxy, Tokenlon,
         // PermanentStorage, ProxyPermanentStorage, AMMWrapper contracts
         setUpSystemContracts();
-        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
+        ammQuoter = new AMMQuoter(
+            UNISWAP_V2_ADDRESS,
+            UNISWAP_V3_ADDRESS,
+            UNISWAP_V3_QUOTER_ADDRESS,
+            SUSHISWAP_ADDRESS,
+            BALANCER_V2_ADDRESS,
+            IPermanentStorage(permanentStorage),
+            address(weth)
+        );
         address[] memory relayerListAddress = new address[](1);
         relayerListAddress[0] = relayer;
         bool[] memory relayerListBool = new bool[](1);

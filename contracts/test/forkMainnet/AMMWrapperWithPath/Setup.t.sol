@@ -74,7 +74,15 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
         // Set token balance and approve
         setEOABalanceAndApprove(user, tokens, uint256(100));
 
-        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
+        ammQuoter = new AMMQuoter(
+            UNISWAP_V2_ADDRESS,
+            UNISWAP_V3_ADDRESS,
+            UNISWAP_V3_QUOTER_ADDRESS,
+            SUSHISWAP_ADDRESS,
+            BALANCER_V2_ADDRESS,
+            IPermanentStorage(permanentStorage),
+            address(weth)
+        );
 
         // Default order
         DEFAULT_ORDER = AMMLibEIP712.Order(
