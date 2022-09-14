@@ -76,7 +76,6 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
     }
 
     function testTradeBalancerV2SingleHop() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
@@ -91,19 +90,31 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             order.takerAssetAmount, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeBalancerData(swapSteps), path);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
+
+        uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
+            order.makerAddr,
+            order.takerAssetAddr,
+            order.makerAssetAddr,
+            order.takerAssetAmount,
+            path,
+            _encodeBalancerData(swapSteps)
+        );
+        uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
 
         userProxy.toAMM(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
+        userMakerAsset.assertChange(int256(settleAmount));
+        feeCollectorMakerAsset.assertChange(int256(actualFee));
     }
 
     function testCannotTradeBalancerV2InvalidAmountInSwapSteps() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
@@ -124,7 +135,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             0, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeBalancerData(swapSteps), path);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
 
         vm.expectRevert("AMMWrapper: BalancerV2 cannot swap more than taker asset amount");
         userProxy.toAMM(payload);
@@ -132,14 +143,13 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         uint256 invalidOtherSwapStepAssetInAmount = 999; // Amount of other SwapSteps must be zero
         swapSteps[0].amount = order.takerAssetAmount; // Restore amount of first SwapStep
         swapSteps[1].amount = invalidOtherSwapStepAssetInAmount;
-        payload = _genTradePayload(order, feeFactor, sig, _encodeBalancerData(swapSteps), path);
+        payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
 
         vm.expectRevert("AMMWrapper: BalancerV2 can only specify amount at first step");
         userProxy.toAMM(payload);
     }
 
     function testTradeBalancerV2MultiHop() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = BALANCER_V2_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
@@ -159,19 +169,31 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             0, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeBalancerData(swapSteps), path);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
+
+        uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
+            order.makerAddr,
+            order.takerAssetAddr,
+            order.makerAssetAddr,
+            order.takerAssetAmount,
+            path,
+            _encodeBalancerData(swapSteps)
+        );
+        uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
 
         userProxy.toAMM(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
+        userMakerAsset.assertChange(int256(settleAmount));
+        feeCollectorMakerAsset.assertChange(int256(actualFee));
     }
 
     function testCannotTradeBalancerV2UnsupportedMakerAsset() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         // give an unsurpoted MakerAsset
         // use LON address to test
@@ -189,7 +211,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             order.takerAssetAmount, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeBalancerData(swapSteps), path);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
 
         // Balancer shoud revert with BAL#521, which means Token is not register
         vm.expectRevert("BAL#521");
@@ -197,7 +219,6 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
     }
 
     function testCannotTradeBalancerV2UnsupportedTakerAsset() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         // give an unsurpoted TakerAsset
         // use LON address to test
@@ -215,7 +236,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             order.takerAssetAmount, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeBalancerData(swapSteps), path);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
 
         // Balancer shoud revert with BAL#521, which means Token is not register
         vm.expectRevert("BAL#521");
@@ -246,7 +267,8 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
                 path,
                 _encodeBalancerData(swapSteps)
             );
-            uint256 fee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+            uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+            uint256 settleAmount = expectedOutAmount - actualFee;
             vm.expectEmit(true, true, true, true);
             emit Swapped(
                 "Balancer V2",
@@ -259,7 +281,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
                 order.makerAssetAddr,
                 order.makerAssetAmount,
                 order.receiverAddr,
-                expectedOutAmount - fee, // settle amount = output - fee
+                settleAmount,
                 DEFAULT_FEE_FACTOR
             );
         }
@@ -296,7 +318,8 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
                 path,
                 _encodeBalancerData(swapSteps)
             );
-            uint256 fee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+            uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+            uint256 settleAmount = expectedOutAmount - actualFee;
             vm.expectEmit(true, true, true, true);
             emit Swapped(
                 "Balancer V2",
@@ -309,7 +332,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
                 order.makerAssetAddr,
                 order.makerAssetAmount,
                 order.receiverAddr,
-                expectedOutAmount - fee, // settle amount = output - fee
+                settleAmount,
                 DEFAULT_FEE_FACTOR
             );
         }

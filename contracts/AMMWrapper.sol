@@ -237,14 +237,15 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         _prepare(order, internalTxData);
 
         {
-            // Set min amount for swap = _order.makerAssetAmount * (1 + feeFactor)
-            uint256 swapMinOutAmount = order.makerAssetAmount.mul(LibConstant.BPS_MAX.add(txMetaData.feeFactor)).div(LibConstant.BPS_MAX);
+            // Set min amount for swap = _order.makerAssetAmount * (10000 / (10000 - feeFactor))
+            uint256 swapMinOutAmount = order.makerAssetAmount.mul(LibConstant.BPS_MAX).div(LibConstant.BPS_MAX.sub(txMetaData.feeFactor));
             (txMetaData.source, txMetaData.receivedAmount) = _swap(order, internalTxData, swapMinOutAmount);
 
             // Settle
             // Calculate fee using actually received from swap
             uint256 actualFee = txMetaData.receivedAmount.mul(txMetaData.feeFactor).div(LibConstant.BPS_MAX);
             txMetaData.settleAmount = txMetaData.receivedAmount.sub(actualFee);
+            require(txMetaData.settleAmount >= order.makerAssetAmount, "AMMWrapper: insufficient maker output");
             _settle(order, internalTxData, txMetaData.settleAmount, actualFee);
         }
 

@@ -19,13 +19,26 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(2), new address[](0));
 
+        uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
+            order.makerAddr,
+            order.takerAssetAddr,
+            order.makerAssetAddr,
+            order.takerAssetAmount,
+            new address[](2),
+            _encodeCurveData(2)
+        ) + 1;
+        uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+        uint256 settleAmount = expectedOutAmount - actualFee;
+
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
 
         userProxy.toAMM(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
+        userMakerAsset.assertChange(int256(settleAmount));
+        feeCollectorMakerAsset.assertChange(int256(actualFee));
     }
 
     function testCannotTradeCurveV2WithV1Method() public {
@@ -111,7 +124,8 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
                 path,
                 _encodeCurveData(2)
             ) + 1;
-            uint256 fee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+            uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
+            uint256 settleAmount = expectedOutAmount - actualFee;
             vm.expectEmit(true, true, true, true);
             emit Swapped(
                 "Curve",
@@ -124,7 +138,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
                 order.makerAssetAddr,
                 order.makerAssetAmount,
                 order.receiverAddr,
-                expectedOutAmount - fee, // settle amount = output - fee
+                settleAmount,
                 DEFAULT_FEE_FACTOR
             );
         }

@@ -27,7 +27,7 @@ contract TestAMMWrapper is StrategySharedSetup {
     IERC20 ankreth = IERC20(ANKRETH_ADDRESS);
     IERC20[] tokens = [weth, usdt, dai, ankreth];
 
-    uint16 DEFAULT_FEE_FACTOR = 1000;
+    uint16 DEFAULT_FEE_FACTOR = 500;
     uint256 DEADLINE = block.timestamp + 1;
     AMMLibEIP712.Order DEFAULT_ORDER;
 
