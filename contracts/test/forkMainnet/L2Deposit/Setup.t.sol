@@ -78,8 +78,9 @@ contract TestL2Deposit is StrategySharedSetup {
         l2Deposit = new L2Deposit(
             address(this), // This contract would be the owner
             address(userProxy),
-            ISpender(address(spender)),
-            permanentStorage,
+            WETH_ADDRESS,
+            address(permanentStorage),
+            address(spender),
             arbitrumL1GatewayRouter,
             arbitrumL1Inbox,
             optimismL1StandardBridge

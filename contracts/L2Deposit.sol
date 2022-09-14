@@ -12,53 +12,33 @@ import "./interfaces/IL2Deposit.sol";
 import "./interfaces/IOptimismL1StandardBridge.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/ISpender.sol";
+import "./utils/StrategyBase.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/Ownable.sol";
 import "./utils/L2DepositLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
-contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, SignatureValidator {
+contract L2Deposit is IL2Deposit, StrategyBase, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
     using SafeERC20 for IERC20;
-
-    // Peripherals
-    address public immutable userProxy;
-    IPermanentStorage public immutable permStorage;
 
     // Bridges
     IArbitrumL1GatewayRouter public immutable arbitrumL1GatewayRouter;
     IArbitrumL1Inbox public immutable arbitrumL1Inbox;
     IOptimismL1StandardBridge public immutable optimismL1StandardBridge;
 
-    // Below are the variables which consume storage slots.
-    ISpender public spender;
-
     constructor(
         address _owner,
         address _userProxy,
-        ISpender _spender,
-        IPermanentStorage _permStorage,
+        address _weth,
+        address _permStorage,
+        address _spender,
         IArbitrumL1GatewayRouter _arbitrumL1GatewayRouter,
         IArbitrumL1Inbox _arbitrumL1Inbox,
         IOptimismL1StandardBridge _optimismL1StandardBridge
-    ) Ownable(_owner) {
-        userProxy = _userProxy;
-        spender = _spender;
-        permStorage = _permStorage;
+    ) StrategyBase(_owner, _userProxy, _weth, _permStorage, _spender) {
         arbitrumL1GatewayRouter = _arbitrumL1GatewayRouter;
         arbitrumL1Inbox = _arbitrumL1Inbox;
         optimismL1StandardBridge = _optimismL1StandardBridge;
-    }
-
-    modifier onlyUserProxy() {
-        require(address(userProxy) == msg.sender, "L2Deposit: not the UserProxy contract");
-        _;
-    }
-
-    function upgradeSpender(address _newSpender) external onlyOwner {
-        require(_newSpender != address(0), "L2Deposit: spender can not be zero address");
-        spender = ISpender(_newSpender);
-
-        emit UpgradeSpender(_newSpender);
     }
 
     function deposit(IL2Deposit.DepositParams calldata _params) external payable override nonReentrant onlyUserProxy {
