@@ -37,8 +37,8 @@ contract TestLONStaking is Test {
     function setUp() public virtual {
         // Setup
         LONStaking lonStakingImpl = new LONStaking();
-        bytes memory initData = abi.encodeWithSignature(
-            "initialize(address,address,uint256,uint256)",
+        bytes memory initData = abi.encodeWithSelector(
+            LONStaking.initialize.selector,
             address(lon), // LON
             address(this), // Owner
             COOLDOWN_IN_DAYS,
@@ -68,12 +68,6 @@ contract TestLONStaking is Test {
     /*********************************
      *          Test Helpers         *
      *********************************/
-
-    function _getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
-        string memory EIP191_HEADER = "\x19\x01";
-        bytes32 DOMAIN_SEPARATOR = lonStaking.DOMAIN_SEPARATOR();
-        return keccak256(abi.encodePacked(EIP191_HEADER, DOMAIN_SEPARATOR, structHash));
-    }
 
     function _getExpectedXLON(uint256 stakeAmount) internal view returns (uint256) {
         uint256 totalLon = lon.balanceOf(address(lonStaking));

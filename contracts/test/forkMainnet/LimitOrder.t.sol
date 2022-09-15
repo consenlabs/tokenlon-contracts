@@ -17,6 +17,7 @@ import "contracts-test/utils/BalanceSnapshot.sol";
 import "contracts-test/utils/StrategySharedSetup.sol";
 import "contracts-test/utils/UniswapV3Util.sol";
 import "contracts-test/utils/SushiswapUtil.sol";
+import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract LimitOrderTest is StrategySharedSetup {
     using SafeMath for uint256;
@@ -88,7 +89,7 @@ contract LimitOrderTest is StrategySharedSetup {
             uint256(1001), // salt
             DEADLINE // expiry
         );
-        DEFAULT_ORDER_HASH = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(DEFAULT_ORDER));
+        DEFAULT_ORDER_HASH = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(DEFAULT_ORDER));
         DEFAULT_ORDER_MAKER_SIG = _signOrder(makerPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
         DEFAULT_FILL = LimitOrderLibEIP712.Fill(DEFAULT_ORDER_HASH, user, receiver, DEFAULT_ORDER.takerTokenAmount, uint256(1002), DEADLINE);
         DEFAULT_TRADER_PARAMS = ILimitOrder.TraderParams(
@@ -367,7 +368,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         order.expiry = uint64(block.timestamp - 1);
 
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -411,7 +412,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
         order.taker = coordinator;
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -598,7 +599,7 @@ contract LimitOrderTest is StrategySharedSetup {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.maker,
             user,
-            _getEIP712Hash(LimitOrderLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
+            getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
             DEFAULT_TRADER_PARAMS.recipient,
             ILimitOrder.FillReceipt(
                 address(DEFAULT_ORDER.makerToken),
@@ -645,7 +646,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
         order.taker = user;
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -669,7 +670,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
         order.taker = user;
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrderWithOldEIP712Method(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -836,7 +837,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         order.expiry = uint64(block.timestamp - 1);
 
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -867,7 +868,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
         order.taker = SUSHISWAP_ADDRESS;
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
@@ -900,7 +901,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerTokenAmount = 9000 * 1e6;
 
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
@@ -1028,7 +1029,7 @@ contract LimitOrderTest is StrategySharedSetup {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.maker,
             UNISWAP_V3_ADDRESS,
-            _getEIP712Hash(LimitOrderLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
+            getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
             user,
             receiver,
             ILimitOrder.FillReceipt(
@@ -1065,7 +1066,7 @@ contract LimitOrderTest is StrategySharedSetup {
         // set order with extreme low price leaving huge profit for relayer
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerTokenAmount = 1 * 1e6;
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         // update protocolParams
@@ -1104,7 +1105,7 @@ contract LimitOrderTest is StrategySharedSetup {
             orderHash,
             order.maker,
             UNISWAP_V3_ADDRESS,
-            _getEIP712Hash(LimitOrderLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getAllowFillStructHash(allowFill)),
             relayer, // relayer
             relayer, // profitRecipient
             fillReceipt,
@@ -1137,7 +1138,7 @@ contract LimitOrderTest is StrategySharedSetup {
         // Since profitFeeFactor is zero, so the extra token from AMM is the profit for relayer.
         uint256 profit = amountOuts[amountOuts.length - 1].sub(order.takerTokenAmount);
 
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerHash = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
@@ -1221,19 +1222,13 @@ contract LimitOrderTest is StrategySharedSetup {
      *             Helpers           *
      *********************************/
 
-    function _getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
-        string memory EIP191_HEADER = "\x19\x01";
-        bytes32 EIP712_DOMAIN_SEPARATOR = limitOrder.EIP712_DOMAIN_SEPARATOR();
-        return keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, structHash));
-    }
-
     function _signOrder(
         uint256 privateKey,
         LimitOrderLibEIP712.Order memory order,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = LimitOrderLibEIP712._getOrderStructHash(order);
-        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
         if (sigType == SignatureValidator.SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -1252,7 +1247,7 @@ contract LimitOrderTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = LimitOrderLibEIP712._getOrderStructHash(order);
-        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), orderHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
@@ -1264,7 +1259,7 @@ contract LimitOrderTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 fillHash = LimitOrderLibEIP712._getFillStructHash(fill);
-        bytes32 EIP712SignDigest = _getEIP712Hash(fillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), fillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
     }
@@ -1275,7 +1270,7 @@ contract LimitOrderTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 fillHash = LimitOrderLibEIP712._getFillStructHash(fill);
-        bytes32 EIP712SignDigest = _getEIP712Hash(fillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), fillHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
@@ -1287,7 +1282,7 @@ contract LimitOrderTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 allowFillHash = LimitOrderLibEIP712._getAllowFillStructHash(allowFill);
-        bytes32 EIP712SignDigest = _getEIP712Hash(allowFillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
     }
@@ -1298,7 +1293,7 @@ contract LimitOrderTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 allowFillHash = LimitOrderLibEIP712._getAllowFillStructHash(allowFill);
-        bytes32 EIP712SignDigest = _getEIP712Hash(allowFillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
@@ -1309,15 +1304,8 @@ contract LimitOrderTest is StrategySharedSetup {
         bytes memory orderMakerSig,
         ILimitOrder.TraderParams memory params,
         ILimitOrder.CoordinatorParams memory crdParams
-    ) internal pure returns (bytes memory payload) {
-        return
-            abi.encodeWithSignature(
-                "fillLimitOrderByTrader((address,address,uint256,uint256,address,address,uint256,uint64),bytes,(address,address,uint256,uint256,uint64,bytes),(bytes,uint256,uint64))",
-                order,
-                orderMakerSig,
-                params,
-                crdParams
-            );
+    ) internal view returns (bytes memory payload) {
+        return abi.encodeWithSelector(limitOrder.fillLimitOrderByTrader.selector, order, orderMakerSig, params, crdParams);
     }
 
     function _genFillByProtocolPayload(
@@ -1325,22 +1313,15 @@ contract LimitOrderTest is StrategySharedSetup {
         bytes memory orderMakerSig,
         ILimitOrder.ProtocolParams memory params,
         ILimitOrder.CoordinatorParams memory crdParams
-    ) internal pure returns (bytes memory payload) {
-        return
-            abi.encodeWithSignature(
-                "fillLimitOrderByProtocol((address,address,uint256,uint256,address,address,uint256,uint64),bytes,(uint8,bytes,address,uint256,uint256,uint64),(bytes,uint256,uint64))",
-                order,
-                orderMakerSig,
-                params,
-                crdParams
-            );
+    ) internal view returns (bytes memory payload) {
+        return abi.encodeWithSelector(limitOrder.fillLimitOrderByProtocol.selector, order, orderMakerSig, params, crdParams);
     }
 
     function _genCancelLimitOrderPayload(LimitOrderLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
         internal
-        pure
+        view
         returns (bytes memory payload)
     {
-        return abi.encodeWithSignature("cancelLimitOrder((address,address,uint256,uint256,address,address,uint256,uint64),bytes)", order, cancelOrderMakerSig);
+        return abi.encodeWithSelector(limitOrder.cancelLimitOrder.selector, order, cancelOrderMakerSig);
     }
 }

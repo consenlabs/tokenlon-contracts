@@ -107,7 +107,7 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
 
     function _signTradeWithOldEIP712Method(uint256 privateKey, AMMLibEIP712.Order memory order) internal returns (bytes memory sig) {
         bytes32 orderHash = AMMLibEIP712._getOrderHash(order);
-        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(ammWrapper.EIP712_DOMAIN_SEPARATOR(), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(SignatureValidator.SignatureType.EIP712));
     }

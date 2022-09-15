@@ -13,6 +13,7 @@ import "contracts-test/mocks/MockERC20.sol";
 import "contracts-test/mocks/MockWETH.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 import "contracts-test/utils/StrategySharedSetup.sol";
+import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract RFQTest is StrategySharedSetup {
     using SafeMath for uint256;
@@ -441,19 +442,13 @@ contract RFQTest is StrategySharedSetup {
      *             Helpers           *
      *********************************/
 
-    function _getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
-        string memory EIP191_HEADER = "\x19\x01";
-        bytes32 EIP712_DOMAIN_SEPARATOR = rfq.EIP712_DOMAIN_SEPARATOR();
-        return keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, structHash));
-    }
-
     function _signOrder(
         uint256 privateKey,
         RFQLibEIP712.Order memory order,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = RFQLibEIP712._getOrderHash(order);
-        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
         if (sigType == SignatureValidator.SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -472,7 +467,7 @@ contract RFQTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = RFQLibEIP712._getOrderHash(order);
-        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -485,7 +480,7 @@ contract RFQTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
-        bytes32 EIP712SignDigest = _getEIP712Hash(transactionHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), transactionHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
     }
@@ -496,7 +491,7 @@ contract RFQTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
-        bytes32 EIP712SignDigest = _getEIP712Hash(transactionHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), transactionHash);
 
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -507,13 +502,7 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order,
         bytes memory makerSig,
         bytes memory userSig
-    ) internal pure returns (bytes memory payload) {
-        return
-            abi.encodeWithSignature(
-                "fill((address,address,address,address,uint256,uint256,address,uint256,uint256,uint256),bytes,bytes)",
-                order,
-                makerSig,
-                userSig
-            );
+    ) internal view returns (bytes memory payload) {
+        return abi.encodeWithSelector(rfq.fill.selector, order, makerSig, userSig);
     }
 }

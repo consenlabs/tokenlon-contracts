@@ -27,14 +27,4 @@ contract TestLON is Test {
         vm.label(address(lon), "LONContract");
         vm.label(emergencyRecipient, "EmergencyRecipient");
     }
-
-    /*********************************
-     *          Test Helpers         *
-     *********************************/
-
-    function _getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
-        string memory EIP191_HEADER = "\x19\x01";
-        bytes32 DOMAIN_SEPARATOR = lon.DOMAIN_SEPARATOR();
-        return keccak256(abi.encodePacked(EIP191_HEADER, DOMAIN_SEPARATOR, structHash));
-    }
 }
