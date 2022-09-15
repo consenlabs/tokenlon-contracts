@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "./interfaces/IArbitrumL1GatewayRouter.sol";
-import "./interfaces/IArbitrumL1Inbox.sol";
 import "./interfaces/IL2Deposit.sol";
 import "./interfaces/IOptimismL1StandardBridge.sol";
 import "./interfaces/IPermanentStorage.sol";
@@ -26,7 +25,6 @@ contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, Signa
 
     // Bridges
     IArbitrumL1GatewayRouter public immutable arbitrumL1GatewayRouter;
-    IArbitrumL1Inbox public immutable arbitrumL1Inbox;
     IOptimismL1StandardBridge public immutable optimismL1StandardBridge;
 
     // Below are the variables which consume storage slots.
@@ -38,14 +36,12 @@ contract L2Deposit is IL2Deposit, ReentrancyGuard, Ownable, BaseLibEIP712, Signa
         ISpender _spender,
         IPermanentStorage _permStorage,
         IArbitrumL1GatewayRouter _arbitrumL1GatewayRouter,
-        IArbitrumL1Inbox _arbitrumL1Inbox,
         IOptimismL1StandardBridge _optimismL1StandardBridge
     ) Ownable(_owner) {
         userProxy = _userProxy;
         spender = _spender;
         permStorage = _permStorage;
         arbitrumL1GatewayRouter = _arbitrumL1GatewayRouter;
-        arbitrumL1Inbox = _arbitrumL1Inbox;
         optimismL1StandardBridge = _optimismL1StandardBridge;
     }
 

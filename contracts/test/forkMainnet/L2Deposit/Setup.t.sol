@@ -13,7 +13,6 @@ import "contracts/L2Deposit.sol";
 import "contracts/utils/SignatureValidator.sol";
 import "contracts/utils/L2DepositLibEIP712.sol";
 import "contracts/interfaces/IArbitrumL1GatewayRouter.sol";
-import "contracts/interfaces/IArbitrumL1Inbox.sol";
 import "contracts/interfaces/IOptimismL1StandardBridge.sol";
 
 contract TestL2Deposit is StrategySharedSetup {
@@ -27,7 +26,6 @@ contract TestL2Deposit is StrategySharedSetup {
 
     // Arbitrum
     IArbitrumL1GatewayRouter arbitrumL1GatewayRouter = IArbitrumL1GatewayRouter(ARBITRUM_L1_GATEWAY_ROUTER_ADDR);
-    IArbitrumL1Inbox arbitrumL1Inbox = IArbitrumL1Inbox(ARBITRUM_L1_INBOX_ADDR);
     IERC20 arbitrumLONAddr = IERC20(arbitrumL1GatewayRouter.calculateL2TokenAddress(LON_ADDRESS));
 
     // Optimism
@@ -81,7 +79,6 @@ contract TestL2Deposit is StrategySharedSetup {
             ISpender(address(spender)),
             permanentStorage,
             arbitrumL1GatewayRouter,
-            arbitrumL1Inbox,
             optimismL1StandardBridge
         );
 
