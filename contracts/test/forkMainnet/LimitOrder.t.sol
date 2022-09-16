@@ -52,14 +52,15 @@ contract LimitOrderTest is StrategySharedSetup {
     address coordinator = vm.addr(coordinatorPrivateKey);
     address receiver = address(0x133702);
     address feeCollector = address(0x133703);
+    address operator;
     MockERC1271Wallet mockERC1271Wallet = new MockERC1271Wallet(user);
     address[] wallet = [user, maker, coordinator, address(mockERC1271Wallet)];
 
-    IWETH weth = IWETH(WETH_ADDRESS);
-    IERC20 usdt = IERC20(USDT_ADDRESS);
-    IERC20 dai = IERC20(DAI_ADDRESS);
-    IERC20[] tokens = [dai, usdt];
-    address[] tokenAddrs = [address(dai), address(usdt)];
+    IWETH weth;
+    IERC20 usdt;
+    IERC20 dai;
+    IERC20[] tokens;
+    address[] tokenAddrs;
 
     LimitOrderLibEIP712.Order DEFAULT_ORDER;
     bytes32 DEFAULT_ORDER_HASH;
@@ -76,7 +77,29 @@ contract LimitOrderTest is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
-        setUpSystemContracts();
+        weth = IWETH(vm.envAddress("WETH_ADDRESS"));
+        usdt = IERC20(vm.envAddress("USDT_ADDRESS"));
+        dai = IERC20(vm.envAddress("DAI_ADDRESS"));
+        if (vm.envBool("mainnet")) {
+            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
+            spender = Spender(vm.envAddress("Spender_ADDRESS"));
+            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
+            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
+
+            limitOrder = LimitOrder(payable(vm.envAddress("LimitOrder_ADDRESS")));
+
+            // prank operator and update coordinator address
+            operator = limitOrder.operator();
+            vm.prank(operator, operator);
+            limitOrder.upgradeCoordinator(coordinator);
+            // update local feeCollector address
+            feeCollector = limitOrder.feeCollector();
+            vm.stopPrank();
+        } else {
+            setUpSystemContracts();
+        }
+        tokens = [dai, usdt];
+        tokenAddrs = [address(dai), address(usdt)];
 
         // Default params
         DEFAULT_ORDER = LimitOrderLibEIP712.Order(
@@ -160,175 +183,6 @@ contract LimitOrderTest is StrategySharedSetup {
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(limitOrder), true);
         permanentStorage.setPermission(permanentStorage.allowFillSeenStorageId(), address(limitOrder), true);
         return address(limitOrder);
-    }
-
-    /*********************************
-     *          Test: setup          *
-     *********************************/
-
-    function testSetupLimitOrder() public {
-        assertEq(limitOrder.operator(), address(this));
-        assertEq(limitOrder.coordinator(), coordinator);
-        assertEq(limitOrder.userProxy(), address(userProxy));
-        assertEq(address(limitOrder.spender()), address(spender));
-        assertEq(address(limitOrder.permStorage()), address(permanentStorage));
-        assertEq(address(limitOrder.weth()), address(weth));
-        assertEq(limitOrder.uniswapV3RouterAddress(), UNISWAP_V3_ADDRESS);
-        assertEq(limitOrder.sushiswapRouterAddress(), SUSHISWAP_ADDRESS);
-
-        assertEq(uint256(limitOrder.makerFeeFactor()), 0);
-        assertEq(uint256(limitOrder.takerFeeFactor()), 0);
-        assertEq(uint256(limitOrder.profitFeeFactor()), 0);
-        assertEq(uint256(limitOrder.profitCapFactor()), uint256(LibConstant.BPS_MAX));
-    }
-
-    /*********************************
-     *     Test: transferOwnership   *
-     *********************************/
-
-    function testCannotTransferOwnershipByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
-        vm.prank(user);
-        limitOrder.transferOwnership(user);
-    }
-
-    function testCannotTransferOwnershipToZeroAddr() public {
-        vm.expectRevert("LimitOrder: operator can not be zero address");
-        limitOrder.transferOwnership(address(0));
-    }
-
-    function testTransferOwnership() public {
-        limitOrder.transferOwnership(user);
-        assertEq(limitOrder.operator(), user);
-    }
-
-    /*********************************
-     *     Test: upgradeSpender      *
-     *********************************/
-
-    function testCannotUpgradeSpenderByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
-        vm.prank(user);
-        limitOrder.upgradeSpender(user);
-    }
-
-    function testCannotUpgradeSpenderToZeroAddr() public {
-        vm.expectRevert("LimitOrder: spender can not be zero address");
-        limitOrder.upgradeSpender(address(0));
-    }
-
-    function testUpgradeSpender() public {
-        limitOrder.upgradeSpender(user);
-        assertEq(address(limitOrder.spender()), user);
-    }
-
-    /*********************************
-     *     Test: upgradeCoordinator  *
-     *********************************/
-
-    function testCannotUpgradeCoordinatorByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
-        vm.prank(user);
-        limitOrder.upgradeCoordinator(user);
-    }
-
-    function testCannotUpgradeCoordinatorToZeroAddr() public {
-        vm.expectRevert("LimitOrder: coordinator can not be zero address");
-        limitOrder.upgradeCoordinator(address(0));
-    }
-
-    function testUpgradeCoordinator() public {
-        limitOrder.upgradeCoordinator(user);
-        assertEq(address(limitOrder.coordinator()), user);
-    }
-
-    /*********************************
-     *   Test: set/close allowance   *
-     *********************************/
-
-    function testCannotSetAllowanceByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
-        vm.prank(user);
-        limitOrder.setAllowance(tokenAddrs, address(allowanceTarget));
-    }
-
-    function testCannotCloseAllowanceByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
-        vm.prank(user);
-        limitOrder.closeAllowance(tokenAddrs, address(allowanceTarget));
-    }
-
-    function testSetAndCloseAllowance() public {
-        // Set allowance
-        limitOrder.setAllowance(tokenAddrs, address(allowanceTarget));
-        assertEq(usdt.allowance(address(limitOrder), address(allowanceTarget)), LibConstant.MAX_UINT);
-        assertEq(dai.allowance(address(limitOrder), address(allowanceTarget)), LibConstant.MAX_UINT);
-
-        // Close allowance
-        limitOrder.closeAllowance(tokenAddrs, address(allowanceTarget));
-        assertEq(usdt.allowance(address(limitOrder), address(allowanceTarget)), 0);
-        assertEq(dai.allowance(address(limitOrder), address(allowanceTarget)), 0);
-    }
-
-    /*********************************
-     *        Test: depoitETH        *
-     *********************************/
-
-    function testCannotDepositETHByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
-        vm.prank(user);
-        limitOrder.depositETH();
-    }
-
-    function testDepositETH() public {
-        // Send ether to limit order contract
-        uint256 amount = 1234 ether;
-        deal(address(limitOrder), amount);
-        limitOrder.depositETH();
-        assertEq(weth.balanceOf(address(limitOrder)), amount);
-    }
-
-    /*********************************
-     *        Test: setFactors       *
-     *********************************/
-
-    function testCannotSetFactorsIfLargerThanBpsMax() public {
-        vm.expectRevert("LimitOrder: Invalid maker fee factor");
-        limitOrder.setFactors(LibConstant.BPS_MAX + 1, 1, 1, 1);
-        vm.expectRevert("LimitOrder: Invalid taker fee factor");
-        limitOrder.setFactors(1, LibConstant.BPS_MAX + 1, 1, 1);
-        vm.expectRevert("LimitOrder: Invalid profit fee factor");
-        limitOrder.setFactors(1, 1, LibConstant.BPS_MAX + 1, 1);
-        vm.expectRevert("LimitOrder: Invalid profit cap factor");
-        limitOrder.setFactors(1, 1, 1, LibConstant.BPS_MAX + 1);
-    }
-
-    function testSetFactors() public {
-        limitOrder.setFactors(1, 2, 3, 4);
-        assertEq(uint256(limitOrder.makerFeeFactor()), 1);
-        assertEq(uint256(limitOrder.takerFeeFactor()), 2);
-        assertEq(uint256(limitOrder.profitFeeFactor()), 3);
-        assertEq(uint256(limitOrder.profitCapFactor()), 4);
-    }
-
-    /*********************************
-     *     Test: setFeeCollector     *
-     *********************************/
-
-    function testCannotSetFeeCollectorByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
-        vm.prank(user);
-        limitOrder.setFeeCollector(feeCollector);
-    }
-
-    function testCannotSetFeeCollectorToZeroAddr() public {
-        vm.expectRevert("LimitOrder: fee collector can not be zero address");
-        limitOrder.setFeeCollector(address(0));
-    }
-
-    function testSetFeeCollector() public {
-        limitOrder.setFeeCollector(user);
-        assertEq(address(limitOrder.feeCollector()), user);
     }
 
     /*********************************
@@ -595,6 +449,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         // makerFeeFactor/takerFeeFactor : 10%
         // profitFeeFactor/profitCapFactor : 20%
+        vm.prank(operator, operator);
         limitOrder.setFactors(1000, 1000, 2000, 2000);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
@@ -995,6 +850,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         // makerFeeFactor/takerFeeFactor : 10%
         // profitFeeFactor/profitCapFactor : 20%
+        vm.prank(operator, operator);
         limitOrder.setFactors(1000, 1000, 2000, 2000);
 
         // get quote from AMM
