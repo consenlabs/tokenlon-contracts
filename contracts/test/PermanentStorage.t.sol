@@ -93,7 +93,7 @@ contract PermanentStorageTest is Test {
 
     function testUpgradeAMMWrapper() public {
         assertEq(permanentStorage.ammWrapperAddr(), address(0));
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit UpgradeAMMWrapper(strategy);
         permanentStorage.upgradeAMMWrapper(strategy);
         assertEq(permanentStorage.ammWrapperAddr(), strategy);
@@ -107,7 +107,7 @@ contract PermanentStorageTest is Test {
 
     function testUpgradeRFQ() public {
         assertEq(permanentStorage.rfqAddr(), address(0));
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit UpgradeRFQ(strategy);
         permanentStorage.upgradeRFQ(strategy);
         assertEq(permanentStorage.rfqAddr(), strategy);
@@ -121,7 +121,7 @@ contract PermanentStorageTest is Test {
 
     function testUpgradeLimitOrder() public {
         assertEq(permanentStorage.limitOrderAddr(), address(0));
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit UpgradeLimitOrder(strategy);
         permanentStorage.upgradeLimitOrder(strategy);
         assertEq(permanentStorage.limitOrderAddr(), strategy);
@@ -135,7 +135,7 @@ contract PermanentStorageTest is Test {
 
     function testUpgradeWETH() public {
         assertEq(permanentStorage.wethAddr(), address(0));
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit UpgradeWETH(strategy);
         permanentStorage.upgradeWETH(strategy);
         assertEq(permanentStorage.wethAddr(), strategy);
@@ -164,13 +164,13 @@ contract PermanentStorageTest is Test {
 
         assertFalse(permanentStorage.hasPermission(storageId, strategy));
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetPermission(storageId, strategy, true);
 
         permanentStorage.setPermission(storageId, strategy, true);
         assertTrue(permanentStorage.hasPermission(storageId, strategy));
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetPermission(storageId, strategy, false);
 
         permanentStorage.setPermission(storageId, strategy, false);
@@ -298,7 +298,7 @@ contract PermanentStorageTest is Test {
             address _relayer = DEFAULT_RELAYERS[i];
             bool valid = DEFAULT_RELAYER_VALIDS[i];
             assertFalse(permanentStorage.isRelayerValid(_relayer));
-            vm.expectEmit(false, false, false, true);
+            vm.expectEmit(true, true, true, true);
             emit SetRelayerValid(_relayer, valid);
         }
         permanentStorage.setRelayersValid(DEFAULT_RELAYERS, DEFAULT_RELAYER_VALIDS);
@@ -340,7 +340,7 @@ contract PermanentStorageTest is Test {
         bytes32 storageId = permanentStorage.curveTokenIndexStorageId();
         permanentStorage.setPermission(storageId, address(this), true);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetCurvePoolInfo(DEFAULT_CURVE_POOL_ADDRESS, DEFAULT_CURVE_POOL_UNDERLYING_COINS, DEFAULT_CURVE_POOL_COINS, DEFAULT_CURVE_SUPPORT_GET_DX);
         permanentStorage.setCurvePoolInfo(
             DEFAULT_CURVE_POOL_ADDRESS,

@@ -137,7 +137,7 @@ contract SpenderTest is BalanceUtil {
     }
 
     function testTeardownAllowanceTarget() public {
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit TearDownAllowanceTarget(block.timestamp);
 
         spender.teardownAllowanceTarget();

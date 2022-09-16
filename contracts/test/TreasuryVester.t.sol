@@ -111,7 +111,7 @@ contract TreasuryVesterTest is Test {
         vm.expectEmit(
             false, // We do not check the deployed Vester address as it's deterministic generated and irrelevant to correctness
             true,
-            false,
+            true,
             true
         );
         emit VesterCreated(
