@@ -14,6 +14,8 @@ import "contracts-test/mocks/MockWETH.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 import "contracts-test/utils/StrategySharedSetup.sol";
 
+import "forge-std/console.sol";
+
 contract RFQTest is StrategySharedSetup {
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
@@ -40,16 +42,18 @@ contract RFQTest is StrategySharedSetup {
 
     address user = vm.addr(userPrivateKey);
     address maker = vm.addr(makerPrivateKey);
+    address feeCollector = address(0x133701);
+    address operator;
     address receiver = address(0x133702);
     address[] wallet = [user, maker];
 
     MockERC1271Wallet mockERC1271Wallet;
     MarketMakerProxy marketMakerProxy;
     RFQ rfq;
-    MockWETH weth = new MockWETH("Wrapped ETH", "WETH", 18);
-    IERC20 usdt = new MockERC20("USDT", "USDT", 6);
-    IERC20 dai = new MockERC20("DAI", "DAI", 18);
-    IERC20[] tokens = [weth, usdt, dai];
+    IERC20 weth;
+    IERC20 usdt;
+    IERC20 dai;
+    IERC20[] tokens;
 
     uint256 DEADLINE = block.timestamp + 1;
     RFQLibEIP712.Order DEFAULT_ORDER;
@@ -57,7 +61,27 @@ contract RFQTest is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
-        setUpSystemContracts();
+        if (vm.envBool("mainnet")) {
+            weth = IERC20(vm.envAddress("WETH_ADDRESS"));
+            usdt = IERC20(vm.envAddress("USDT_ADDRESS"));
+            dai = IERC20(vm.envAddress("DAI_ADDRESS"));
+
+            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
+            spender = Spender(vm.envAddress("Spender_ADDRESS"));
+            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
+            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
+
+            rfq = RFQ(payable(vm.envAddress("RFQ_ADDRESS")));
+            operator = rfq.operator();
+        } else {
+            weth = IERC20(address(new MockWETH("Wrapped ETH", "WETH", 18)));
+            usdt = new MockERC20("USDT", "USDT", 6);
+            dai = new MockERC20("DAI", "DAI", 18);
+            setUpSystemContracts();
+            operator = address(this);
+        }
+        tokens = [usdt, dai];
+
         vm.prank(maker);
         marketMakerProxy = new MarketMakerProxy();
         mockERC1271Wallet = new MockERC1271Wallet(user);
@@ -123,29 +147,6 @@ contract RFQTest is StrategySharedSetup {
     }
 
     /*********************************
-     *          Test: setup          *
-     *********************************/
-
-    function testSetupAllowance() public {
-        for (uint256 i = 0; i < tokens.length; i++) {
-            assertEq(tokens[i].allowance(user, address(allowanceTarget)), type(uint256).max);
-            assertEq(tokens[i].allowance(address(mockERC1271Wallet), address(allowanceTarget)), type(uint256).max);
-            assertEq(tokens[i].allowance(maker, address(allowanceTarget)), type(uint256).max);
-            assertEq(tokens[i].allowance(address(marketMakerProxy), address(allowanceTarget)), type(uint256).max);
-        }
-    }
-
-    function testSetupRFQ() public {
-        assertEq(rfq.operator(), address(this));
-        assertEq(rfq.userProxy(), address(userProxy));
-        assertEq(address(rfq.spender()), address(spender));
-        assertEq(address(rfq.weth()), address(weth));
-        assertEq(userProxy.rfqAddr(), address(rfq));
-        assertEq(permanentStorage.rfqAddr(), address(rfq));
-        assertTrue(spender.isAuthorized(address(rfq)));
-    }
-
-    /*********************************
      *     Test: upgradeSpender      *
      *********************************/
 
@@ -157,10 +158,12 @@ contract RFQTest is StrategySharedSetup {
 
     function testCannotUpgradeSpenderToZeroAddress() public {
         vm.expectRevert("RFQ: spender can not be zero address");
+        vm.prank(operator, operator);
         rfq.upgradeSpender(address(0));
     }
 
     function testUpgradeSpender() public {
+        vm.prank(operator, operator);
         rfq.upgradeSpender(user);
         assertEq(address(rfq.spender()), user);
     }
@@ -185,11 +188,14 @@ contract RFQTest is StrategySharedSetup {
         address[] memory allowanceTokenList = new address[](1);
         allowanceTokenList[0] = address(usdt);
 
+        vm.prank(operator, operator);
         assertEq(usdt.allowance(address(rfq), address(this)), uint256(0));
 
+        vm.prank(operator, operator);
         rfq.setAllowance(allowanceTokenList, address(this));
         assertEq(usdt.allowance(address(rfq), address(this)), type(uint256).max);
 
+        vm.prank(operator, operator);
         rfq.closeAllowance(allowanceTokenList, address(this));
         assertEq(usdt.allowance(address(rfq), address(this)), uint256(0));
     }
@@ -202,14 +208,6 @@ contract RFQTest is StrategySharedSetup {
         vm.expectRevert("RFQ: not operator");
         vm.prank(user);
         rfq.depositETH();
-    }
-
-    function testDepositETH() public {
-        deal(address(rfq), 1 ether);
-        assertEq(address(rfq).balance, 1 ether);
-        rfq.depositETH();
-        assertEq(address(rfq).balance, uint256(0));
-        assertEq(weth.balanceOf(address(rfq)), 1 ether);
     }
 
     /*********************************
@@ -300,30 +298,6 @@ contract RFQTest is StrategySharedSetup {
         userProxy.toRFQ{ value: order.takerAssetAmount }(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
-        makerMMPTakerAsset.assertChange(int256(order.takerAssetAmount));
-        makerMMPMakerAsset.assertChange(-int256(order.makerAssetAmount));
-    }
-
-    function testFillDAIToETH_WalletUserAndMMPMaker() public {
-        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.takerAddr = address(mockERC1271Wallet);
-        order.makerAddr = address(marketMakerProxy);
-        order.makerAssetAddr = address(weth);
-        order.makerAssetAmount = 1 ether;
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.Wallet);
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
-        BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take(address(mockERC1271Wallet), order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, ETH_ADDRESS);
-        BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.makerAssetAddr);
-
-        vm.prank(user, user); // Only EOA
-        userProxy.toRFQ(payload);
-
-        userWalletTakerAsset.assertChange(-int256(order.takerAssetAmount));
         receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
         makerMMPTakerAsset.assertChange(int256(order.takerAssetAmount));
         makerMMPMakerAsset.assertChange(-int256(order.makerAssetAmount));
