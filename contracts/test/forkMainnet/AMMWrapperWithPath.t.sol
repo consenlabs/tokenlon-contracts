@@ -17,6 +17,7 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
     using SafeERC20 for IERC20;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
+    bytes32 public constant relayerValidStorageId = 0x2c97779b4deaf24e9d46e02ec2699240a957d92782b51165b93878b09dd66f61; // keccak256("relayerValid")
     uint256 constant BPS_MAX = 10000;
     event Swapped(AMMWrapperWithPath.TxMetaData, AMMLibEIP712.Order order);
 
@@ -25,16 +26,15 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
 
     address user = vm.addr(userPrivateKey);
     address relayer = address(0x133702);
+    address psOperator;
     address[] wallet = [user, relayer];
 
     AMMWrapperWithPath ammWrapperWithPath;
     AMMQuoter ammQuoter;
-    IERC20 weth = IERC20(WETH_ADDRESS);
-    IERC20 usdt = IERC20(USDT_ADDRESS);
-    IERC20 usdc = IERC20(USDC_ADDRESS);
-    IERC20 dai = IERC20(DAI_ADDRESS);
-    IERC20 wbtc = IERC20(WBTC_ADDRESS);
-    IERC20[] tokens = [weth, usdt, usdc, dai, wbtc];
+    IERC20 weth;
+    IERC20 usdt;
+    IERC20 lon;
+    IERC20[] tokens;
 
     uint256 SUBSIDY_FACTOR = 3;
     uint256 DEADLINE = block.timestamp + 1;
@@ -51,13 +51,32 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
 
     // effectively a "beforeEach" block
     function setUp() public {
-        // Setup
-        setUpSystemContracts();
+        weth = IERC20(vm.envAddress("WETH_ADDRESS"));
+        usdt = IERC20(vm.envAddress("USDT_ADDRESS"));
+        lon = IERC20(vm.envAddress("LON_ADDRESS"));
+        tokens = [usdt, lon];
+        if (vm.envBool("mainnet")) {
+            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
+            spender = Spender(vm.envAddress("Spender_ADDRESS"));
+            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
+            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
+
+            ammWrapperWithPath = AMMWrapperWithPath(payable(vm.envAddress("AMMWRAPPER_ADDRESS")));
+
+            psOperator = permanentStorage.operator();
+        } else {
+            setUpSystemContracts();
+            psOperator = address(this);
+        }
+
         ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), address(weth));
         address[] memory relayerListAddress = new address[](1);
         relayerListAddress[0] = relayer;
         bool[] memory relayerListBool = new bool[](1);
         relayerListBool[0] = true;
+        vm.prank(psOperator, psOperator);
+        permanentStorage.setPermission(relayerValidStorageId, psOperator, true);
+        vm.prank(psOperator, psOperator);
         permanentStorage.setRelayersValid(relayerListAddress, relayerListBool);
 
         // Deal 100 ETH to each account
@@ -67,11 +86,11 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
 
         // Default order
         DEFAULT_ORDER = AMMLibEIP712.Order(
-            UNISWAP_V3_ADDRESS, // makerAddr
-            address(usdc), // takerAssetAddr
-            address(dai), // makerAssetAddr
-            100 * 1e6, // takerAssetAmount
-            90 * 1e18, // makerAssetAmount
+            UNISWAP_V2_ADDRESS, // makerAddr
+            address(usdt), // takerAssetAddr
+            address(lon), // makerAssetAddr
+            10 * 1e6, // takerAssetAmount
+            1, // makerAssetAmount
             user, // userAddr
             payable(user), // receiverAddr
             uint256(1234), // salt
@@ -90,11 +109,8 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
         vm.label(relayer, "Relayer");
         vm.label(address(this), "TestingContract");
         vm.label(address(ammWrapperWithPath), "AMMWrapperWithPathContract");
-        vm.label(address(weth), "WETH");
         vm.label(address(usdt), "USDT");
-        vm.label(address(usdc), "USDC");
-        vm.label(address(dai), "DAI");
-        vm.label(address(wbtc), "WBTC");
+        vm.label(address(lon), "LON");
         vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
         vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
         vm.label(UNISWAP_V3_ADDRESS, "UniswapV3");
@@ -118,248 +134,6 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
         return address(ammWrapperWithPath);
     }
 
-    /*********************************
-     *          Test: setup          *
-     *********************************/
-
-    function testSetupAllowance() public {
-        for (uint256 i = 0; i < tokens.length; i++) {
-            assertEq(tokens[i].allowance(user, address(allowanceTarget)), type(uint256).max);
-        }
-    }
-
-    function testSetupAMMWrapperWithPath() public {
-        assertEq(ammWrapperWithPath.operator(), address(this));
-        assertEq(ammWrapperWithPath.subsidyFactor(), SUBSIDY_FACTOR);
-        assertEq(ammWrapperWithPath.userProxy(), address(userProxy));
-        assertEq(address(ammWrapperWithPath.spender()), address(spender));
-        assertEq(userProxy.ammWrapperAddr(), address(ammWrapperWithPath));
-        assertEq(permanentStorage.ammWrapperAddr(), address(ammWrapperWithPath));
-        assertTrue(spender.isAuthorized(address(ammWrapperWithPath)));
-        assertTrue(permanentStorage.isRelayerValid(relayer));
-    }
-
-    /*********************************
-     *          Test: trade          *
-     *********************************/
-
-    function testCannotTradeWithInvalidSig() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory sig = _signTrade(otherPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, bytes(""), new address[](0));
-
-        vm.expectRevert("AMMWrapper: invalid user signature");
-        userProxy.toAMM(payload);
-    }
-
-    function testTradeSushiswap_SingleHop() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAddr = SUSHISWAP_ADDRESS;
-        order.makerAssetAddr = ETH_ADDRESS;
-        order.makerAssetAmount = 0.001 ether;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, bytes(""), new address[](0));
-
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
-
-        userProxy.toAMM(payload);
-
-        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
-    }
-
-    function testTradeSushiswap_MultiHop() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAddr = SUSHISWAP_ADDRESS;
-        order.makerAssetAddr = ETH_ADDRESS;
-        order.makerAssetAmount = 0.001 ether;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        address[] memory path = DEFAULT_MULTI_HOP_PATH;
-        path[1] = address(dai);
-        path[2] = address(weth);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, bytes(""), path);
-
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
-
-        userProxy.toAMM(payload);
-
-        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
-    }
-
-    function testTradeCurveVersion1() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAddr = CURVE_USDT_POOL_ADDRESS;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeCurveData(1), new address[](0));
-
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
-
-        userProxy.toAMM(payload);
-
-        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
-    }
-
-    function testCannotTradeUniswapV3_SinglePool_InvalidSwapType() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapSinglePoolData(0, FEE_MEDIUM), new address[](0));
-
-        vm.expectRevert("AMMWrapper: unsupported UniswapV3 swap type");
-        userProxy.toAMM(payload);
-
-        payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapSinglePoolData(3, FEE_MEDIUM), new address[](0));
-
-        // No revert string as it violates SwapType enum's sanity check
-        vm.expectRevert();
-        userProxy.toAMM(payload);
-    }
-
-    function testCannotTradeUniswapV3_SinglePool_InvalidPoolFee() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapSinglePoolData(SINGLE_POOL_SWAP_TYPE, 0), new address[](0));
-
-        // No revert string for invalid pool fee
-        vm.expectRevert();
-        userProxy.toAMM(payload);
-
-        payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapSinglePoolData(3, type(uint24).max), new address[](0));
-
-        // No revert string for invalid pool fee
-        vm.expectRevert();
-        userProxy.toAMM(payload);
-    }
-
-    function testTradeUniswapV3_ExactInputSingle() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerAssetAddr = ETH_ADDRESS;
-        order.makerAssetAmount = 0.001 ether;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapSinglePoolData(SINGLE_POOL_SWAP_TYPE, FEE_MEDIUM), new address[](0));
-
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
-
-        userProxy.toAMM(payload);
-
-        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
-    }
-
-    function testCannotTradeUniswapV3_MultiPool_InvalidPath_InvalidPathFormat() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        address[] memory path = DEFAULT_MULTI_HOP_PATH;
-        bytes memory garbageData = new bytes(0);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, abi.encode(MULTI_POOL_SWAP_TYPE, garbageData), path);
-
-        vm.expectRevert("toAddress_outOfBounds");
-        userProxy.toAMM(payload);
-
-        garbageData = new bytes(2);
-        garbageData[0] = "5";
-        garbageData[1] = "5";
-        payload = _genTradePayload(order, feeFactor, sig, abi.encode(MULTI_POOL_SWAP_TYPE, garbageData), path);
-
-        vm.expectRevert("toAddress_outOfBounds");
-        userProxy.toAMM(payload);
-    }
-
-    function testCannotTradeUniswapV3_MultiPool_InvalidPath_InvalidFeeFormat() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        address[] memory path = new address[](1);
-        path[0] = order.takerAssetAddr;
-        uint24[] memory fees = new uint24[](0); // No fees specified
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, path, fees), path);
-
-        vm.expectRevert("toUint24_outOfBounds");
-        userProxy.toAMM(payload);
-    }
-
-    function testCannotTradeUniswapV3_MultiPool_InvalidPath_MismatchAsset() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        address[] memory path = DEFAULT_MULTI_HOP_PATH;
-        path[0] = user;
-        uint24[] memory fees = DEFAULT_MULTI_HOP_POOL_FEES;
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, path, fees), path);
-
-        vm.expectRevert("UniswapV3: first element of path must match token in");
-        userProxy.toAMM(payload);
-
-        path = DEFAULT_MULTI_HOP_PATH;
-        path[2] = user;
-        payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, path, fees), path);
-        vm.expectRevert("UniswapV3: last element of path must match token out");
-        userProxy.toAMM(payload);
-    }
-
-    function testTradeUniswapV3_ExactInput_SingleHop() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        address[] memory path = DEFAULT_MULTI_HOP_PATH;
-        uint24[] memory fees = DEFAULT_MULTI_HOP_POOL_FEES;
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, path, fees), path);
-
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
-
-        userProxy.toAMM(payload);
-
-        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
-    }
-
-    function testTradeUniswapV3_ExactInput_MultiHop() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        address[] memory path = DEFAULT_MULTI_HOP_PATH;
-        uint24[] memory fees = DEFAULT_MULTI_HOP_POOL_FEES;
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, path, fees), path);
-
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
-
-        userProxy.toAMM(payload);
-
-        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
-        userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
-    }
-
-    function testCannotTradeWithSamePayloadAgain() public {
-        uint256 feeFactor = 0;
-        AMMLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, _encodeUniswapSinglePoolData(SINGLE_POOL_SWAP_TYPE, FEE_MEDIUM), new address[](0));
-
-        userProxy.toAMM(payload);
-
-        vm.expectRevert("PermanentStorage: transaction seen before");
-        userProxy.toAMM(payload);
-    }
-
-    /*********************************
-     *       Test: emit event        *
-     *********************************/
-
     function testEmitSwappedEvent() public {
         uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
@@ -368,27 +142,7 @@ contract AMMWrapperWithPathTest is StrategySharedSetup {
         uint24[] memory fees = DEFAULT_MULTI_HOP_POOL_FEES;
         bytes memory makerSpecificData = _encodeUniswapMultiPoolData(MULTI_POOL_SWAP_TYPE, path, fees);
         bytes memory payload = _genTradePayload(order, feeFactor, sig, makerSpecificData, path);
-        // Set subsidy factor to 0
-        ammWrapperWithPath.setSubsidyFactor(0);
 
-        uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
-            order.makerAddr,
-            order.takerAssetAddr,
-            order.makerAssetAddr,
-            order.takerAssetAmount,
-            path,
-            makerSpecificData
-        );
-        vm.expectEmit(false, false, false, true);
-        AMMWrapperWithPath.TxMetaData memory txMetaData = AMMWrapper.TxMetaData(
-            "Uniswap V3", // source
-            AMMLibEIP712._getOrderHash(order), // transactionHash
-            expectedOutAmount, // settleAmount: no fee so settled amount is the same as received amount
-            expectedOutAmount, // receivedAmount
-            uint16(feeFactor), // Fee factor: 0
-            uint16(0) // Subsidy factor: 0
-        );
-        emit Swapped(txMetaData, order);
         userProxy.toAMM(payload);
     }
 
