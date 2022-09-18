@@ -2,6 +2,8 @@
 pragma solidity 0.7.6;
 import "contracts/test/veLON/Setup.t.sol";
 
+import "contracts/veReward.sol";
+
 contract TestVeLONWithfraw is TestVeLON {
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
@@ -25,6 +27,9 @@ contract TestVeLONWithfraw is TestVeLON {
     }
 
     function testWithdrawEarly() public {
+        veReward veRwd = new veReward(address(this), veLon, lon);
+        veLon.setVeReward(address(veRwd));
+        veRwd.addWhitelist(address(veLon));
         uint256 tokenId = _stakeAndValidate(user, DEFAULT_STAKE_AMOUNT, 2 weeks);
 
         stakerLon = BalanceSnapshot.take(user, address(lon));

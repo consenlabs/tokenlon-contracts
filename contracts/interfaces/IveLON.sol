@@ -30,6 +30,7 @@ interface IveLON is IERC721, IERC721Metadata {
     // TODO need this event?
     // event Supply(uint256 prevSupply, uint256 supply);?
 
+
     function vBalanceOf(uint256 _tokenId) external view returns (uint256);
 
     function vBalanceOfAtTime(uint256 _tokenId, uint256 _t) external view returns (uint256);
@@ -37,6 +38,8 @@ interface IveLON is IERC721, IERC721Metadata {
     function vBalanceOfAtBlk(uint256 _tokenId, uint256 _block) external view returns (uint256);
 
     function unlockTime(uint256 _tokenId) external view returns (uint256);
+
+    function setVeReward(address _veReward) external;
 
     function createLock(uint256 _value, uint256 _lockDuration) external returns (uint256);
 

@@ -40,7 +40,7 @@ contract veReward is IveReward {
     }
 
     modifier onlyWhitelist() {
-        require(whitelist[msg.sender]);
+        require(whitelist[msg.sender], "only whitelist");
         _;
     }
 

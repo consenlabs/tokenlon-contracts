@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
 
 import "./interfaces/IveLON.sol";
+import "./interfaces/IveReward.sol";
 import "./interfaces/ILon.sol";
 import "./Ownable.sol";
 
@@ -23,6 +24,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     uint256 public epoch;
     uint256 public maxLockDuration = 365 days;
     uint256 public earlyWithdrawPenaltyRate = 3000;
+    address public veReward;
 
     mapping(uint256 => Point) public poolPointHistory; // epoch -> unsignd point
     mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[user_epoch]
@@ -158,6 +160,12 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         return locked[_tokenId].end;
     }
 
+    /// @notice Set veReward address
+    /// @param _veReward veReward address
+    function setVeReward(address _veReward) external override {
+        veReward = _veReward;
+    }
+
     /// @notice Deposit `_value` tokens for `msg.sender` and lock for `_lock_duration`
     /// @param _value Amount to deposit
     /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
@@ -276,8 +284,10 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         uint256 penalty = 0;
         if (!expired) {
             penalty = (amount.mul(earlyWithdrawPenaltyRate)).div(PENALTY_RATE_PRECISION);
+            (penalty.mul(_locked.end - block.timestamp)).div(maxLockDuration);
             amount = amount.sub(penalty);
-            ILon(token).burn(penalty);
+            IERC20(token).transfer(veReward, penalty);
+            IveReward(veReward).addRewardForNextWeek(penalty);
         }
         require(IERC20(token).transfer(owner, amount), "Token withdraw failed");
 
