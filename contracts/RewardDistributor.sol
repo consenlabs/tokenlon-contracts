@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 
 import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ILon.sol";
+import "./interfaces/IveReward.sol";
 import "./Ownable.sol";
 
 contract RewardDistributor is Ownable, Pausable {
@@ -392,6 +393,7 @@ contract RewardDistributor is Ownable, Pausable {
         uint256 lonStakingAmount = swappedLonAmount.sub(treasuryAmount);
         if (lonStakingAmount > 0) {
             IERC20(LON_TOKEN_ADDR).safeTransfer(lonStaking, lonStakingAmount);
+            IveReward(lonStaking).addRewardForNextWeek(lonStakingAmount);
         }
 
         emit DistributeLon(treasuryAmount, lonStakingAmount);
@@ -444,6 +446,7 @@ contract RewardDistributor is Ownable, Pausable {
             uint256 _lonToStaking = _amount.sub(_lonToTreasury);
             _transferFeeToken(LON_TOKEN_ADDR, treasury, _lonToTreasury);
             _transferFeeToken(LON_TOKEN_ADDR, lonStaking, _lonToStaking);
+            IveReward(lonStaking).addRewardForNextWeek(_lonToStaking);
             emit DistributeLon(_lonToTreasury, _lonToStaking);
             _mintLon(_amount);
 

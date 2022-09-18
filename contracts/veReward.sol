@@ -5,17 +5,10 @@ pragma abicoder v2;
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import "./interfaces/IveLON.sol";
+import "./interfaces/IveReward.sol";
 
-contract veReward {
+contract veReward is IveReward {
     using SafeERC20 for IERC20;
-
-    struct EpochInfo {
-        uint256 startTime;
-        uint256 endTime;
-        uint256 rewardPerSecond; // totalReward * RewardMultiplier / (endBlock - startBlock)
-        uint256 totalPower;
-        uint256 startBlock;
-    }
 
     /// @dev RewardMultiplier
     uint256 public constant RewardMultiplier = 10000000;
@@ -33,27 +26,23 @@ contract veReward {
     /// @dev user's last claim time.
     mapping(uint256 => mapping(uint256 => uint256)) public userLastClaimTime; // tokenId -> epoch id -> last claim timestamp
 
-    struct Point {
-        uint256 ts;
-        uint256 blk; // block
-    }
-
     /// @dev list of checkpoints, used in getBlockByTime
     Point[] public point_history;
 
     address public admin;
     address public pendingAdmin;
 
+    mapping(address=>bool) public whitelist;
+
     modifier onlyAdmin() {
         require(msg.sender == admin);
         _;
     }
 
-    event LogClaimReward(uint256 tokenId, uint256 reward);
-    event LogAddEpoch(uint256 epochId, EpochInfo epochInfo);
-    event LogAddEpoch(uint256 startTime, uint256 epochLength, uint256 epochCount, uint256 startEpochId);
-    event LogTransferAdmin(address pendingAdmin);
-    event LogAcceptAdmin(address admin);
+    modifier onlyWhitelist() {
+        require(whitelist[msg.sender]);
+        _;
+    }
 
     constructor(
         address _admin,
@@ -64,24 +53,36 @@ contract veReward {
         veLON = _veLON;
         rewardToken = _rewardToken;
 
+        whitelist[_admin] = true;
+
         // add init point
         addCheckpoint();
     }
 
-    function withdrawFee(uint256 amount) external onlyAdmin {
+    function withdrawFee(uint256 amount) external override onlyAdmin {
         IERC20(rewardToken).safeTransfer(admin, amount);
     }
 
-    function transferAdmin(address _admin) external onlyAdmin {
+    function transferAdmin(address _admin) external override onlyAdmin {
         pendingAdmin = _admin;
         emit LogTransferAdmin(pendingAdmin);
     }
 
-    function acceptAdmin() external {
+    function acceptAdmin() external override {
         require(msg.sender == pendingAdmin);
+        whitelist[admin] = false;
+        whitelist[pendingAdmin] = true;
         admin = pendingAdmin;
         pendingAdmin = address(0);
         emit LogAcceptAdmin(admin);
+    }
+
+    function addWhitelist(address _addr) external onlyAdmin {
+        whitelist[_addr] = true;
+    }
+
+    function removeWhitelist(address _addr) external onlyAdmin {
+        whitelist[_addr] = false;
     }
 
     /// @notice add checkpoint to point_history
@@ -177,27 +178,34 @@ contract veReward {
     }
 
     /// @notice set epoch reward
-    function updateEpochReward(uint256 epochId, uint256 totalReward) external onlyAdmin {
+    function updateEpochReward(uint256 epochId, uint256 totalReward) external override onlyAdmin {
         _updateEpochReward(epochId, totalReward);
     }
 
     function _updateEpochReward(uint256 epochId, uint256 totalReward) internal {
-        require(block.timestamp < epochInfo[epochId].startTime);
+        require(block.timestamp < epochInfo[epochId].startTime, "addRewardForNextWeek: time not match");
         epochInfo[epochId].rewardPerSecond = (totalReward * RewardMultiplier) / (epochInfo[epochId].endTime - epochInfo[epochId].startTime);
     }
 
-    function addRewardForNextWeek(uint256 totalReward) external onlyWhitelist {
+    function addRewardForNextWeek(uint256 totalReward) external override onlyWhitelist {
         uint256 startTime = block.timestamp / 1 weeks * 1 weeks + 1 weeks;
         uint256 endTime = startTime + 1 weeks;
-        uint256 epochId = getEpochIdByTime(startTime);
-        if (epochInfo[epochId].startTime == startTime) {
-            _updateEpochReward(epochId, totalReward);
-        } else if (epochInfo[epochId].endTime <= startTime) {
+        if (epochInfo.length > 0) {
+            uint256 epochId = 0;
+            if (epochInfo.length > 1) {
+                epochId = getEpochIdByTime(startTime);
+            } 
+            if (epochInfo[epochId].startTime == startTime) {
+                _updateEpochReward(epochId, totalReward);
+            } else if (epochInfo[epochId].endTime <= startTime) {
+                _addEpoch(startTime, endTime, totalReward);
+            }
+        } else  {
             _addEpoch(startTime, endTime, totalReward);
         }
     }
 
-    function addRewardForNextWeeksBatch(uint256 totalReward, uint256 epochCount) external onlyWhitelist {
+    function addRewardForNextWeeksBatch(uint256 totalReward, uint256 epochCount) external override onlyWhitelist {
         uint256 startTime = block.timestamp / 1 weeks * 1 weeks + 1 weeks;
         _addEpochBatch(startTime, 1 weeks, epochCount, totalReward);
     }
@@ -246,17 +254,6 @@ contract veReward {
         if (epochInfo[epochId].totalPower == 1) {
             epochInfo[epochId].totalPower = veLON.totalvBalanceAtBlk(epochInfo[epochId].startBlock);
         }
-    }
-
-    struct Interval {
-        uint256 startEpoch;
-        uint256 endEpoch;
-    }
-
-    struct IntervalReward {
-        uint256 startEpoch;
-        uint256 endEpoch;
-        uint256 reward;
     }
 
     function claimRewardMany(uint256[] calldata tokenIds, Interval[][] calldata intervals) public returns (uint256[] memory rewards) {
@@ -332,14 +329,6 @@ contract veReward {
             }
         }
         return _min;
-    }
-
-    /**
-    External read functions
-     */
-    struct RewardInfo {
-        uint256 epochId;
-        uint256 reward;
     }
 
     /// @notice get epoch info
