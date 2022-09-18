@@ -122,39 +122,17 @@ contract veReward {
         return point0.blk + dblock;
     }
 
-    /// @notice add one epoch
-    /// @return epochId
-    /// @return accurateTotalReward
-    function addEpoch(
-        uint256 startTime,
-        uint256 endTime,
-        uint256 totalReward
-    ) external onlyAdmin returns (uint256, uint256) {
-        assert(block.timestamp < endTime && startTime < endTime);
-        if (epochInfo.length > 0) {
-            require(epochInfo[epochInfo.length - 1].endTime <= startTime);
-        }
-        (uint256 epochId, uint256 accurateTotalReward) = _addEpoch(startTime, endTime, totalReward);
-        uint256 lastPointTime = point_history[point_history.length - 1].ts;
-        if (lastPointTime < block.timestamp) {
-            addCheckpoint();
-        }
-        emit LogAddEpoch(epochId, epochInfo[epochId]);
-        return (epochId, accurateTotalReward);
-    }
-
     /// @notice add a batch of continuous epochs
     /// @return firstEpochId
     /// @return lastEpochId
     /// @return accurateTotalReward
-    function addEpochBatch(
+    function _addEpochBatch(
         uint256 startTime,
         uint256 epochLength,
         uint256 epochCount,
         uint256 totalReward
     )
-        external
-        onlyAdmin
+        internal
         returns (
             uint256,
             uint256,
@@ -200,8 +178,28 @@ contract veReward {
 
     /// @notice set epoch reward
     function updateEpochReward(uint256 epochId, uint256 totalReward) external onlyAdmin {
+        _updateEpochReward(epochId, totalReward);
+    }
+
+    function _updateEpochReward(uint256 epochId, uint256 totalReward) internal {
         require(block.timestamp < epochInfo[epochId].startTime);
         epochInfo[epochId].rewardPerSecond = (totalReward * RewardMultiplier) / (epochInfo[epochId].endTime - epochInfo[epochId].startTime);
+    }
+
+    function addRewardForNextWeek(uint256 totalReward) external onlyWhitelist {
+        uint256 startTime = block.timestamp / 1 weeks * 1 weeks + 1 weeks;
+        uint256 endTime = startTime + 1 weeks;
+        uint256 epochId = getEpochIdByTime(startTime);
+        if (epochInfo[epochId].startTime == startTime) {
+            _updateEpochReward(epochId, totalReward);
+        } else if (epochInfo[epochId].endTime <= startTime) {
+            _addEpoch(startTime, endTime, totalReward);
+        }
+    }
+
+    function addRewardForNextWeeksBatch(uint256 totalReward, uint256 epochCount) external onlyWhitelist {
+        uint256 startTime = block.timestamp / 1 weeks * 1 weeks + 1 weeks;
+        _addEpochBatch(startTime, 1 weeks, epochCount, totalReward);
     }
 
     /// @notice query pending reward by epoch
