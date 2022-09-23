@@ -410,7 +410,7 @@ contract RFQTest is StrategySharedSetup {
      *********************************/
 
     function _expectEvent(RFQLibEIP712.Order memory order) internal {
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(true, true, true, true);
         emit FillOrder(
             "RFQ v1",
             RFQLibEIP712._getTransactionHash(order),

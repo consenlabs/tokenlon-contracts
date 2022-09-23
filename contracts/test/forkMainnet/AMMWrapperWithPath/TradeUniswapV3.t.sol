@@ -300,7 +300,7 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
                 DEFAULT_MULTI_HOP_PATH,
                 makerSpecificData
             );
-            vm.expectEmit(false, false, false, true);
+            vm.expectEmit(true, true, true, true);
             emit Swapped(
                 "Uniswap V3",
                 AMMLibEIP712._getOrderHash(order),
