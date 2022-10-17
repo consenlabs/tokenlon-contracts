@@ -101,11 +101,11 @@ contract TestAMMWrapper is StrategySharedSetup {
     function _deployStrategyAndUpgrade() internal override returns (address) {
         ammWrapper = new AMMWrapper(
             address(this), // This contract would be the operator
-            DEFAULT_FEE_FACTOR,
             address(userProxy),
-            ISpender(address(spender)),
-            permanentStorage,
-            IWETH(address(weth)),
+            address(weth),
+            address(permanentStorage),
+            address(spender),
+            DEFAULT_FEE_FACTOR,
             UNISWAP_V2_ADDRESS,
             SUSHISWAP_ADDRESS,
             feeCollector

@@ -31,18 +31,18 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
      *              Constructor and init functions               *
      *************************************************************/
     constructor(
-        address _operator,
-        uint16 _defaultFeeFactor,
+        address _owner,
         address _userProxy,
-        ISpender _spender,
-        IPermanentStorage _permStorage,
-        IWETH _weth,
+        address _weth,
+        address _permStorage,
+        address _spender,
+        uint16 _defaultFeeFactor,
         address _uniswapV2Router,
-        address _sushiwapRouter,
         address _uniswapV3Router,
+        address _sushiwapRouter,
         address _balancerV2Vault,
-        address feeCollector
-    ) AMMWrapper(_operator, _defaultFeeFactor, _userProxy, _spender, _permStorage, _weth, _uniswapV2Router, _sushiwapRouter, feeCollector) {
+        address _feeCollector
+    ) AMMWrapper(_owner, _userProxy, _weth, _permStorage, _spender, _defaultFeeFactor, _uniswapV2Router, _sushiwapRouter, _feeCollector) {
         UNISWAP_V3_ROUTER_ADDRESS = _uniswapV3Router;
         BALANCER_V2_VAULT_ADDRESS = _balancerV2Vault;
     }

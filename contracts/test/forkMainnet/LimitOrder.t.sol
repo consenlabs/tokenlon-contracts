@@ -144,12 +144,12 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
         limitOrder = new LimitOrder(
-            address(this), // This contract would be the operator
-            coordinator,
+            address(this), // This contract would be the owner
             address(userProxy),
-            ISpender(address(spender)),
-            IPermanentStorage(address(permanentStorage)),
-            IWETH(address(weth)),
+            address(weth),
+            address(permanentStorage),
+            address(spender),
+            coordinator,
             UNISWAP_V3_ADDRESS,
             SUSHISWAP_ADDRESS,
             feeCollector
@@ -167,7 +167,7 @@ contract LimitOrderTest is StrategySharedSetup {
      *********************************/
 
     function testSetupLimitOrder() public {
-        assertEq(limitOrder.operator(), address(this));
+        assertEq(limitOrder.owner(), address(this));
         assertEq(limitOrder.coordinator(), coordinator);
         assertEq(limitOrder.userProxy(), address(userProxy));
         assertEq(address(limitOrder.spender()), address(spender));
@@ -185,34 +185,37 @@ contract LimitOrderTest is StrategySharedSetup {
      *     Test: transferOwnership   *
      *********************************/
 
-    function testCannotTransferOwnershipByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotTransferOwnershipByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
-        limitOrder.transferOwnership(user);
+        limitOrder.nominateNewOwner(user);
     }
 
-    function testCannotTransferOwnershipToZeroAddr() public {
-        vm.expectRevert("LimitOrder: operator can not be zero address");
-        limitOrder.transferOwnership(address(0));
+    function testCannotAcceptOwnershipIfNotNominated() public {
+        vm.expectRevert("not nominated");
+        vm.prank(user);
+        limitOrder.acceptOwnership();
     }
 
     function testTransferOwnership() public {
-        limitOrder.transferOwnership(user);
-        assertEq(limitOrder.operator(), user);
+        limitOrder.nominateNewOwner(user);
+        vm.prank(user);
+        limitOrder.acceptOwnership();
+        assertEq(limitOrder.owner(), user);
     }
 
     /*********************************
      *     Test: upgradeSpender      *
      *********************************/
 
-    function testCannotUpgradeSpenderByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotUpgradeSpenderByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.upgradeSpender(user);
     }
 
     function testCannotUpgradeSpenderToZeroAddr() public {
-        vm.expectRevert("LimitOrder: spender can not be zero address");
+        vm.expectRevert("Strategy: spender can not be zero address");
         limitOrder.upgradeSpender(address(0));
     }
 
@@ -225,8 +228,8 @@ contract LimitOrderTest is StrategySharedSetup {
      *     Test: upgradeCoordinator  *
      *********************************/
 
-    function testCannotUpgradeCoordinatorByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotUpgradeCoordinatorByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.upgradeCoordinator(user);
     }
@@ -245,14 +248,14 @@ contract LimitOrderTest is StrategySharedSetup {
      *   Test: set/close allowance   *
      *********************************/
 
-    function testCannotSetAllowanceByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotSetAllowanceByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.setAllowance(tokenAddrs, address(allowanceTarget));
     }
 
-    function testCannotCloseAllowanceByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotCloseAllowanceByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.closeAllowance(tokenAddrs, address(allowanceTarget));
     }
@@ -273,8 +276,8 @@ contract LimitOrderTest is StrategySharedSetup {
      *        Test: depoitETH        *
      *********************************/
 
-    function testCannotDepositETHByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotDepositETHByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.depositETH();
     }
@@ -311,8 +314,8 @@ contract LimitOrderTest is StrategySharedSetup {
      *     Test: setFeeCollector     *
      *********************************/
 
-    function testCannotSetFeeCollectorByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotSetFeeCollectorByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.setFeeCollector(feeCollector);
     }
@@ -332,7 +335,7 @@ contract LimitOrderTest is StrategySharedSetup {
      *********************************/
 
     function testCannotFillByTraderIfNotFromUserProxy() public {
-        vm.expectRevert("LimitOrder: not the UserProxy contract");
+        vm.expectRevert("Strategy: not from UserProxy contract");
         // Call limit order contract directly will get reverted since msg.sender is not from UserProxy
         limitOrder.fillLimitOrderByTrader(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
     }
@@ -807,7 +810,7 @@ contract LimitOrderTest is StrategySharedSetup {
     }
 
     function testCannotFillByProtocolIfNotFromUserProxy() public {
-        vm.expectRevert("LimitOrder: not the UserProxy contract");
+        vm.expectRevert("Strategy: not from UserProxy contract");
         // Call limit order contract directly will get reverted since msg.sender is not from UserProxy
         limitOrder.fillLimitOrderByProtocol(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
     }
