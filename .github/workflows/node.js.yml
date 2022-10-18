@@ -40,6 +40,7 @@ jobs:
           yarn run compile
       - name: Test
         env:
+          deployed: false
           MAINNET_NODE_RPC_URL: ${{ secrets.MAINNET_NODE_RPC_URL }}
           FORK_BLOCK_NUMBER: 15451000
         run: |
