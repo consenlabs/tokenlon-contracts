@@ -41,17 +41,18 @@ contract RFQTest is StrategySharedSetup {
 
     address user = vm.addr(userPrivateKey);
     address maker = vm.addr(makerPrivateKey);
-    address feeCollector = address(0x133701);
-    address receiver = address(0x133702);
+    address owner;
+    address feeCollector;
+    address receiver = makeAddr("receiver");
     address[] wallet = [user, maker];
 
     MockERC1271Wallet mockERC1271Wallet;
     MarketMakerProxy marketMakerProxy;
     RFQ rfq;
-    MockWETH weth = new MockWETH("Wrapped ETH", "WETH", 18);
-    IERC20 usdt = new MockERC20("USDT", "USDT", 6);
-    IERC20 dai = new MockERC20("DAI", "DAI", 18);
-    IERC20[] tokens = [weth, usdt, dai];
+    IERC20 weth;
+    IERC20 usdt;
+    IERC20 dai;
+    IERC20[] tokens;
 
     uint256 DEADLINE = block.timestamp + 1;
     RFQLibEIP712.Order DEFAULT_ORDER;
@@ -59,7 +60,31 @@ contract RFQTest is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
-        setUpSystemContracts();
+        if (vm.envBool("deployed")) {
+            weth = IERC20(vm.envAddress("WETH_ADDRESS"));
+            usdt = IERC20(vm.envAddress("USDT_ADDRESS"));
+            dai = IERC20(vm.envAddress("DAI_ADDRESS"));
+
+            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
+            spender = Spender(vm.envAddress("Spender_ADDRESS"));
+            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
+            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
+
+            rfq = RFQ(payable(vm.envAddress("RFQ_ADDRESS")));
+            owner = rfq.owner();
+            feeCollector = rfq.feeCollector();
+        } else {
+            weth = IERC20(address(new MockWETH("Wrapped ETH", "WETH", 18)));
+            usdt = new MockERC20("USDT", "USDT", 6);
+            dai = new MockERC20("DAI", "DAI", 18);
+
+            owner = makeAddr("owner");
+            feeCollector = makeAddr("feeCollector");
+
+            setUpSystemContracts();
+        }
+        tokens = [weth, usdt, dai];
+
         vm.prank(maker);
         marketMakerProxy = new MarketMakerProxy();
         mockERC1271Wallet = new MockERC1271Wallet(user);
@@ -110,14 +135,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
-        rfq = new RFQ(
-            address(this), // This contract would be the owner
-            address(userProxy),
-            address(weth),
-            address(permanentStorage),
-            address(spender),
-            feeCollector
-        );
+        rfq = new RFQ(owner, address(userProxy), address(weth), address(permanentStorage), address(spender), feeCollector);
         // Setup
         userProxy.upgradeRFQ(address(rfq), true);
         permanentStorage.upgradeRFQ(address(rfq));
@@ -139,7 +157,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testSetupRFQ() public {
-        assertEq(rfq.owner(), address(this));
+        assertEq(rfq.owner(), owner);
         assertEq(rfq.userProxy(), address(userProxy));
         assertEq(address(rfq.spender()), address(spender));
         assertEq(address(rfq.weth()), address(weth));
@@ -161,10 +179,12 @@ contract RFQTest is StrategySharedSetup {
 
     function testCannotUpgradeSpenderToZeroAddress() public {
         vm.expectRevert("Strategy: spender can not be zero address");
+        vm.prank(owner, owner);
         rfq.upgradeSpender(address(0));
     }
 
     function testUpgradeSpender() public {
+        vm.prank(owner, owner);
         rfq.upgradeSpender(user);
         assertEq(address(rfq.spender()), user);
     }
@@ -189,11 +209,14 @@ contract RFQTest is StrategySharedSetup {
         address[] memory allowanceTokenList = new address[](1);
         allowanceTokenList[0] = address(usdt);
 
+        vm.prank(owner, owner);
         assertEq(usdt.allowance(address(rfq), address(this)), uint256(0));
 
+        vm.prank(owner, owner);
         rfq.setAllowance(allowanceTokenList, address(this));
         assertEq(usdt.allowance(address(rfq), address(this)), type(uint256).max);
 
+        vm.prank(owner, owner);
         rfq.closeAllowance(allowanceTokenList, address(this));
         assertEq(usdt.allowance(address(rfq), address(this)), uint256(0));
     }
@@ -211,6 +234,7 @@ contract RFQTest is StrategySharedSetup {
     function testDepositETH() public {
         deal(address(rfq), 1 ether);
         assertEq(address(rfq).balance, 1 ether);
+        vm.prank(owner, owner);
         rfq.depositETH();
         assertEq(address(rfq).balance, uint256(0));
         assertEq(weth.balanceOf(address(rfq)), 1 ether);
@@ -227,6 +251,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testSetFeeCollector() public {
+        vm.prank(owner, owner);
         rfq.setFeeCollector(user);
         assertEq(rfq.feeCollector(), user);
     }
