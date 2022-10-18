@@ -12,10 +12,12 @@ contract TestAMMWrapperUpgradeSpender is TestAMMWrapper {
 
     function testCannotUpgradeToZeroAddress() public {
         vm.expectRevert("Strategy: spender can not be zero address");
+        vm.prank(owner, owner);
         ammWrapper.upgradeSpender(address(0));
     }
 
     function testUpgradeSpender() public {
+        vm.prank(owner, owner);
         ammWrapper.upgradeSpender(user);
         assertEq(address(ammWrapper.spender()), user);
     }

@@ -11,22 +11,25 @@ import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract TestAMMWrapper is StrategySharedSetup {
     uint256 constant BPS_MAX = 10000;
+    bytes32 public constant relayerValidStorageId = 0x2c97779b4deaf24e9d46e02ec2699240a957d92782b51165b93878b09dd66f61; // keccak256("relayerValid")
 
     uint256 userPrivateKey = uint256(1);
     uint256 otherPrivateKey = uint256(2);
 
     address user = vm.addr(userPrivateKey);
-    address feeCollector = address(0x133701);
-    address relayer = address(0x133702);
+    address owner;
+    address feeCollector;
+    address relayer = makeAddr("relayer");
+    address psOperator;
     address[] wallet = [user, relayer];
 
     AMMWrapper ammWrapper;
     AMMQuoter ammQuoter;
-    IERC20 weth = IERC20(WETH_ADDRESS);
-    IERC20 usdt = IERC20(USDT_ADDRESS);
-    IERC20 dai = IERC20(DAI_ADDRESS);
-    IERC20 ankreth = IERC20(ANKRETH_ADDRESS);
-    IERC20[] tokens = [weth, usdt, dai, ankreth];
+    IERC20 weth;
+    IERC20 usdt;
+    IERC20 dai;
+    IERC20 ankreth;
+    IERC20[] tokens;
 
     uint16 DEFAULT_FEE_FACTOR = 500;
     uint256 DEADLINE = block.timestamp + 1;
@@ -49,23 +52,55 @@ contract TestAMMWrapper is StrategySharedSetup {
     event SetFeeCollector(address newFeeCollector);
 
     // effectively a "beforeEach" block
-    function setUp() public virtual {
-        // Deploy and Setup Spender, AllowanceTarget, UserProxy, Tokenlon,
-        // PermanentStorage, ProxyPermanentStorage, AMMWrapper contracts
-        setUpSystemContracts();
-        ammQuoter = new AMMQuoter(
-            UNISWAP_V2_ADDRESS,
-            UNISWAP_V3_ADDRESS,
-            UNISWAP_V3_QUOTER_ADDRESS,
-            SUSHISWAP_ADDRESS,
-            BALANCER_V2_ADDRESS,
-            IPermanentStorage(permanentStorage),
-            address(weth)
-        );
+    function setUp() public {
+        if (vm.envBool("deployed")) {
+            weth = IERC20(vm.envAddress("WETH_ADDRESS"));
+            usdt = IERC20(vm.envAddress("USDT_ADDRESS"));
+            dai = IERC20(vm.envAddress("DAI_ADDRESS"));
+            ankreth = IERC20(vm.envAddress("ANKRETH_ADDRESS"));
+
+            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
+            spender = Spender(vm.envAddress("Spender_ADDRESS"));
+            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
+            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
+            ammQuoter = AMMQuoter(vm.envAddress("AMMQuoter_ADDRESS"));
+
+            ammWrapper = AMMWrapper(payable(vm.envAddress("AMMWrapper_ADDRESS")));
+            owner = ammWrapper.owner();
+            feeCollector = ammWrapper.feeCollector();
+            psOperator = permanentStorage.operator();
+        } else {
+            weth = IERC20(WETH_ADDRESS);
+            usdt = IERC20(USDT_ADDRESS);
+            dai = IERC20(DAI_ADDRESS);
+            ankreth = IERC20(ANKRETH_ADDRESS);
+
+            owner = makeAddr("owner");
+            feeCollector = makeAddr("feeCollector");
+
+            // Deploy and Setup Spender, AllowanceTarget, UserProxy, Tokenlon,
+            // PermanentStorage, ProxyPermanentStorage, AMMWrapper contracts
+            setUpSystemContracts();
+            ammQuoter = new AMMQuoter(
+                UNISWAP_V2_ADDRESS,
+                UNISWAP_V3_ADDRESS,
+                UNISWAP_V3_QUOTER_ADDRESS,
+                SUSHISWAP_ADDRESS,
+                BALANCER_V2_ADDRESS,
+                IPermanentStorage(permanentStorage),
+                address(weth)
+            );
+            psOperator = address(this);
+        }
+        tokens = [weth, usdt, dai, ankreth];
+
         address[] memory relayerListAddress = new address[](1);
         relayerListAddress[0] = relayer;
         bool[] memory relayerListBool = new bool[](1);
         relayerListBool[0] = true;
+        vm.prank(psOperator, psOperator);
+        permanentStorage.setPermission(relayerValidStorageId, psOperator, true);
+        vm.prank(psOperator, psOperator);
         permanentStorage.setRelayersValid(relayerListAddress, relayerListBool);
 
         // Deal 100 ETH to each account
@@ -94,13 +129,14 @@ contract TestAMMWrapper is StrategySharedSetup {
         vm.label(address(weth), "WETH");
         vm.label(address(usdt), "USDT");
         vm.label(address(dai), "DAI");
+        vm.label(address(ankreth), "ANKRETH");
         vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
     }
 
     // Deploy the strategy contract by overriding the StrategySharedSetup.sol deployment function
     function _deployStrategyAndUpgrade() internal override returns (address) {
         ammWrapper = new AMMWrapper(
-            address(this), // This contract would be the operator
+            owner,
             address(userProxy),
             address(weth),
             address(permanentStorage),
