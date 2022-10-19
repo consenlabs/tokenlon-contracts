@@ -24,4 +24,15 @@ interface ISpender {
         address _receiverAddr,
         uint256 _amount
     ) external;
+
+    function spendFromUserToWithPermit(
+        address _tokenAddr,
+        address _requester,
+        address _user,
+        address _recipient,
+        uint256 _amount,
+        uint256 _salt,
+        uint64 _expiry,
+        bytes calldata _spendWithPermitSig
+    ) external;
 }

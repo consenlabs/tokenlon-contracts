@@ -6,13 +6,16 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./utils/LibConstant.sol";
 import "./utils/Ownable.sol";
+import "./utils/SpenderLibEIP712.sol";
+import "./utils/BaseLibEIP712.sol";
+import "./utils/SignatureValidator.sol";
 import "./interfaces/ISpender.sol";
 import "./interfaces/IAllowanceTarget.sol";
 
 /**
  * @dev Spender contract
  */
-contract Spender is ISpender, Ownable {
+contract Spender is ISpender, Ownable, BaseLibEIP712, SignatureValidator {
     using SafeMath for uint256;
 
     // Constants do not have storage slot.
@@ -32,6 +35,7 @@ contract Spender is ISpender, Ownable {
     mapping(address => bool) public consumeGasERC20Tokens;
     mapping(uint256 => address) public pendingAuthorized;
     mapping(address => bool) private authorized;
+    mapping(bytes32 => bool) private spendingFulfilled; // Store the fulfilled spending hash
     mapping(address => bool) private tokenBlacklist;
 
     /************************************************************
@@ -188,6 +192,54 @@ contract Spender is ISpender, Ownable {
         uint256 _amount
     ) external override onlyAuthorized {
         _transferTokenFromUserTo(_user, _tokenAddr, _recipient, _amount);
+    }
+
+    /// @dev Spend tokens on user's behalf with user's permit signature. Only an authority can call this.
+    /// @param _tokenAddr The address of the token.
+    /// @param _requester The address of strategy contract.
+    /// @param _user The user to spend token from.
+    /// @param _recipient The recipient of the token.
+    /// @param _amount Amount to spend.
+    /// @param _salt Salt for the permit.
+    /// @param _expiry Expiry for the permit.
+    /// @param _spendWithPermitSig Spend with permit signature.
+    function spendFromUserToWithPermit(
+        address _tokenAddr,
+        address _requester,
+        address _user,
+        address _recipient,
+        uint256 _amount,
+        uint256 _salt,
+        uint64 _expiry,
+        bytes calldata _spendWithPermitSig
+    ) external override onlyAuthorized {
+        require(_expiry > block.timestamp, "Spender: Permit is expired");
+
+        // Validate spend with permit signature
+        bytes32 spendWithPermitHash = getEIP712Hash({
+            structHash: SpenderLibEIP712._getSpendWithPermitHash(
+                SpenderLibEIP712.SpendWithPermit({
+                    tokenAddr: _tokenAddr,
+                    requester: _requester,
+                    user: _user,
+                    recipient: _recipient,
+                    amount: _amount,
+                    salt: _salt,
+                    expiry: _expiry
+                })
+            )
+        });
+
+        require(
+            isValidSignature({ _signerAddress: _user, _hash: spendWithPermitHash, _data: bytes(""), _sig: _spendWithPermitSig }),
+            "Spender: Invalid permit signature"
+        );
+
+        // Validate spending is not replayed
+        require(!spendingFulfilled[spendWithPermitHash], "Spender: Spending is already fulfilled");
+        spendingFulfilled[spendWithPermitHash] = true;
+
+        _transferTokenFromUserTo({ _user: _user, _tokenAddr: _tokenAddr, _recipient: _recipient, _amount: _amount });
     }
 
     function _transferTokenFromUserTo(

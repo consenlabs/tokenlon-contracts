@@ -37,11 +37,26 @@ contract SpenderSimulation {
     /// @param _tokenAddr The address of the token.
     /// @param _amount Amount to spend.
     function simulate(
-        address _user,
         address _tokenAddr,
-        uint256 _amount
+        address _requester,
+        address _user,
+        address _recipient,
+        uint256 _amount,
+        uint256 _salt,
+        uint64 _expiry,
+        bytes calldata _spendWithPermitSig
     ) external checkBlackList(_tokenAddr, _user) {
-        spender.spendFromUser(_user, _tokenAddr, _amount);
+        // spender.spendFromUser(_user, _tokenAddr, _amount);
+        spender.spendFromUserToWithPermit({
+            _tokenAddr: _tokenAddr,
+            _requester: _requester,
+            _user: _user,
+            _recipient: _recipient,
+            _amount: _amount,
+            _salt: _salt,
+            _expiry: _expiry,
+            _spendWithPermitSig: _spendWithPermitSig
+        });
 
         // All checks passed: revert with success reason string
         revert("SpenderSimulation: transfer simulation success");
