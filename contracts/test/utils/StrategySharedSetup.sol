@@ -10,7 +10,7 @@ import { PermanentStorage } from "contracts/PermanentStorage.sol"; // Using "imp
 import "contracts/ProxyPermanentStorage.sol";
 import { UserProxy } from "contracts/UserProxy.sol"; // Using "import from" syntax so PermanentStorage and UserProxy's imports will not collide
 import "contracts/Tokenlon.sol";
-import "contracts/interfaces/ISetAllowance.sol";
+import "contracts-test/mocks/MockERC1271Wallet.sol";
 import "./Addresses.sol";
 import "./BalanceUtil.sol";
 import "./RegisterCurveIndexes.sol";
@@ -111,6 +111,6 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
             setERC20Balance(tokenAddresses[i], walletContract, amount);
         }
         vm.prank(owner);
-        ISetAllowance(walletContract).setAllowance(tokenAddresses, address(allowanceTarget));
+        MockERC1271Wallet(walletContract).setAllowance(tokenAddresses, address(allowanceTarget));
     }
 }

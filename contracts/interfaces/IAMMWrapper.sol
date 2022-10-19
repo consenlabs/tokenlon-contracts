@@ -1,16 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.0;
 
-import "./ISetAllowance.sol";
+import "./IStrategyBase.sol";
 
-interface IAMMWrapper is ISetAllowance {
+interface IAMMWrapper is IStrategyBase {
     // Operator events
-    event TransferOwnership(address newOperator);
-    event UpgradeSpender(address newSpender);
     event SetDefaultFeeFactor(uint16 newDefaultFeeFactor);
-    event AllowTransfer(address spender);
-    event DisallowTransfer(address spender);
-    event DepositETH(uint256 ethBalance);
     event SetFeeCollector(address newFeeCollector);
 
     event Swapped(

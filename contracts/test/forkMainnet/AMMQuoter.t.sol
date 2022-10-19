@@ -31,7 +31,15 @@ contract AMMQuoterTest is StrategySharedSetup {
     function setUp() public {
         // Setup
         _deployPermanentStorageAndProxy();
-        ammQuoter = new AMMQuoter(IPermanentStorage(permanentStorage), WETH_ADDRESS);
+        ammQuoter = new AMMQuoter(
+            UNISWAP_V2_ADDRESS,
+            UNISWAP_V3_ADDRESS,
+            UNISWAP_V3_QUOTER_ADDRESS,
+            SUSHISWAP_ADDRESS,
+            BALANCER_V2_ADDRESS,
+            IPermanentStorage(permanentStorage),
+            WETH_ADDRESS
+        );
 
         // Label addresses for easier debugging
         vm.label(address(this), "TestingContract");

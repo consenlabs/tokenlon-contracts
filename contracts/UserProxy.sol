@@ -21,6 +21,8 @@ contract UserProxy is Multicall {
     event UpgradeRFQ(address newRFQ);
     event SetLimitOrderStatus(bool enable);
     event UpgradeLimitOrder(address newLimitOrder);
+    event SetL2DepositStatus(bool enable);
+    event UpgradeL2Deposit(address newL2Deposit);
 
     receive() external payable {}
 
@@ -77,6 +79,14 @@ contract UserProxy is Multicall {
 
     function isLimitOrderEnabled() public view returns (bool) {
         return LimitOrderStorage.getStorage().isEnabled;
+    }
+
+    function l2DepositAddr() public view returns (address) {
+        return L2DepositStorage.getStorage().l2DepositAddr;
+    }
+
+    function isL2DepositEnabled() public view returns (bool) {
+        return L2DepositStorage.getStorage().isEnabled;
     }
 
     /************************************************************
@@ -136,6 +146,24 @@ contract UserProxy is Multicall {
         emit SetLimitOrderStatus(_enable);
     }
 
+    function setL2DepositStatus(bool _enable) public onlyOperator {
+        L2DepositStorage.getStorage().isEnabled = _enable;
+
+        emit SetL2DepositStatus(_enable);
+    }
+
+    /**
+     * @dev Update L2 Deposit contract address. Used only when ABI of L2 Deposit remain unchanged.
+     * Otherwise, UserProxy contract should be upgraded altogether.
+     */
+    function upgradeL2Deposit(address _newL2DepositAddr, bool _enable) external onlyOperator {
+        L2DepositStorage.getStorage().l2DepositAddr = _newL2DepositAddr;
+        L2DepositStorage.getStorage().isEnabled = _enable;
+
+        emit UpgradeL2Deposit(_newL2DepositAddr);
+        emit SetL2DepositStatus(_enable);
+    }
+
     /************************************************************
      *                   External functions                      *
      *************************************************************/
@@ -184,6 +212,24 @@ contract UserProxy is Multicall {
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
         (bool callSucceed, ) = limitOrderAddr().call(_payload);
+        if (!callSucceed) {
+            // revert with data from last call
+            assembly {
+                let ptr := mload(0x40)
+                let size := returndatasize()
+                returndatacopy(ptr, 0, size)
+                revert(ptr, size)
+            }
+        }
+    }
+
+    /**
+     * @dev proxy the call to L2Deposit
+     */
+    function toL2Deposit(bytes calldata _payload) external payable {
+        require(isL2DepositEnabled(), "UserProxy: L2 Deposit is disabled");
+
+        (bool callSucceed, ) = l2DepositAddr().call{ value: msg.value }(_payload);
         if (!callSucceed) {
             // revert with data from last call
             assembly {

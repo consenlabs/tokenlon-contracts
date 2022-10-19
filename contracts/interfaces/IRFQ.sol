@@ -2,10 +2,10 @@
 pragma solidity >=0.7.0;
 pragma abicoder v2;
 
-import "./ISetAllowance.sol";
+import "./IStrategyBase.sol";
 import "../utils/RFQLibEIP712.sol";
 
-interface IRFQ is ISetAllowance {
+interface IRFQ is IStrategyBase {
     function fill(
         RFQLibEIP712.Order memory _order,
         bytes memory _mmSignature,

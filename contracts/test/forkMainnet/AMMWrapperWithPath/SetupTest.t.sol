@@ -12,7 +12,7 @@ contract TestAMMWrapperWithPathSetup is TestAMMWrapperWithPath {
     }
 
     function testAMMWrapperWithPathSetup() public {
-        assertEq(ammWrapperWithPath.operator(), address(this));
+        assertEq(ammWrapperWithPath.owner(), address(this));
         assertEq(uint256(ammWrapperWithPath.defaultFeeFactor()), uint256(DEFAULT_FEE_FACTOR));
         assertEq(ammWrapperWithPath.userProxy(), address(userProxy));
         assertEq(address(ammWrapperWithPath.spender()), address(spender));

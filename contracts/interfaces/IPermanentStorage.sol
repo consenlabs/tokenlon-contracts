@@ -8,6 +8,7 @@ interface IPermanentStorage {
     event UpgradeAMMWrapper(address newAMMWrapper);
     event UpgradeRFQ(address newRFQ);
     event UpgradeLimitOrder(address newLimitOrder);
+    event UpgradeL2Deposit(address newL2Deposit);
     event UpgradeWETH(address newWETH);
     event SetCurvePoolInfo(address makerAddr, address[] underlyingCoins, address[] coins, bool supportGetD);
     event SetRelayerValid(address relayer, bool valid);
@@ -19,6 +20,8 @@ interface IPermanentStorage {
     function rfqAddr() external view returns (address);
 
     function limitOrderAddr() external view returns (address);
+
+    function l2DepositAddr() external view returns (address);
 
     function wethAddr() external view returns (address);
 
@@ -51,6 +54,8 @@ interface IPermanentStorage {
 
     function isLimitOrderAllowFillSeen(bytes32 _allowFillHash) external view returns (bool);
 
+    function isL2DepositSeen(bytes32 _l2DepositHash) external view returns (bool);
+
     function isRelayerValid(address _relayer) external view returns (bool);
 
     function setAMMTransactionSeen(bytes32 _transactionHash) external;
@@ -60,6 +65,8 @@ interface IPermanentStorage {
     function setLimitOrderTransactionSeen(bytes32 _transactionHash) external;
 
     function setLimitOrderAllowFillSeen(bytes32 _allowFillHash) external;
+
+    function setL2DepositSeen(bytes32 _l2DepositHash) external;
 
     function setRelayersValid(address[] memory _relayers, bool[] memory _isValids) external;
 }
