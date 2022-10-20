@@ -55,11 +55,6 @@ contract LimitOrderTest is StrategySharedSetup {
     address receiver = makeAddr("receiver");
     MockERC1271Wallet mockERC1271Wallet = new MockERC1271Wallet(user);
     address[] wallet = [user, maker, coordinator, address(mockERC1271Wallet)];
-
-    IWETH weth;
-    IERC20 usdt;
-    IERC20 dai;
-    IERC20[] tokens;
     address[] tokenAddrs;
 
     LimitOrderLibEIP712.Order DEFAULT_ORDER;
@@ -78,14 +73,8 @@ contract LimitOrderTest is StrategySharedSetup {
     function setUp() public {
         // Setup
         if (vm.envBool("deployed")) {
-            weth = IWETH(vm.envAddress("WETH_ADDRESS"));
-            usdt = IERC20(vm.envAddress("USDT_ADDRESS"));
-            dai = IERC20(vm.envAddress("DAI_ADDRESS"));
-
-            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
-            spender = Spender(vm.envAddress("Spender_ADDRESS"));
-            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
-            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
+            // Load deployed system contracts
+            loadDeployedSystemContracts();
 
             limitOrder = LimitOrder(payable(vm.envAddress("LimitOrder_ADDRESS")));
 
@@ -97,16 +86,11 @@ contract LimitOrderTest is StrategySharedSetup {
             feeCollector = limitOrder.feeCollector();
             vm.stopPrank();
         } else {
-            weth = IWETH(WETH_ADDRESS);
-            usdt = IERC20(USDT_ADDRESS);
-            dai = IERC20(DAI_ADDRESS);
-
             owner = makeAddr("owner");
             feeCollector = makeAddr("feeCollector");
 
             setUpSystemContracts();
         }
-        tokens = [dai, usdt];
         tokenAddrs = [address(dai), address(usdt)];
 
         // Default params

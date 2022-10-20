@@ -14,11 +14,12 @@ import "contracts-test/mocks/MockERC1271Wallet.sol";
 import "./Addresses.sol";
 import "./BalanceUtil.sol";
 import "./RegisterCurveIndexes.sol";
+import "./Tokens.sol";
 
-contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
+contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
     using SafeERC20 for IERC20;
 
-    address upgradeAdmin = address(0x5566);
+    address upgradeAdmin = makeAddr("upgradeAdmin");
 
     AllowanceTarget allowanceTarget;
     Spender spender;
@@ -55,6 +56,13 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
         _registerCurveIndexes(permanentStorage);
     }
 
+    function _labelSystemContracts() internal {
+        vm.label(address(spender), "SpenderContract");
+        vm.label(address(allowanceTarget), "AllowanceTargetContract");
+        vm.label(address(userProxy), "UserProxyContract");
+        vm.label(address(permanentStorage), "PermanentStorageContract");
+    }
+
     function setUpSystemContracts() internal {
         // Deploy
         spender = new Spender(address(this), new address[](1));
@@ -70,10 +78,16 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
         permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), address(this), true);
 
         vm.label(upgradeAdmin, "UpgradeAdmin");
-        vm.label(address(spender), "SpenderContract");
-        vm.label(address(allowanceTarget), "AllowanceTargetContract");
-        vm.label(address(userProxy), "UserProxyContract");
-        vm.label(address(permanentStorage), "PermanentStorageContract");
+        _labelSystemContracts();
+    }
+
+    function loadDeployedSystemContracts() internal {
+        allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
+        spender = Spender(vm.envAddress("Spender_ADDRESS"));
+        userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
+        permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
+
+        _labelSystemContracts();
     }
 
     function dealWallet(address[] memory wallet, uint256 amount) internal {

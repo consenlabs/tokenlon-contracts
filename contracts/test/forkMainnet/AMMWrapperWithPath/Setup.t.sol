@@ -24,13 +24,6 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
     address[] wallet = [user, relayer];
     AMMQuoter ammQuoter;
     AMMWrapperWithPath ammWrapperWithPath;
-    IERC20 weth;
-    IERC20 usdt;
-    IERC20 usdc;
-    IERC20 dai;
-    IERC20 wbtc;
-    IERC20 lon;
-    IERC20[] tokens;
 
     uint16 DEFAULT_FEE_FACTOR = 500;
     uint256 DEADLINE = block.timestamp + 1;
@@ -65,31 +58,15 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public virtual {
         if (vm.envBool("deployed")) {
-            weth = IERC20(vm.envAddress("WETH_ADDRESS"));
-            usdt = IERC20(vm.envAddress("USDT_ADDRESS"));
-            usdc = IERC20(vm.envAddress("USDC_ADDRESS"));
-            dai = IERC20(vm.envAddress("DAI_ADDRESS"));
-            wbtc = IERC20(vm.envAddress("WBTC_ADDRESS"));
-            lon = IERC20(vm.envAddress("LON_ADDRESS"));
+            // Load deployed system contracts
+            loadDeployedSystemContracts();
 
-            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
-            spender = Spender(vm.envAddress("Spender_ADDRESS"));
-            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
-            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
             ammQuoter = AMMQuoter(vm.envAddress("AMMQuoter_ADDRESS"));
-
             ammWrapperWithPath = AMMWrapperWithPath(payable(vm.envAddress("AMMWrapper_ADDRESS")));
             owner = ammWrapperWithPath.owner();
             feeCollector = ammWrapperWithPath.feeCollector();
             psOperator = permanentStorage.operator();
         } else {
-            weth = IERC20(WETH_ADDRESS);
-            usdt = IERC20(USDT_ADDRESS);
-            usdc = IERC20(USDC_ADDRESS);
-            dai = IERC20(DAI_ADDRESS);
-            wbtc = IERC20(WBTC_ADDRESS);
-            lon = IERC20(LON_ADDRESS);
-
             owner = makeAddr("owner");
             feeCollector = makeAddr("feeCollector");
 
@@ -107,7 +84,6 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
             );
             psOperator = address(this);
         }
-        tokens = [weth, usdt, usdc, dai, wbtc, lon];
 
         address[] memory relayerListAddress = new address[](1);
         relayerListAddress[0] = relayer;
@@ -148,12 +124,6 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
         vm.label(relayer, "Relayer");
         vm.label(address(this), "TestingContract");
         vm.label(address(ammWrapperWithPath), "AMMWrapperWithPathContract");
-        vm.label(address(weth), "WETH");
-        vm.label(address(usdt), "USDT");
-        vm.label(address(usdc), "USDC");
-        vm.label(address(dai), "DAI");
-        vm.label(address(wbtc), "WBTC");
-        vm.label(address(lon), "LON");
         vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
         vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
         vm.label(UNISWAP_V3_ADDRESS, "UniswapV3");

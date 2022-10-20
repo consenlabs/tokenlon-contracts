@@ -25,11 +25,6 @@ contract TestAMMWrapper is StrategySharedSetup {
 
     AMMWrapper ammWrapper;
     AMMQuoter ammQuoter;
-    IERC20 weth;
-    IERC20 usdt;
-    IERC20 dai;
-    IERC20 ankreth;
-    IERC20[] tokens;
 
     uint16 DEFAULT_FEE_FACTOR = 500;
     uint256 DEADLINE = block.timestamp + 1;
@@ -54,27 +49,15 @@ contract TestAMMWrapper is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         if (vm.envBool("deployed")) {
-            weth = IERC20(vm.envAddress("WETH_ADDRESS"));
-            usdt = IERC20(vm.envAddress("USDT_ADDRESS"));
-            dai = IERC20(vm.envAddress("DAI_ADDRESS"));
-            ankreth = IERC20(vm.envAddress("ANKRETH_ADDRESS"));
+            // Load deployed system contracts
+            loadDeployedSystemContracts();
 
-            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
-            spender = Spender(vm.envAddress("Spender_ADDRESS"));
-            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
-            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
             ammQuoter = AMMQuoter(vm.envAddress("AMMQuoter_ADDRESS"));
-
             ammWrapper = AMMWrapper(payable(vm.envAddress("AMMWrapper_ADDRESS")));
             owner = ammWrapper.owner();
             feeCollector = ammWrapper.feeCollector();
             psOperator = permanentStorage.operator();
         } else {
-            weth = IERC20(WETH_ADDRESS);
-            usdt = IERC20(USDT_ADDRESS);
-            dai = IERC20(DAI_ADDRESS);
-            ankreth = IERC20(ANKRETH_ADDRESS);
-
             owner = makeAddr("owner");
             feeCollector = makeAddr("feeCollector");
 
@@ -92,7 +75,6 @@ contract TestAMMWrapper is StrategySharedSetup {
             );
             psOperator = address(this);
         }
-        tokens = [weth, usdt, dai, ankreth];
 
         address[] memory relayerListAddress = new address[](1);
         relayerListAddress[0] = relayer;
@@ -126,10 +108,6 @@ contract TestAMMWrapper is StrategySharedSetup {
         vm.label(relayer, "Relayer");
         vm.label(address(this), "TestingContract");
         vm.label(address(ammWrapper), "AMMWrapperContract");
-        vm.label(address(weth), "WETH");
-        vm.label(address(usdt), "USDT");
-        vm.label(address(dai), "DAI");
-        vm.label(address(ankreth), "ANKRETH");
         vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
     }
 

@@ -49,10 +49,6 @@ contract RFQTest is StrategySharedSetup {
     MockERC1271Wallet mockERC1271Wallet;
     MarketMakerProxy marketMakerProxy;
     RFQ rfq;
-    IERC20 weth;
-    IERC20 usdt;
-    IERC20 dai;
-    IERC20[] tokens;
 
     uint256 DEADLINE = block.timestamp + 1;
     RFQLibEIP712.Order DEFAULT_ORDER;
@@ -61,29 +57,24 @@ contract RFQTest is StrategySharedSetup {
     function setUp() public {
         // Setup
         if (vm.envBool("deployed")) {
-            weth = IERC20(vm.envAddress("WETH_ADDRESS"));
-            usdt = IERC20(vm.envAddress("USDT_ADDRESS"));
-            dai = IERC20(vm.envAddress("DAI_ADDRESS"));
-
-            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
-            spender = Spender(vm.envAddress("Spender_ADDRESS"));
-            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
-            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
+            // Load deployed system contracts
+            loadDeployedSystemContracts();
 
             rfq = RFQ(payable(vm.envAddress("RFQ_ADDRESS")));
             owner = rfq.owner();
             feeCollector = rfq.feeCollector();
         } else {
+            // overwrite tokens with locally deployed mocks
             weth = IERC20(address(new MockWETH("Wrapped ETH", "WETH", 18)));
             usdt = new MockERC20("USDT", "USDT", 6);
             dai = new MockERC20("DAI", "DAI", 18);
+            tokens = [weth, usdt, dai];
 
             owner = makeAddr("owner");
             feeCollector = makeAddr("feeCollector");
 
             setUpSystemContracts();
         }
-        tokens = [weth, usdt, dai];
 
         vm.prank(maker);
         marketMakerProxy = new MarketMakerProxy();
@@ -129,9 +120,6 @@ contract RFQTest is StrategySharedSetup {
         vm.label(address(marketMakerProxy), "MarketMakerProxy");
         vm.label(address(mockERC1271Wallet), "MockERC1271Wallet");
         vm.label(address(rfq), "RFQContract");
-        vm.label(address(weth), "WETH");
-        vm.label(address(usdt), "USDT");
-        vm.label(address(dai), "DAI");
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
