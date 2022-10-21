@@ -49,9 +49,9 @@ contract TestAMMWrapper is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         setUpSystemContracts();
-        if (vm.envBool("deployed")) {
-            ammQuoter = AMMQuoter(vm.envAddress("AMMQuoter_ADDRESS"));
-            ammWrapper = AMMWrapper(payable(vm.envAddress("AMMWrapper_ADDRESS")));
+        if (vm.envBool("DEPLOYED")) {
+            ammQuoter = AMMQuoter(vm.envAddress("AMMQUOTER_ADDRESS"));
+            ammWrapper = AMMWrapper(payable(vm.envAddress("AMMWRAPPER_ADDRESS")));
             owner = ammWrapper.owner();
             feeCollector = ammWrapper.feeCollector();
             psOperator = permanentStorage.operator();

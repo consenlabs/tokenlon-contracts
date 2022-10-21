@@ -58,9 +58,9 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public virtual {
         setUpSystemContracts();
-        if (vm.envBool("deployed")) {
-            ammQuoter = AMMQuoter(vm.envAddress("AMMQuoter_ADDRESS"));
-            ammWrapperWithPath = AMMWrapperWithPath(payable(vm.envAddress("AMMWrapper_ADDRESS")));
+        if (vm.envBool("DEPLOYED")) {
+            ammQuoter = AMMQuoter(vm.envAddress("AMMQUOTER_ADDRESS"));
+            ammWrapperWithPath = AMMWrapperWithPath(payable(vm.envAddress("AMMWRAPPER_ADDRESS")));
             owner = ammWrapperWithPath.owner();
             feeCollector = ammWrapperWithPath.feeCollector();
             psOperator = permanentStorage.operator();

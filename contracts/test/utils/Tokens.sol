@@ -16,7 +16,7 @@ contract Tokens is Test {
     IERC20[] public tokens;
 
     constructor() {
-        if (vm.envBool("deployed")) {
+        if (vm.envBool("DEPLOYED")) {
             // load ERC20s using address in env vars
             weth = IERC20(vm.envAddress("WETH_ADDRESS"));
             usdt = IERC20(vm.envAddress("USDT_ADDRESS"));

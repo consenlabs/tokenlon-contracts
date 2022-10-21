@@ -56,7 +56,7 @@ contract RFQTest is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
-        if (vm.envBool("deployed")) {
+        if (vm.envBool("DEPLOYED")) {
             setUpSystemContracts();
 
             rfq = RFQ(payable(vm.envAddress("RFQ_ADDRESS")));

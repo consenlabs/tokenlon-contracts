@@ -73,8 +73,8 @@ contract LimitOrderTest is StrategySharedSetup {
     function setUp() public {
         // Setup
         setUpSystemContracts();
-        if (vm.envBool("deployed")) {
-            limitOrder = LimitOrder(payable(vm.envAddress("LimitOrder_ADDRESS")));
+        if (vm.envBool("DEPLOYED")) {
+            limitOrder = LimitOrder(payable(vm.envAddress("LIMITORDER_ADDRESS")));
 
             // prank owner and update coordinator address
             owner = limitOrder.owner();

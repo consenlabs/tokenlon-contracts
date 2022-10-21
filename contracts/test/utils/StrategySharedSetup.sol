@@ -57,12 +57,12 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
     }
 
     function setUpSystemContracts() internal {
-        if (vm.envBool("deployed")) {
+        if (vm.envBool("DEPLOYED")) {
             // Load deployed system contracts
-            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
-            spender = Spender(vm.envAddress("Spender_ADDRESS"));
-            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
-            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
+            allowanceTarget = AllowanceTarget(vm.envAddress("ALLOWANCE_TARGET_ADDRESS"));
+            spender = Spender(vm.envAddress("SPENDER_ADDRESS"));
+            userProxy = UserProxy(payable(vm.envAddress("USERPROXY_ADDRESS")));
+            permanentStorage = PermanentStorage(vm.envAddress("PERMANENTSTORAGE_ADDRESS"));
         } else {
             // Deploy
             spender = new Spender(address(this), new address[](1));
