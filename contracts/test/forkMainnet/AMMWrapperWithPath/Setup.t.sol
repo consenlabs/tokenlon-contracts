@@ -17,8 +17,8 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
     bytes32 public constant relayerValidStorageId = 0x2c97779b4deaf24e9d46e02ec2699240a957d92782b51165b93878b09dd66f61; // keccak256("relayerValid")
 
     address user = vm.addr(userPrivateKey);
-    address owner;
-    address feeCollector;
+    address owner = makeAddr("owner");
+    address feeCollector = makeAddr("feeCollector");
     address relayer = makeAddr("relayer");
     address psOperator;
     address[] wallet = [user, relayer];
@@ -57,22 +57,14 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
 
     // effectively a "beforeEach" block
     function setUp() public virtual {
+        setUpSystemContracts();
         if (vm.envBool("deployed")) {
-            // Load deployed system contracts
-            loadDeployedSystemContracts();
-
             ammQuoter = AMMQuoter(vm.envAddress("AMMQuoter_ADDRESS"));
             ammWrapperWithPath = AMMWrapperWithPath(payable(vm.envAddress("AMMWrapper_ADDRESS")));
             owner = ammWrapperWithPath.owner();
             feeCollector = ammWrapperWithPath.feeCollector();
             psOperator = permanentStorage.operator();
         } else {
-            owner = makeAddr("owner");
-            feeCollector = makeAddr("feeCollector");
-
-            // Deploy and Setup Spender, AllowanceTarget, UserProxy, Tokenlon,
-            // PermanentStorage, ProxyPermanentStorage, AMMWrapperWithPath contracts
-            setUpSystemContracts();
             ammQuoter = new AMMQuoter(
                 UNISWAP_V2_ADDRESS,
                 UNISWAP_V3_ADDRESS,

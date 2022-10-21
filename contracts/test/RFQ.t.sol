@@ -41,8 +41,8 @@ contract RFQTest is StrategySharedSetup {
 
     address user = vm.addr(userPrivateKey);
     address maker = vm.addr(makerPrivateKey);
-    address owner;
-    address feeCollector;
+    address owner = makeAddr("owner");
+    address feeCollector = makeAddr("feeCollector");
     address receiver = makeAddr("receiver");
     address[] wallet = [user, maker];
 
@@ -57,8 +57,7 @@ contract RFQTest is StrategySharedSetup {
     function setUp() public {
         // Setup
         if (vm.envBool("deployed")) {
-            // Load deployed system contracts
-            loadDeployedSystemContracts();
+            setUpSystemContracts();
 
             rfq = RFQ(payable(vm.envAddress("RFQ_ADDRESS")));
             owner = rfq.owner();
@@ -69,9 +68,6 @@ contract RFQTest is StrategySharedSetup {
             usdt = new MockERC20("USDT", "USDT", 6);
             dai = new MockERC20("DAI", "DAI", 18);
             tokens = [weth, usdt, dai];
-
-            owner = makeAddr("owner");
-            feeCollector = makeAddr("feeCollector");
 
             setUpSystemContracts();
         }

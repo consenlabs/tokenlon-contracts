@@ -50,8 +50,8 @@ contract LimitOrderTest is StrategySharedSetup {
     address user = vm.addr(userPrivateKey);
     address maker = vm.addr(makerPrivateKey);
     address coordinator = vm.addr(coordinatorPrivateKey);
-    address owner;
-    address feeCollector;
+    address owner = makeAddr("owner");
+    address feeCollector = makeAddr("feeCollector");
     address receiver = makeAddr("receiver");
     MockERC1271Wallet mockERC1271Wallet = new MockERC1271Wallet(user);
     address[] wallet = [user, maker, coordinator, address(mockERC1271Wallet)];
@@ -72,10 +72,8 @@ contract LimitOrderTest is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
+        setUpSystemContracts();
         if (vm.envBool("deployed")) {
-            // Load deployed system contracts
-            loadDeployedSystemContracts();
-
             limitOrder = LimitOrder(payable(vm.envAddress("LimitOrder_ADDRESS")));
 
             // prank owner and update coordinator address
@@ -85,11 +83,6 @@ contract LimitOrderTest is StrategySharedSetup {
             // update local feeCollector address
             feeCollector = limitOrder.feeCollector();
             vm.stopPrank();
-        } else {
-            owner = makeAddr("owner");
-            feeCollector = makeAddr("feeCollector");
-
-            setUpSystemContracts();
         }
         tokenAddrs = [address(dai), address(usdt)];
 

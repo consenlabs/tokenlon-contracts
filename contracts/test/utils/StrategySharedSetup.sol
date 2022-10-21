@@ -56,38 +56,32 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
         _registerCurveIndexes(permanentStorage);
     }
 
-    function _labelSystemContracts() internal {
+    function setUpSystemContracts() internal {
+        if (vm.envBool("deployed")) {
+            // Load deployed system contracts
+            allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
+            spender = Spender(vm.envAddress("Spender_ADDRESS"));
+            userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
+            permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
+        } else {
+            // Deploy
+            spender = new Spender(address(this), new address[](1));
+            allowanceTarget = new AllowanceTarget(address(spender));
+            _deployTokenlonAndUserProxy();
+            _deployPermanentStorageAndProxy();
+            address strategy = _deployStrategyAndUpgrade();
+            // Setup
+            spender.setAllowanceTarget(address(allowanceTarget));
+            address[] memory authListAddress = new address[](1);
+            authListAddress[0] = strategy;
+            spender.authorize(authListAddress);
+            permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), address(this), true);
+        }
+
         vm.label(address(spender), "SpenderContract");
         vm.label(address(allowanceTarget), "AllowanceTargetContract");
         vm.label(address(userProxy), "UserProxyContract");
         vm.label(address(permanentStorage), "PermanentStorageContract");
-    }
-
-    function setUpSystemContracts() internal {
-        // Deploy
-        spender = new Spender(address(this), new address[](1));
-        allowanceTarget = new AllowanceTarget(address(spender));
-        _deployTokenlonAndUserProxy();
-        _deployPermanentStorageAndProxy();
-        address strategy = _deployStrategyAndUpgrade();
-        // Setup
-        spender.setAllowanceTarget(address(allowanceTarget));
-        address[] memory authListAddress = new address[](1);
-        authListAddress[0] = strategy;
-        spender.authorize(authListAddress);
-        permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), address(this), true);
-
-        vm.label(upgradeAdmin, "UpgradeAdmin");
-        _labelSystemContracts();
-    }
-
-    function loadDeployedSystemContracts() internal {
-        allowanceTarget = AllowanceTarget(vm.envAddress("AllowanceTarget_ADDRESS"));
-        spender = Spender(vm.envAddress("Spender_ADDRESS"));
-        userProxy = UserProxy(payable(vm.envAddress("UserProxy_ADDRESS")));
-        permanentStorage = PermanentStorage(vm.envAddress("PermanentStorage_ADDRESS"));
-
-        _labelSystemContracts();
     }
 
     function dealWallet(address[] memory wallet, uint256 amount) internal {
