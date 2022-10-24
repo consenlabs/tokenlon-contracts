@@ -568,6 +568,6 @@ contract SpenderTest is BalanceUtil {
         );
         bytes32 spendWithPermitHash = _getEIP712Hash(structHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, spendWithPermitHash);
-        sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2)); // SignatureType = 2 = EIP712
+        sig = abi.encodePacked(r, s, v, uint8(2)); // SignatureType = 2 = EIP712
     }
 }
