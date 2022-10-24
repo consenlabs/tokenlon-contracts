@@ -10,6 +10,7 @@ import "./interfaces/IRFQ.sol";
 import "./utils/StrategyBase.sol";
 import "./utils/RFQLibEIP712.sol";
 import "./utils/BaseLibEIP712.sol";
+import "./utils/SpenderLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 import "./utils/LibConstant.sol";
 
@@ -80,12 +81,22 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
      *************************************************************/
     function fill(
         RFQLibEIP712.Order calldata _order,
+        SpenderLibEIP712.SpendWithPermit calldata _spendMakerAssetToRFQ,
+        SpenderLibEIP712.SpendWithPermit calldata _spendTakerAssetToRFQ,
         bytes calldata _mmSignature,
-        bytes calldata _userSignature
+        bytes calldata _userSignature,
+        bytes calldata _spendMakerAssetToRFQSig,
+        bytes calldata _spendTakerAssetToRFQSig
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         // check the order deadline and fee factor
         require(_order.deadline >= block.timestamp, "RFQ: expired order");
         require(_order.feeFactor < LibConstant.BPS_MAX, "RFQ: invalid fee factor");
+
+        // check the spender deadline and RFQ address
+        require(_spendMakerAssetToRFQ.expiry >= block.timestamp, "RFQ: expired maker spender");
+        require(_spendMakerAssetToRFQ.requester == address(this), "RFQ: invalid RFQ address");
+        require(_spendTakerAssetToRFQ.expiry >= block.timestamp, "RFQ: expired taker spender");
+        require(_spendTakerAssetToRFQ.requester == address(this), "RFQ: invalid RFQ address");
 
         GroupedVars memory vars;
 
@@ -98,7 +109,15 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
         permStorage.setRFQTransactionSeen(vars.transactionHash);
 
-        return _settle(_order, vars);
+        return
+            _settle({
+                _order: _order,
+                _spendMakerAssetToRFQ: _spendMakerAssetToRFQ,
+                _spendTakerAssetToRFQ: _spendTakerAssetToRFQ,
+                _vars: vars,
+                _spendMakerAssetToRFQSig: _spendMakerAssetToRFQSig,
+                _spendTakerAssetToRFQSig: _spendTakerAssetToRFQSig
+            });
     }
 
     function _emitFillOrder(
@@ -123,7 +142,14 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     }
 
     // settle
-    function _settle(RFQLibEIP712.Order memory _order, GroupedVars memory _vars) internal returns (uint256) {
+    function _settle(
+        RFQLibEIP712.Order memory _order,
+        SpenderLibEIP712.SpendWithPermit memory _spendMakerAssetToRFQ,
+        SpenderLibEIP712.SpendWithPermit memory _spendTakerAssetToRFQ,
+        GroupedVars memory _vars,
+        bytes memory _spendMakerAssetToRFQSig,
+        bytes memory _spendTakerAssetToRFQSig
+    ) internal returns (uint256) {
         // Transfer taker asset to maker
         if (address(weth) == _order.takerAssetAddr) {
             // Deposit to WETH if taker asset is ETH
@@ -131,7 +157,27 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             weth.deposit{ value: msg.value }();
             weth.transfer(_order.makerAddr, _order.takerAssetAmount);
         } else {
-            spender.spendFromUserTo(_order.takerAddr, _order.takerAssetAddr, _order.makerAddr, _order.takerAssetAmount);
+            require(
+                // Confirm that 'takerAddr' sends 'takerAssetAmount' amount of 'takerAssetAddr' to 'address(this)'
+                _order.takerAddr == _spendTakerAssetToRFQ.user &&
+                    _order.takerAssetAddr == _spendTakerAssetToRFQ.tokenAddr &&
+                    address(this) == _spendTakerAssetToRFQ.recipient &&
+                    _order.takerAssetAmount == _spendTakerAssetToRFQ.amount,
+                "RFQ: taker spender information is incorrect"
+            );
+            // Transfer taker asset to RFQ (= this) first,
+            spender.spendFromUserToWithPermit({
+                _tokenAddr: _spendTakerAssetToRFQ.tokenAddr,
+                _requester: _spendTakerAssetToRFQ.requester,
+                _user: _spendTakerAssetToRFQ.user,
+                _recipient: _spendTakerAssetToRFQ.recipient,
+                _amount: _spendTakerAssetToRFQ.amount,
+                _salt: _spendTakerAssetToRFQ.salt,
+                _expiry: _spendTakerAssetToRFQ.expiry,
+                _spendWithPermitSig: _spendTakerAssetToRFQSig
+            });
+            // then transfer from this to maker.
+            IERC20(_order.takerAssetAddr).transfer(_order.makerAddr, _order.takerAssetAmount);
         }
 
         // Transfer maker asset to taker, sub fee
@@ -141,18 +187,37 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             settleAmount = settleAmount.sub(fee);
         }
 
-        // Transfer token/Eth to receiver
+        require(
+            // Confirm that 'makerAddr' sends 'makerAssetAmount' amount of 'makerAssetAddr' to 'address(this)'
+            _order.makerAddr == _spendMakerAssetToRFQ.user &&
+                _order.makerAssetAddr == _spendMakerAssetToRFQ.tokenAddr &&
+                address(this) == _spendMakerAssetToRFQ.recipient &&
+                _order.makerAssetAmount == _spendMakerAssetToRFQ.amount,
+            "RFQ: maker spender information is incorrect"
+        );
+        // Transfer maker asset to RFQ (= this) first,
+        spender.spendFromUserToWithPermit({
+            _tokenAddr: _spendMakerAssetToRFQ.tokenAddr,
+            _requester: _spendMakerAssetToRFQ.requester,
+            _user: _spendMakerAssetToRFQ.user,
+            _recipient: _spendMakerAssetToRFQ.recipient,
+            _amount: _spendMakerAssetToRFQ.amount,
+            _salt: _spendMakerAssetToRFQ.salt,
+            _expiry: _spendMakerAssetToRFQ.expiry,
+            _spendWithPermitSig: _spendMakerAssetToRFQSig
+        });
+
+        // then transfer maker asset (but except fee) from this to receiver,
         if (_order.makerAssetAddr == address(weth)) {
-            // Transfer from maker
-            spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, settleAmount);
             weth.withdraw(settleAmount);
             payable(_order.receiverAddr).transfer(settleAmount);
         } else {
-            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount);
+            IERC20(_order.makerAssetAddr).transfer(_order.receiverAddr, settleAmount);
         }
-        // Collect fee
+
+        // and transfer fee from this to feeCollector.
         if (fee > 0) {
-            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, fee);
+            IERC20(_order.makerAssetAddr).transfer(feeCollector, fee);
         }
 
         _emitFillOrder(_order, _vars, settleAmount);

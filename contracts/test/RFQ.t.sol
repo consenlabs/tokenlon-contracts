@@ -19,6 +19,7 @@ contract RFQTest is StrategySharedSetup {
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
+    // BPS_MAX must be the same as LibConstant.BPS_MAX
     uint256 constant BPS_MAX = 10000;
     event FillOrder(
         string source,
@@ -55,6 +56,8 @@ contract RFQTest is StrategySharedSetup {
 
     uint256 DEADLINE = block.timestamp + 1;
     RFQLibEIP712.Order DEFAULT_ORDER;
+    SpenderLibEIP712.SpendWithPermit DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+    SpenderLibEIP712.SpendWithPermit DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
 
     // effectively a "beforeEach" block
     function setUp() public {
@@ -97,6 +100,9 @@ contract RFQTest is StrategySharedSetup {
             DEADLINE, // deadline
             0 // feeFactor
         );
+
+        // Set default spender from DEFAULT_ORDER
+        _setDefaultSpenderFromOrder({ defaultOrder: DEFAULT_ORDER });
 
         // Label addresses for easier debugging
         vm.label(user, "User");
@@ -240,8 +246,15 @@ contract RFQTest is StrategySharedSetup {
         order.deadline = block.timestamp - 1;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory userSig = _signFill(otherPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
         vm.expectRevert("RFQ: expired order");
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
@@ -251,8 +264,15 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory userSig = _signFill(otherPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
         vm.expectRevert("RFQ: invalid user signature");
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
@@ -263,8 +283,17 @@ contract RFQTest is StrategySharedSetup {
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         // Taker is an EOA but user signs a Wallet type fill
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes32);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            // Sig with EIP712 type
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            // Sig with WalletBytes32 type
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.WalletBytes32);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
         vm.expectRevert(); // No revert string in this case
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
@@ -274,8 +303,15 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(otherPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
         vm.expectRevert("RFQ: invalid MM signature");
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
@@ -285,8 +321,15 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
@@ -305,8 +348,15 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrderWithOldEIP712Method(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory userSig = _signFillWithOldEIP712Method(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
@@ -328,8 +378,17 @@ contract RFQTest is StrategySharedSetup {
         order.makerAddr = address(marketMakerProxy);
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.Wallet);
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            // Sig with Wallet type
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.Wallet);
+            // Sig with EIP712 type
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, ETH_ADDRESS);
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
         BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
@@ -352,8 +411,17 @@ contract RFQTest is StrategySharedSetup {
         order.makerAssetAmount = 1 ether;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.Wallet);
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes32);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            // Sig with Wallet type
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.Wallet);
+            // Sig with WalletBytes32 type
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.WalletBytes32);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
         BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take(address(mockERC1271Wallet), order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, ETH_ADDRESS);
         BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
@@ -373,8 +441,15 @@ contract RFQTest is StrategySharedSetup {
         order.feeFactor = 1000; // 10% fee
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
@@ -395,7 +470,15 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
 
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
@@ -431,8 +514,15 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory payload = _genFillPayload(order, makerSig, userSig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            _setDefaultSpenderFromOrder({ defaultOrder: order });
+            SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToRFQ = DEFAULT_SPEND_MAKER_ASSET_TO_RFQ;
+            SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToRFQ = DEFAULT_SPEND_TAKER_ASSET_TO_RFQ;
+            bytes memory spendMakerAssetToRFQSig = _signSpendWithPermit(makerPrivateKey, spendMakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            bytes memory spendTakerAssetToRFQSig = _signSpendWithPermit(userPrivateKey, spendTakerAssetToRFQ, SignatureValidator.SignatureType.EIP712);
+            payload = _genFillPayload(order, spendMakerAssetToRFQ, spendTakerAssetToRFQ, makerSig, userSig, spendMakerAssetToRFQSig, spendTakerAssetToRFQSig);
+        }
         _expectEvent(order);
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
@@ -498,11 +588,83 @@ contract RFQTest is StrategySharedSetup {
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
 
+    function _setDefaultSpenderFromOrder(RFQLibEIP712.Order memory defaultOrder) internal {
+        // maker (= mm) order: -> taker recive maker's token but except fee
+        DEFAULT_SPEND_MAKER_ASSET_TO_RFQ = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: defaultOrder.makerAssetAddr,
+            requester: address(rfq),
+            user: defaultOrder.makerAddr,
+            recipient: address(rfq),
+            amount: defaultOrder.makerAssetAmount,
+            salt: defaultOrder.salt,
+            expiry: uint64(defaultOrder.deadline)
+        });
+
+        // taker (= user) transaction (= fill): -> maker recive taker's token totally
+        DEFAULT_SPEND_TAKER_ASSET_TO_RFQ = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: defaultOrder.takerAssetAddr,
+            requester: address(rfq),
+            user: defaultOrder.takerAddr,
+            recipient: address(rfq),
+            amount: defaultOrder.takerAssetAmount,
+            salt: defaultOrder.salt,
+            expiry: uint64(defaultOrder.deadline)
+        });
+    }
+
+    function _getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
+        string memory EIP191_HEADER = "\x19\x01";
+        bytes32 EIP712_DOMAIN_SEPARATOR = spender.EIP712_DOMAIN_SEPARATOR();
+        return keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, structHash));
+    }
+
+    function _signSpendWithPermit(
+        uint256 privateKey,
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit,
+        SignatureValidator.SignatureType sigType
+    ) internal returns (bytes memory sig) {
+        uint256 SPEND_WITH_PERMIT_TYPEHASH = 0xab1af22032364b17f69bad7eabde29f0cd3f761861c0343407be7fcac2e3ff1f;
+        bytes32 structHash = keccak256(
+            abi.encode(
+                SPEND_WITH_PERMIT_TYPEHASH,
+                spendWithPermit.tokenAddr,
+                spendWithPermit.requester,
+                spendWithPermit.user,
+                spendWithPermit.recipient,
+                spendWithPermit.amount,
+                spendWithPermit.salt,
+                spendWithPermit.expiry
+            )
+        );
+        bytes32 spendWithPermitHash = _getEIP712Hash(structHash);
+        if (sigType == SignatureValidator.SignatureType.Wallet) {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(spendWithPermitHash));
+            sig = abi.encodePacked(r, s, v, uint8(sigType)); // new signature format
+        } else {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, spendWithPermitHash);
+            sig = abi.encodePacked(r, s, v, uint8(sigType)); // new signature format
+        }
+    }
+
     function _genFillPayload(
         RFQLibEIP712.Order memory order,
+        SpenderLibEIP712.SpendWithPermit memory spendMakerAssetToReceiver,
+        SpenderLibEIP712.SpendWithPermit memory spendTakerAssetToMaker,
         bytes memory makerSig,
-        bytes memory userSig
+        bytes memory userSig,
+        bytes memory spendMakerAssetToReceiverSig,
+        bytes memory spendTakerAssetToMakerSig
     ) internal view returns (bytes memory payload) {
-        return abi.encodeWithSelector(rfq.fill.selector, order, makerSig, userSig);
+        return
+            abi.encodeWithSelector(
+                rfq.fill.selector,
+                order,
+                spendMakerAssetToReceiver,
+                spendTakerAssetToMaker,
+                makerSig,
+                userSig,
+                spendMakerAssetToReceiverSig,
+                spendTakerAssetToMakerSig
+            );
     }
 }
