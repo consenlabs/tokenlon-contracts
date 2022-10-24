@@ -164,9 +164,11 @@ contract LimitOrderTest is StrategySharedSetup {
         );
         // Setup
         userProxy.upgradeLimitOrder(address(limitOrder), true);
+        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeLimitOrder(address(limitOrder));
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(limitOrder), true);
         permanentStorage.setPermission(permanentStorage.allowFillSeenStorageId(), address(limitOrder), true);
+        vm.stopPrank();
         return address(limitOrder);
     }
 

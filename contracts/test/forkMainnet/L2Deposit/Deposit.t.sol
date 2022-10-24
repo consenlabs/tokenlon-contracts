@@ -50,7 +50,6 @@ contract TestL2DepositTopUp is TestL2Deposit {
 
         vm.expectEmit(true, true, true, true);
         uint256 seqNum = IArbitrumBridge(ARBITRUM_L1_BRIDGE_ADDR).delayedMessageCount();
-        console.logUint(seqNum);
         emit Deposited(
             DEFAULT_DEPOSIT.l2Identifier,
             DEFAULT_DEPOSIT.l1TokenAddr,

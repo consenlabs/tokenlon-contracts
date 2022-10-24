@@ -84,8 +84,10 @@ contract TestL2Deposit is StrategySharedSetup {
 
         // Hook up L2Deposit
         userProxy.upgradeL2Deposit(address(l2Deposit), true);
+        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeL2Deposit(address(l2Deposit));
         permanentStorage.setPermission(permanentStorage.l2DepositSeenStorageId(), address(l2Deposit), true);
+        vm.stopPrank();
         return address(l2Deposit);
     }
 

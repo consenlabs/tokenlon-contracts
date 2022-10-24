@@ -20,6 +20,7 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
     using SafeERC20 for IERC20;
 
     address upgradeAdmin = makeAddr("upgradeAdmin");
+    address psOperator = makeAddr("psOperator");
 
     AllowanceTarget allowanceTarget;
     Spender spender;
@@ -48,12 +49,14 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
             bytes("") // Skip initialization during deployment
         );
         permanentStorage = PermanentStorage(address(permanentStorageProxy));
-        // Set this contract as operator
-        permanentStorage.initialize(address(this));
+        // Set permanent storage operator
+        permanentStorage.initialize(psOperator);
+        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeWETH(WETH_ADDRESS);
         // Set Curve indexes
-        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), address(this), true);
+        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), psOperator, true);
         _registerCurveIndexes(permanentStorage);
+        vm.stopPrank();
     }
 
     function setUpSystemContracts() internal {
@@ -75,8 +78,10 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
             address[] memory authListAddress = new address[](1);
             authListAddress[0] = strategy;
             spender.authorize(authListAddress);
-            permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), address(this), true);
         }
+        vm.startPrank(psOperator, psOperator);
+        permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), psOperator, true);
+        vm.stopPrank();
 
         vm.label(address(spender), "SpenderContract");
         vm.label(address(allowanceTarget), "AllowanceTargetContract");

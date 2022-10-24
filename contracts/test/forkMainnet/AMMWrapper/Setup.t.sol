@@ -20,7 +20,6 @@ contract TestAMMWrapper is StrategySharedSetup {
     address owner = makeAddr("owner");
     address feeCollector = makeAddr("feeCollector");
     address relayer = makeAddr("relayer");
-    address psOperator;
     address[] wallet = [user, relayer];
 
     AMMWrapper ammWrapper;
@@ -65,15 +64,12 @@ contract TestAMMWrapper is StrategySharedSetup {
                 IPermanentStorage(permanentStorage),
                 address(weth)
             );
-            psOperator = address(this);
         }
 
         address[] memory relayerListAddress = new address[](1);
         relayerListAddress[0] = relayer;
         bool[] memory relayerListBool = new bool[](1);
         relayerListBool[0] = true;
-        vm.prank(psOperator, psOperator);
-        permanentStorage.setPermission(relayerValidStorageId, psOperator, true);
         vm.prank(psOperator, psOperator);
         permanentStorage.setRelayersValid(relayerListAddress, relayerListBool);
 
@@ -118,8 +114,10 @@ contract TestAMMWrapper is StrategySharedSetup {
         );
         // Setup
         userProxy.upgradeAMMWrapper(address(ammWrapper), true);
+        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeAMMWrapper(address(ammWrapper));
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(ammWrapper), true);
+        vm.stopPrank();
         return address(ammWrapper);
     }
 
