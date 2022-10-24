@@ -56,21 +56,14 @@ contract RFQTest is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
-        if (vm.envBool("DEPLOYED")) {
-            setUpSystemContracts();
-
-            rfq = RFQ(payable(vm.envAddress("RFQ_ADDRESS")));
-            owner = rfq.owner();
-            feeCollector = rfq.feeCollector();
-        } else {
+        if (!vm.envBool("DEPLOYED")) {
             // overwrite tokens with locally deployed mocks
             weth = IERC20(address(new MockWETH("Wrapped ETH", "WETH", 18)));
             usdt = new MockERC20("USDT", "USDT", 6);
             dai = new MockERC20("DAI", "DAI", 18);
             tokens = [weth, usdt, dai];
-
-            setUpSystemContracts();
         }
+        setUpSystemContracts();
 
         vm.prank(maker);
         marketMakerProxy = new MarketMakerProxy();
@@ -127,6 +120,12 @@ contract RFQTest is StrategySharedSetup {
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(rfq), true);
         vm.stopPrank();
         return address(rfq);
+    }
+
+    function _setupDeployedStrategy() internal override {
+        rfq = RFQ(payable(vm.envAddress("RFQ_ADDRESS")));
+        owner = rfq.owner();
+        feeCollector = rfq.feeCollector();
     }
 
     /*********************************
