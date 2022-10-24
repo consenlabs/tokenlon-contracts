@@ -73,17 +73,7 @@ contract LimitOrderTest is StrategySharedSetup {
     function setUp() public {
         // Setup
         setUpSystemContracts();
-        if (vm.envBool("DEPLOYED")) {
-            limitOrder = LimitOrder(payable(vm.envAddress("LIMITORDER_ADDRESS")));
 
-            // prank owner and update coordinator address
-            owner = limitOrder.owner();
-            vm.prank(owner, owner);
-            limitOrder.upgradeCoordinator(coordinator);
-            // update local feeCollector address
-            feeCollector = limitOrder.feeCollector();
-            vm.stopPrank();
-        }
         tokenAddrs = [address(dai), address(usdt)];
 
         // Default params
@@ -170,6 +160,17 @@ contract LimitOrderTest is StrategySharedSetup {
         permanentStorage.setPermission(permanentStorage.allowFillSeenStorageId(), address(limitOrder), true);
         vm.stopPrank();
         return address(limitOrder);
+    }
+
+    function _setupDeployedStrategy() internal override {
+        limitOrder = LimitOrder(payable(vm.envAddress("LIMITORDER_ADDRESS")));
+
+        // prank owner and update coordinator address
+        owner = limitOrder.owner();
+        vm.prank(owner, owner);
+        limitOrder.upgradeCoordinator(coordinator);
+        // update local feeCollector address
+        feeCollector = limitOrder.feeCollector();
     }
 
     /*********************************

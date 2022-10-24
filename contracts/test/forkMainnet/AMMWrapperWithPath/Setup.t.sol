@@ -57,23 +57,6 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public virtual {
         setUpSystemContracts();
-        if (vm.envBool("DEPLOYED")) {
-            ammQuoter = AMMQuoter(vm.envAddress("AMMQUOTER_ADDRESS"));
-            ammWrapperWithPath = AMMWrapperWithPath(payable(vm.envAddress("AMMWRAPPER_ADDRESS")));
-            owner = ammWrapperWithPath.owner();
-            feeCollector = ammWrapperWithPath.feeCollector();
-            psOperator = permanentStorage.operator();
-        } else {
-            ammQuoter = new AMMQuoter(
-                UNISWAP_V2_ADDRESS,
-                UNISWAP_V3_ADDRESS,
-                UNISWAP_V3_QUOTER_ADDRESS,
-                SUSHISWAP_ADDRESS,
-                BALANCER_V2_ADDRESS,
-                IPermanentStorage(permanentStorage),
-                address(weth)
-            );
-        }
 
         address[] memory relayerListAddress = new address[](1);
         relayerListAddress[0] = relayer;
@@ -121,6 +104,16 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
 
     // Deploy the strategy contract by overriding the StrategySharedSetup.sol deployment function
     function _deployStrategyAndUpgrade() internal override returns (address) {
+        ammQuoter = new AMMQuoter(
+            UNISWAP_V2_ADDRESS,
+            UNISWAP_V3_ADDRESS,
+            UNISWAP_V3_QUOTER_ADDRESS,
+            SUSHISWAP_ADDRESS,
+            BALANCER_V2_ADDRESS,
+            IPermanentStorage(permanentStorage),
+            address(weth)
+        );
+
         ammWrapperWithPath = new AMMWrapperWithPath(
             owner,
             address(userProxy),
@@ -141,6 +134,14 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(ammWrapperWithPath), true);
         vm.stopPrank();
         return address(ammWrapperWithPath);
+    }
+
+    function _setupDeployedStrategy() internal override {
+        ammQuoter = AMMQuoter(vm.envAddress("AMMQUOTER_ADDRESS"));
+        ammWrapperWithPath = AMMWrapperWithPath(payable(vm.envAddress("AMMWRAPPER_ADDRESS")));
+        owner = ammWrapperWithPath.owner();
+        feeCollector = ammWrapperWithPath.feeCollector();
+        psOperator = permanentStorage.operator();
     }
 
     /*********************************

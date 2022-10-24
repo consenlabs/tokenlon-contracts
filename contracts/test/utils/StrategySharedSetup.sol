@@ -29,6 +29,8 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
 
     function _deployStrategyAndUpgrade() internal virtual returns (address) {}
 
+    function _setupDeployedStrategy() internal virtual {}
+
     function _deployTokenlonAndUserProxy() internal {
         UserProxy userProxyImpl = new UserProxy();
         Tokenlon tokenlon = new Tokenlon(
@@ -66,6 +68,8 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
             spender = Spender(vm.envAddress("SPENDER_ADDRESS"));
             userProxy = UserProxy(payable(vm.envAddress("USERPROXY_ADDRESS")));
             permanentStorage = PermanentStorage(vm.envAddress("PERMANENTSTORAGE_ADDRESS"));
+
+            _setupDeployedStrategy();
         } else {
             // Deploy
             spender = new Spender(address(this), new address[](1));

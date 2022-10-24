@@ -122,8 +122,10 @@ contract RFQTest is StrategySharedSetup {
         rfq = new RFQ(owner, address(userProxy), address(weth), address(permanentStorage), address(spender), feeCollector);
         // Setup
         userProxy.upgradeRFQ(address(rfq), true);
+        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeRFQ(address(rfq));
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(rfq), true);
+        vm.stopPrank();
         return address(rfq);
     }
 
