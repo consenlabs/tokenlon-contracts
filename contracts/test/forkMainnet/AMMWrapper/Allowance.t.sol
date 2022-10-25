@@ -28,9 +28,11 @@ contract TestAMMWrapperAllowance is TestAMMWrapper {
 
         assertEq(usdt.allowance(address(ammWrapper), address(this)), uint256(0));
 
+        vm.prank(owner, owner);
         ammWrapper.setAllowance(allowanceTokenList, address(this));
         assertEq(usdt.allowance(address(ammWrapper), address(this)), type(uint256).max);
 
+        vm.prank(owner, owner);
         ammWrapper.closeAllowance(allowanceTokenList, address(this));
         assertEq(usdt.allowance(address(ammWrapper), address(this)), uint256(0));
     }

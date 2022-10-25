@@ -14,6 +14,7 @@ contract TestAMMWrapperSetFeeCollector is TestAMMWrapper {
         vm.expectEmit(true, true, true, true);
         emit SetFeeCollector(user);
 
+        vm.prank(owner, owner);
         ammWrapper.setFeeCollector(user);
         assertEq(ammWrapper.feeCollector(), user);
     }
