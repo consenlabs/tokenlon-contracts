@@ -15,7 +15,7 @@
     "lint": "solhint \"contracts/**/*.sol\"",
     "compile": "hardhat compile --show-stack-traces --force && forge build --force",
     "test-foundry-local": "forge test -vvv --force --no-match-path 'contracts/test/forkMainnet/*.t.sol'",
-    "test-foundry-fork": "forge test -vvv --force --fork-url $MAINNET_NODE_RPC_URL --fork-block-number $FORK_BLOCK_NUMBER --match-path 'contracts/test/forkMainnet/*.t.sol'"
+    "test-foundry-fork": "forge test -vvv --force --fork-url $MAINNET_NODE_RPC_URL --fork-block-number 15451000 --match-path 'contracts/test/forkMainnet/*.t.sol'"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-etherscan": "^3.1.0",
