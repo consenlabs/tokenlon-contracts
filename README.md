@@ -48,7 +48,7 @@ Tokenlon is a decentralized exchange and payment settlement protocol based on bl
 
 ```
 MAINNET_NODE_RPC_URL=https://eth-mainnet.alchemyapi.io/v2/#####__YOUR_SECRET__#####
-FORK_BLOCK_NUMBER=14340000
+FORK_BLOCK_NUMBER=15451000
 ```
 
 ## Installation
