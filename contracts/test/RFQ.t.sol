@@ -21,7 +21,7 @@ contract RFQTest is StrategySharedSetup {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     // BPS_MAX must be the same as LibConstant.BPS_MAX
-    uint256 BPS_MAX = LibConstant.BPS_MAX;
+    uint256 BPS_MAX = uint256(LibConstant.BPS_MAX);
     event FillOrder(
         string source,
         bytes32 indexed transactionHash,
