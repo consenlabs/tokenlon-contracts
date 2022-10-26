@@ -84,8 +84,6 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
      *************************************************************/
     function fill(
         RFQLibEIP712.Order calldata _order,
-        SpenderLibEIP712.SpendWithPermit calldata _makerAssetPermit,
-        SpenderLibEIP712.SpendWithPermit calldata _takerAssetPermit,
         bytes calldata _mmSignature,
         bytes calldata _userSignature,
         bytes calldata _makerAssetPermitSig,
@@ -106,11 +104,33 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
         permStorage.setRFQTransactionSeen(vars.transactionHash);
 
+        // Declare the 'maker sends makerAsset to this contract' SpendWithPermit struct from _order parameter
+        SpenderLibEIP712.SpendWithPermit memory makerAssetPermit = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: _order.makerAssetAddr,
+            requester: address(this),
+            user: _order.makerAddr,
+            recipient: address(this),
+            amount: _order.makerAssetAmount,
+            salt: _order.salt,
+            expiry: uint64(_order.deadline)
+        });
+
+        // Declare the 'taker sends takerAsset to this contract' SpendWithPermit struct from _order parameter
+        SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: _order.takerAssetAddr,
+            requester: address(this),
+            user: _order.takerAddr,
+            recipient: address(this),
+            amount: _order.takerAssetAmount,
+            salt: _order.salt,
+            expiry: uint64(_order.deadline)
+        });
+
         return
             _settle({
                 _order: _order,
-                _makerAssetPermit: _makerAssetPermit,
-                _takerAssetPermit: _takerAssetPermit,
+                _makerAssetPermit: makerAssetPermit,
+                _takerAssetPermit: takerAssetPermit,
                 _vars: vars,
                 _makerAssetPermitSig: _makerAssetPermitSig,
                 _takerAssetPermitSig: _takerAssetPermitSig
