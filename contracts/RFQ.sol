@@ -86,7 +86,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         bytes calldata _userSignature
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         GroupedVars memory vars = _preHandleFill(_order, _mmSignature, _userSignature);
-        return _settle(_order, vars, true, true);
+        return _settle({ _order: _order, _vars: vars, _useSpenderForTaker: true, _useSpenderForMaker: true });
     }
 
     function fillWithoutMakerSpender(
@@ -95,7 +95,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         bytes calldata _userSignature
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         GroupedVars memory vars = _preHandleFill(_order, _mmSignature, _userSignature);
-        return _settle(_order, vars, true, false);
+        return _settle({ _order: _order, _vars: vars, _useSpenderForTaker: true, _useSpenderForMaker: false });
     }
 
     function _emitFillOrder(
