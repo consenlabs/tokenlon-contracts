@@ -9,11 +9,11 @@ import "../utils/SpenderLibEIP712.sol";
 interface IRFQ is IStrategyBase {
     function fill(
         RFQLibEIP712.Order memory _order,
-        SpenderLibEIP712.SpendWithPermit memory _spendMakerAssetToReceiver,
-        SpenderLibEIP712.SpendWithPermit memory _spendTakerAssetToMaker,
+        SpenderLibEIP712.SpendWithPermit memory _makerAssetPermit,
+        SpenderLibEIP712.SpendWithPermit memory _takerAssetPermit,
         bytes memory _mmSignature,
         bytes memory _userSignature,
-        bytes memory _spendMakerAssetToReceiverSig,
-        bytes memory _spendTakerAssetToMakerSig
+        bytes memory _makerAssetPermitSig,
+        bytes memory _takerAssetPermitSig
     ) external payable returns (uint256);
 }
