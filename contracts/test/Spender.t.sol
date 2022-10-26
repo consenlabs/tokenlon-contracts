@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
+pragma abicoder v2;
 
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -7,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "contracts/Spender.sol";
 import "contracts/SpenderSimulation.sol";
 import "contracts/AllowanceTarget.sol";
+import "contracts/utils/SpenderLibEIP712.sol";
 import "contracts-test/mocks/MockERC20.sol";
 import "contracts-test/mocks/MockDeflationaryERC20.sol";
 import "contracts-test/mocks/MockNoReturnERC20.sol";
@@ -19,21 +21,14 @@ contract SpenderTest is BalanceUtil {
     using SafeERC20 for IERC20;
 
     event TearDownAllowanceTarget(uint256 tearDownTimeStamp);
-    struct SpendWithPermit {
-        address tokenAddr;
-        address requester;
-        address user;
-        address recipient;
-        uint256 amount;
-        uint256 salt;
-        uint64 expiry;
-    }
 
     uint256 userPrivateKey = uint256(1);
     uint256 otherPrivateKey = uint256(2);
 
     address user = vm.addr(userPrivateKey);
-    address requester = address(0x133700);
+    // Originally requester should be the address of the strategy contract
+    // that calls spender; But in this test case, the requester is address(this)
+    address requester = address(this);
     address recipient = address(0x133702);
     address unauthorized = address(0x133704);
     address[] wallet = [address(this), user, recipient];
@@ -48,7 +43,7 @@ contract SpenderTest is BalanceUtil {
     IERC20[] tokens = [IERC20(address(deflationaryERC20)), IERC20(address(noReturnERC20)), IERC20(address(noRevertERC20))];
 
     uint64 EXPIRY = uint64(block.timestamp + 1);
-    SpendWithPermit DEFAULT_SPEND_WITH_PERMIT;
+    SpenderLibEIP712.SpendWithPermit DEFAULT_SPEND_WITH_PERMIT;
 
     // effectively a "beforeEach" block
     function setUp() public {
@@ -85,7 +80,7 @@ contract SpenderTest is BalanceUtil {
 
         // Default SpendWithPermit
         // prettier-ignore
-        DEFAULT_SPEND_WITH_PERMIT = SpendWithPermit(
+        DEFAULT_SPEND_WITH_PERMIT = SpenderLibEIP712.SpendWithPermit(
             address(lon), // tokenAddr
             requester, // requester
             user, // user
@@ -326,110 +321,56 @@ contract SpenderTest is BalanceUtil {
      *******************************************/
 
     function testCannotSpendFromUserToWithPermitWithExpiredPermit() public {
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
         spendWithPermit.expiry = uint64(block.timestamp - 1); // Timestamp expired
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
 
         vm.expectRevert("Spender: Permit is expired");
-        spender.spendFromUserToWithPermit(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spender.spendFromUserToWithPermit(spendWithPermit, sig);
     }
 
     function testCannotSpendFromUserToWithPermitByWrongSigner() public {
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
         bytes memory sig = _signSpendWithPermit(otherPrivateKey, spendWithPermit); // Wrong signer
 
         vm.expectRevert("Spender: Invalid permit signature");
-        spender.spendFromUserToWithPermit(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spender.spendFromUserToWithPermit(spendWithPermit, sig);
     }
 
     function testCannotSpendFromUserToWithPermitWithWrongRecipient() public {
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
 
         vm.expectRevert("Spender: Invalid permit signature");
         spendWithPermit.recipient = unauthorized; // recipient is different from signed
-        spender.spendFromUserToWithPermit(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spender.spendFromUserToWithPermit(spendWithPermit, sig);
     }
 
     function testCannotSpendFromUserToWithPermitWithWrongToken() public {
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
 
         vm.expectRevert("Spender: Invalid permit signature");
         spendWithPermit.tokenAddr = unauthorized; // tokenAddr is different from signed
-        spender.spendFromUserToWithPermit(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spender.spendFromUserToWithPermit(spendWithPermit, sig);
     }
 
     function testCannotSpendFromUserToWithPermitWithWrongAmount() public {
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
 
         vm.expectRevert("Spender: Invalid permit signature");
         spendWithPermit.amount = spendWithPermit.amount + 1; // amount is different from signed
-        spender.spendFromUserToWithPermit(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spender.spendFromUserToWithPermit(spendWithPermit, sig);
     }
 
     function testCannotSpendFromUserToWithPermitByNotAuthorized() public {
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
 
         vm.expectRevert("Spender: not authorized");
         vm.prank(unauthorized); // Only authorized strategy contracts and owner
-        spender.spendFromUserToWithPermit(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spender.spendFromUserToWithPermit(spendWithPermit, sig);
     }
 
     function testCannotSpendFromUserToWithPermitWithBlacklistedToken() public {
@@ -438,63 +379,27 @@ contract SpenderTest is BalanceUtil {
         bool[] memory blacklistBool = new bool[](1);
         blacklistBool[0] = true;
         spender.blacklist(blacklistAddress, blacklistBool); // Set lon to black list by owner (this contract)
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
 
         vm.expectRevert("Spender: token is blacklisted");
-        spender.spendFromUserToWithPermit(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spender.spendFromUserToWithPermit(spendWithPermit, sig);
     }
 
     function testCannotSpendFromUserToWithPermitWithSamePermit() public {
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
-        spender.spendFromUserToWithPermit(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spender.spendFromUserToWithPermit(spendWithPermit, sig);
 
         vm.expectRevert("Spender: Spending is already fulfilled");
-        spender.spendFromUserToWithPermit( // Detected the same permit hash in the past
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spender.spendFromUserToWithPermit(spendWithPermit, sig); // Detected the same permit hash in the past
     }
 
     function testSpendFromUserToWithPermit() public {
         BalanceSnapshot.Snapshot memory recipientLon = BalanceSnapshot.take(recipient, address(lon));
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
-        spender.spendFromUserToWithPermit(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spender.spendFromUserToWithPermit(spendWithPermit, sig);
 
         recipientLon.assertChange(int256(spendWithPermit.amount)); // Confirm amount of tokens received
     }
@@ -504,7 +409,9 @@ contract SpenderTest is BalanceUtil {
      *******************************************/
 
     function testCannotSimulateByNotAuthorized() public {
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        // Set the requester address to spenderSimulation contract
+        spendWithPermit.requester = address(spenderSimulation);
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
         // Set address of spenderSimulation to be removed from authorization list of spender,
         // and spenderSimulation can not execute spender.spendFromUserToWithPermit() function.
@@ -513,33 +420,17 @@ contract SpenderTest is BalanceUtil {
         spender.deauthorize(spenderSimulationAddr);
 
         vm.expectRevert("Spender: not authorized");
-        spenderSimulation.simulate(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spenderSimulation.simulate(spendWithPermit, sig);
     }
 
     function testSimulate() public {
-        SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        // Set the requester address to spenderSimulation contract
+        spendWithPermit.requester = address(spenderSimulation);
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
 
         vm.expectRevert("SpenderSimulation: transfer simulation success");
-        spenderSimulation.simulate(
-            spendWithPermit.tokenAddr,
-            spendWithPermit.requester,
-            spendWithPermit.user,
-            spendWithPermit.recipient,
-            spendWithPermit.amount,
-            spendWithPermit.salt,
-            spendWithPermit.expiry,
-            sig
-        );
+        spenderSimulation.simulate(spendWithPermit, sig);
     }
 
     /*********************************
@@ -552,7 +443,7 @@ contract SpenderTest is BalanceUtil {
         return keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, structHash));
     }
 
-    function _signSpendWithPermit(uint256 privateKey, SpendWithPermit memory spendWithPermit) internal returns (bytes memory sig) {
+    function _signSpendWithPermit(uint256 privateKey, SpenderLibEIP712.SpendWithPermit memory spendWithPermit) internal returns (bytes memory sig) {
         uint256 SPEND_WITH_PERMIT_TYPEHASH = 0xab1af22032364b17f69bad7eabde29f0cd3f761861c0343407be7fcac2e3ff1f;
         bytes32 structHash = keccak256(
             abi.encode(

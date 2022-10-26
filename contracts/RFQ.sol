@@ -166,16 +166,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
                 "RFQ: taker spender information is incorrect"
             );
             // Transfer taker asset to RFQ (= this) first,
-            spender.spendFromUserToWithPermit({
-                _tokenAddr: _spendTakerAssetToRFQ.tokenAddr,
-                _requester: _spendTakerAssetToRFQ.requester,
-                _user: _spendTakerAssetToRFQ.user,
-                _recipient: _spendTakerAssetToRFQ.recipient,
-                _amount: _spendTakerAssetToRFQ.amount,
-                _salt: _spendTakerAssetToRFQ.salt,
-                _expiry: _spendTakerAssetToRFQ.expiry,
-                _spendWithPermitSig: _spendTakerAssetToRFQSig
-            });
+            spender.spendFromUserToWithPermit({ _params: _spendTakerAssetToRFQ, _spendWithPermitSig: _spendTakerAssetToRFQSig });
             // then transfer from this to maker.
             IERC20(_order.takerAssetAddr).transfer(_order.makerAddr, _order.takerAssetAmount);
         }
@@ -196,16 +187,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             "RFQ: maker spender information is incorrect"
         );
         // Transfer maker asset to RFQ (= this) first,
-        spender.spendFromUserToWithPermit({
-            _tokenAddr: _spendMakerAssetToRFQ.tokenAddr,
-            _requester: _spendMakerAssetToRFQ.requester,
-            _user: _spendMakerAssetToRFQ.user,
-            _recipient: _spendMakerAssetToRFQ.recipient,
-            _amount: _spendMakerAssetToRFQ.amount,
-            _salt: _spendMakerAssetToRFQ.salt,
-            _expiry: _spendMakerAssetToRFQ.expiry,
-            _spendWithPermitSig: _spendMakerAssetToRFQSig
-        });
+        spender.spendFromUserToWithPermit({ _params: _spendMakerAssetToRFQ, _spendWithPermitSig: _spendMakerAssetToRFQSig });
 
         // then transfer maker asset (but except fee) from this to receiver,
         if (_order.makerAssetAddr == address(weth)) {

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
+pragma abicoder v2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -195,43 +196,29 @@ contract Spender is ISpender, Ownable, BaseLibEIP712, SignatureValidator {
     }
 
     /// @dev Spend tokens on user's behalf with user's permit signature. Only an authority can call this.
-    /// @param _tokenAddr The address of the token.
-    /// @param _requester The address of strategy contract.
-    /// @param _user The user to spend token from.
-    /// @param _recipient The recipient of the token.
-    /// @param _amount Amount to spend.
-    /// @param _salt Salt for the permit.
-    /// @param _expiry Expiry for the permit.
+    /// @param _params The params of the SpendWithPermit.
     /// @param _spendWithPermitSig Spend with permit signature.
-    function spendFromUserToWithPermit(
-        address _tokenAddr,
-        address _requester,
-        address _user,
-        address _recipient,
-        uint256 _amount,
-        uint256 _salt,
-        uint64 _expiry,
-        bytes calldata _spendWithPermitSig
-    ) external override onlyAuthorized {
-        require(_expiry > block.timestamp, "Spender: Permit is expired");
+    function spendFromUserToWithPermit(SpenderLibEIP712.SpendWithPermit calldata _params, bytes calldata _spendWithPermitSig) external override onlyAuthorized {
+        // Check the spender expiry timestamp
+        require(_params.expiry >= block.timestamp, "Spender: Permit is expired");
 
         // Validate spend with permit signature
         bytes32 spendWithPermitHash = getEIP712Hash({
             structHash: SpenderLibEIP712._getSpendWithPermitHash(
                 SpenderLibEIP712.SpendWithPermit({
-                    tokenAddr: _tokenAddr,
-                    requester: _requester,
-                    user: _user,
-                    recipient: _recipient,
-                    amount: _amount,
-                    salt: _salt,
-                    expiry: _expiry
+                    tokenAddr: _params.tokenAddr,
+                    requester: _params.requester,
+                    user: _params.user,
+                    recipient: _params.recipient,
+                    amount: _params.amount,
+                    salt: _params.salt,
+                    expiry: _params.expiry
                 })
             )
         });
 
         require(
-            isValidSignature({ _signerAddress: _user, _hash: spendWithPermitHash, _data: bytes(""), _sig: _spendWithPermitSig }),
+            isValidSignature({ _signerAddress: _params.user, _hash: spendWithPermitHash, _data: bytes(""), _sig: _spendWithPermitSig }),
             "Spender: Invalid permit signature"
         );
 
@@ -239,7 +226,7 @@ contract Spender is ISpender, Ownable, BaseLibEIP712, SignatureValidator {
         require(!spendingFulfilled[spendWithPermitHash], "Spender: Spending is already fulfilled");
         spendingFulfilled[spendWithPermitHash] = true;
 
-        _transferTokenFromUserTo({ _user: _user, _tokenAddr: _tokenAddr, _recipient: _recipient, _amount: _amount });
+        _transferTokenFromUserTo(_params.user, _params.tokenAddr, _params.recipient, _params.amount);
     }
 
     function _transferTokenFromUserTo(
