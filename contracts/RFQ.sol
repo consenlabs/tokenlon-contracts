@@ -5,7 +5,8 @@ pragma abicoder v2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "./interfaces/IRFQ.sol";
 import "./utils/StrategyBase.sol";
 import "./utils/RFQLibEIP712.sol";
@@ -16,6 +17,7 @@ import "./utils/LibConstant.sol";
 contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     using SafeMath for uint256;
     using Address for address;
+    using SafeERC20 for IERC20;
 
     // Constants do not have storage slot.
     string public constant SOURCE = "RFQ v1";
@@ -83,22 +85,17 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         bytes calldata _mmSignature,
         bytes calldata _userSignature
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
-        // check the order deadline and fee factor
-        require(_order.deadline >= block.timestamp, "RFQ: expired order");
-        require(_order.feeFactor < LibConstant.BPS_MAX, "RFQ: invalid fee factor");
+        GroupedVars memory vars = _preHandleFill(_order, _mmSignature, _userSignature);
+        return _settle(_order, vars, true);
+    }
 
-        GroupedVars memory vars;
-
-        // Validate signatures
-        vars.orderHash = RFQLibEIP712._getOrderHash(_order);
-        require(isValidSignature(_order.makerAddr, getEIP712Hash(vars.orderHash), bytes(""), _mmSignature), "RFQ: invalid MM signature");
-        vars.transactionHash = RFQLibEIP712._getTransactionHash(_order);
-        require(isValidSignature(_order.takerAddr, getEIP712Hash(vars.transactionHash), bytes(""), _userSignature), "RFQ: invalid user signature");
-
-        // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
-        permStorage.setRFQTransactionSeen(vars.transactionHash);
-
-        return _settle(_order, vars);
+    function fillWithoutMakerSpender(
+        RFQLibEIP712.Order calldata _order,
+        bytes calldata _mmSignature,
+        bytes calldata _userSignature
+    ) external payable override nonReentrant onlyUserProxy returns (uint256) {
+        GroupedVars memory vars = _preHandleFill(_order, _mmSignature, _userSignature);
+        return _settle(_order, vars, false);
     }
 
     function _emitFillOrder(
@@ -123,7 +120,11 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     }
 
     // settle
-    function _settle(RFQLibEIP712.Order memory _order, GroupedVars memory _vars) internal returns (uint256) {
+    function _settle(
+        RFQLibEIP712.Order memory _order,
+        GroupedVars memory _vars,
+        bool _useSpenderForMaker
+    ) internal returns (uint256) {
         // Transfer taker asset to maker
         if (address(weth) == _order.takerAssetAddr) {
             // Deposit to WETH if taker asset is ETH
@@ -144,19 +145,59 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         // Transfer token/Eth to receiver
         if (_order.makerAssetAddr == address(weth)) {
             // Transfer from maker
-            spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, settleAmount);
+            _spendFromMakerTo(_order.makerAddr, _order.makerAssetAddr, address(this), settleAmount, _useSpenderForMaker);
             weth.withdraw(settleAmount);
             payable(_order.receiverAddr).transfer(settleAmount);
         } else {
-            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount);
+            _spendFromMakerTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount, _useSpenderForMaker);
         }
         // Collect fee
         if (fee > 0) {
-            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, fee);
+            _spendFromMakerTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, fee, _useSpenderForMaker);
         }
 
         _emitFillOrder(_order, _vars, settleAmount);
 
         return settleAmount;
+    }
+
+    function _spendFromMakerTo(
+        address _user,
+        address _tokenAddr,
+        address _recipient,
+        uint256 _amount,
+        bool _useSpenderForMaker
+    ) internal {
+        if (_useSpenderForMaker) {
+            spender.spendFromUserTo(_user, _tokenAddr, _recipient, _amount);
+            return;
+        }
+        uint256 balanceBefore = IERC20(_tokenAddr).balanceOf(_recipient);
+        IERC20(_tokenAddr).safeTransferFrom(_user, _recipient, _amount);
+        uint256 balanceAfter = IERC20(_tokenAddr).balanceOf(_recipient);
+        require(balanceAfter.sub(balanceBefore) == _amount, "RFQ: ERC20 transferFrom amount mismatch");
+    }
+
+    function _preHandleFill(
+        RFQLibEIP712.Order calldata _order,
+        bytes calldata _mmSignature,
+        bytes calldata _userSignature
+    ) internal returns (GroupedVars memory) {
+        // check the order deadline and fee factor
+        require(_order.deadline >= block.timestamp, "RFQ: expired order");
+        require(_order.feeFactor < LibConstant.BPS_MAX, "RFQ: invalid fee factor");
+
+        GroupedVars memory vars;
+
+        // Validate signatures
+        vars.orderHash = RFQLibEIP712._getOrderHash(_order);
+        require(isValidSignature(_order.makerAddr, getEIP712Hash(vars.orderHash), bytes(""), _mmSignature), "RFQ: invalid MM signature");
+        vars.transactionHash = RFQLibEIP712._getTransactionHash(_order);
+        require(isValidSignature(_order.takerAddr, getEIP712Hash(vars.transactionHash), bytes(""), _userSignature), "RFQ: invalid user signature");
+
+        // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
+        permStorage.setRFQTransactionSeen(vars.transactionHash);
+
+        return vars;
     }
 }
