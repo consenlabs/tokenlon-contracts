@@ -257,6 +257,27 @@ contract RFQTest is StrategySharedSetup {
         userProxy.toRFQ(payload);
     }
 
+    function testCannotFillWithInvalidRequester() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload; // Bypass stack too deep error
+        {
+            (
+                SpenderLibEIP712.SpendWithPermit memory makerAssetPermit,
+                SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
+            ) = _createSpenderPermitFromOrder({ defaultOrder: order });
+            makerAssetPermit.requester = address(this); // Invalid requester address
+            takerAssetPermit.requester = address(this); // Invalid requester address
+            bytes memory makerAssetPermitSig = _signSpendWithPermit(makerPrivateKey, makerAssetPermit, SignatureValidator.SignatureType.EIP712);
+            bytes memory takerAssetPermitSig = _signSpendWithPermit(userPrivateKey, takerAssetPermit, SignatureValidator.SignatureType.EIP712);
+            payload = _genFillPayload(order, makerAssetPermit, takerAssetPermit, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
+        }
+        vm.expectRevert("Spender: invalid requester address");
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
+    }
+
     function testCannotFillWithInvalidUserSig() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);

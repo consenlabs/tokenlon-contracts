@@ -329,6 +329,15 @@ contract SpenderTest is BalanceUtil {
         spender.spendFromUserToWithPermit(spendWithPermit, sig);
     }
 
+    function testCannotSpendFromUserToWithPermitWithWrongRequester() public {
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
+        spendWithPermit.requester = unauthorized; // Wrong requester address
+        bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
+
+        vm.expectRevert("Spender: invalid requester address");
+        spender.spendFromUserToWithPermit(spendWithPermit, sig);
+    }
+
     function testCannotSpendFromUserToWithPermitByWrongSigner() public {
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit = DEFAULT_SPEND_WITH_PERMIT;
         bytes memory sig = _signSpendWithPermit(otherPrivateKey, spendWithPermit); // Wrong signer
