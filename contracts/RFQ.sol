@@ -81,22 +81,22 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
      *************************************************************/
     function fill(
         RFQLibEIP712.Order calldata _order,
-        SpenderLibEIP712.SpendWithPermit calldata _spendMakerAssetToRFQ,
-        SpenderLibEIP712.SpendWithPermit calldata _spendTakerAssetToRFQ,
+        SpenderLibEIP712.SpendWithPermit calldata _makerAssetPermit,
+        SpenderLibEIP712.SpendWithPermit calldata _takerAssetPermit,
         bytes calldata _mmSignature,
         bytes calldata _userSignature,
-        bytes calldata _spendMakerAssetToRFQSig,
-        bytes calldata _spendTakerAssetToRFQSig
+        bytes calldata _makerAssetPermitSig,
+        bytes calldata _takerAssetPermitSig
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         // check the order deadline and fee factor
         require(_order.deadline >= block.timestamp, "RFQ: expired order");
         require(_order.feeFactor < LibConstant.BPS_MAX, "RFQ: invalid fee factor");
 
         // check the spender deadline and RFQ address
-        require(_spendMakerAssetToRFQ.expiry >= block.timestamp, "RFQ: expired maker spender");
-        require(_spendMakerAssetToRFQ.requester == address(this), "RFQ: invalid RFQ address");
-        require(_spendTakerAssetToRFQ.expiry >= block.timestamp, "RFQ: expired taker spender");
-        require(_spendTakerAssetToRFQ.requester == address(this), "RFQ: invalid RFQ address");
+        require(_makerAssetPermit.expiry >= block.timestamp, "RFQ: expired maker spender");
+        require(_makerAssetPermit.requester == address(this), "RFQ: invalid RFQ address");
+        require(_takerAssetPermit.expiry >= block.timestamp, "RFQ: expired taker spender");
+        require(_takerAssetPermit.requester == address(this), "RFQ: invalid RFQ address");
 
         GroupedVars memory vars;
 
@@ -112,11 +112,11 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         return
             _settle({
                 _order: _order,
-                _spendMakerAssetToRFQ: _spendMakerAssetToRFQ,
-                _spendTakerAssetToRFQ: _spendTakerAssetToRFQ,
+                _makerAssetPermit: _makerAssetPermit,
+                _takerAssetPermit: _takerAssetPermit,
                 _vars: vars,
-                _spendMakerAssetToRFQSig: _spendMakerAssetToRFQSig,
-                _spendTakerAssetToRFQSig: _spendTakerAssetToRFQSig
+                _makerAssetPermitSig: _makerAssetPermitSig,
+                _takerAssetPermitSig: _takerAssetPermitSig
             });
     }
 
@@ -144,11 +144,11 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     // settle
     function _settle(
         RFQLibEIP712.Order memory _order,
-        SpenderLibEIP712.SpendWithPermit memory _spendMakerAssetToRFQ,
-        SpenderLibEIP712.SpendWithPermit memory _spendTakerAssetToRFQ,
+        SpenderLibEIP712.SpendWithPermit memory _makerAssetPermit,
+        SpenderLibEIP712.SpendWithPermit memory _takerAssetPermit,
         GroupedVars memory _vars,
-        bytes memory _spendMakerAssetToRFQSig,
-        bytes memory _spendTakerAssetToRFQSig
+        bytes memory _makerAssetPermitSig,
+        bytes memory _takerAssetPermitSig
     ) internal returns (uint256) {
         // Transfer taker asset to maker
         if (address(weth) == _order.takerAssetAddr) {
@@ -159,14 +159,14 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         } else {
             require(
                 // Confirm that 'takerAddr' sends 'takerAssetAmount' amount of 'takerAssetAddr' to 'address(this)'
-                _order.takerAddr == _spendTakerAssetToRFQ.user &&
-                    _order.takerAssetAddr == _spendTakerAssetToRFQ.tokenAddr &&
-                    address(this) == _spendTakerAssetToRFQ.recipient &&
-                    _order.takerAssetAmount == _spendTakerAssetToRFQ.amount,
+                _order.takerAddr == _takerAssetPermit.user &&
+                    _order.takerAssetAddr == _takerAssetPermit.tokenAddr &&
+                    address(this) == _takerAssetPermit.recipient &&
+                    _order.takerAssetAmount == _takerAssetPermit.amount,
                 "RFQ: taker spender information is incorrect"
             );
             // Transfer taker asset to RFQ (= this) first,
-            spender.spendFromUserToWithPermit({ _params: _spendTakerAssetToRFQ, _spendWithPermitSig: _spendTakerAssetToRFQSig });
+            spender.spendFromUserToWithPermit({ _params: _takerAssetPermit, _spendWithPermitSig: _takerAssetPermitSig });
             // then transfer from this to maker.
             IERC20(_order.takerAssetAddr).transfer(_order.makerAddr, _order.takerAssetAmount);
         }
@@ -180,14 +180,14 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
 
         require(
             // Confirm that 'makerAddr' sends 'makerAssetAmount' amount of 'makerAssetAddr' to 'address(this)'
-            _order.makerAddr == _spendMakerAssetToRFQ.user &&
-                _order.makerAssetAddr == _spendMakerAssetToRFQ.tokenAddr &&
-                address(this) == _spendMakerAssetToRFQ.recipient &&
-                _order.makerAssetAmount == _spendMakerAssetToRFQ.amount,
+            _order.makerAddr == _makerAssetPermit.user &&
+                _order.makerAssetAddr == _makerAssetPermit.tokenAddr &&
+                address(this) == _makerAssetPermit.recipient &&
+                _order.makerAssetAmount == _makerAssetPermit.amount,
             "RFQ: maker spender information is incorrect"
         );
         // Transfer maker asset to RFQ (= this) first,
-        spender.spendFromUserToWithPermit({ _params: _spendMakerAssetToRFQ, _spendWithPermitSig: _spendMakerAssetToRFQSig });
+        spender.spendFromUserToWithPermit({ _params: _makerAssetPermit, _spendWithPermitSig: _makerAssetPermitSig });
 
         // then transfer maker asset (but except fee) from this to receiver,
         if (_order.makerAssetAddr == address(weth)) {
