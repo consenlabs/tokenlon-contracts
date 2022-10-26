@@ -207,14 +207,14 @@ contract Spender is ISpender, Ownable, BaseLibEIP712, SignatureValidator {
         // Validate spend with permit signature
         bytes32 spendWithPermitHash = getEIP712Hash({ structHash: SpenderLibEIP712._getSpendWithPermitHash({ _spendWithPermit: _params }) });
 
+        // Validate spending is not replayed
+        require(!spendingFulfilled[spendWithPermitHash], "Spender: Spending is already fulfilled");
+        spendingFulfilled[spendWithPermitHash] = true;
+
         require(
             isValidSignature({ _signerAddress: _params.user, _hash: spendWithPermitHash, _data: bytes(""), _sig: _spendWithPermitSig }),
             "Spender: Invalid permit signature"
         );
-
-        // Validate spending is not replayed
-        require(!spendingFulfilled[spendWithPermitHash], "Spender: Spending is already fulfilled");
-        spendingFulfilled[spendWithPermitHash] = true;
 
         _transferTokenFromUserTo(_params.user, _params.tokenAddr, _params.recipient, _params.amount);
     }
