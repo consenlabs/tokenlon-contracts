@@ -86,7 +86,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         bytes calldata _userSignature
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         GroupedVars memory vars = _preHandleFill(_order, _mmSignature, _userSignature);
-        return _settle(_order, vars, true);
+        return _settle(_order, vars, true, true);
     }
 
     function fillWithoutMakerSpender(
@@ -95,7 +95,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         bytes calldata _userSignature
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         GroupedVars memory vars = _preHandleFill(_order, _mmSignature, _userSignature);
-        return _settle(_order, vars, false);
+        return _settle(_order, vars, true, false);
     }
 
     function _emitFillOrder(
@@ -123,6 +123,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     function _settle(
         RFQLibEIP712.Order memory _order,
         GroupedVars memory _vars,
+        bool _useSpenderForTaker,
         bool _useSpenderForMaker
     ) internal returns (uint256) {
         // Transfer taker asset to maker
@@ -132,7 +133,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             weth.deposit{ value: msg.value }();
             weth.transfer(_order.makerAddr, _order.takerAssetAmount);
         } else {
-            spender.spendFromUserTo(_order.takerAddr, _order.takerAssetAddr, _order.makerAddr, _order.takerAssetAmount);
+            _spendFromUserTo(_order.takerAddr, _order.takerAssetAddr, _order.makerAddr, _order.takerAssetAmount, _useSpenderForTaker);
         }
 
         // Transfer maker asset to taker, sub fee
@@ -145,15 +146,15 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         // Transfer token/Eth to receiver
         if (_order.makerAssetAddr == address(weth)) {
             // Transfer from maker
-            _spendFromMakerTo(_order.makerAddr, _order.makerAssetAddr, address(this), settleAmount, _useSpenderForMaker);
+            _spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, address(this), settleAmount, _useSpenderForMaker);
             weth.withdraw(settleAmount);
             payable(_order.receiverAddr).transfer(settleAmount);
         } else {
-            _spendFromMakerTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount, _useSpenderForMaker);
+            _spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount, _useSpenderForMaker);
         }
         // Collect fee
         if (fee > 0) {
-            _spendFromMakerTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, fee, _useSpenderForMaker);
+            _spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, fee, _useSpenderForMaker);
         }
 
         _emitFillOrder(_order, _vars, settleAmount);
@@ -161,17 +162,19 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         return settleAmount;
     }
 
-    function _spendFromMakerTo(
+    function _spendFromUserTo(
         address _user,
         address _tokenAddr,
         address _recipient,
         uint256 _amount,
-        bool _useSpenderForMaker
+        bool _useSpender
     ) internal {
-        if (_useSpenderForMaker) {
+        if (_useSpender) {
+            // transferFrom by Spender
             spender.spendFromUserTo(_user, _tokenAddr, _recipient, _amount);
             return;
         }
+        // transferFrom by RFQ
         uint256 balanceBefore = IERC20(_tokenAddr).balanceOf(_recipient);
         IERC20(_tokenAddr).safeTransferFrom(_user, _recipient, _amount);
         uint256 balanceAfter = IERC20(_tokenAddr).balanceOf(_recipient);
