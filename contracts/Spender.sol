@@ -201,6 +201,8 @@ contract Spender is ISpender, Ownable, BaseLibEIP712, SignatureValidator {
     function spendFromUserToWithPermit(SpenderLibEIP712.SpendWithPermit calldata _params, bytes calldata _spendWithPermitSig) external override onlyAuthorized {
         // Check the spender expiry timestamp
         require(_params.expiry >= block.timestamp, "Spender: Permit is expired");
+        // Check the spender requester is specified strategy address
+        require(_params.requester == msg.sender, "Spender: invalid requester address");
 
         // Validate spend with permit signature
         bytes32 spendWithPermitHash = getEIP712Hash({

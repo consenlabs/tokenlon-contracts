@@ -92,12 +92,6 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         require(_order.deadline >= block.timestamp, "RFQ: expired order");
         require(_order.feeFactor < LibConstant.BPS_MAX, "RFQ: invalid fee factor");
 
-        // check the spender deadline and RFQ address
-        require(_makerAssetPermit.expiry >= block.timestamp, "RFQ: expired maker spender");
-        require(_makerAssetPermit.requester == address(this), "RFQ: invalid RFQ address");
-        require(_takerAssetPermit.expiry >= block.timestamp, "RFQ: expired taker spender");
-        require(_takerAssetPermit.requester == address(this), "RFQ: invalid RFQ address");
-
         GroupedVars memory vars;
 
         // Validate signatures
