@@ -104,37 +104,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
         permStorage.setRFQTransactionSeen(vars.transactionHash);
 
-        // Declare the 'maker sends makerAsset to this contract' SpendWithPermit struct from _order parameter
-        SpenderLibEIP712.SpendWithPermit memory makerAssetPermit = SpenderLibEIP712.SpendWithPermit({
-            tokenAddr: _order.makerAssetAddr,
-            requester: address(this),
-            user: _order.makerAddr,
-            recipient: address(this),
-            amount: _order.makerAssetAmount,
-            salt: _order.salt,
-            expiry: uint64(_order.deadline)
-        });
-
-        // Declare the 'taker sends takerAsset to this contract' SpendWithPermit struct from _order parameter
-        SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = SpenderLibEIP712.SpendWithPermit({
-            tokenAddr: _order.takerAssetAddr,
-            requester: address(this),
-            user: _order.takerAddr,
-            recipient: address(this),
-            amount: _order.takerAssetAmount,
-            salt: _order.salt,
-            expiry: uint64(_order.deadline)
-        });
-
-        return
-            _settle({
-                _order: _order,
-                _makerAssetPermit: makerAssetPermit,
-                _takerAssetPermit: takerAssetPermit,
-                _vars: vars,
-                _makerAssetPermitSig: _makerAssetPermitSig,
-                _takerAssetPermitSig: _takerAssetPermitSig
-            });
+        return _settle({ _order: _order, _vars: vars, _makerAssetPermitSig: _makerAssetPermitSig, _takerAssetPermitSig: _takerAssetPermitSig });
     }
 
     function _emitFillOrder(
@@ -161,12 +131,32 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     // settle
     function _settle(
         RFQLibEIP712.Order memory _order,
-        SpenderLibEIP712.SpendWithPermit memory _makerAssetPermit,
-        SpenderLibEIP712.SpendWithPermit memory _takerAssetPermit,
         GroupedVars memory _vars,
         bytes memory _makerAssetPermitSig,
         bytes memory _takerAssetPermitSig
     ) internal returns (uint256) {
+        // Declare the 'maker sends makerAsset to this contract' SpendWithPermit struct from _order parameter
+        SpenderLibEIP712.SpendWithPermit memory makerAssetPermit = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: _order.makerAssetAddr,
+            requester: address(this),
+            user: _order.makerAddr,
+            recipient: address(this),
+            amount: _order.makerAssetAmount,
+            salt: _order.salt,
+            expiry: uint64(_order.deadline)
+        });
+
+        // Declare the 'taker sends takerAsset to this contract' SpendWithPermit struct from _order parameter
+        SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: _order.takerAssetAddr,
+            requester: address(this),
+            user: _order.takerAddr,
+            recipient: address(this),
+            amount: _order.takerAssetAmount,
+            salt: _order.salt,
+            expiry: uint64(_order.deadline)
+        });
+
         // Transfer taker asset to maker
         if (address(weth) == _order.takerAssetAddr) {
             // Deposit to WETH if taker asset is ETH
@@ -174,16 +164,8 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             weth.deposit{ value: msg.value }();
             weth.transfer(_order.makerAddr, _order.takerAssetAmount);
         } else {
-            require(
-                // Confirm that 'takerAddr' sends 'takerAssetAmount' amount of 'takerAssetAddr' to 'address(this)'
-                _order.takerAddr == _takerAssetPermit.user &&
-                    _order.takerAssetAddr == _takerAssetPermit.tokenAddr &&
-                    address(this) == _takerAssetPermit.recipient &&
-                    _order.takerAssetAmount == _takerAssetPermit.amount,
-                "RFQ: taker spender information is incorrect"
-            );
-            // Transfer taker asset to RFQ contract first,
-            spender.spendFromUserToWithPermit({ _params: _takerAssetPermit, _spendWithPermitSig: _takerAssetPermitSig });
+            // Transfer taker asset to this contract first,
+            spender.spendFromUserToWithPermit({ _params: takerAssetPermit, _spendWithPermitSig: _takerAssetPermitSig });
             // then transfer from this to maker.
             IERC20(_order.takerAssetAddr).safeTransfer(_order.makerAddr, _order.takerAssetAmount);
         }
@@ -195,18 +177,10 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             settleAmount = settleAmount.sub(fee);
         }
 
-        require(
-            // Confirm that 'makerAddr' sends 'makerAssetAmount' amount of 'makerAssetAddr' to 'address(this)'
-            _order.makerAddr == _makerAssetPermit.user &&
-                _order.makerAssetAddr == _makerAssetPermit.tokenAddr &&
-                address(this) == _makerAssetPermit.recipient &&
-                _order.makerAssetAmount == _makerAssetPermit.amount,
-            "RFQ: maker spender information is incorrect"
-        );
-        // Transfer maker asset to RFQ (= this) first,
-        spender.spendFromUserToWithPermit({ _params: _makerAssetPermit, _spendWithPermitSig: _makerAssetPermitSig });
+        // Transfer maker asset to this contract first
+        spender.spendFromUserToWithPermit({ _params: makerAssetPermit, _spendWithPermitSig: _makerAssetPermitSig });
 
-        // then transfer maker asset (but except fee) from this to receiver,
+        // Transfer maker asset less fee from this contract to receiver
         if (_order.makerAssetAddr == address(weth)) {
             weth.withdraw(settleAmount);
             payable(_order.receiverAddr).transfer(settleAmount);
@@ -214,7 +188,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             IERC20(_order.makerAssetAddr).safeTransfer(_order.receiverAddr, settleAmount);
         }
 
-        // and transfer fee from this to feeCollector.
+        // Transfer fee from this contract to feeCollector
         if (fee > 0) {
             IERC20(_order.makerAssetAddr).safeTransfer(feeCollector, fee);
         }
