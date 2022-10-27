@@ -400,7 +400,7 @@ contract SpenderTest is BalanceUtil {
         bytes memory sig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
         spender.spendFromUserToWithPermit(spendWithPermit, sig);
 
-        vm.expectRevert("Spender: Spending is already fulfilled");
+        vm.expectRevert("Spender: Permit is already fulfilled");
         spender.spendFromUserToWithPermit(spendWithPermit, sig); // Detected the same permit hash in the past
     }
 
