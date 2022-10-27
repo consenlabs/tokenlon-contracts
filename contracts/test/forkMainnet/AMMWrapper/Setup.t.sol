@@ -11,22 +11,19 @@ import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract TestAMMWrapper is StrategySharedSetup {
     uint256 constant BPS_MAX = 10000;
+    bytes32 public constant relayerValidStorageId = 0x2c97779b4deaf24e9d46e02ec2699240a957d92782b51165b93878b09dd66f61; // keccak256("relayerValid")
 
     uint256 userPrivateKey = uint256(1);
     uint256 otherPrivateKey = uint256(2);
 
     address user = vm.addr(userPrivateKey);
-    address feeCollector = address(0x133701);
-    address relayer = address(0x133702);
+    address owner = makeAddr("owner");
+    address feeCollector = makeAddr("feeCollector");
+    address relayer = makeAddr("relayer");
     address[] wallet = [user, relayer];
 
     AMMWrapper ammWrapper;
     AMMQuoter ammQuoter;
-    IERC20 weth = IERC20(WETH_ADDRESS);
-    IERC20 usdt = IERC20(USDT_ADDRESS);
-    IERC20 dai = IERC20(DAI_ADDRESS);
-    IERC20 ankreth = IERC20(ANKRETH_ADDRESS);
-    IERC20[] tokens = [weth, usdt, dai, ankreth];
 
     uint16 DEFAULT_FEE_FACTOR = 500;
     uint256 DEADLINE = block.timestamp + 1;
@@ -49,23 +46,14 @@ contract TestAMMWrapper is StrategySharedSetup {
     event SetFeeCollector(address newFeeCollector);
 
     // effectively a "beforeEach" block
-    function setUp() public virtual {
-        // Deploy and Setup Spender, AllowanceTarget, UserProxy, Tokenlon,
-        // PermanentStorage, ProxyPermanentStorage, AMMWrapper contracts
+    function setUp() public {
         setUpSystemContracts();
-        ammQuoter = new AMMQuoter(
-            UNISWAP_V2_ADDRESS,
-            UNISWAP_V3_ADDRESS,
-            UNISWAP_V3_QUOTER_ADDRESS,
-            SUSHISWAP_ADDRESS,
-            BALANCER_V2_ADDRESS,
-            IPermanentStorage(permanentStorage),
-            address(weth)
-        );
+
         address[] memory relayerListAddress = new address[](1);
         relayerListAddress[0] = relayer;
         bool[] memory relayerListBool = new bool[](1);
         relayerListBool[0] = true;
+        vm.prank(psOperator, psOperator);
         permanentStorage.setRelayersValid(relayerListAddress, relayerListBool);
 
         // Deal 100 ETH to each account
@@ -91,16 +79,23 @@ contract TestAMMWrapper is StrategySharedSetup {
         vm.label(relayer, "Relayer");
         vm.label(address(this), "TestingContract");
         vm.label(address(ammWrapper), "AMMWrapperContract");
-        vm.label(address(weth), "WETH");
-        vm.label(address(usdt), "USDT");
-        vm.label(address(dai), "DAI");
         vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
     }
 
     // Deploy the strategy contract by overriding the StrategySharedSetup.sol deployment function
     function _deployStrategyAndUpgrade() internal override returns (address) {
+        ammQuoter = new AMMQuoter(
+            UNISWAP_V2_ADDRESS,
+            UNISWAP_V3_ADDRESS,
+            UNISWAP_V3_QUOTER_ADDRESS,
+            SUSHISWAP_ADDRESS,
+            BALANCER_V2_ADDRESS,
+            IPermanentStorage(permanentStorage),
+            address(weth)
+        );
+
         ammWrapper = new AMMWrapper(
-            address(this), // This contract would be the operator
+            owner,
             address(userProxy),
             address(weth),
             address(permanentStorage),
@@ -112,9 +107,20 @@ contract TestAMMWrapper is StrategySharedSetup {
         );
         // Setup
         userProxy.upgradeAMMWrapper(address(ammWrapper), true);
+        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeAMMWrapper(address(ammWrapper));
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(ammWrapper), true);
+        vm.stopPrank();
+
         return address(ammWrapper);
+    }
+
+    function _setupDeployedStrategy() internal override {
+        ammQuoter = AMMQuoter(vm.envAddress("AMMQUOTER_ADDRESS"));
+        ammWrapper = AMMWrapper(payable(vm.envAddress("AMMWRAPPER_ADDRESS")));
+        owner = ammWrapper.owner();
+        feeCollector = ammWrapper.feeCollector();
+        psOperator = permanentStorage.operator();
     }
 
     /*********************************

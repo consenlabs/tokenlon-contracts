@@ -14,11 +14,13 @@ import "contracts-test/mocks/MockERC1271Wallet.sol";
 import "./Addresses.sol";
 import "./BalanceUtil.sol";
 import "./RegisterCurveIndexes.sol";
+import "./Tokens.sol";
 
-contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
+contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
     using SafeERC20 for IERC20;
 
-    address upgradeAdmin = address(0x5566);
+    address upgradeAdmin = makeAddr("upgradeAdmin");
+    address psOperator = makeAddr("psOperator");
 
     AllowanceTarget allowanceTarget;
     Spender spender;
@@ -26,6 +28,8 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
     PermanentStorage permanentStorage;
 
     function _deployStrategyAndUpgrade() internal virtual returns (address) {}
+
+    function _setupDeployedStrategy() internal virtual {}
 
     function _deployTokenlonAndUserProxy() internal {
         UserProxy userProxyImpl = new UserProxy();
@@ -47,29 +51,42 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
             bytes("") // Skip initialization during deployment
         );
         permanentStorage = PermanentStorage(address(permanentStorageProxy));
-        // Set this contract as operator
-        permanentStorage.initialize(address(this));
+        // Set permanent storage operator
+        permanentStorage.initialize(psOperator);
+        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeWETH(WETH_ADDRESS);
         // Set Curve indexes
-        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), address(this), true);
+        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), psOperator, true);
         _registerCurveIndexes(permanentStorage);
+        vm.stopPrank();
     }
 
     function setUpSystemContracts() internal {
-        // Deploy
-        spender = new Spender(address(this), new address[](1));
-        allowanceTarget = new AllowanceTarget(address(spender));
-        _deployTokenlonAndUserProxy();
-        _deployPermanentStorageAndProxy();
-        address strategy = _deployStrategyAndUpgrade();
-        // Setup
-        spender.setAllowanceTarget(address(allowanceTarget));
-        address[] memory authListAddress = new address[](1);
-        authListAddress[0] = strategy;
-        spender.authorize(authListAddress);
-        permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), address(this), true);
+        if (vm.envBool("DEPLOYED")) {
+            // Load deployed system contracts
+            allowanceTarget = AllowanceTarget(vm.envAddress("ALLOWANCE_TARGET_ADDRESS"));
+            spender = Spender(vm.envAddress("SPENDER_ADDRESS"));
+            userProxy = UserProxy(payable(vm.envAddress("USERPROXY_ADDRESS")));
+            permanentStorage = PermanentStorage(vm.envAddress("PERMANENTSTORAGE_ADDRESS"));
 
-        vm.label(upgradeAdmin, "UpgradeAdmin");
+            _setupDeployedStrategy();
+        } else {
+            // Deploy
+            spender = new Spender(address(this), new address[](1));
+            allowanceTarget = new AllowanceTarget(address(spender));
+            _deployTokenlonAndUserProxy();
+            _deployPermanentStorageAndProxy();
+            address strategy = _deployStrategyAndUpgrade();
+            // Setup
+            spender.setAllowanceTarget(address(allowanceTarget));
+            address[] memory authListAddress = new address[](1);
+            authListAddress[0] = strategy;
+            spender.authorize(authListAddress);
+        }
+        vm.startPrank(psOperator, psOperator);
+        permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), psOperator, true);
+        vm.stopPrank();
+
         vm.label(address(spender), "SpenderContract");
         vm.label(address(allowanceTarget), "AllowanceTargetContract");
         vm.label(address(userProxy), "UserProxyContract");
