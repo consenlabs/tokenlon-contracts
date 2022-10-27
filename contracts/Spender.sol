@@ -208,7 +208,7 @@ contract Spender is ISpender, Ownable, BaseLibEIP712, SignatureValidator {
         bytes32 spendWithPermitHash = getEIP712Hash({ structHash: SpenderLibEIP712._getSpendWithPermitHash({ _spendWithPermit: _params }) });
 
         // Validate spending is not replayed
-        require(!spendingFulfilled[spendWithPermitHash],  "Spender: Permit is already fulfilled");
+        require(!spendingFulfilled[spendWithPermitHash], "Spender: Permit is already fulfilled");
         spendingFulfilled[spendWithPermitHash] = true;
 
         require(
