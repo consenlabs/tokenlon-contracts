@@ -10,27 +10,27 @@ import "../utils/LimitOrderLibEIP712.sol";
 /// @title ILimitOrder Interface
 /// @author imToken Labs
 interface ILimitOrder is IStrategyBase {
-    /// @notice emitted when coordinator address is updated
-    /// @param newCoordinator the address of the new coordinator
+    /// @notice Emitted when coordinator address is updated
+    /// @param newCoordinator The address of the new coordinator
     event UpgradeCoordinator(address newCoordinator);
 
-    /// @notice emitted when fee factors is updated
-    /// @param makerFeeFactor the new fee factor for maker
-    /// @param takerFeeFactor the new fee factor for taker
-    /// @param profitFeeFactor the new fee factor for relayer profit
+    /// @notice Emitted when fee factors is updated
+    /// @param makerFeeFactor The new fee factor for maker
+    /// @param takerFeeFactor The new fee factor for taker
+    /// @param profitFeeFactor The new fee factor for relayer profit
     event FactorsUpdated(uint16 makerFeeFactor, uint16 takerFeeFactor, uint16 profitFeeFactor);
 
-    /// @notice emitted when fee factors is updated
-    /// @param newFeeCollector the address of the new fee collector
+    /// @notice Emitted when fee factors is updated
+    /// @param newFeeCollector The address of the new fee collector
     event SetFeeCollector(address newFeeCollector);
 
-    /// @notice emitted when an order is filled by a trader
-    /// @param orderHash the EIP-712 hash of the target order
-    /// @param maker the address of the maker
-    /// @param taker the address of the taker (trader)
-    /// @param allowFillHash the EIP-712 hash of the fill permit granted by coordinator
-    /// @param recipient the address of the recipient which will receive tokens from maker
-    /// @param fillReceipt contains details of this single fill
+    /// @notice Emitted when an order is filled by a trader
+    /// @param orderHash The EIP-712 hash of the target order
+    /// @param maker The address of the maker
+    /// @param taker The address of the taker (trader)
+    /// @param allowFillHash The EIP-712 hash of the fill permit granted by coordinator
+    /// @param recipient The address of the recipient which will receive tokens from maker
+    /// @param fillReceipt Contains details of this single fill
     event LimitOrderFilledByTrader(
         bytes32 indexed orderHash,
         address indexed maker,
@@ -40,16 +40,16 @@ interface ILimitOrder is IStrategyBase {
         FillReceipt fillReceipt
     );
 
-    /// @notice emitted when an order is filled by interacting with an external protocol
-    /// @param orderHash the EIP-712 hash of the target order
-    /// @param maker the address of the maker
-    /// @param taker the address of the taker (trader)
-    /// @param allowFillHash the EIP-712 hash of the fill permit granted by coordinator
-    /// @param relayer the address of the relayer
-    /// @param profitRecipient the address of the recipient which receive profit for relayer
-    /// @param fillReceipt contains details of this single fill
-    /// @param relayerTakerTokenProfit profit that relayer makes from this fill
-    /// @param relayerTakerTokenProfitFee fee of the relayer profit in this fill
+    /// @notice Emitted when an order is filled by interacting with an external protocol
+    /// @param orderHash The EIP-712 hash of the target order
+    /// @param maker The address of the maker
+    /// @param taker The address of the taker (trader)
+    /// @param allowFillHash The EIP-712 hash of the fill permit granted by coordinator
+    /// @param relayer The address of the relayer
+    /// @param profitRecipient The address of the recipient which receive profit for relayer
+    /// @param fillReceipt Contains details of this single fill
+    /// @param relayerTakerTokenProfit Profit that relayer makes from this fill
+    /// @param relayerTakerTokenProfitFee Fee of the relayer profit in this fill
     event LimitOrderFilledByProtocol(
         bytes32 indexed orderHash,
         address indexed maker,
@@ -62,9 +62,9 @@ interface ILimitOrder is IStrategyBase {
         uint256 relayerTakerTokenProfitFee
     );
 
-    /// @notice emitted when order is cancelled
-    /// @param orderHash the EIP-712 hash of the target order
-    /// @param maker the address of the maker
+    /// @notice Emitted when order is cancelled
+    /// @param orderHash The EIP-712 hash of the target order
+    /// @param maker The address of the maker
     event OrderCancelled(bytes32 orderHash, address maker);
 
     struct FillReceipt {
@@ -92,12 +92,12 @@ interface ILimitOrder is IStrategyBase {
         bytes takerSig;
     }
 
-    /// @notice fill an order by a trader
-    /// @notice called by user proxy only
-    /// @param _order the order that is going to be filled
-    /// @param _orderMakerSig the signature of the order from maker
-    /// @param _params trader specific filling parameters
-    /// @param _crdParams contains details of the fill permit
+    /// @notice Fill an order by a trader
+    /// @notice Called by user proxy only
+    /// @param _order The order that is going to be filled
+    /// @param _orderMakerSig The signature of the order from maker
+    /// @param _params Trader specific filling parameters
+    /// @param _crdParams Contains details of the fill permit
     function fillLimitOrderByTrader(
         LimitOrderLibEIP712.Order calldata _order,
         bytes calldata _orderMakerSig,
@@ -119,12 +119,12 @@ interface ILimitOrder is IStrategyBase {
         uint64 expiry;
     }
 
-    /// @notice fill an order by interacting with an external protocol
-    /// @notice called by user proxy only
-    /// @param _order the order that is going to be filled
-    /// @param _orderMakerSig the signature of the order from maker
-    /// @param _params protocol specific filling parameters
-    /// @param _crdParams contains details of the fill permit
+    /// @notice Fill an order by interacting with an external protocol
+    /// @notice Called by user proxy only
+    /// @param _order The order that is going to be filled
+    /// @param _orderMakerSig The signature of the order from maker
+    /// @param _params Protocol specific filling parameters
+    /// @param _crdParams Contains details of the fill permit
     function fillLimitOrderByProtocol(
         LimitOrderLibEIP712.Order calldata _order,
         bytes calldata _orderMakerSig,
@@ -132,9 +132,9 @@ interface ILimitOrder is IStrategyBase {
         CoordinatorParams calldata _crdParams
     ) external returns (uint256);
 
-    /// @notice cancel an order
-    /// @notice called by user proxy only
-    /// @param _order the order that is going to be canceled
-    /// @param _cancelMakerSig the canceling signature signed by maker
+    /// @notice Cancel an order
+    /// @notice Called by user proxy only
+    /// @param _order The order that is going to be canceled
+    /// @param _cancelMakerSig The canceling signature signed by maker
     function cancelLimitOrder(LimitOrderLibEIP712.Order calldata _order, bytes calldata _cancelMakerSig) external;
 }
