@@ -2,6 +2,8 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
@@ -10,12 +12,14 @@ import "./interfaces/IRFQ.sol";
 import "./utils/StrategyBase.sol";
 import "./utils/RFQLibEIP712.sol";
 import "./utils/BaseLibEIP712.sol";
+import "./utils/SpenderLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 import "./utils/LibConstant.sol";
 
 contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     using SafeMath for uint256;
     using Address for address;
+    using SafeERC20 for IERC20;
 
     // Constants do not have storage slot.
     string public constant SOURCE = "RFQ v1";
@@ -81,7 +85,9 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     function fill(
         RFQLibEIP712.Order calldata _order,
         bytes calldata _mmSignature,
-        bytes calldata _userSignature
+        bytes calldata _userSignature,
+        bytes calldata _makerAssetPermitSig,
+        bytes calldata _takerAssetPermitSig
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         // check the order deadline and fee factor
         require(_order.deadline >= block.timestamp, "RFQ: expired order");
@@ -98,7 +104,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
         permStorage.setRFQTransactionSeen(vars.transactionHash);
 
-        return _settle(_order, vars);
+        return _settle({ _order: _order, _vars: vars, _makerAssetPermitSig: _makerAssetPermitSig, _takerAssetPermitSig: _takerAssetPermitSig });
     }
 
     function _emitFillOrder(
@@ -123,7 +129,34 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     }
 
     // settle
-    function _settle(RFQLibEIP712.Order memory _order, GroupedVars memory _vars) internal returns (uint256) {
+    function _settle(
+        RFQLibEIP712.Order memory _order,
+        GroupedVars memory _vars,
+        bytes memory _makerAssetPermitSig,
+        bytes memory _takerAssetPermitSig
+    ) internal returns (uint256) {
+        // Declare the 'maker sends makerAsset to this contract' SpendWithPermit struct from _order parameter
+        SpenderLibEIP712.SpendWithPermit memory makerAssetPermit = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: _order.makerAssetAddr,
+            requester: address(this),
+            user: _order.makerAddr,
+            recipient: address(this),
+            amount: _order.makerAssetAmount,
+            salt: _order.salt,
+            expiry: uint64(_order.deadline)
+        });
+
+        // Declare the 'taker sends takerAsset to this contract' SpendWithPermit struct from _order parameter
+        SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: _order.takerAssetAddr,
+            requester: address(this),
+            user: _order.takerAddr,
+            recipient: address(this),
+            amount: _order.takerAssetAmount,
+            salt: _order.salt,
+            expiry: uint64(_order.deadline)
+        });
+
         // Transfer taker asset to maker
         if (address(weth) == _order.takerAssetAddr) {
             // Deposit to WETH if taker asset is ETH
@@ -131,7 +164,10 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             weth.deposit{ value: msg.value }();
             weth.transfer(_order.makerAddr, _order.takerAssetAmount);
         } else {
-            spender.spendFromUserTo(_order.takerAddr, _order.takerAssetAddr, _order.makerAddr, _order.takerAssetAmount);
+            // Transfer taker asset to this contract first,
+            spender.spendFromUserToWithPermit({ _params: takerAssetPermit, _spendWithPermitSig: _takerAssetPermitSig });
+            // then transfer from this to maker.
+            IERC20(_order.takerAssetAddr).safeTransfer(_order.makerAddr, _order.takerAssetAmount);
         }
 
         // Transfer maker asset to taker, sub fee
@@ -141,18 +177,20 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             settleAmount = settleAmount.sub(fee);
         }
 
-        // Transfer token/Eth to receiver
+        // Transfer maker asset to this contract first
+        spender.spendFromUserToWithPermit({ _params: makerAssetPermit, _spendWithPermitSig: _makerAssetPermitSig });
+
+        // Transfer maker asset less fee from this contract to receiver
         if (_order.makerAssetAddr == address(weth)) {
-            // Transfer from maker
-            spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, settleAmount);
             weth.withdraw(settleAmount);
             payable(_order.receiverAddr).transfer(settleAmount);
         } else {
-            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount);
+            IERC20(_order.makerAssetAddr).safeTransfer(_order.receiverAddr, settleAmount);
         }
-        // Collect fee
+
+        // Transfer fee from this contract to feeCollector
         if (fee > 0) {
-            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, fee);
+            IERC20(_order.makerAssetAddr).safeTransfer(feeCollector, fee);
         }
 
         _emitFillOrder(_order, _vars, settleAmount);
