@@ -51,7 +51,7 @@ contract RFQTest is StrategySharedSetup {
     MockERC1271Wallet mockERC1271Wallet;
     MarketMakerProxy marketMakerProxy;
     RFQ rfq;
-    bool isMakerOnlyApproveRFQ;
+    bool callFillWithoutMakerSpender;
     uint256 DEADLINE = block.timestamp + 1;
     RFQLibEIP712.Order DEFAULT_ORDER;
 
@@ -104,7 +104,7 @@ contract RFQTest is StrategySharedSetup {
             DEADLINE, // deadline
             0 // feeFactor
         );
-        isMakerOnlyApproveRFQ = false;
+        callFillWithoutMakerSpender = false;
         // Label addresses for easier debugging
         vm.label(user, "User");
         vm.label(address(this), "TestingContract");
@@ -294,7 +294,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testCannotFillWithoutMakerSpender_MakerDoesNotApproveRFQ() public {
-        isMakerOnlyApproveRFQ = true;
+        callFillWithoutMakerSpender = true;
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
@@ -571,7 +571,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory userSig
     ) internal view returns (bytes memory payload) {
         bytes4 selector = rfq.fill.selector;
-        if (isMakerOnlyApproveRFQ) {
+        if (callFillWithoutMakerSpender) {
             selector = rfq.fillWithoutMakerSpender.selector;
         }
         return abi.encodeWithSelector(selector, order, makerSig, userSig);
@@ -582,6 +582,6 @@ contract RFQTest is StrategySharedSetup {
         IERC20(makerAssetAddr).safeApprove(address(allowanceTarget), 0);
         IERC20(makerAssetAddr).safeApprove(address(rfq), type(uint256).max);
         vm.stopPrank();
-        isMakerOnlyApproveRFQ = true;
+        callFillWithoutMakerSpender = true;
     }
 }
