@@ -17,11 +17,10 @@ import "contracts-test/utils/StrategySharedSetup.sol";
 import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract RFQTest is StrategySharedSetup {
+    using SafeMath for uint16;
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
-    // BPS_MAX must be the same as LibConstant.BPS_MAX
-    uint256 BPS_MAX = uint256(LibConstant.BPS_MAX);
     event FillOrder(
         string source,
         bytes32 indexed transactionHash,
@@ -510,7 +509,7 @@ contract RFQTest is StrategySharedSetup {
             order.makerAssetAddr,
             order.makerAssetAmount,
             order.receiverAddr,
-            order.makerAssetAmount.mul((BPS_MAX).sub(order.feeFactor)).div(BPS_MAX),
+            order.makerAssetAmount.mul((LibConstant.BPS_MAX).sub(order.feeFactor)).div(LibConstant.BPS_MAX),
             uint16(order.feeFactor)
         );
     }
