@@ -55,7 +55,7 @@ abstract contract StrategyBase is IStrategyBase, Ownable {
         for (uint256 i = 0; i < _tokenList.length; i++) {
             IERC20(_tokenList[i]).safeApprove(_spender, LibConstant.MAX_UINT);
 
-            emit AllowTransfer(_spender);
+            emit AllowTransfer(_spender, _tokenList[i]);
         }
     }
 
@@ -66,7 +66,7 @@ abstract contract StrategyBase is IStrategyBase, Ownable {
         for (uint256 i = 0; i < _tokenList.length; i++) {
             IERC20(_tokenList[i]).safeApprove(_spender, 0);
 
-            emit DisallowTransfer(_spender);
+            emit DisallowTransfer(_spender, _tokenList[i]);
         }
     }
 

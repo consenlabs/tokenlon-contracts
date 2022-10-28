@@ -31,7 +31,6 @@ contract TestL2Deposit is StrategySharedSetup {
     // Optimism
     IOptimismL1StandardBridge optimismL1StandardBridge = IOptimismL1StandardBridge(OPTIMISM_L1_STANDARD_BRIDGE_ADDR);
 
-    IERC20[] tokens = [IERC20(LON_ADDRESS)];
     uint256 DEFAULT_DEADLINE = block.timestamp + 1;
     L2DepositLibEIP712.Deposit DEFAULT_DEPOSIT;
 
@@ -85,8 +84,10 @@ contract TestL2Deposit is StrategySharedSetup {
 
         // Hook up L2Deposit
         userProxy.upgradeL2Deposit(address(l2Deposit), true);
+        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeL2Deposit(address(l2Deposit));
         permanentStorage.setPermission(permanentStorage.l2DepositSeenStorageId(), address(l2Deposit), true);
+        vm.stopPrank();
         return address(l2Deposit);
     }
 
