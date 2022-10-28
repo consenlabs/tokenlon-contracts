@@ -615,7 +615,7 @@ contract RFQTest is StrategySharedSetup {
             user: defaultOrder.makerAddr,
             recipient: address(rfq),
             amount: defaultOrder.makerAssetAmount,
-            salt: defaultOrder.salt,
+            txHash: RFQLibEIP712._getOrderHash(defaultOrder),
             expiry: uint64(defaultOrder.deadline)
         });
 
@@ -626,7 +626,7 @@ contract RFQTest is StrategySharedSetup {
             user: defaultOrder.takerAddr,
             recipient: address(rfq),
             amount: defaultOrder.takerAssetAmount,
-            salt: defaultOrder.salt,
+            txHash: RFQLibEIP712._getTransactionHash(defaultOrder),
             expiry: uint64(defaultOrder.deadline)
         });
         return (makerAssetPermit, takerAssetPermit);
@@ -643,7 +643,7 @@ contract RFQTest is StrategySharedSetup {
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        uint256 SPEND_WITH_PERMIT_TYPEHASH = 0xab1af22032364b17f69bad7eabde29f0cd3f761861c0343407be7fcac2e3ff1f;
+        uint256 SPEND_WITH_PERMIT_TYPEHASH = 0x356b0c4ef9d6005a11dc7bead0f1cea62bd30d1e5d59c407e9a7c13f54b24970;
         bytes32 structHash = keccak256(
             abi.encode(
                 SPEND_WITH_PERMIT_TYPEHASH,
@@ -652,7 +652,7 @@ contract RFQTest is StrategySharedSetup {
                 spendWithPermit.user,
                 spendWithPermit.recipient,
                 spendWithPermit.amount,
-                spendWithPermit.salt,
+                spendWithPermit.txHash,
                 spendWithPermit.expiry
             )
         );
