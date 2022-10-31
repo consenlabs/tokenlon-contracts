@@ -142,7 +142,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             user: _order.makerAddr,
             recipient: address(this),
             amount: _order.makerAssetAmount,
-            salt: _order.salt,
+            txHash: _vars.orderHash,
             expiry: uint64(_order.deadline)
         });
 
@@ -153,7 +153,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             user: _order.takerAddr,
             recipient: address(this),
             amount: _order.takerAssetAmount,
-            salt: _order.salt,
+            txHash: _vars.transactionHash,
             expiry: uint64(_order.deadline)
         });
 

@@ -56,7 +56,7 @@ contract SpenderTest is BalanceUtil {
         // Setup
         spender.setAllowanceTarget(address(allowanceTarget));
         spender.authorize(wallet);
-        // Deploy spenderSimulation contract adn set its address to authorization list of spender
+        // Deploy spenderSimulation contract and set its address to authorization list of spender
         spenderSimulation = new SpenderSimulation(spender, new address[](0));
         address[] memory spenderSimulationAddr = new address[](1);
         spenderSimulationAddr[0] = address(spenderSimulation);
@@ -86,7 +86,7 @@ contract SpenderTest is BalanceUtil {
             user, // user
             recipient, // receipient
             100 * 1e18, // amount
-            uint256(1234), // salt
+            bytes32(0x0), // txHash
             EXPIRY // expiry
         );
 
@@ -453,7 +453,7 @@ contract SpenderTest is BalanceUtil {
     }
 
     function _signSpendWithPermit(uint256 privateKey, SpenderLibEIP712.SpendWithPermit memory spendWithPermit) internal returns (bytes memory sig) {
-        uint256 SPEND_WITH_PERMIT_TYPEHASH = 0xab1af22032364b17f69bad7eabde29f0cd3f761861c0343407be7fcac2e3ff1f;
+        uint256 SPEND_WITH_PERMIT_TYPEHASH = 0x356b0c4ef9d6005a11dc7bead0f1cea62bd30d1e5d59c407e9a7c13f54b24970;
         bytes32 structHash = keccak256(
             abi.encode(
                 SPEND_WITH_PERMIT_TYPEHASH,
@@ -462,7 +462,7 @@ contract SpenderTest is BalanceUtil {
                 spendWithPermit.user,
                 spendWithPermit.recipient,
                 spendWithPermit.amount,
-                spendWithPermit.salt,
+                spendWithPermit.txHash,
                 spendWithPermit.expiry
             )
         );
