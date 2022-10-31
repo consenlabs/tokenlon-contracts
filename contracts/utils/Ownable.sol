@@ -30,7 +30,7 @@ abstract contract Ownable {
         nominatedOwner = address(0);
     }
 
-    /// @notice Give up the ownership of a contract
+    /// @notice Give up the ownership
     /// @notice Called by owner only
     /// @notice Ownership cannot be recovered
     function renounceOwnership() external onlyOwner {

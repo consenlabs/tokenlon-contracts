@@ -14,13 +14,13 @@ interface ILimitOrder is IStrategyBase {
     /// @param newCoordinator The address of the new coordinator
     event UpgradeCoordinator(address newCoordinator);
 
-    /// @notice Emitted when fee factors is updated
+    /// @notice Emitted when fee factors are updated
     /// @param makerFeeFactor The new fee factor for maker
     /// @param takerFeeFactor The new fee factor for taker
     /// @param profitFeeFactor The new fee factor for relayer profit
     event FactorsUpdated(uint16 makerFeeFactor, uint16 takerFeeFactor, uint16 profitFeeFactor);
 
-    /// @notice Emitted when fee factors is updated
+    /// @notice Emitted when fee collector address is updated
     /// @param newFeeCollector The address of the new fee collector
     event SetFeeCollector(address newFeeCollector);
 
@@ -46,10 +46,10 @@ interface ILimitOrder is IStrategyBase {
     /// @param taker The address of the taker (trader)
     /// @param allowFillHash The EIP-712 hash of the fill permit granted by coordinator
     /// @param relayer The address of the relayer
-    /// @param profitRecipient The address of the recipient which receive profit for relayer
+    /// @param profitRecipient The address of the recipient which receives relaying profit
     /// @param fillReceipt Contains details of this single fill
     /// @param relayerTakerTokenProfit Profit that relayer makes from this fill
-    /// @param relayerTakerTokenProfitFee Fee of the relayer profit in this fill
+    /// @param relayerTakerTokenProfitFee Protocol fee charged on the relaying profit
     event LimitOrderFilledByProtocol(
         bytes32 indexed orderHash,
         address indexed maker,

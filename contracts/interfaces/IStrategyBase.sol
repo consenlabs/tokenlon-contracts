@@ -4,8 +4,8 @@ pragma solidity >=0.7.0;
 /// @title IStrategyBase Interface
 /// @author imToken Labs
 interface IStrategyBase {
-    /// @notice Emitted when spender address is updated
-    /// @param newSpender The address of the new spender
+    /// @notice Emitted when Tokenlon spender address is updated
+    /// @param newSpender The address of the new Tokenlon spender
     event UpgradeSpender(address newSpender);
 
     /// @notice Emitted when allowing another account to spend assets
@@ -13,14 +13,14 @@ interface IStrategyBase {
     event AllowTransfer(address indexed spender, address token);
 
     /// @notice Emitted when disallowing an account to spend assets
-    /// @param spender The address that will be removed from allowing list
+    /// @param spender The address that is removed from allow list
     event DisallowTransfer(address indexed spender, address token);
 
     /// @notice Emitted when ETH converted to WETH
-    /// @param amount The amount of coverted ETH
+    /// @param amount The amount of converted ETH
     event DepositETH(uint256 amount);
 
-    /// @notice Update the address of tokenlon spender
+    /// @notice Update the address of Tokenlon spender
     /// @notice Called by owner only
     /// @param _newSpender The address of the new spender
     function upgradeSpender(address _newSpender) external;
@@ -31,7 +31,7 @@ interface IStrategyBase {
     /// @param _spender The address that will be allowed
     function setAllowance(address[] calldata _tokenList, address _spender) external;
 
-    /// @notice Clear allowance of tokens of an address
+    /// @notice Clear allowance of tokens to an address
     /// @notice Called by owner only
     /// @param _tokenList The list of tokens
     /// @param _spender The address that will be cleared
