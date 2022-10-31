@@ -21,7 +21,7 @@ abstract contract Ownable {
     }
 
     /// @notice Activate new ownership
-    /// @notice Called by nominated owner only
+    /// @notice Only nominated owner can call
     function acceptOwnership() external {
         require(msg.sender == nominatedOwner, "not nominated");
         emit OwnerChanged(owner, nominatedOwner);
@@ -31,7 +31,7 @@ abstract contract Ownable {
     }
 
     /// @notice Give up the ownership
-    /// @notice Called by owner only
+    /// @notice Only owner can call
     /// @notice Ownership cannot be recovered
     function renounceOwnership() external onlyOwner {
         emit OwnerChanged(owner, address(0));
@@ -39,7 +39,7 @@ abstract contract Ownable {
     }
 
     /// @notice Nominate new owner
-    /// @notice Called by owner only
+    /// @notice Only owner can call
     /// @param newOwner The address of the new owner
     function nominateNewOwner(address newOwner) external onlyOwner {
         nominatedOwner = newOwner;

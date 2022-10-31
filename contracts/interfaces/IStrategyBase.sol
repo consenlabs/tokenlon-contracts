@@ -21,23 +21,23 @@ interface IStrategyBase {
     event DepositETH(uint256 amount);
 
     /// @notice Update the address of Tokenlon spender
-    /// @notice Called by owner only
+    /// @notice Only owner can call
     /// @param _newSpender The address of the new spender
     function upgradeSpender(address _newSpender) external;
 
     /// @notice Set allowance of tokens to an address
-    /// @notice Called by owner only
+    /// @notice Only owner can call
     /// @param _tokenList The list of tokens
     /// @param _spender The address that will be allowed
     function setAllowance(address[] calldata _tokenList, address _spender) external;
 
     /// @notice Clear allowance of tokens to an address
-    /// @notice Called by owner only
+    /// @notice Only owner can call
     /// @param _tokenList The list of tokens
     /// @param _spender The address that will be cleared
     function closeAllowance(address[] calldata _tokenList, address _spender) external;
 
     /// @notice Convert ETH in this contract to WETH
-    /// @notice Called by owner only
+    /// @notice Only owner can call
     function depositETH() external;
 }

@@ -93,7 +93,7 @@ interface ILimitOrder is IStrategyBase {
     }
 
     /// @notice Fill an order by a trader
-    /// @notice Called by user proxy only
+    /// @notice Only user proxy can call
     /// @param _order The order that is going to be filled
     /// @param _orderMakerSig The signature of the order from maker
     /// @param _params Trader specific filling parameters
@@ -120,7 +120,7 @@ interface ILimitOrder is IStrategyBase {
     }
 
     /// @notice Fill an order by interacting with an external protocol
-    /// @notice Called by user proxy only
+    /// @notice Only user proxy can call
     /// @param _order The order that is going to be filled
     /// @param _orderMakerSig The signature of the order from maker
     /// @param _params Protocol specific filling parameters
@@ -133,7 +133,7 @@ interface ILimitOrder is IStrategyBase {
     ) external returns (uint256);
 
     /// @notice Cancel an order
-    /// @notice Called by user proxy only
+    /// @notice Only user proxy can call
     /// @param _order The order that is going to be canceled
     /// @param _cancelMakerSig The canceling signature signed by maker
     function cancelLimitOrder(LimitOrderLibEIP712.Order calldata _order, bytes calldata _cancelMakerSig) external;

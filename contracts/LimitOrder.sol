@@ -59,7 +59,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
 
     receive() external payable {}
 
-    /// @notice Called by owner only
+    /// @notice Only owner can call
     /// @param _newCoordinator The new address of coordinator
     function upgradeCoordinator(address _newCoordinator) external onlyOwner {
         require(_newCoordinator != address(0), "LimitOrder: coordinator can not be zero address");
@@ -68,7 +68,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         emit UpgradeCoordinator(_newCoordinator);
     }
 
-    /// @notice Called by owner only
+    /// @notice Only owner can call
     /// @param _makerFeeFactor The new fee factor for maker
     /// @param _takerFeeFactor The new fee factor for taker
     /// @param _profitFeeFactor The new fee factor for relayer profit
@@ -88,7 +88,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         emit FactorsUpdated(_makerFeeFactor, _takerFeeFactor, _profitFeeFactor);
     }
 
-    /// @notice Called by owner only
+    /// @notice Only owner can call
     /// @param _newFeeCollector The new address of fee collector
     function setFeeCollector(address _newFeeCollector) external onlyOwner {
         require(_newFeeCollector != address(0), "LimitOrder: fee collector can not be zero address");
