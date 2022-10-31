@@ -134,7 +134,7 @@ interface ILimitOrder is IStrategyBase {
 
     /// @notice Cancel an order
     /// @notice Only user proxy can call
-    /// @param _order The order that is going to be canceled
-    /// @param _cancelMakerSig The canceling signature signed by maker
+    /// @param _order The order that is going to be cancelled
+    /// @param _cancelMakerSig The cancelling signature signed by maker
     function cancelLimitOrder(LimitOrderLibEIP712.Order calldata _order, bytes calldata _cancelMakerSig) external;
 }
