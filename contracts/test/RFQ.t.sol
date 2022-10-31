@@ -419,7 +419,7 @@ contract RFQTest is StrategySharedSetup {
     /*********************************
      *  Test: fillWithSpendOption    *
      *********************************/
-    function testCannotFillWithSpendOption_UseSpenderForMaker() public {
+    function testFillWithSpendOption_UseSpenderForMaker() public {
         bool useSpenderForMaker = true;
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
@@ -440,7 +440,7 @@ contract RFQTest is StrategySharedSetup {
         makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
-    function testFillWithSpendOption_DoNotUseSpenderForMaker_MakerDoesNotApproveRFQ() public {
+    function testCannotFillWithSpendOption_DoNotUseSpenderForMaker_MakerDoesNotApproveRFQ() public {
         bool useSpenderForMaker = false;
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
