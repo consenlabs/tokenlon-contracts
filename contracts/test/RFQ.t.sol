@@ -51,7 +51,6 @@ contract RFQTest is StrategySharedSetup {
     MockERC1271Wallet mockERC1271Wallet;
     MarketMakerProxy marketMakerProxy;
     RFQ rfq;
-    bool callFillWithoutMakerSpender;
     uint256 DEADLINE = block.timestamp + 1;
     RFQLibEIP712.Order DEFAULT_ORDER;
 
@@ -104,6 +103,7 @@ contract RFQTest is StrategySharedSetup {
             DEADLINE, // deadline
             0 // feeFactor
         );
+
         // Label addresses for easier debugging
         vm.label(user, "User");
         vm.label(address(this), "TestingContract");
