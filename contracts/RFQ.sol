@@ -84,16 +84,17 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         bytes calldata _userSignature
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         GroupedVars memory vars = _preHandleFill(_order, _mmSignature, _userSignature);
-        return _settle({ _order: _order, _vars: vars, _useSpenderForTaker: true, _useSpenderForMaker: true });
+        return _settle({ _order: _order, _vars: vars, _useSpenderForMaker: true });
     }
 
-    function fillWithoutMakerSpender(
+    function fillWithSpendOption(
         RFQLibEIP712.Order calldata _order,
         bytes calldata _mmSignature,
-        bytes calldata _userSignature
+        bytes calldata _userSignature,
+        SpendOption calldata _spendOption
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         GroupedVars memory vars = _preHandleFill(_order, _mmSignature, _userSignature);
-        return _settle({ _order: _order, _vars: vars, _useSpenderForTaker: true, _useSpenderForMaker: false });
+        return _settle({ _order: _order, _vars: vars, _useSpenderForMaker: _spendOption.useSpenderForMaker });
     }
 
     function _emitFillOrder(
@@ -121,7 +122,6 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     function _settle(
         RFQLibEIP712.Order memory _order,
         GroupedVars memory _vars,
-        bool _useSpenderForTaker,
         bool _useSpenderForMaker
     ) internal returns (uint256) {
         // Transfer taker asset to maker
@@ -131,7 +131,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             weth.deposit{ value: msg.value }();
             weth.transfer(_order.makerAddr, _order.takerAssetAmount);
         } else {
-            _spendFromUserTo(_order.takerAddr, _order.takerAssetAddr, _order.makerAddr, _order.takerAssetAmount, _useSpenderForTaker);
+            _spendFromUserTo(_order.takerAddr, _order.takerAssetAddr, _order.makerAddr, _order.takerAssetAmount, true);
         }
 
         // Transfer maker asset to taker, sub fee

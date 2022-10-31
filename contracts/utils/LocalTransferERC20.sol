@@ -5,7 +5,6 @@ pragma abicoder v2;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-// Modified from https://github.com/Uniswap/uniswap-v3-periphery/blob/v1.1.1/contracts/base/Multicall.sol
 abstract contract LocalTransferERC20 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;

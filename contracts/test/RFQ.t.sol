@@ -54,6 +54,8 @@ contract RFQTest is StrategySharedSetup {
     bool callFillWithoutMakerSpender;
     uint256 DEADLINE = block.timestamp + 1;
     RFQLibEIP712.Order DEFAULT_ORDER;
+    bool callWithSpendOption;
+    IRFQ.SpendOption spendOption;
 
     // effectively a "beforeEach" block
     function setUp() public {
@@ -104,7 +106,10 @@ contract RFQTest is StrategySharedSetup {
             DEADLINE, // deadline
             0 // feeFactor
         );
-        callFillWithoutMakerSpender = false;
+        callWithSpendOption = false;
+        spendOption = IRFQ.SpendOption(
+            true // useSpenderForMaker
+        );
         // Label addresses for easier debugging
         vm.label(user, "User");
         vm.label(address(this), "TestingContract");
@@ -293,8 +298,9 @@ contract RFQTest is StrategySharedSetup {
         userProxy.toRFQ(payload);
     }
 
-    function testCannotFillWithoutMakerSpender_MakerDoesNotApproveRFQ() public {
-        callFillWithoutMakerSpender = true;
+    function testCannotFillWithSpendOption_DoNotUseSpenderForMaker_MakerDoesNotApproveRFQ() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = false;
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
         bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
@@ -325,7 +331,15 @@ contract RFQTest is StrategySharedSetup {
         makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
-    function testFillDAIToUSDT_EOAUserAndEOAMaker_MakerOnlyApproveRFQ() public {
+    function testFillDAIToUSDT_EOAUserAndEOAMaker_UseSpenderForMaker() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = true;
+        testFillDAIToUSDT_EOAUserAndEOAMaker();
+    }
+
+    function testFillDAIToUSDT_EOAUserAndEOAMaker_DoNotUseSpenderForMaker() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = false;
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         // maker only approve RFQ
         _makerOnlyApproveRFQ(order.makerAddr, order.makerAssetAddr);
@@ -352,7 +366,15 @@ contract RFQTest is StrategySharedSetup {
         makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
-    function testFillDAIToUSDT_EOAUserAndEOAMaker_WithOldEIP712Method_MakerOnlyApproveRFQ() public {
+    function testFillDAIToUSDT_EOAUserAndEOAMaker_WithOldEIP712Method_UseSpenderForMaker() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = true;
+        testFillDAIToUSDT_EOAUserAndEOAMaker_WithOldEIP712Method();
+    }
+
+    function testFillDAIToUSDT_EOAUserAndEOAMaker_WithOldEIP712Method_DoNotUseSpenderForMaker() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = false;
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         // maker only approve RFQ
         _makerOnlyApproveRFQ(order.makerAddr, order.makerAssetAddr);
@@ -382,7 +404,15 @@ contract RFQTest is StrategySharedSetup {
         makerMMPMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
-    function testFillETHToUSDT_EOAUserAndMMPMaker_MakerOnlyApproveRFQ() public {
+    function testFillETHToUSDT_EOAUserAndMMPMaker_UseSpenderForMaker() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = true;
+        testFillETHToUSDT_EOAUserAndMMPMaker();
+    }
+
+    function testFillETHToUSDT_EOAUserAndMMPMaker_DoNotUseSpenderForMaker() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = false;
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerAssetAddr = address(weth);
         order.takerAssetAmount = 1 ether;
@@ -416,7 +446,16 @@ contract RFQTest is StrategySharedSetup {
         makerMMPMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
-    function testFillDAIToETH_WalletUserAndMMPMaker_MakerOnlyApproveRFQ() public {
+    function testFillDAIToETH_WalletUserAndMMPMaker_UseSpenderForMaker() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = true;
+        // maker only approve RFQ
+        testFillDAIToETH_WalletUserAndMMPMaker();
+    }
+
+    function testFillDAIToETH_WalletUserAndMMPMaker_DoNotUseSpenderForMaker() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = false;
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerAddr = address(mockERC1271Wallet);
         order.makerAddr = address(marketMakerProxy);
@@ -450,7 +489,15 @@ contract RFQTest is StrategySharedSetup {
         feeCollectorMakerAsset.assertChange(int256(order.makerAssetAmount.mul(10).div(100))); // 10% fee
     }
 
-    function testFillAccrueFeeToFeeCollector_MakerOnlyApproveRFQ() public {
+    function testFillAccrueFeeToFeeCollector_UseSpenderForMaker() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = true;
+        testFillAccrueFeeToFeeCollector();
+    }
+
+    function testFillAccrueFeeToFeeCollector_DoNotUseSpenderForMaker() public {
+        callWithSpendOption = true;
+        spendOption.useSpenderForMaker = false;
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         order.feeFactor = 1000; // 10% fee
         // maker only approve RFQ
@@ -570,11 +617,10 @@ contract RFQTest is StrategySharedSetup {
         bytes memory makerSig,
         bytes memory userSig
     ) internal view returns (bytes memory payload) {
-        bytes4 selector = rfq.fill.selector;
-        if (callFillWithoutMakerSpender) {
-            selector = rfq.fillWithoutMakerSpender.selector;
+        if (callWithSpendOption) {
+            return abi.encodeWithSelector(rfq.fillWithSpendOption.selector, order, makerSig, userSig, spendOption);
         }
-        return abi.encodeWithSelector(selector, order, makerSig, userSig);
+        return abi.encodeWithSelector(rfq.fill.selector, order, makerSig, userSig);
     }
 
     function _makerOnlyApproveRFQ(address makerAddr, address makerAssetAddr) internal {
@@ -582,6 +628,5 @@ contract RFQTest is StrategySharedSetup {
         IERC20(makerAssetAddr).safeApprove(address(allowanceTarget), 0);
         IERC20(makerAssetAddr).safeApprove(address(rfq), type(uint256).max);
         vm.stopPrank();
-        callFillWithoutMakerSpender = true;
     }
 }
