@@ -583,8 +583,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory userSig,
         bool useSpenderForMaker
     ) internal view returns (bytes memory payload) {
-        IRFQ.SpendOption memory spendOption = IRFQ.SpendOption(useSpenderForMaker);
-        return abi.encodeWithSelector(rfq.fillWithSpendOption.selector, order, makerSig, userSig, spendOption);
+        return abi.encodeWithSelector(rfq.fillWithSpendOption.selector, order, makerSig, userSig, useSpenderForMaker);
     }
 
     function _makerOnlyApproveRFQ(address makerAddr, address makerAssetAddr) internal {

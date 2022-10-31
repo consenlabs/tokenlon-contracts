@@ -85,17 +85,17 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         bytes calldata _userSignature
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         GroupedVars memory vars = _preHandleFill(_order, _mmSignature, _userSignature);
-        return _settle({ _order: _order, _vars: vars, _useSpenderForMaker: true });
+        return _settle(_order, vars, true);
     }
 
     function fillWithSpendOption(
         RFQLibEIP712.Order calldata _order,
         bytes calldata _mmSignature,
         bytes calldata _userSignature,
-        SpendOption calldata _spendOption
+        bool _useSpenderForMaker
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
         GroupedVars memory vars = _preHandleFill(_order, _mmSignature, _userSignature);
-        return _settle({ _order: _order, _vars: vars, _useSpenderForMaker: _spendOption.useSpenderForMaker });
+        return _settle(_order, vars, _useSpenderForMaker);
     }
 
     function _emitFillOrder(
