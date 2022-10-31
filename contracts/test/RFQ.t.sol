@@ -51,6 +51,7 @@ contract RFQTest is StrategySharedSetup {
     MockERC1271Wallet mockERC1271Wallet;
     MarketMakerProxy marketMakerProxy;
     RFQ rfq;
+
     uint256 DEADLINE = block.timestamp + 1;
     RFQLibEIP712.Order DEFAULT_ORDER;
 
