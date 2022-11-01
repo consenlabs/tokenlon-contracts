@@ -3,6 +3,7 @@ pragma solidity 0.7.6;
 pragma abicoder v2;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
@@ -12,9 +13,9 @@ import "./utils/RFQLibEIP712.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 import "./utils/LibConstant.sol";
-import "./utils/LocalTransferERC20.sol";
 
-contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLibEIP712, LocalTransferERC20 {
+contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
+    using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using Address for address;
 
@@ -174,7 +175,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             return;
         }
         // transferFrom by RFQ
-        _localSpendFromUserTo(_user, _tokenAddr, _recipient, _amount);
+        IERC20(_tokenAddr).safeTransferFrom(_user, _recipient, _amount);
     }
 
     function _preHandleFill(
