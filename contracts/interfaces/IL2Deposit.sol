@@ -6,6 +6,15 @@ import "./IStrategyBase.sol";
 import "../utils/L2DepositLibEIP712.sol";
 
 interface IL2Deposit is IStrategyBase {
+    /// @notice This event is emmitted when deposit action to layer2 is done
+    /// @param l2Identifier The identifier of which layer2 chain the deposit is send to
+    /// @param l1TokenAddr The token contract address on layer1
+    /// @param l2TokenAddr The token contract address on layer2
+    /// @param sender The sender's address on layer1
+    /// @param recipient The recipient's address on layer2
+    /// @param amount The amount of token to be sent
+    /// @param data The message data of L2Deposit following EIP-712
+    /// @param bridgeResponse The response from layer2 bridge
     event Deposited(
         L2DepositLibEIP712.L2Identifier indexed l2Identifier,
         address indexed l1TokenAddr,
