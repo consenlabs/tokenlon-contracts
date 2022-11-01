@@ -8,7 +8,7 @@ There are three major categories of contracts in this repo:
 
 2. [Trading Strategy Contracts](#Trading-Strategy-Contracts)
 
-3. [LON Token peripherals](#LON-Token-peripherals)
+3. [LON Token Peripherals](#LON-Token-Peripherals)
 
 ![image info](../tokenlon_architecture.png)
 
@@ -33,7 +33,7 @@ User proxy is the entry of the whole procotol while Tokenlon is a transparent up
 -   Limit Order
 -   L2Deposit
 
-# LON Token peripherals
+# LON Token Peripherals
 
 -   LON
 -   LON Staking & xLON
