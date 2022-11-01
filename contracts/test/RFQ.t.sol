@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/MarketMakerProxy.sol";
 import "contracts/RFQ.sol";
@@ -17,6 +18,7 @@ import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract RFQTest is StrategySharedSetup {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     uint256 constant BPS_MAX = 10000;
@@ -416,6 +418,65 @@ contract RFQTest is StrategySharedSetup {
     }
 
     /*********************************
+     *  Test: fillWithSpendOption    *
+     *********************************/
+    function testFillWithSpendOption_UseSpenderForMaker() public {
+        bool useSpenderForMaker = true;
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillWithSpendOptionPayload(order, makerSig, userSig, useSpenderForMaker);
+
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, order.makerAssetAddr);
+
+        vm.prank(user, user);
+        userProxy.toRFQ(payload);
+
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
+    }
+
+    function testCannotFillWithSpendOption_DoNotUseSpenderForMaker_MakerDoesNotApproveRFQ() public {
+        bool useSpenderForMaker = false;
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillWithSpendOptionPayload(order, makerSig, userSig, useSpenderForMaker);
+
+        vm.expectRevert("ERC20: transfer amount exceeds allowance");
+        vm.prank(user, user);
+        userProxy.toRFQ(payload);
+    }
+
+    function testFillWithSpendOption_DoNotUseSpenderForMaker_MakerOnlyApproveRFQ() public {
+        bool useSpenderForMaker = false;
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        // maker only approve RFQ
+        _makerOnlyApproveRFQ(order.makerAddr, order.makerAssetAddr);
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillWithSpendOptionPayload(order, makerSig, userSig, useSpenderForMaker);
+
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, order.makerAssetAddr);
+
+        vm.prank(user, user);
+        userProxy.toRFQ(payload);
+
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
+    }
+
+    /*********************************
      *       Test: emit event        *
      *********************************/
 
@@ -514,5 +575,21 @@ contract RFQTest is StrategySharedSetup {
         bytes memory userSig
     ) internal view returns (bytes memory payload) {
         return abi.encodeWithSelector(rfq.fill.selector, order, makerSig, userSig);
+    }
+
+    function _genFillWithSpendOptionPayload(
+        RFQLibEIP712.Order memory order,
+        bytes memory makerSig,
+        bytes memory userSig,
+        bool useSpenderForMaker
+    ) internal view returns (bytes memory payload) {
+        return abi.encodeWithSelector(rfq.fillWithSpendOption.selector, order, makerSig, userSig, useSpenderForMaker);
+    }
+
+    function _makerOnlyApproveRFQ(address makerAddr, address makerAssetAddr) internal {
+        vm.startPrank(makerAddr);
+        IERC20(makerAssetAddr).safeApprove(address(allowanceTarget), 0);
+        IERC20(makerAssetAddr).safeApprove(address(rfq), type(uint256).max);
+        vm.stopPrank();
     }
 }
