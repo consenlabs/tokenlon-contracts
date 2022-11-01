@@ -17,6 +17,8 @@ import "./utils/Ownable.sol";
 import "./utils/L2DepositLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
+/// @title L2Deposit Contract
+/// @author imToken Labs
 contract L2Deposit is IL2Deposit, StrategyBase, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
     using SafeERC20 for IERC20;
 
