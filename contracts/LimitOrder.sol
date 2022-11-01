@@ -21,6 +21,8 @@ import "./utils/LibOrderStorage.sol";
 import "./utils/LimitOrderLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
+/// @title LimitOrder Contract
+/// @author imToken Labs
 contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValidator, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -57,6 +59,8 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
 
     receive() external payable {}
 
+    /// @notice Only owner can call
+    /// @param _newCoordinator The new address of coordinator
     function upgradeCoordinator(address _newCoordinator) external onlyOwner {
         require(_newCoordinator != address(0), "LimitOrder: coordinator can not be zero address");
         coordinator = _newCoordinator;
@@ -64,6 +68,10 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         emit UpgradeCoordinator(_newCoordinator);
     }
 
+    /// @notice Only owner can call
+    /// @param _makerFeeFactor The new fee factor for maker
+    /// @param _takerFeeFactor The new fee factor for taker
+    /// @param _profitFeeFactor The new fee factor for relayer profit
     function setFactors(
         uint16 _makerFeeFactor,
         uint16 _takerFeeFactor,
@@ -80,9 +88,8 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         emit FactorsUpdated(_makerFeeFactor, _takerFeeFactor, _profitFeeFactor);
     }
 
-    /**
-     * @dev set fee collector
-     */
+    /// @notice Only owner can call
+    /// @param _newFeeCollector The new address of fee collector
     function setFeeCollector(address _newFeeCollector) external onlyOwner {
         require(_newFeeCollector != address(0), "LimitOrder: fee collector can not be zero address");
         feeCollector = _newFeeCollector;
@@ -90,9 +97,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         emit SetFeeCollector(_newFeeCollector);
     }
 
-    /**
-     * Fill limit order by trader
-     */
+    /// @inheritdoc ILimitOrder
     function fillLimitOrderByTrader(
         LimitOrderLibEIP712.Order calldata _order,
         bytes calldata _orderMakerSig,
@@ -238,9 +243,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         return makerTokenForTrader;
     }
 
-    /**
-     * Fill limit order by protocol
-     */
+    /// @inheritdoc ILimitOrder
     function fillLimitOrderByProtocol(
         LimitOrderLibEIP712.Order calldata _order,
         bytes calldata _orderMakerSig,
@@ -400,9 +403,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         _settlement.makerToken.safeApprove(_settlement.protocolAddress, 0);
     }
 
-    /**
-     * Cancel limit order
-     */
+    /// @inheritdoc ILimitOrder
     function cancelLimitOrder(LimitOrderLibEIP712.Order calldata _order, bytes calldata _cancelOrderMakerSig) external override onlyUserProxy nonReentrant {
         require(_order.expiry > uint64(block.timestamp), "LimitOrder: Order is expired");
         bytes32 orderHash = getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(_order));
