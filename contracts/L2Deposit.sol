@@ -37,6 +37,7 @@ contract L2Deposit is IL2Deposit, StrategyBase, ReentrancyGuard, BaseLibEIP712, 
         optimismL1StandardBridge = _optimismL1StandardBridge;
     }
 
+    /// @inheritdoc IL2Deposit
     function deposit(IL2Deposit.DepositParams calldata _params) external payable override nonReentrant onlyUserProxy {
         require(_params.deposit.expiry > block.timestamp, "L2Deposit: Deposit is expired");
 
