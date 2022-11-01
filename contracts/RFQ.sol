@@ -13,6 +13,8 @@ import "./utils/BaseLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 import "./utils/LibConstant.sol";
 
+/// @title RFQ Contract
+/// @author imToken Labs
 contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     using SafeMath for uint256;
     using Address for address;
@@ -28,9 +30,23 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         bytes32 transactionHash;
     }
 
-    // Operator events
+    /// @notice Emitted when fee collector address is updated
+    /// @param newFeeCollector The address of the new fee collector
     event SetFeeCollector(address newFeeCollector);
 
+    /// @notice Emitted when order is filled
+    /// @param source The tag of the contract where the order is filled
+    /// @param transactionHash The hash of the transaction structure which is signed by taker
+    /// @param orderHash The hash of the order structure which is signed by maker
+    /// @param userAddr The address of taker
+    /// @param takerAssetAddr The taker assest used to swap
+    /// @param takerAssetAmount the swap amount of taker asset
+    /// @param makerAddr The address of maker
+    /// @param makerAssetAddr The maker assest used to swap
+    /// @param makerAssetAmount the swap amount of maker asset
+    /// @param receiverAddr The address of who receives the maker asset (always equals to the taker address)
+    /// @param settleAmount The actual amount of the maker asset recevied by receiver (settleAmount = makerAssetAmount - fee)
+    /// @param feeFactor The factor used to calculate fee (fee = makerAssetAmount * feeFactor / BPS_MAX[=10000]))
     event FillOrder(
         string source,
         bytes32 indexed transactionHash,
@@ -65,9 +81,9 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     /************************************************************
      *           Management functions for Operator               *
      *************************************************************/
-    /**
-     * @dev set fee collector
-     */
+    /// @notice Set fee collector
+    /// @notice Called by owner only
+    /// @param _newFeeCollector The new address of fee collector
     function setFeeCollector(address _newFeeCollector) external onlyOwner {
         require(_newFeeCollector != address(0), "RFQ: fee collector can not be zero address");
         feeCollector = _newFeeCollector;
@@ -78,6 +94,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     /************************************************************
      *                   External functions                      *
      *************************************************************/
+    /// @inheritdoc IRFQ
     function fill(
         RFQLibEIP712.Order calldata _order,
         bytes calldata _mmSignature,
