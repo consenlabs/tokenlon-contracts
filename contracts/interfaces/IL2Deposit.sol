@@ -6,8 +6,8 @@ import "./IStrategyBase.sol";
 import "../utils/L2DepositLibEIP712.sol";
 
 interface IL2Deposit is IStrategyBase {
-    /// @notice Emmitted when deposit tokens to L2 successfully
-    /// @param l2Identifier The identifier of which L2 chain the deposit is send to
+    /// @notice Emitted when deposit tokens to L2 successfully
+    /// @param l2Identifier The identifier of which L2 chain the deposit is sent to
     /// @param l1TokenAddr The token contract address on L1
     /// @param l2TokenAddr The token contract address on L2
     /// @param sender The sender's address on L1
