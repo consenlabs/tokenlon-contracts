@@ -32,6 +32,6 @@ interface IL2Deposit is IStrategyBase {
     }
 
     /// @notice Deposit user's fund into L2 bridge
-    /// @param _params The deposit data following EIP-712 plus the user's signature of it
+    /// @param _params The deposit data that sends money to L2
     function deposit(DepositParams calldata _params) external payable;
 }
