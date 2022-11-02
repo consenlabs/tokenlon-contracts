@@ -13,7 +13,7 @@ interface IL2Deposit is IStrategyBase {
     /// @param sender The sender's address on L1
     /// @param recipient The recipient's address on L2
     /// @param amount The amount of token to be sent
-    /// @param data The message data of L2Deposit following EIP-712
+    /// @param data The specific data related to different L2
     /// @param bridgeResponse The response from L2 bridge
     event Deposited(
         L2DepositLibEIP712.L2Identifier indexed l2Identifier,
