@@ -4,11 +4,17 @@ import "forge-std/Test.sol";
 import "contracts/Lon.sol";
 import "contracts/veLON.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
+
+import "contracts/veReward.sol";
+
+import "contracts-test/mocks/MockERC20.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 
 contract TestVeLON is Test {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
     using SafeMath for uint256;
+
+    MockERC20 rewardToken = new MockERC20("vr", "vr", 18);
 
     address user = vm.addr(uint256(1));
     address bob = vm.addr(uint256(2));
@@ -17,10 +23,12 @@ contract TestVeLON is Test {
 
     Lon lon = new Lon(address(this), address(this));
     veLON veLon;
+    veReward veRwd;
 
     // set default stake amount to 10 years in order to have integer initial vBalance easily
     uint256 constant DEFAULT_STAKE_AMOUNT = 10 * (365 days);
     uint256 constant DEFAULT_LOCK_TIME = 2 weeks;
+    uint256 constant DEFAULT_REWARD_AMOUNT = 10 * (1 weeks);
     uint256 public constant PENALTY_RATE_PRECISION = 10000;
 
     // record the balnce of Lon and VeLon in VM
@@ -30,6 +38,7 @@ contract TestVeLON is Test {
     function setUp() public {
         // Setup
         veLon = new veLON(address(lon));
+        veRwd = new veReward(address(this), veLon, rewardToken);
 
         // deal eth and mint lon to user, approve lon to veLON
         deal(user, 100 ether);

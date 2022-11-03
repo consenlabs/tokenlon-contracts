@@ -191,10 +191,7 @@ contract veReward is IveReward {
         uint256 startTime = block.timestamp / 1 weeks * 1 weeks + 1 weeks;
         uint256 endTime = startTime + 1 weeks;
         if (epochInfo.length > 0) {
-            uint256 epochId = 0;
-            if (epochInfo.length > 1) {
-                epochId = getEpochIdByTime(startTime);
-            } 
+            uint256 epochId = getEpochIdByTime(startTime);
             if (epochInfo[epochId].startTime == startTime) {
                 _updateEpochReward(epochId, totalReward);
             } else if (epochInfo[epochId].endTime <= startTime) {
@@ -207,7 +204,22 @@ contract veReward is IveReward {
 
     function addRewardForNextWeeksBatch(uint256 totalReward, uint256 epochCount) external override onlyWhitelist {
         uint256 startTime = block.timestamp / 1 weeks * 1 weeks + 1 weeks;
-        _addEpochBatch(startTime, 1 weeks, epochCount, totalReward);
+        uint256 endTime = startTime + 1 weeks;
+        uint256 perEpochReward = totalReward / epochCount;
+        for (uint256 i = 0; i < epochCount; i++) {
+            if (epochInfo.length > 0) {
+                uint256 epochId = getEpochIdByTime(startTime);
+                if (epochInfo[epochId].startTime == startTime) {
+                    _updateEpochReward(epochId, perEpochReward);
+                } else if (epochInfo[epochId].endTime <= startTime) {
+                    _addEpoch(startTime, endTime, perEpochReward);
+                }
+            } else  {
+                _addEpoch(startTime, endTime, perEpochReward);
+            }
+            startTime = endTime;
+            endTime += 1 weeks;
+        }
     }
 
     /// @notice query pending reward by epoch
