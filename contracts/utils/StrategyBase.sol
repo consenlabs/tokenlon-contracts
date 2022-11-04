@@ -12,6 +12,9 @@ import "../interfaces/IStrategyBase.sol";
 import "../interfaces/ISpender.sol";
 import "../interfaces/IPermanentStorage.sol";
 
+/// @title StrategyBase Abstract Contract
+/// @author imToken Labs
+/// @dev This contract is shared by every Tokenlon strategy contracts
 abstract contract StrategyBase is IStrategyBase, Ownable {
     using SafeERC20 for IERC20;
 
@@ -38,9 +41,7 @@ abstract contract StrategyBase is IStrategyBase, Ownable {
         _;
     }
 
-    /**
-     * @dev set new Spender
-     */
+    /// @inheritdoc IStrategyBase
     function upgradeSpender(address _newSpender) external override onlyOwner {
         require(_newSpender != address(0), "Strategy: spender can not be zero address");
         spender = ISpender(_newSpender);
@@ -48,9 +49,7 @@ abstract contract StrategyBase is IStrategyBase, Ownable {
         emit UpgradeSpender(_newSpender);
     }
 
-    /**
-     * @dev approve spender to transfer tokens from this contract. This is used to collect fee.
-     */
+    /// @inheritdoc IStrategyBase
     function setAllowance(address[] calldata _tokenList, address _spender) external override onlyOwner {
         for (uint256 i = 0; i < _tokenList.length; i++) {
             IERC20(_tokenList[i]).safeApprove(_spender, LibConstant.MAX_UINT);
@@ -59,9 +58,7 @@ abstract contract StrategyBase is IStrategyBase, Ownable {
         }
     }
 
-    /**
-     * @dev clear approval for spender to transfer tokens from this contract.
-     */
+    /// @inheritdoc IStrategyBase
     function closeAllowance(address[] calldata _tokenList, address _spender) external override onlyOwner {
         for (uint256 i = 0; i < _tokenList.length; i++) {
             IERC20(_tokenList[i]).safeApprove(_spender, 0);
@@ -70,9 +67,7 @@ abstract contract StrategyBase is IStrategyBase, Ownable {
         }
     }
 
-    /**
-     * @dev convert collected ETH to WETH
-     */
+    /// @inheritdoc IStrategyBase
     function depositETH() external override onlyOwner {
         uint256 balance = address(this).balance;
         if (balance > 0) {
