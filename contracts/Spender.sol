@@ -205,16 +205,13 @@ contract Spender is ISpender, Ownable, BaseLibEIP712, SignatureValidator {
         require(_params.requester == msg.sender, "Spender: invalid requester address");
 
         // Validate spend with permit signature
-        bytes32 spendWithPermitHash = getEIP712Hash({ structHash: SpenderLibEIP712._getSpendWithPermitHash({ _spendWithPermit: _params }) });
+        bytes32 spendWithPermitHash = getEIP712Hash(SpenderLibEIP712._getSpendWithPermitHash(_params));
 
         // Validate spending is not replayed
         require(!spendingFulfilled[spendWithPermitHash], "Spender: Permit is already fulfilled");
         spendingFulfilled[spendWithPermitHash] = true;
 
-        require(
-            isValidSignature({ _signerAddress: _params.user, _hash: spendWithPermitHash, _data: bytes(""), _sig: _spendWithPermitSig }),
-            "Spender: Invalid permit signature"
-        );
+        require(isValidSignature(_params.user, spendWithPermitHash, bytes(""), _spendWithPermitSig), "Spender: Invalid permit signature");
 
         _transferTokenFromUserTo(_params.user, _params.tokenAddr, _params.recipient, _params.amount);
     }
