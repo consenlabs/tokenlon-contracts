@@ -17,6 +17,8 @@ import "./utils/Ownable.sol";
 import "./utils/L2DepositLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
+/// @title L2Deposit Contract
+/// @author imToken Labs
 contract L2Deposit is IL2Deposit, StrategyBase, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
     using SafeERC20 for IERC20;
 
@@ -37,6 +39,7 @@ contract L2Deposit is IL2Deposit, StrategyBase, ReentrancyGuard, BaseLibEIP712, 
         optimismL1StandardBridge = _optimismL1StandardBridge;
     }
 
+    /// @inheritdoc IL2Deposit
     function deposit(IL2Deposit.DepositParams calldata _params) external payable override nonReentrant onlyUserProxy {
         require(_params.deposit.expiry > block.timestamp, "L2Deposit: Deposit is expired");
 
