@@ -86,7 +86,7 @@ contract SpenderTest is BalanceUtil {
             user, // user
             recipient, // receipient
             100 * 1e18, // amount
-            bytes32(0x0), // txHash
+            bytes32(0x0), // actionHash
             EXPIRY // expiry
         );
 
@@ -453,7 +453,7 @@ contract SpenderTest is BalanceUtil {
     }
 
     function _signSpendWithPermit(uint256 privateKey, SpenderLibEIP712.SpendWithPermit memory spendWithPermit) internal returns (bytes memory sig) {
-        uint256 SPEND_WITH_PERMIT_TYPEHASH = 0x356b0c4ef9d6005a11dc7bead0f1cea62bd30d1e5d59c407e9a7c13f54b24970;
+        uint256 SPEND_WITH_PERMIT_TYPEHASH = 0x52718c957261b99fd72e63478d85d1267cdc812e8249f5a2623566c1818e1ed0;
         bytes32 structHash = keccak256(
             abi.encode(
                 SPEND_WITH_PERMIT_TYPEHASH,
@@ -462,7 +462,7 @@ contract SpenderTest is BalanceUtil {
                 spendWithPermit.user,
                 spendWithPermit.recipient,
                 spendWithPermit.amount,
-                spendWithPermit.txHash,
+                spendWithPermit.actionHash,
                 spendWithPermit.expiry
             )
         );

@@ -8,7 +8,7 @@ library SpenderLibEIP712 {
         address user;
         address recipient;
         uint256 amount;
-        bytes32 txHash;
+        bytes32 actionHash;
         uint64 expiry;
     }
     /*
@@ -20,13 +20,13 @@ library SpenderLibEIP712 {
                 "address user,",
                 "address recipient,",
                 "uint256 amount,",
-                "bytes32 txHash,",
+                "bytes32 actionHash,",
                 "uint64 expiry",
                 ")"
             )
         );
     */
-    uint256 public constant SPEND_WITH_PERMIT_TYPEHASH = 0x356b0c4ef9d6005a11dc7bead0f1cea62bd30d1e5d59c407e9a7c13f54b24970;
+    uint256 public constant SPEND_WITH_PERMIT_TYPEHASH = 0x52718c957261b99fd72e63478d85d1267cdc812e8249f5a2623566c1818e1ed0;
 
     function _getSpendWithPermitHash(SpendWithPermit memory _spendWithPermit) internal pure returns (bytes32) {
         return
@@ -38,7 +38,7 @@ library SpenderLibEIP712 {
                     _spendWithPermit.user,
                     _spendWithPermit.recipient,
                     _spendWithPermit.amount,
-                    _spendWithPermit.txHash,
+                    _spendWithPermit.actionHash,
                     _spendWithPermit.expiry
                 )
             );
