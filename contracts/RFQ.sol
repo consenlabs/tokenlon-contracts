@@ -121,7 +121,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
         permStorage.setRFQTransactionSeen(vars.transactionHash);
 
-        return _settle({ _order: _order, _vars: vars, _makerAssetPermitSig: _makerAssetPermitSig, _takerAssetPermitSig: _takerAssetPermitSig });
+        return _settle(_order, vars, _makerAssetPermitSig, _takerAssetPermitSig);
     }
 
     function _emitFillOrder(
@@ -153,26 +153,26 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         bytes memory _takerAssetPermitSig
     ) internal returns (uint256) {
         // Declare the 'maker sends makerAsset to this contract' SpendWithPermit struct from _order parameter
-        SpenderLibEIP712.SpendWithPermit memory makerAssetPermit = SpenderLibEIP712.SpendWithPermit({
-            tokenAddr: _order.makerAssetAddr,
-            requester: address(this),
-            user: _order.makerAddr,
-            recipient: address(this),
-            amount: _order.makerAssetAmount,
-            actionHash: _vars.orderHash,
-            expiry: uint64(_order.deadline)
-        });
+        SpenderLibEIP712.SpendWithPermit memory makerAssetPermit = SpenderLibEIP712.SpendWithPermit(
+            _order.makerAssetAddr,
+            address(this),
+            _order.makerAddr,
+            address(this),
+            _order.makerAssetAmount,
+            _vars.orderHash,
+            uint64(_order.deadline)
+        );
 
         // Declare the 'taker sends takerAsset to this contract' SpendWithPermit struct from _order parameter
-        SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = SpenderLibEIP712.SpendWithPermit({
-            tokenAddr: _order.takerAssetAddr,
-            requester: address(this),
-            user: _order.takerAddr,
-            recipient: address(this),
-            amount: _order.takerAssetAmount,
-            actionHash: _vars.transactionHash,
-            expiry: uint64(_order.deadline)
-        });
+        SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = SpenderLibEIP712.SpendWithPermit(
+            _order.takerAssetAddr,
+            address(this),
+            _order.takerAddr,
+            address(this),
+            _order.takerAssetAmount,
+            _vars.transactionHash,
+            uint64(_order.deadline)
+        );
 
         // Transfer taker asset to maker
         if (address(weth) == _order.takerAssetAddr) {
@@ -182,7 +182,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             weth.transfer(_order.makerAddr, _order.takerAssetAmount);
         } else {
             // Transfer taker asset to this contract first,
-            spender.spendFromUserToWithPermit({ _params: takerAssetPermit, _spendWithPermitSig: _takerAssetPermitSig });
+            spender.spendFromUserToWithPermit(takerAssetPermit, _takerAssetPermitSig);
             // then transfer from this to maker.
             IERC20(_order.takerAssetAddr).safeTransfer(_order.makerAddr, _order.takerAssetAmount);
         }
@@ -195,7 +195,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         }
 
         // Transfer maker asset to this contract first
-        spender.spendFromUserToWithPermit({ _params: makerAssetPermit, _spendWithPermitSig: _makerAssetPermitSig });
+        spender.spendFromUserToWithPermit(makerAssetPermit, _makerAssetPermitSig);
 
         // Transfer maker asset less fee from this contract to receiver
         if (_order.makerAssetAddr == address(weth)) {

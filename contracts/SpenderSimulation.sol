@@ -41,7 +41,7 @@ contract SpenderSimulation {
         external
         checkBlackList(_params.tokenAddr, _params.user)
     {
-        spender.spendFromUserToWithPermit({ _params: _params, _spendWithPermitSig: _spendWithPermitSig });
+        spender.spendFromUserToWithPermit(_params, _spendWithPermitSig);
 
         // All checks passed: revert with success reason string
         revert("SpenderSimulation: transfer simulation success");
