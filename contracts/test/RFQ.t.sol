@@ -305,10 +305,10 @@ contract RFQTest is StrategySharedSetup {
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
 
-        userTakerAsset.assertChange({ expectedChange: -int256(order.takerAssetAmount) });
-        receiverMakerAsset.assertChange({ expectedChange: int256(order.makerAssetAmount) });
-        makerTakerAsset.assertChange({ expectedChange: int256(order.takerAssetAmount) });
-        makerMakerAsset.assertChange({ expectedChange: -int256(order.makerAssetAmount) });
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
     function testFillDAIToUSDT_EOAUserAndEOAMaker_WithOldEIP712Method() public {
@@ -325,10 +325,10 @@ contract RFQTest is StrategySharedSetup {
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
 
-        userTakerAsset.assertChange({ expectedChange: -int256(order.takerAssetAmount) });
-        receiverMakerAsset.assertChange({ expectedChange: int256(order.makerAssetAmount) });
-        makerTakerAsset.assertChange({ expectedChange: int256(order.takerAssetAmount) });
-        makerMakerAsset.assertChange({ expectedChange: -int256(order.makerAssetAmount) });
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
     function testFillETHToUSDT_EOAUserAndMMPMaker() public {
@@ -348,10 +348,10 @@ contract RFQTest is StrategySharedSetup {
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ{ value: order.takerAssetAmount }(payload);
 
-        userTakerAsset.assertChange({ expectedChange: -int256(order.takerAssetAmount) });
-        receiverMakerAsset.assertChange({ expectedChange: int256(order.makerAssetAmount) });
-        makerMMPTakerAsset.assertChange({ expectedChange: int256(order.takerAssetAmount) });
-        makerMMPMakerAsset.assertChange({ expectedChange: -int256(order.makerAssetAmount) });
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerMMPTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMMPMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
     function testFillDAIToETH_WalletUserAndMMPMaker() public {
@@ -372,10 +372,10 @@ contract RFQTest is StrategySharedSetup {
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
 
-        userWalletTakerAsset.assertChange({ expectedChange: -int256(order.takerAssetAmount) });
-        receiverMakerAsset.assertChange({ expectedChange: int256(order.makerAssetAmount) });
-        makerMMPTakerAsset.assertChange({ expectedChange: int256(order.takerAssetAmount) });
-        makerMMPMakerAsset.assertChange({ expectedChange: -int256(order.makerAssetAmount) });
+        userWalletTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerMMPTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMMPMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
     function testFillAccrueFeeToFeeCollector() public {
@@ -394,11 +394,11 @@ contract RFQTest is StrategySharedSetup {
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
 
-        userTakerAsset.assertChange({ expectedChange: -int256(order.takerAssetAmount) });
-        receiverMakerAsset.assertChange({ expectedChange: int256(order.makerAssetAmount.mul(90).div(100)) }); // 10% fee taken from maker asset
-        makerTakerAsset.assertChange({ expectedChange: int256(order.takerAssetAmount) });
-        makerMakerAsset.assertChange({ expectedChange: -int256(order.makerAssetAmount) });
-        feeCollectorMakerAsset.assertChange({ expectedChange: int256(order.makerAssetAmount.mul(10).div(100)) }); // 10% fee
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount.mul(90).div(100))); // 10% fee taken from maker asset
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
+        feeCollectorMakerAsset.assertChange(int256(order.makerAssetAmount.mul(10).div(100))); // 10% fee
     }
 
     function testCannotFillWithSamePayloadAgain() public {
