@@ -30,12 +30,14 @@ contract Permit is Test {
             )
         );
         bytes32 spendWithPermitHash = getEIP712Hash(domainSeparator, structHash);
-        if (sigType == SignatureValidator.SignatureType.Wallet) {
+        if (sigType == SignatureValidator.SignatureType.EIP712 || sigType == SignatureValidator.SignatureType.WalletBytes32) {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, spendWithPermitHash);
+            sig = abi.encodePacked(r, s, v, uint8(sigType)); // new signature format
+        } else if (sigType == SignatureValidator.SignatureType.Wallet) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(spendWithPermitHash));
             sig = abi.encodePacked(r, s, v, uint8(sigType)); // new signature format
         } else {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, spendWithPermitHash);
-            sig = abi.encodePacked(r, s, v, uint8(sigType)); // new signature format
+            revert("Invalid signature type");
         }
     }
 }
