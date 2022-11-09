@@ -443,7 +443,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
-        _expectEvent({ order: order });
+        _expectEvent(order);
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
     }
