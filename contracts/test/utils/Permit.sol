@@ -13,7 +13,7 @@ contract Permit is Test {
     function signSpendWithPermit(
         uint256 privateKey,
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit,
-        Spender spenderContract,
+        bytes32 domainSeparator,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         uint256 SPEND_WITH_PERMIT_TYPEHASH = 0x52718c957261b99fd72e63478d85d1267cdc812e8249f5a2623566c1818e1ed0;
@@ -29,7 +29,7 @@ contract Permit is Test {
                 spendWithPermit.expiry
             )
         );
-        bytes32 spendWithPermitHash = getEIP712Hash(spenderContract.EIP712_DOMAIN_SEPARATOR(), structHash); //_getEIP712Hash(structHash);
+        bytes32 spendWithPermitHash = getEIP712Hash(domainSeparator, structHash);
         if (sigType == SignatureValidator.SignatureType.Wallet) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(spendWithPermitHash));
             sig = abi.encodePacked(r, s, v, uint8(sigType)); // new signature format

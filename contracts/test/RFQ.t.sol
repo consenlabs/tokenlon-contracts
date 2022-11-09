@@ -258,8 +258,18 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory makerAssetPermit,
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         vm.expectRevert("RFQ: expired order");
@@ -277,8 +287,18 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory makerAssetPermit,
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         vm.expectRevert("RFQ: invalid user signature");
@@ -298,9 +318,19 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
             // Sig with EIP712 type
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             // Sig with WalletBytes32 type
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.WalletBytes32);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.WalletBytes32
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         vm.expectRevert(); // No revert string in this case
@@ -318,8 +348,18 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory makerAssetPermit,
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         vm.expectRevert("RFQ: invalid MM signature");
@@ -337,8 +377,18 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory makerAssetPermit,
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
@@ -365,8 +415,18 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory makerAssetPermit,
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
@@ -397,9 +457,19 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
             // Sig with Wallet type
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.Wallet);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.Wallet
+            );
             // Sig with EIP712 type
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, ETH_ADDRESS);
@@ -431,9 +501,19 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
             // Sig with Wallet type
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.Wallet);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.Wallet
+            );
             // Sig with WalletBytes32 type
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.WalletBytes32);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.WalletBytes32
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take(address(mockERC1271Wallet), order.takerAssetAddr);
@@ -461,8 +541,18 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory makerAssetPermit,
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
@@ -491,8 +581,18 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory makerAssetPermit,
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         vm.prank(user, user); // Only EOA
@@ -535,8 +635,18 @@ contract RFQTest is StrategySharedSetup, Permit {
                 SpenderLibEIP712.SpendWithPermit memory makerAssetPermit,
                 SpenderLibEIP712.SpendWithPermit memory takerAssetPermit
             ) = _createSpenderPermitFromOrder(order);
-            bytes memory makerAssetPermitSig = signSpendWithPermit(makerPrivateKey, makerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender, SignatureValidator.SignatureType.EIP712);
+            bytes memory makerAssetPermitSig = signSpendWithPermit(
+                makerPrivateKey,
+                makerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
         _expectEvent(order);
