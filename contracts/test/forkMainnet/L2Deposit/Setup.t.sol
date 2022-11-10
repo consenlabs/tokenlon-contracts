@@ -132,6 +132,7 @@ contract TestL2Deposit is StrategySharedSetup {
         return abi.encodePacked(r, s, v, bytes32(0), uint8(SignatureValidator.SignatureType.EIP712));
     }
 
+    // _createSpenderPermitFromL2Deposit() automatically generates the EIP712Hash of deposit data for us
     function _createSpenderPermitFromL2Deposit(L2DepositLibEIP712.Deposit memory _deposit) internal view returns (SpenderLibEIP712.SpendWithPermit memory) {
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit = SpenderLibEIP712.SpendWithPermit(
             _deposit.l1TokenAddr, // tokenAddr

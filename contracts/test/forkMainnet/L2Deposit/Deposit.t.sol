@@ -56,7 +56,6 @@ contract TestL2DepositTopUp is TestL2Deposit {
         // sign the deposit action
         bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
         // create spendWithPermit using the deposit and sign it
-        // _createSpenderPermitFromL2Deposit() will create EIP712 hash of the deposit for us
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
         bytes memory spenderPermitSig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
 
