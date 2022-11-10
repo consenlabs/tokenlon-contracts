@@ -10,8 +10,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import "contracts/L2Deposit.sol";
+import "contracts/Spender.sol";
 import "contracts/utils/SignatureValidator.sol";
 import "contracts/utils/L2DepositLibEIP712.sol";
+import "contracts/utils/SpenderLibEIP712.sol";
 import "contracts/interfaces/IArbitrumL1GatewayRouter.sol";
 import "contracts/interfaces/IOptimismL1StandardBridge.sol";
 
@@ -127,6 +129,52 @@ contract TestL2Deposit is StrategySharedSetup {
         bytes32 EIP712SignDigest = getEIP712Hash(l2Deposit.EIP712_DOMAIN_SEPARATOR(), depositHash);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        return abi.encodePacked(r, s, v, bytes32(0), uint8(SignatureValidator.SignatureType.EIP712));
+    }
+
+    function _createSpenderPermitFromL2Deposit(L2DepositLibEIP712.Deposit memory _deposit) internal view returns (SpenderLibEIP712.SpendWithPermit memory) {
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = SpenderLibEIP712.SpendWithPermit(
+            _deposit.l1TokenAddr, // tokenAddr
+            address(l2Deposit), // requester
+            _deposit.sender, // user
+            address(l2Deposit), // recipient
+            _deposit.amount, // amount
+            getEIP712Hash(l2Deposit.EIP712_DOMAIN_SEPARATOR(), L2DepositLibEIP712._getDepositHash(DEFAULT_DEPOSIT)), // actionHash
+            uint64(_deposit.expiry) // expiry
+        );
+
+        return spendWithPermit;
+    }
+
+    function _signSpendWithPermit(uint256 _privateKey, SpenderLibEIP712.SpendWithPermit memory _spendWithPermit) internal returns (bytes memory) {
+        bytes32 SPEND_WITH_PERMIT_TYPEHASH = keccak256(
+            abi.encodePacked(
+                "SpendWithPermit(",
+                "address tokenAddr,",
+                "address requester,",
+                "address user,",
+                "address recipient,",
+                "uint256 amount,",
+                "bytes32 actionHash,",
+                "uint64 expiry",
+                ")"
+            )
+        );
+        bytes32 spendWithPermitHash = keccak256(
+            abi.encode(
+                SPEND_WITH_PERMIT_TYPEHASH,
+                _spendWithPermit.tokenAddr,
+                _spendWithPermit.requester,
+                _spendWithPermit.user,
+                _spendWithPermit.recipient,
+                _spendWithPermit.amount,
+                _spendWithPermit.actionHash,
+                _spendWithPermit.expiry
+            )
+        );
+        bytes32 EIP712SignDigest = getEIP712Hash(spender.EIP712_DOMAIN_SEPARATOR(), spendWithPermitHash);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v, bytes32(0), uint8(SignatureValidator.SignatureType.EIP712));
     }
 }
