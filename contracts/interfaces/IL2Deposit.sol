@@ -29,6 +29,7 @@ interface IL2Deposit is IStrategyBase {
     struct DepositParams {
         L2DepositLibEIP712.Deposit deposit;
         bytes depositSig;
+        bytes l1TokenPermitSig;
     }
 
     /// @notice Deposit user's fund into L2 bridge
