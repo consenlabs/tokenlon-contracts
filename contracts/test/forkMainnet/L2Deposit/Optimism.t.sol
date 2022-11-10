@@ -24,9 +24,17 @@ contract TestL2DepositOptimism is TestL2Deposit {
         // overwrite deposit data with encoded optimism specific params
         DEFAULT_DEPOSIT.data = abi.encode(optL2Gas);
 
-        // compose payload with signature
-        bytes memory sig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
-        bytes memory payload = abi.encodeWithSelector(L2Deposit.deposit.selector, IL2Deposit.DepositParams(DEFAULT_DEPOSIT, sig));
+        // sign the deposit action
+        bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
+        // create spendWithPermit using the deposit and sign it
+        // _createSpenderPermitFromL2Deposit() will create EIP712 hash of the deposit for us
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
+        bytes memory spenderPermitSig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
+
+        bytes memory payload = abi.encodeWithSelector(
+            L2Deposit.deposit.selector,
+            IL2Deposit.DepositParams(DEFAULT_DEPOSIT, depositActionSig, spenderPermitSig)
+        );
 
         vm.expectEmit(true, true, true, true);
         emit Deposited(
