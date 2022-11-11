@@ -140,7 +140,7 @@ contract TestL2Deposit is StrategySharedSetup {
                 user: _deposit.sender,
                 recipient: address(l2Deposit),
                 amount: _deposit.amount,
-                actionHash: getEIP712Hash(l2Deposit.EIP712_DOMAIN_SEPARATOR(), L2DepositLibEIP712._getDepositHash(DEFAULT_DEPOSIT)),
+                actionHash: getEIP712Hash(l2Deposit.EIP712_DOMAIN_SEPARATOR(), L2DepositLibEIP712._getDepositHash(_deposit)),
                 expiry: uint64(_deposit.expiry)
             });
     }
