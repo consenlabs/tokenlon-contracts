@@ -55,18 +55,18 @@ contract TestL2Deposit is StrategySharedSetup {
         // Set user token balance and approve
         setEOABalanceAndApprove(user, tokens, 100);
 
-        DEFAULT_DEPOSIT = L2DepositLibEIP712.Deposit(
-            L2DepositLibEIP712.L2Identifier.Arbitrum, // l2Identifier
-            LON_ADDRESS, // l1TokenAddr
-            address(arbitrumLONAddr), // l2TokenAddr
-            user, // sender
-            user, // recipient
-            user, // arbitrumRefundAddr
-            1 ether, // amount
-            1234, // salt
-            DEFAULT_DEADLINE, // expiry
-            bytes("") // data
-        );
+        DEFAULT_DEPOSIT = L2DepositLibEIP712.Deposit({
+            l2Identifier: L2DepositLibEIP712.L2Identifier.Arbitrum,
+            l1TokenAddr: LON_ADDRESS,
+            l2TokenAddr: address(arbitrumLONAddr),
+            sender: user,
+            recipient: user,
+            arbitrumRefundAddr: user,
+            amount: 1 ether,
+            salt: 1234,
+            expiry: DEFAULT_DEADLINE,
+            data: bytes("")
+        });
 
         // Label addresses for easier debugging
         vm.label(user, "User");
@@ -74,15 +74,15 @@ contract TestL2Deposit is StrategySharedSetup {
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
-        l2Deposit = new L2Deposit(
-            address(this), // This contract would be the owner
-            address(userProxy),
-            WETH_ADDRESS,
-            address(permanentStorage),
-            address(spender),
-            arbitrumL1GatewayRouter,
-            optimismL1StandardBridge
-        );
+        l2Deposit = new L2Deposit({
+            _owner: address(this), // This contract would be the owner
+            _userProxy: address(userProxy),
+            _weth: WETH_ADDRESS,
+            _permStorage: address(permanentStorage),
+            _spender: address(spender),
+            _arbitrumL1GatewayRouter: arbitrumL1GatewayRouter,
+            _optimismL1StandardBridge: optimismL1StandardBridge
+        });
 
         // Hook up L2Deposit
         userProxy.upgradeL2Deposit(address(l2Deposit), true);
@@ -133,17 +133,16 @@ contract TestL2Deposit is StrategySharedSetup {
     }
 
     function _createSpenderPermitFromL2Deposit(L2DepositLibEIP712.Deposit memory _deposit) internal view returns (SpenderLibEIP712.SpendWithPermit memory) {
-        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = SpenderLibEIP712.SpendWithPermit(
-            _deposit.l1TokenAddr, // tokenAddr
-            address(l2Deposit), // requester
-            _deposit.sender, // user
-            address(l2Deposit), // recipient
-            _deposit.amount, // amount
-            getEIP712Hash(l2Deposit.EIP712_DOMAIN_SEPARATOR(), L2DepositLibEIP712._getDepositHash(DEFAULT_DEPOSIT)), // actionHash
-            uint64(_deposit.expiry) // expiry
-        );
-
-        return spendWithPermit;
+        return
+            SpenderLibEIP712.SpendWithPermit({
+                tokenAddr: _deposit.l1TokenAddr,
+                requester: address(l2Deposit),
+                user: _deposit.sender,
+                recipient: address(l2Deposit),
+                amount: _deposit.amount,
+                actionHash: getEIP712Hash(l2Deposit.EIP712_DOMAIN_SEPARATOR(), L2DepositLibEIP712._getDepositHash(DEFAULT_DEPOSIT)),
+                expiry: uint64(_deposit.expiry)
+            });
     }
 
     function signSpendWithPermit(uint256 _privateKey, SpenderLibEIP712.SpendWithPermit memory _spendWithPermit) internal returns (bytes memory) {
