@@ -13,8 +13,17 @@ contract TestAMMWrapperTradeSushiswap is TestAMMWrapper {
         order.makerAssetAddr = ETH_ADDRESS;
         order.makerAssetAmount = 0.001 ether;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig);
+        }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
         uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
         uint256 settleAmount = expectedOutAmount - actualFee;

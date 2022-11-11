@@ -12,8 +12,17 @@ contract TestAMMWrapperTradeCurveV1 is TestAMMWrapper {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = CURVE_USDT_POOL_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, feeFactor, sig, takerAssetPermitSig);
+        }
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
 

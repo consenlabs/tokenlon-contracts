@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
+pragma abicoder v2;
 
 import "contracts/AMMWrapper.sol";
 import "contracts/AMMQuoter.sol";
@@ -7,9 +8,10 @@ import "contracts/interfaces/IPermanentStorage.sol";
 import "contracts/interfaces/ISpender.sol";
 import "contracts/utils/AMMLibEIP712.sol";
 import "contracts-test/utils/StrategySharedSetup.sol"; // Using the deployment Strategy Contract function
+import "contracts-test/utils/Permit.sol";
 import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
-contract TestAMMWrapper is StrategySharedSetup {
+contract TestAMMWrapper is StrategySharedSetup, Permit {
     uint256 constant BPS_MAX = 10000;
     bytes32 public constant relayerValidStorageId = 0x2c97779b4deaf24e9d46e02ec2699240a957d92782b51165b93878b09dd66f61; // keccak256("relayerValid")
 
@@ -134,25 +136,31 @@ contract TestAMMWrapper is StrategySharedSetup {
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
 
+    function _createSpenderPermitFromOrder(AMMLibEIP712.Order memory defaultOrder)
+        internal
+        view
+        returns (SpenderLibEIP712.SpendWithPermit memory takerAssetPermit)
+    {
+        // Declare the 'userAddr sends takerAssetAmount amount of takerAssetAddr to AMM contract'
+        // SpendWithPermit struct from defaultOrder parameter
+        takerAssetPermit = SpenderLibEIP712.SpendWithPermit(
+            defaultOrder.takerAssetAddr,
+            address(ammWrapper),
+            defaultOrder.userAddr,
+            address(ammWrapper),
+            defaultOrder.takerAssetAmount,
+            AMMLibEIP712._getOrderHash(defaultOrder),
+            uint64(defaultOrder.deadline)
+        );
+        return takerAssetPermit;
+    }
+
     function _genTradePayload(
         AMMLibEIP712.Order memory order,
         uint256 feeFactor,
-        bytes memory sig
-    ) internal pure returns (bytes memory payload) {
-        return
-            abi.encodeWithSignature(
-                "trade(address,address,address,uint256,uint256,uint256,address,address,uint256,uint256,bytes)",
-                order.makerAddr,
-                order.takerAssetAddr,
-                order.makerAssetAddr,
-                order.takerAssetAmount,
-                order.makerAssetAmount,
-                feeFactor,
-                order.userAddr,
-                order.receiverAddr,
-                order.salt,
-                order.deadline,
-                sig
-            );
+        bytes memory sig,
+        bytes memory takerAssetPermitSig
+    ) internal view returns (bytes memory payload) {
+        return abi.encodeWithSelector(AMMWrapper.trade.selector, order, feeFactor, sig, takerAssetPermitSig);
     }
 }

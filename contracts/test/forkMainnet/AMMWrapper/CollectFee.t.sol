@@ -16,8 +16,17 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
         order.makerAssetAmount = expectedOutAmount;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, feeFactor, sig, takerAssetPermitSig);
+        }
         vm.expectRevert("UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         vm.prank(relayer, relayer);
         userProxy.toAMM(payload);
@@ -33,8 +42,17 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         // therefore it should deduct fee from expectedOutAmount as the makerAssetAmount in order
         order.makerAssetAmount = settleAmount;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, feeFactor, sig, takerAssetPermitSig);
+        }
         BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
 
         vm.prank(relayer, relayer);
@@ -54,8 +72,17 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         // therefore it should deduct fee from expectedOutAmount as the makerAssetAmount in order
         order.makerAssetAmount = settleAmount;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, feeFactor, sig, takerAssetPermitSig);
+        }
         address feeTokenAddress = WETH_ADDRESS; // AMM other than Curve returns WETH instead of ETH
         BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, feeTokenAddress);
 
@@ -79,8 +106,17 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         // therefore it should deduct fee from expectedOutAmount as the makerAssetAmount in order
         order.makerAssetAmount = settleAmount;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, feeFactor, sig, takerAssetPermitSig);
+        }
         address feeTokenAddress = ETH_ADDRESS; // Curve ETH/ANKRETH pool returns ETH instead of WETH
         BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, feeTokenAddress);
 
@@ -104,7 +140,17 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         }
 
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig);
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, feeFactor, sig, takerAssetPermitSig);
+        }
         uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
 
         BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
