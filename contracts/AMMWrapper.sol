@@ -115,12 +115,12 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
      *                   External functions                      *
      *************************************************************/
     function trade(
-        AMMLibEIP712.Order calldata order,
+        AMMLibEIP712.Order calldata _order,
         uint256 _feeFactor,
         bytes calldata _sig,
         bytes calldata _takerAssetPermitSig
     ) external payable override nonReentrant onlyUserProxy returns (uint256) {
-        require(order.deadline >= block.timestamp, "AMMWrapper: expired order");
+        require(_order.deadline >= block.timestamp, "AMMWrapper: expired order");
 
         // These variables are copied straight from function parameters and
         // used to bypass stack too deep error.
@@ -134,36 +134,36 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
         }
 
         // Assign trade vairables
-        internalTxData.fromEth = (order.takerAssetAddr == LibConstant.ZERO_ADDRESS || order.takerAssetAddr == LibConstant.ETH_ADDRESS);
-        internalTxData.toEth = (order.makerAssetAddr == LibConstant.ZERO_ADDRESS || order.makerAssetAddr == LibConstant.ETH_ADDRESS);
-        if (_isCurve(order.makerAddr)) {
+        internalTxData.fromEth = (_order.takerAssetAddr == LibConstant.ZERO_ADDRESS || _order.takerAssetAddr == LibConstant.ETH_ADDRESS);
+        internalTxData.toEth = (_order.makerAssetAddr == LibConstant.ZERO_ADDRESS || _order.makerAssetAddr == LibConstant.ETH_ADDRESS);
+        if (_isCurve(_order.makerAddr)) {
             // PermanetStorage can recognize `ETH_ADDRESS` but not `ZERO_ADDRESS`.
             // Convert it to `ETH_ADDRESS` as passed in `order.takerAssetAddr` or `order.makerAssetAddr` might be `ZERO_ADDRESS`.
-            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? LibConstant.ETH_ADDRESS : order.takerAssetAddr;
-            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? LibConstant.ETH_ADDRESS : order.makerAssetAddr;
+            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? LibConstant.ETH_ADDRESS : _order.takerAssetAddr;
+            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? LibConstant.ETH_ADDRESS : _order.makerAssetAddr;
         } else {
-            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? address(weth) : order.takerAssetAddr;
-            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? address(weth) : order.makerAssetAddr;
+            internalTxData.takerAssetInternalAddr = internalTxData.fromEth ? address(weth) : _order.takerAssetAddr;
+            internalTxData.makerAssetInternalAddr = internalTxData.toEth ? address(weth) : _order.makerAssetAddr;
         }
 
-        txMetaData.transactionHash = _verify(order, _sig);
+        txMetaData.transactionHash = _verify(_order, _sig);
 
-        _prepare(order, internalTxData, _takerAssetPermitSig);
+        _prepare(_order, internalTxData, _takerAssetPermitSig);
 
         {
             // Set min amount for swap = _order.makerAssetAmount * (10000 / (10000 - feeFactor))
-            uint256 swapMinOutAmount = order.makerAssetAmount.mul(LibConstant.BPS_MAX).div(LibConstant.BPS_MAX.sub(txMetaData.feeFactor));
-            (txMetaData.source, txMetaData.receivedAmount) = _swap(order, internalTxData, swapMinOutAmount);
+            uint256 swapMinOutAmount = _order.makerAssetAmount.mul(LibConstant.BPS_MAX).div(LibConstant.BPS_MAX.sub(txMetaData.feeFactor));
+            (txMetaData.source, txMetaData.receivedAmount) = _swap(_order, internalTxData, swapMinOutAmount);
 
             // Settle
             // Calculate fee using actually received from swap
             uint256 actualFee = txMetaData.receivedAmount.mul(txMetaData.feeFactor).div(LibConstant.BPS_MAX);
             txMetaData.settleAmount = txMetaData.receivedAmount.sub(actualFee);
-            require(txMetaData.settleAmount >= order.makerAssetAmount, "AMMWrapper: insufficient maker output");
-            _settle(order, internalTxData, txMetaData.settleAmount, actualFee);
+            require(txMetaData.settleAmount >= _order.makerAssetAmount, "AMMWrapper: insufficient maker output");
+            _settle(_order, internalTxData, txMetaData.settleAmount, actualFee);
         }
 
-        emitSwappedEvent(order, txMetaData);
+        emitSwappedEvent(_order, txMetaData);
         return txMetaData.settleAmount;
     }
 

@@ -215,7 +215,12 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         bytes memory payload; // Bypass stack too deep error
         {
             SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender.EIP712_DOMAIN_SEPARATOR(),SignatureValidator.SignatureType.EIP712);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeCurveData(2), new address[](0));
         }
         vm.expectRevert("Slippage");

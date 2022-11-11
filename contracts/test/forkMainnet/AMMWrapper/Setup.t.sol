@@ -12,7 +12,6 @@ import "contracts-test/utils/Permit.sol";
 import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract TestAMMWrapper is StrategySharedSetup, Permit {
-    uint256 constant BPS_MAX = 10000;
     bytes32 public constant relayerValidStorageId = 0x2c97779b4deaf24e9d46e02ec2699240a957d92782b51165b93878b09dd66f61; // keccak256("relayerValid")
 
     uint256 userPrivateKey = uint256(1);

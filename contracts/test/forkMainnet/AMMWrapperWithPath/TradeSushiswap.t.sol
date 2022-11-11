@@ -91,7 +91,12 @@ contract TestAMMWrapperWithPathTradeSushiswap is TestAMMWrapperWithPath {
         bytes memory payload; // Bypass stack too deep error
         {
             SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
-            bytes memory takerAssetPermitSig = signSpendWithPermit(userPrivateKey, takerAssetPermit, spender.EIP712_DOMAIN_SEPARATOR(),SignatureValidator.SignatureType.EIP712);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
             payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, makerSpecificData, path);
         }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
