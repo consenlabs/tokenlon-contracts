@@ -28,7 +28,7 @@ contract TestL2DepositOptimism is TestL2Deposit {
         bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
         // create spendWithPermit using the deposit and sign it
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
-        bytes memory spenderPermitSig = _signSpendWithPermit(userPrivateKey, spendWithPermit);
+        bytes memory spenderPermitSig = signSpendWithPermit(userPrivateKey, spendWithPermit);
 
         bytes memory payload = abi.encodeWithSelector(
             L2Deposit.deposit.selector,

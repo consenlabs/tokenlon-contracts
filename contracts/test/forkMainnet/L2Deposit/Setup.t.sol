@@ -146,7 +146,7 @@ contract TestL2Deposit is StrategySharedSetup {
         return spendWithPermit;
     }
 
-    function _signSpendWithPermit(uint256 _privateKey, SpenderLibEIP712.SpendWithPermit memory _spendWithPermit) internal returns (bytes memory) {
+    function signSpendWithPermit(uint256 _privateKey, SpenderLibEIP712.SpendWithPermit memory _spendWithPermit) internal returns (bytes memory) {
         bytes32 SPEND_WITH_PERMIT_TYPEHASH = keccak256(
             abi.encodePacked(
                 "SpendWithPermit(",
