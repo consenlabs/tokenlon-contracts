@@ -26,7 +26,6 @@ In order to manage global states of upgradeable contracts, a permanaent storage 
 
 Several token approvals are required if a user wants to interact with differnt AMM or other trading protocols. It's important to have an unified token authorizing mechanism in Tokenlon since multiple protocols are involved and most of contracts in the Tokenlon are upgradeable as well. Becuase of that, it takes only one token approval from users to enjoy multiple source of liquidity at the same time. The mechanism is made by two parts. The `AllowanceTarget` contract is the target for users to delegate their tokens while `Spender` contract is the only allowed contract that can move funds. `AllowanceTarget` contract has a general `executeCall()` function which can execute arbitrary operations but only `Spender` contract can call it. It supports updating the address of `Spender` contract by the owner as well.
 
-
 ## SpenderSimulation
 
 `SpenderSimulation` is a contract that simulate the result of `Spender` contract. It allows off-chain servies to verify whether traders have properly approved tokens to `AllowanceTarget` contract without actually execute a complete transaction or consume gas for minded transactions. This contract is made for off-chain executing only.
