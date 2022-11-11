@@ -4,7 +4,7 @@ Tokenlon is a decentralized exchanging protocol consists of multiple components 
 
 There are three major categories of contracts in this repo:
 
-1. [Tokenlon Protocol Infrastructure](#Infrastructure)
+1. [Tokenlon Protocol Infrastructure](#Protocol-Infrastructure)
 
 2. [Executing Contracts](#Executing-Contracts)
 
