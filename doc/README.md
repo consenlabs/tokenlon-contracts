@@ -37,7 +37,7 @@ MarketMakerProxy is an example implementation of a EIP-1271 compatable contract 
 # Executing Contracts
 
 -   AMMWrapper & AMMQuoter
--   [RFQ (MarketMakerProxy)](./executing/RFQ.md)
+-   [RFQ](./executing/RFQ.md)
 -   Limit Order
 -   L2Deposit
 
