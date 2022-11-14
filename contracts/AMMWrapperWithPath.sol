@@ -50,7 +50,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
     /************************************************************
      *                   External functions                      *
      *************************************************************/
-
+    /// @inheritdoc IAMMWrapperWithPath
     function trade(
         AMMLibEIP712.Order calldata _order,
         uint256 _feeFactor,
