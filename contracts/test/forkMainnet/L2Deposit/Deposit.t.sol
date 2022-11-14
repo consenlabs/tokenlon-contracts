@@ -5,12 +5,13 @@ pragma abicoder v2;
 import "contracts/interfaces/IL2Deposit.sol";
 import "contracts-test/forkMainnet/L2Deposit/Setup.t.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
+import "contracts-test/utils/Permit.sol";
 
 interface IArbitrumBridge {
     function delayedMessageCount() external view returns (uint256);
 }
 
-contract TestL2DepositTopUp is TestL2Deposit {
+contract TestL2DepositTopUp is TestL2Deposit, Permit {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     uint256 arbMaxSubmissionCost = 1e18;
@@ -57,7 +58,12 @@ contract TestL2DepositTopUp is TestL2Deposit {
         bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
         // create spendWithPermit using the deposit and sign it
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
-        bytes memory spenderPermitSig = signSpendWithPermit(userPrivateKey, spendWithPermit);
+        bytes memory spenderPermitSig = signSpendWithPermit(
+            userPrivateKey,
+            spendWithPermit,
+            spender.EIP712_DOMAIN_SEPARATOR(),
+            SignatureValidator.SignatureType.EIP712
+        );
 
         bytes memory payload = abi.encodeWithSelector(
             L2Deposit.deposit.selector,
@@ -89,7 +95,12 @@ contract TestL2DepositTopUp is TestL2Deposit {
 
         bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
-        bytes memory spenderPermitSig = signSpendWithPermit(userPrivateKey, spendWithPermit);
+        bytes memory spenderPermitSig = signSpendWithPermit(
+            userPrivateKey,
+            spendWithPermit,
+            spender.EIP712_DOMAIN_SEPARATOR(),
+            SignatureValidator.SignatureType.EIP712
+        );
 
         bytes memory payload = abi.encodeWithSelector(
             L2Deposit.deposit.selector,
@@ -113,7 +124,12 @@ contract TestL2DepositTopUp is TestL2Deposit {
 
         bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
-        bytes memory spenderPermitSig = signSpendWithPermit(userPrivateKey, spendWithPermit);
+        bytes memory spenderPermitSig = signSpendWithPermit(
+            userPrivateKey,
+            spendWithPermit,
+            spender.EIP712_DOMAIN_SEPARATOR(),
+            SignatureValidator.SignatureType.EIP712
+        );
 
         bytes memory payload = abi.encodeWithSelector(
             L2Deposit.deposit.selector,
@@ -131,7 +147,12 @@ contract TestL2DepositTopUp is TestL2Deposit {
 
         bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
-        bytes memory spenderPermitSig = signSpendWithPermit(userPrivateKey, spendWithPermit);
+        bytes memory spenderPermitSig = signSpendWithPermit(
+            userPrivateKey,
+            spendWithPermit,
+            spender.EIP712_DOMAIN_SEPARATOR(),
+            SignatureValidator.SignatureType.EIP712
+        );
 
         bytes memory payload = abi.encodeWithSelector(
             L2Deposit.deposit.selector,

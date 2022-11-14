@@ -6,8 +6,9 @@ import "contracts/interfaces/IL2Deposit.sol";
 import "contracts/utils/L2DepositLibEIP712.sol";
 import "contracts-test/forkMainnet/L2Deposit/Setup.t.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
+import "contracts-test/utils/Permit.sol";
 
-contract TestL2DepositOptimism is TestL2Deposit {
+contract TestL2DepositOptimism is TestL2Deposit, Permit {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     uint32 optL2Gas = 1e6;
@@ -28,7 +29,12 @@ contract TestL2DepositOptimism is TestL2Deposit {
         bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
         // create spendWithPermit using the deposit and sign it
         SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
-        bytes memory spenderPermitSig = signSpendWithPermit(userPrivateKey, spendWithPermit);
+        bytes memory spenderPermitSig = signSpendWithPermit(
+            userPrivateKey,
+            spendWithPermit,
+            spender.EIP712_DOMAIN_SEPARATOR(),
+            SignatureValidator.SignatureType.EIP712
+        );
 
         bytes memory payload = abi.encodeWithSelector(
             L2Deposit.deposit.selector,
