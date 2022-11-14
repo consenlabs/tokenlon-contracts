@@ -4,7 +4,6 @@ pragma abicoder v2;
 
 import "./IStrategyBase.sol";
 import "../utils/AMMLibEIP712.sol";
-import "../utils/SpenderLibEIP712.sol";
 
 interface IAMMWrapper is IStrategyBase {
     // Operator events
@@ -26,8 +25,7 @@ interface IAMMWrapper is IStrategyBase {
         uint16 feeFactor
     );
 
-    // Group the local variables together to prevent
-    // Compiler error: Stack too deep, try removing local variables.
+    // Group the local variables together to prevent stack too deep error.
     struct TxMetaData {
         string source;
         bytes32 transactionHash;

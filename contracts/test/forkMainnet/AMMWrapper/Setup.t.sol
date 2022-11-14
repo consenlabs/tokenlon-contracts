@@ -153,7 +153,7 @@ contract TestAMMWrapper is StrategySharedSetup, Permit {
         uint256 feeFactor,
         bytes memory sig,
         bytes memory takerAssetPermitSig
-    ) internal view returns (bytes memory payload) {
+    ) internal pure returns (bytes memory payload) {
         return abi.encodeWithSelector(AMMWrapper.trade.selector, order, feeFactor, sig, takerAssetPermitSig);
     }
 }

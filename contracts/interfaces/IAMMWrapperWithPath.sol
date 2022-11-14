@@ -6,8 +6,7 @@ import "./IAMMWrapper.sol";
 import "../utils/AMMLibEIP712.sol";
 
 interface IAMMWrapperWithPath is IAMMWrapper {
-    // Group the local variables together to prevent
-    // Compiler error: Stack too deep, try removing local variables.
+    // Group the local variables together to prevent stack too deep error.
     struct TradeWithPathParams {
         AMMLibEIP712.Order order;
         uint256 feeFactor;
