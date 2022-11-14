@@ -6,7 +6,7 @@ There are three major categories of contracts in this repo:
 
 1. [Tokenlon Protocol Infrastructure](#Protocol-Infrastructure)
 
-2. [Executing Contracts](#Executing-Contracts)
+2. [Strategy Contracts](#Strategy-Contracts)
 
 3. [LON Token Peripherals](#LON-Token-Peripherals)
 
@@ -34,10 +34,10 @@ Several token approvals are required if a user wants to interact with differnt A
 
 MarketMakerProxy is an example implementation of a EIP-1271 compatable contract wallet. It helps market makers or advanced users to onboard Tokenlon more easily.
 
-# Executing Contracts
+# Strategy Contracts
 
 -   AMMWrapper & AMMQuoter
--   [RFQ](./executing/RFQ.md)
+-   [RFQ](./strategy/RFQ.md)
 -   Limit Order
 -   L2Deposit
 
