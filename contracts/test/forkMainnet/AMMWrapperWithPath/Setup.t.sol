@@ -156,51 +156,17 @@ contract TestAMMWrapperWithPath is StrategySharedSetup, Permit {
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
 
-    function _createSpenderPermitFromOrder(AMMLibEIP712.Order memory defaultOrder)
-        internal
-        view
-        returns (SpenderLibEIP712.SpendWithPermit memory takerAssetPermit)
-    {
-        // Declare the 'userAddr sends takerAssetAmount amount of takerAssetAddr to AMM contract'
-        // SpendWithPermit struct from defaultOrder parameter
+    function _createSpenderPermitFromOrder(AMMLibEIP712.Order memory order) internal view returns (SpenderLibEIP712.SpendWithPermit memory takerAssetPermit) {
         takerAssetPermit = SpenderLibEIP712.SpendWithPermit(
-            defaultOrder.takerAssetAddr,
+            order.takerAssetAddr,
             address(ammWrapperWithPath),
-            defaultOrder.userAddr,
+            order.userAddr,
             address(ammWrapperWithPath),
-            defaultOrder.takerAssetAmount,
-            AMMLibEIP712._getOrderHash(defaultOrder),
-            uint64(defaultOrder.deadline)
+            order.takerAssetAmount,
+            AMMLibEIP712._getOrderHash(order),
+            uint64(order.deadline)
         );
         return takerAssetPermit;
-    }
-
-    function _signSpendWithPermit(
-        uint256 privateKey,
-        SpenderLibEIP712.SpendWithPermit memory spendWithPermit,
-        SignatureValidator.SignatureType sigType
-    ) internal returns (bytes memory sig) {
-        uint256 SPEND_WITH_PERMIT_TYPEHASH = 0x52718c957261b99fd72e63478d85d1267cdc812e8249f5a2623566c1818e1ed0;
-        bytes32 structHash = keccak256(
-            abi.encode(
-                SPEND_WITH_PERMIT_TYPEHASH,
-                spendWithPermit.tokenAddr,
-                spendWithPermit.requester,
-                spendWithPermit.user,
-                spendWithPermit.recipient,
-                spendWithPermit.amount,
-                spendWithPermit.actionHash,
-                spendWithPermit.expiry
-            )
-        );
-        bytes32 spendWithPermitHash = getEIP712Hash(spender.EIP712_DOMAIN_SEPARATOR(), structHash);
-        if (sigType == SignatureValidator.SignatureType.Wallet) {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(spendWithPermitHash));
-            sig = abi.encodePacked(r, s, v, uint8(sigType)); // new signature format
-        } else {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, spendWithPermitHash);
-            sig = abi.encodePacked(r, s, v, uint8(sigType)); // new signature format
-        }
     }
 
     function _genTradePayload(

@@ -82,7 +82,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
 
         txMetaData.transactionHash = _verify(_params.order, _params.sig);
 
-        _prepare(_params.order, internalTxData, _params.takerAssetPermitSig);
+        _transferTakerAssetToAMM(_params.order, internalTxData, _params.takerAssetPermitSig);
 
         {
             // Set min amount for swap = _order.makerAssetAmount * (10000 / (10000 - feeFactor))

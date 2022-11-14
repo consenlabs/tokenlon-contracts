@@ -148,7 +148,7 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
 
         txMetaData.transactionHash = _verify(_order, _sig);
 
-        _prepare(_order, internalTxData, _takerAssetPermitSig);
+        _transferTakerAssetToAMM(_order, internalTxData, _takerAssetPermitSig);
 
         {
             // Set min amount for swap = _order.makerAssetAmount * (10000 / (10000 - feeFactor))
@@ -212,9 +212,9 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
 
     /**
      * @dev internal function of `trade`.
-     * It executes the swap on chosen AMM.
+     * It verifies the spender permission and transfer assets from the user to this contract.
      */
-    function _prepare(
+    function _transferTakerAssetToAMM(
         AMMLibEIP712.Order memory _order,
         InternalTxData memory _internalTxData,
         bytes memory _takerAssetPermitSig
@@ -228,7 +228,7 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
                 weth.deposit{ value: msg.value }();
             }
         } else {
-            // Declare the 'userAddr sends takerAssetAddr to this contract' SpendWithPermit struct from _order parameter
+            // Transfer other ERC20 tokens to this contract
             SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = SpenderLibEIP712.SpendWithPermit(
                 _order.takerAssetAddr,
                 address(this),
@@ -238,7 +238,6 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
                 AMMLibEIP712._getOrderHash(_order),
                 uint64(_order.deadline)
             );
-            // other ERC20 tokens
             spender.spendFromUserToWithPermit(takerAssetPermit, _takerAssetPermitSig);
         }
     }

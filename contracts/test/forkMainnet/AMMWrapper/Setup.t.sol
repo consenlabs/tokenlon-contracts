@@ -135,21 +135,15 @@ contract TestAMMWrapper is StrategySharedSetup, Permit {
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
 
-    function _createSpenderPermitFromOrder(AMMLibEIP712.Order memory defaultOrder)
-        internal
-        view
-        returns (SpenderLibEIP712.SpendWithPermit memory takerAssetPermit)
-    {
-        // Declare the 'userAddr sends takerAssetAmount amount of takerAssetAddr to AMM contract'
-        // SpendWithPermit struct from defaultOrder parameter
+    function _createSpenderPermitFromOrder(AMMLibEIP712.Order memory order) internal view returns (SpenderLibEIP712.SpendWithPermit memory takerAssetPermit) {
         takerAssetPermit = SpenderLibEIP712.SpendWithPermit(
-            defaultOrder.takerAssetAddr,
+            order.takerAssetAddr,
             address(ammWrapper),
-            defaultOrder.userAddr,
+            order.userAddr,
             address(ammWrapper),
-            defaultOrder.takerAssetAmount,
-            AMMLibEIP712._getOrderHash(defaultOrder),
-            uint64(defaultOrder.deadline)
+            order.takerAssetAmount,
+            AMMLibEIP712._getOrderHash(order),
+            uint64(order.deadline)
         );
         return takerAssetPermit;
     }
