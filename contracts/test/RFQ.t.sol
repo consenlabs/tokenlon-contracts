@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/MarketMakerProxy.sol";
 import "contracts/RFQ.sol";
 import "contracts/utils/SignatureValidator.sol";
+import "contracts/utils/LibConstant.sol";
 import "contracts-test/mocks/MockERC1271Wallet.sol";
 import "contracts-test/mocks/MockERC20.sol";
 import "contracts-test/mocks/MockWETH.sol";
@@ -412,6 +413,40 @@ contract RFQTest is StrategySharedSetup {
 
         vm.expectRevert("PermanentStorage: transaction seen before");
         vm.prank(user, user); // Only EOA
+        userProxy.toRFQ(payload);
+    }
+
+    function testFillEthToUSDT() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.takerAssetAddr = LibConstant.ETH_ADDRESS;
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
+
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take({ owner: receiver, token: order.makerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take({ owner: maker, token: address(weth) });
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take({ owner: maker, token: order.makerAssetAddr });
+
+        vm.prank(user, user); // Only EOA
+        userProxy.toRFQ{ value: order.takerAssetAmount }(payload);
+
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
+    }
+
+    function testCannotFillByEthWithNoValue() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.takerAssetAddr = LibConstant.ETH_ADDRESS;
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
+
+        vm.prank(user, user); // Only EOA
+        vm.expectRevert("RFQ: insufficient ETH");
+        // Fill without msg.value
         userProxy.toRFQ(payload);
     }
 

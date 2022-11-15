@@ -142,7 +142,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
     // settle
     function _settle(RFQLibEIP712.Order memory _order, GroupedVars memory _vars) internal returns (uint256) {
         // Transfer taker asset to maker
-        if (address(weth) == _order.takerAssetAddr) {
+        if (_order.takerAssetAddr == LibConstant.ETH_ADDRESS) {
             // Deposit to WETH if taker asset is ETH
             require(msg.value == _order.takerAssetAmount, "RFQ: insufficient ETH");
             weth.deposit{ value: msg.value }();
@@ -167,7 +167,8 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         } else {
             spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount);
         }
-        // Collect fee
+
+        // Collect fee (without unwrap if WETH)
         if (fee > 0) {
             spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, fee);
         }
