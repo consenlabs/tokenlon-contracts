@@ -144,7 +144,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         // Transfer taker asset to maker
         if (_order.takerAssetAddr == LibConstant.ETH_ADDRESS) {
             // Deposit to WETH if taker asset is ETH
-            require(msg.value == _order.takerAssetAmount, "RFQ: insufficient ETH");
+            require(msg.value == _order.takerAssetAmount, "RFQ: incorrect ETH amount");
             weth.deposit{ value: msg.value }();
             weth.transfer(_order.makerAddr, _order.takerAssetAmount);
         } else {

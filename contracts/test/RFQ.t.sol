@@ -440,14 +440,28 @@ contract RFQTest is StrategySharedSetup {
     function testCannotFillByEthWithNoValue() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerAssetAddr = LibConstant.ETH_ADDRESS;
+
         bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         vm.prank(user, user); // Only EOA
-        vm.expectRevert("RFQ: insufficient ETH");
+        vm.expectRevert("RFQ: incorrect ETH amount");
         // Fill without msg.value
         userProxy.toRFQ(payload);
+    }
+
+    function testCannotFillByEthWithIncorrectValue() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.takerAssetAddr = LibConstant.ETH_ADDRESS;
+        order.takerAssetAmount = 1e18;
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
+
+        vm.prank(user, user); // Only EOA
+        vm.expectRevert("RFQ: incorrect ETH amount");
+        userProxy.toRFQ{ value: order.takerAssetAmount * 2 }(payload);
     }
 
     /*********************************
