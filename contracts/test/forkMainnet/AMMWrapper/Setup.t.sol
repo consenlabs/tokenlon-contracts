@@ -63,17 +63,17 @@ contract TestAMMWrapper is StrategySharedSetup, Permit {
         setEOABalanceAndApprove(user, tokens, uint256(100));
 
         // Default order
-        DEFAULT_ORDER = AMMLibEIP712.Order(
-            UNISWAP_V2_ADDRESS, // makerAddr
-            address(dai), // takerAssetAddr
-            address(usdt), // makerAssetAddr
-            uint256(100 * 1e18), // takerAssetAmount
-            uint256(90 * 1e6), // makerAssetAmount
-            user, // userAddr
-            payable(user), // receiverAddr
-            uint256(1234), // salt
-            DEADLINE // deadline
-        );
+        DEFAULT_ORDER = AMMLibEIP712.Order({
+            makerAddr: UNISWAP_V2_ADDRESS,
+            takerAssetAddr: address(dai),
+            makerAssetAddr: address(usdt),
+            takerAssetAmount: uint256(100 * 1e18),
+            makerAssetAmount: uint256(90 * 1e6),
+            userAddr: user,
+            receiverAddr: payable(user),
+            salt: uint256(1234),
+            deadline: DEADLINE
+        });
 
         // Label addresses for easier debugging
         vm.label(user, "User");
@@ -136,15 +136,15 @@ contract TestAMMWrapper is StrategySharedSetup, Permit {
     }
 
     function _createSpenderPermitFromOrder(AMMLibEIP712.Order memory order) internal view returns (SpenderLibEIP712.SpendWithPermit memory takerAssetPermit) {
-        takerAssetPermit = SpenderLibEIP712.SpendWithPermit(
-            order.takerAssetAddr,
-            address(ammWrapper),
-            order.userAddr,
-            address(ammWrapper),
-            order.takerAssetAmount,
-            AMMLibEIP712._getOrderHash(order),
-            uint64(order.deadline)
-        );
+        takerAssetPermit = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: order.takerAssetAddr,
+            requester: address(ammWrapper),
+            user: order.userAddr,
+            recipient: address(ammWrapper),
+            amount: order.takerAssetAmount,
+            actionHash: AMMLibEIP712._getOrderHash(order),
+            expiry: uint64(order.deadline)
+        });
         return takerAssetPermit;
     }
 

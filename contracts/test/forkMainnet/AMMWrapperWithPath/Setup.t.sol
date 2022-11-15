@@ -72,17 +72,17 @@ contract TestAMMWrapperWithPath is StrategySharedSetup, Permit {
         setEOABalanceAndApprove(user, tokens, uint256(100));
 
         // Default order
-        DEFAULT_ORDER = AMMLibEIP712.Order(
-            UNISWAP_V3_ADDRESS, // makerAddr
-            address(usdc), // takerAssetAddr
-            address(dai), // makerAssetAddr
-            uint256(100 * 1e6), // takerAssetAmount
-            uint256(90 * 1e18), // makerAssetAmount
-            user, // userAddr
-            payable(user), // receiverAddr
-            uint256(1234), // salt
-            DEADLINE // deadline
-        );
+        DEFAULT_ORDER = AMMLibEIP712.Order({
+            makerAddr: UNISWAP_V3_ADDRESS,
+            takerAssetAddr: address(usdc),
+            makerAssetAddr: address(dai),
+            takerAssetAmount: uint256(100 * 1e6),
+            makerAssetAmount: uint256(90 * 1e18),
+            userAddr: user,
+            receiverAddr: payable(user),
+            salt: uint256(1234),
+            deadline: DEADLINE
+        });
         DEFAULT_MULTI_HOP_PATH = new address[](3);
         DEFAULT_MULTI_HOP_PATH[0] = DEFAULT_ORDER.takerAssetAddr;
         DEFAULT_MULTI_HOP_PATH[1] = address(weth);
@@ -157,15 +157,15 @@ contract TestAMMWrapperWithPath is StrategySharedSetup, Permit {
     }
 
     function _createSpenderPermitFromOrder(AMMLibEIP712.Order memory order) internal view returns (SpenderLibEIP712.SpendWithPermit memory takerAssetPermit) {
-        takerAssetPermit = SpenderLibEIP712.SpendWithPermit(
-            order.takerAssetAddr,
-            address(ammWrapperWithPath),
-            order.userAddr,
-            address(ammWrapperWithPath),
-            order.takerAssetAmount,
-            AMMLibEIP712._getOrderHash(order),
-            uint64(order.deadline)
-        );
+        takerAssetPermit = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: order.takerAssetAddr,
+            requester: address(ammWrapperWithPath),
+            user: order.userAddr,
+            recipient: address(ammWrapperWithPath),
+            amount: order.takerAssetAmount,
+            actionHash: AMMLibEIP712._getOrderHash(order),
+            expiry: uint64(order.deadline)
+        });
         return takerAssetPermit;
     }
 
