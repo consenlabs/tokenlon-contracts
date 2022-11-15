@@ -5,7 +5,7 @@ pragma abicoder v2;
 import "./IAMMWrapper.sol";
 import "../utils/AMMLibEIP712.sol";
 
-/// @title IAMMWrapper Interface
+/// @title IAMMWrapperWithPath Interface
 /// @author imToken Labs
 interface IAMMWrapperWithPath is IAMMWrapper {
     /// @notice Trade with AMM (specified path)

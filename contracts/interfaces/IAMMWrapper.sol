@@ -10,7 +10,7 @@ interface IAMMWrapper is IStrategyBase {
     /// @param source The tag of the contract where the order is filled
     /// @param transactionHash The hash of the transaction structure
     /// @param userAddr The address of taker
-    /// @param relayed The hash of the order structure
+    /// @param relayed Indicate if the transaction is relayed by a relayer
     /// @param takerAssetAddr The taker assest used to swap
     /// @param takerAssetAmount The swap amount of taker asset
     /// @param makerAddr The address of maker
