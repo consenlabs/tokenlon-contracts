@@ -51,7 +51,7 @@ interface IAMMWrapper is IStrategyBase {
     /// @param _takerAssetAmount The input amount of the trade
     /// @param _makerAssetAmount The output amount of the trade
     /// @param _feeFactor The factor used to calculate fee, only listed relayer can set it effectively
-    /// @param _spender The address of the user
+    /// @param _userAddr The address of the user
     /// @param _receiver The address of who receives the output asset
     /// @param _nonce A random number to prevent replay attack
     /// @param _deadline The time when this trade become expired
@@ -64,7 +64,7 @@ interface IAMMWrapper is IStrategyBase {
         uint256 _takerAssetAmount,
         uint256 _makerAssetAmount,
         uint256 _feeFactor,
-        address _spender,
+        address _userAddr,
         address payable _receiver,
         uint256 _nonce,
         uint256 _deadline,
