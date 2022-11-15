@@ -7,10 +7,11 @@ import "contracts/interfaces/IPermanentStorage.sol";
 import "contracts/utils/AMMLibEIP712.sol";
 import "contracts-test/utils/UniswapV3Util.sol";
 import "contracts-test/utils/StrategySharedSetup.sol"; // Using the deployment Strategy Contract function
+import "contracts-test/utils/Permit.sol";
 import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 import "contracts/AMMQuoter.sol";
 
-contract TestAMMWrapperWithPath is StrategySharedSetup {
+contract TestAMMWrapperWithPath is StrategySharedSetup, Permit {
     using SafeERC20 for IERC20;
     uint256 userPrivateKey = uint256(1);
     uint256 otherPrivateKey = uint256(2);
@@ -71,17 +72,17 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
         setEOABalanceAndApprove(user, tokens, uint256(100));
 
         // Default order
-        DEFAULT_ORDER = AMMLibEIP712.Order(
-            UNISWAP_V3_ADDRESS, // makerAddr
-            address(usdc), // takerAssetAddr
-            address(dai), // makerAssetAddr
-            uint256(100 * 1e6), // takerAssetAmount
-            uint256(90 * 1e18), // makerAssetAmount
-            user, // userAddr
-            payable(user), // receiverAddr
-            uint256(1234), // salt
-            DEADLINE // deadline
-        );
+        DEFAULT_ORDER = AMMLibEIP712.Order({
+            makerAddr: UNISWAP_V3_ADDRESS,
+            takerAssetAddr: address(usdc),
+            makerAssetAddr: address(dai),
+            takerAssetAmount: uint256(100 * 1e6),
+            makerAssetAmount: uint256(90 * 1e18),
+            userAddr: user,
+            receiverAddr: payable(user),
+            salt: uint256(1234),
+            deadline: DEADLINE
+        });
         DEFAULT_MULTI_HOP_PATH = new address[](3);
         DEFAULT_MULTI_HOP_PATH[0] = DEFAULT_ORDER.takerAssetAddr;
         DEFAULT_MULTI_HOP_PATH[1] = address(weth);
@@ -155,21 +156,35 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
 
+    function _createSpenderPermitFromOrder(AMMLibEIP712.Order memory order) internal view returns (SpenderLibEIP712.SpendWithPermit memory takerAssetPermit) {
+        takerAssetPermit = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: order.takerAssetAddr,
+            requester: address(ammWrapperWithPath),
+            user: order.userAddr,
+            recipient: address(ammWrapperWithPath),
+            amount: order.takerAssetAmount,
+            actionHash: AMMLibEIP712._getOrderHash(order),
+            expiry: uint64(order.deadline)
+        });
+        return takerAssetPermit;
+    }
+
     function _genTradePayload(
         AMMLibEIP712.Order memory order,
         uint256 feeFactor,
         bytes memory sig,
+        bytes memory takerAssetPermitSig,
         bytes memory makerSpecificData,
         address[] memory path
     ) internal pure returns (bytes memory payload) {
-        return
-            abi.encodeWithSignature(
-                "trade((address,address,address,uint256,uint256,address,address,uint256,uint256),uint256,bytes,bytes,address[])",
-                order,
-                feeFactor,
-                sig,
-                makerSpecificData,
-                path
-            );
+        IAMMWrapperWithPath.TradeWithPathParams memory params = IAMMWrapperWithPath.TradeWithPathParams(
+            order,
+            feeFactor,
+            sig,
+            takerAssetPermitSig,
+            makerSpecificData,
+            path
+        );
+        return abi.encodeWithSelector(AMMWrapperWithPath.trade.selector, params);
     }
 }
