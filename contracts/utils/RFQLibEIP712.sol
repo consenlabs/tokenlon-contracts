@@ -56,12 +56,12 @@ library RFQLibEIP712 {
         );
     }
 
-    bytes32 public constant FILL_WITH_PERMIT_TYPEHASH = 0x4ea663383968865a4516f51bec2c29addd1e7cecce5583296a44cc8d568cad09;
+    bytes32 public constant FILL_TYPEHASH = 0x9b822fe3212f0c2a34b120a750281383593d621b7cee5888ef0bdc840bf6ff2c;
 
     /*
         keccak256(
             abi.encodePacked(
-                "fillWithPermit(",
+                "fill(",
                 "address makerAddr,",
                 "address takerAssetAddr,",
                 "address makerAssetAddr,",
@@ -80,7 +80,7 @@ library RFQLibEIP712 {
     function _getTransactionHash(Order memory _order) internal pure returns (bytes32 transactionHash) {
         transactionHash = keccak256(
             abi.encode(
-                FILL_WITH_PERMIT_TYPEHASH,
+                FILL_TYPEHASH,
                 _order.makerAddr,
                 _order.takerAssetAddr,
                 _order.makerAssetAddr,
