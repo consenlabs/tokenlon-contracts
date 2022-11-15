@@ -229,15 +229,15 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
             }
         } else {
             // Transfer other ERC20 tokens to this contract
-            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = SpenderLibEIP712.SpendWithPermit(
-                _order.takerAssetAddr,
-                address(this), // requester
-                _order.userAddr,
-                address(this), // recipient
-                _order.takerAssetAmount,
-                AMMLibEIP712._getOrderHash(_order), // actionHash
-                uint64(_order.deadline)
-            );
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = SpenderLibEIP712.SpendWithPermit({
+                tokenAddr: _order.takerAssetAddr,
+                requester: address(this),
+                user: _order.userAddr,
+                recipient: address(this),
+                amount: _order.takerAssetAmount,
+                actionHash: AMMLibEIP712._getOrderHash(_order),
+                expiry: uint64(_order.deadline)
+            });
             spender.spendFromUserToWithPermit(takerAssetPermit, _takerAssetPermitSig);
         }
     }
