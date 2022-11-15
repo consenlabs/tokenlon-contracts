@@ -212,7 +212,7 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
 
     /**
      * @dev internal function of `trade`.
-     * It verifies the spender permission and transfer assets from the user to this contract.
+     * It transfers assets from the taker to this contract with taker's permission.
      */
     function _transferTakerAssetToAMM(
         AMMLibEIP712.Order memory _order,
