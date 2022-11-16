@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.0;
+pragma abicoder v2;
 
 import "./IStrategyBase.sol";
+import "../utils/AMMLibEIP712.sol";
 
 interface IAMMWrapper is IStrategyBase {
     // Operator events
@@ -23,8 +25,7 @@ interface IAMMWrapper is IStrategyBase {
         uint16 feeFactor
     );
 
-    // Group the local variables together to prevent
-    // Compiler error: Stack too deep, try removing local variables.
+    // Group the local variables together to prevent stack too deep error.
     struct TxMetaData {
         string source;
         bytes32 transactionHash;
@@ -35,16 +36,9 @@ interface IAMMWrapper is IStrategyBase {
     }
 
     function trade(
-        address _makerAddress,
-        address _fromAssetAddress,
-        address _toAssetAddress,
-        uint256 _takerAssetAmount,
-        uint256 _makerAssetAmount,
+        AMMLibEIP712.Order calldata _order,
         uint256 _feeFactor,
-        address _spender,
-        address payable _receiver,
-        uint256 _nonce,
-        uint256 _deadline,
-        bytes memory _sig
+        bytes calldata _sig,
+        bytes calldata _takerAssetPermitSig
     ) external payable returns (uint256);
 }

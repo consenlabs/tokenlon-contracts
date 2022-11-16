@@ -11,6 +11,7 @@ import "./interfaces/IL2Deposit.sol";
 import "./interfaces/IOptimismL1StandardBridge.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/ISpender.sol";
+import "./utils/SpenderLibEIP712.sol";
 import "./utils/StrategyBase.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/Ownable.sol";
@@ -49,8 +50,19 @@ contract L2Deposit is IL2Deposit, StrategyBase, ReentrancyGuard, BaseLibEIP712, 
         // PermanentStorage will revert when L2 deposit hash is already seen
         permStorage.setL2DepositSeen(depositHash);
 
-        // Transfer token from sender to this contract
-        spender.spendFromUser(_params.deposit.sender, _params.deposit.l1TokenAddr, _params.deposit.amount);
+        // Create spendWithPermit for spender contract to verify
+        SpenderLibEIP712.SpendWithPermit memory l1TokenPermit = SpenderLibEIP712.SpendWithPermit({
+            tokenAddr: _params.deposit.l1TokenAddr,
+            requester: address(this),
+            user: _params.deposit.sender,
+            recipient: address(this),
+            amount: _params.deposit.amount,
+            actionHash: depositHash,
+            expiry: uint64(_params.deposit.expiry)
+        });
+
+        // Verfiy signature then transfer token from sender to this contract
+        spender.spendFromUserToWithPermit(l1TokenPermit, _params.l1TokenPermitSig);
 
         // Bypass stack too deep
         DepositInfo memory depositInfo = DepositInfo(

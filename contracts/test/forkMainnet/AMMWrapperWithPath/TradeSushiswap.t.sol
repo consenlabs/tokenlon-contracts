@@ -16,8 +16,17 @@ contract TestAMMWrapperWithPathTradeSushiswap is TestAMMWrapperWithPath {
         bytes memory sig = _signTrade(userPrivateKey, order);
         address[] memory path = new address[](0);
         bytes memory makerSpecificData = bytes("");
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, makerSpecificData, path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, makerSpecificData, path);
+        }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
         uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
         uint256 settleAmount = expectedOutAmount - actualFee;
@@ -42,8 +51,17 @@ contract TestAMMWrapperWithPathTradeSushiswap is TestAMMWrapperWithPath {
         bytes memory sig = _signTradeWithOldEIP712Method(userPrivateKey, order);
         address[] memory path = new address[](0);
         bytes memory makerSpecificData = bytes("");
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, makerSpecificData, path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, makerSpecificData, path);
+        }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
         uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
         uint256 settleAmount = expectedOutAmount - actualFee;
@@ -70,8 +88,17 @@ contract TestAMMWrapperWithPathTradeSushiswap is TestAMMWrapperWithPath {
         path[1] = address(dai);
         path[2] = address(weth);
         bytes memory makerSpecificData = bytes("");
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, makerSpecificData, path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, makerSpecificData, path);
+        }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
             order.makerAddr,
             order.takerAssetAddr,

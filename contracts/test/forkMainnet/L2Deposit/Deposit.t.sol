@@ -5,12 +5,13 @@ pragma abicoder v2;
 import "contracts/interfaces/IL2Deposit.sol";
 import "contracts-test/forkMainnet/L2Deposit/Setup.t.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
+import "contracts-test/utils/Permit.sol";
 
 interface IArbitrumBridge {
     function delayedMessageCount() external view returns (uint256);
 }
 
-contract TestL2DepositTopUp is TestL2Deposit {
+contract TestL2DepositTopUp is TestL2Deposit, Permit {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     uint256 arbMaxSubmissionCost = 1e18;
@@ -20,9 +21,13 @@ contract TestL2DepositTopUp is TestL2Deposit {
     function testCannotDepositIfExpired() public {
         // overwrite expiry
         DEFAULT_DEPOSIT.expiry = block.timestamp;
-        // sig is not relevent in this case
-        bytes memory sig = bytes("");
-        bytes memory payload = abi.encodeWithSelector(L2Deposit.deposit.selector, IL2Deposit.DepositParams(DEFAULT_DEPOSIT, sig));
+        // the signatures is not relevent in this case
+        bytes memory depositActionSig = bytes("");
+        bytes memory spenderPermitSig = bytes("");
+        bytes memory payload = abi.encodeWithSelector(
+            L2Deposit.deposit.selector,
+            IL2Deposit.DepositParams(DEFAULT_DEPOSIT, depositActionSig, spenderPermitSig)
+        );
 
         vm.expectRevert("L2Deposit: Deposit is expired");
         userProxy.toL2Deposit(payload);
@@ -30,8 +35,14 @@ contract TestL2DepositTopUp is TestL2Deposit {
 
     function testCannotDepositWithInvalidSig() public {
         // compose payload with signature from bob
-        bytes memory sig = _signDeposit(bobPrivateKey, DEFAULT_DEPOSIT);
-        bytes memory payload = abi.encodeWithSelector(L2Deposit.deposit.selector, IL2Deposit.DepositParams(DEFAULT_DEPOSIT, sig));
+        bytes memory depositActionSig = _signDeposit(bobPrivateKey, DEFAULT_DEPOSIT);
+        // spenderPermitSig is not relevent in this case
+        bytes memory spenderPermitSig = bytes("");
+
+        bytes memory payload = abi.encodeWithSelector(
+            L2Deposit.deposit.selector,
+            IL2Deposit.DepositParams(DEFAULT_DEPOSIT, depositActionSig, spenderPermitSig)
+        );
 
         vm.expectRevert("L2Deposit: Invalid deposit signature");
         userProxy.toL2Deposit(payload);
@@ -43,9 +54,22 @@ contract TestL2DepositTopUp is TestL2Deposit {
         // overwrite deposit data with encoded arbitrum specific params
         DEFAULT_DEPOSIT.data = abi.encode(arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
 
-        // compose payload with signature
-        bytes memory sig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
-        bytes memory payload = abi.encodeWithSelector(L2Deposit.deposit.selector, IL2Deposit.DepositParams(DEFAULT_DEPOSIT, sig));
+        // sign the deposit action
+        bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
+        // create spendWithPermit using the deposit and sign it
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
+        bytes memory spenderPermitSig = signSpendWithPermit(
+            userPrivateKey,
+            spendWithPermit,
+            spender.EIP712_DOMAIN_SEPARATOR(),
+            SignatureValidator.SignatureType.EIP712
+        );
+
+        bytes memory payload = abi.encodeWithSelector(
+            L2Deposit.deposit.selector,
+            IL2Deposit.DepositParams(DEFAULT_DEPOSIT, depositActionSig, spenderPermitSig)
+        );
+
         uint256 callValue = arbMaxSubmissionCost + (arbMaxGas * arbGasPriceBid);
 
         vm.expectEmit(true, true, true, true);
@@ -69,9 +93,19 @@ contract TestL2DepositTopUp is TestL2Deposit {
         // overwrite deposit data with encoded arbitrum specific params
         DEFAULT_DEPOSIT.data = abi.encode(arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
 
-        // compose payload with signature
-        bytes memory sig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
-        bytes memory payload = abi.encodeWithSelector(L2Deposit.deposit.selector, IL2Deposit.DepositParams(DEFAULT_DEPOSIT, sig));
+        bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
+        bytes memory spenderPermitSig = signSpendWithPermit(
+            userPrivateKey,
+            spendWithPermit,
+            spender.EIP712_DOMAIN_SEPARATOR(),
+            SignatureValidator.SignatureType.EIP712
+        );
+
+        bytes memory payload = abi.encodeWithSelector(
+            L2Deposit.deposit.selector,
+            IL2Deposit.DepositParams(DEFAULT_DEPOSIT, depositActionSig, spenderPermitSig)
+        );
         uint256 callValue = arbMaxSubmissionCost + (arbMaxGas * arbGasPriceBid);
 
         userProxy.toL2Deposit{ value: callValue }(payload);
@@ -88,9 +122,19 @@ contract TestL2DepositTopUp is TestL2Deposit {
         // overwrite deposit data with encoded arbitrum specific params
         DEFAULT_DEPOSIT.data = abi.encode(arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
 
-        // compose payload with signature
-        bytes memory sig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
-        bytes memory payload = abi.encodeWithSelector(L2Deposit.deposit.selector, IL2Deposit.DepositParams(DEFAULT_DEPOSIT, sig));
+        bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
+        bytes memory spenderPermitSig = signSpendWithPermit(
+            userPrivateKey,
+            spendWithPermit,
+            spender.EIP712_DOMAIN_SEPARATOR(),
+            SignatureValidator.SignatureType.EIP712
+        );
+
+        bytes memory payload = abi.encodeWithSelector(
+            L2Deposit.deposit.selector,
+            IL2Deposit.DepositParams(DEFAULT_DEPOSIT, depositActionSig, spenderPermitSig)
+        );
         uint256 callValue = arbMaxSubmissionCost + (arbMaxGas * arbGasPriceBid);
 
         vm.expectRevert("L2Deposit: Incorrect L2 token address");
@@ -101,9 +145,19 @@ contract TestL2DepositTopUp is TestL2Deposit {
         // overwrite deposit data with encoded arbitrum specific params
         DEFAULT_DEPOSIT.data = abi.encode(arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
 
-        // compose payload with signature
-        bytes memory sig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
-        bytes memory payload = abi.encodeWithSelector(L2Deposit.deposit.selector, IL2Deposit.DepositParams(DEFAULT_DEPOSIT, sig));
+        bytes memory depositActionSig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
+        SpenderLibEIP712.SpendWithPermit memory spendWithPermit = _createSpenderPermitFromL2Deposit(DEFAULT_DEPOSIT);
+        bytes memory spenderPermitSig = signSpendWithPermit(
+            userPrivateKey,
+            spendWithPermit,
+            spender.EIP712_DOMAIN_SEPARATOR(),
+            SignatureValidator.SignatureType.EIP712
+        );
+
+        bytes memory payload = abi.encodeWithSelector(
+            L2Deposit.deposit.selector,
+            IL2Deposit.DepositParams(DEFAULT_DEPOSIT, depositActionSig, spenderPermitSig)
+        );
 
         // compose inbox revert data with defined error
         uint256 l2Callvalue = 0; // l2 call value 0 by default

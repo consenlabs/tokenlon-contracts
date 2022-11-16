@@ -10,8 +10,17 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
     function testCannotTradeWithInvalidSignature() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory sig = _signTrade(otherPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig);
+        }
         vm.expectRevert("AMMWrapper: invalid user signature");
         userProxy.toAMM(payload);
     }
@@ -19,8 +28,17 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
     function testCannotTradeWhenPayloadSeenBefore() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig);
+        }
         userProxy.toAMM(payload);
 
         vm.expectRevert("PermanentStorage: transaction seen before");
@@ -32,8 +50,17 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
         order.takerAssetAddr = ETH_ADDRESS;
         order.takerAssetAmount = 0.1 ether;
         bytes memory sig = _signTradeWithOldEIP712Method(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig);
+        }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
         uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
         uint256 settleAmount = expectedOutAmount - actualFee;
@@ -55,8 +82,17 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
         order.takerAssetAddr = ETH_ADDRESS;
         order.takerAssetAmount = 0.1 ether;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig);
+        }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
         uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
         uint256 settleAmount = expectedOutAmount - actualFee;
@@ -76,8 +112,17 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
     function testEmitSwappedEvent() public {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig);
+        }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);
         uint256 actualFee = (expectedOutAmount * DEFAULT_FEE_FACTOR) / LibConstant.BPS_MAX;
         uint256 settleAmount = expectedOutAmount - actualFee;

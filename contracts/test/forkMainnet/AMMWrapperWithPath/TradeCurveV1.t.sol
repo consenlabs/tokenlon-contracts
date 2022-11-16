@@ -15,8 +15,17 @@ contract TestAMMWrapperWithPathTradeCurveV1 is TestAMMWrapperWithPath {
         bytes memory sig = _signTrade(userPrivateKey, order);
         address[] memory path = new address[](0);
         bytes memory makerSpecificData = _encodeCurveData(1);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, makerSpecificData, path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, makerSpecificData, path);
+        }
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
 

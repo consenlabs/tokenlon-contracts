@@ -18,8 +18,17 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         path[0] = order.takerAssetAddr;
         path[1] = order.makerAssetAddr;
         IBalancerV2Vault.BatchSwapStep[] memory swapSteps = new IBalancerV2Vault.BatchSwapStep[](0); // Empty SwapSteps
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
+        }
         vm.expectRevert("AMMWrapper: BalancerV2 requires at least one swap step");
         userProxy.toAMM(payload);
     }
@@ -37,8 +46,17 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             order.takerAssetAmount, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
+        }
         vm.expectRevert("AMMWrapper: path length must be at least two");
         userProxy.toAMM(payload);
     }
@@ -60,8 +78,18 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             order.takerAssetAmount, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
-
+        bytes memory payload; // Bypass stack too deep error
+        bytes memory takerAssetPermitSig;
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
+        }
         vm.expectRevert("AMMWrapper: BalancerV2 first step asset in should match taker asset");
         userProxy.toAMM(payload);
 
@@ -69,7 +97,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         swapSteps[0].poolId = BALANCER_WETH_DAI_POOL;
         swapSteps[0].assetInIndex = 0;
         swapSteps[0].assetOutIndex = 1;
-        payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
+        payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
 
         vm.expectRevert("AMMWrapper: BalancerV2 last step asset out should match maker asset");
         userProxy.toAMM(payload);
@@ -90,8 +118,17 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             order.takerAssetAmount, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
+        }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
             order.makerAddr,
             order.takerAssetAddr,
@@ -135,15 +172,25 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             0, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
-
+        bytes memory payload; // Bypass stack too deep error
+        bytes memory takerAssetPermitSig;
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
+        }
         vm.expectRevert("AMMWrapper: BalancerV2 cannot swap more than taker asset amount");
         userProxy.toAMM(payload);
 
         uint256 invalidOtherSwapStepAssetInAmount = 999; // Amount of other SwapSteps must be zero
         swapSteps[0].amount = order.takerAssetAmount; // Restore amount of first SwapStep
         swapSteps[1].amount = invalidOtherSwapStepAssetInAmount;
-        payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
+        payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
 
         vm.expectRevert("AMMWrapper: BalancerV2 can only specify amount at first step");
         userProxy.toAMM(payload);
@@ -169,8 +216,17 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             0, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
+        }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
             order.makerAddr,
             order.takerAssetAddr,
@@ -211,8 +267,17 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             order.takerAssetAmount, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
+        }
         // Balancer shoud revert with BAL#521, which means Token is not register
         vm.expectRevert("BAL#521");
         userProxy.toAMM(payload);
@@ -236,8 +301,17 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             order.takerAssetAmount, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeBalancerData(swapSteps), path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
+        }
         // Balancer shoud revert with BAL#521, which means Token is not register
         vm.expectRevert("BAL#521");
         userProxy.toAMM(payload);
@@ -257,7 +331,19 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             order.takerAssetAmount, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, _signTrade(userPrivateKey, order), _encodeBalancerData(swapSteps), path);
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, _signTrade(userPrivateKey, order), takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
+        }
+        // More stack than the one curly bracket can handle,
+        // use the second curly bracket to bypass stack too deep error
         {
             uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
                 order.makerAddr,
@@ -308,7 +394,19 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
             0, // amount
             new bytes(0) // userData
         );
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, _signTrade(userPrivateKey, order), _encodeBalancerData(swapSteps), path);
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, _signTrade(userPrivateKey, order), takerAssetPermitSig, _encodeBalancerData(swapSteps), path);
+        }
+        // More stack than the one curly bracket can handle,
+        // use the second curly bracket to bypass stack too deep error
         {
             uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
                 order.makerAddr,

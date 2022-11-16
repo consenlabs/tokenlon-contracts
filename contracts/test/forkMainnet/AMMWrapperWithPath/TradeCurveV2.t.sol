@@ -17,8 +17,17 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         order.makerAssetAddr = address(wbtc);
         order.makerAssetAmount = 0.001 * 1e8;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(2), new address[](0));
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeCurveData(2), new address[](0));
+        }
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
             order.makerAddr,
             order.takerAssetAddr,
@@ -47,8 +56,18 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         order.makerAddr = CURVE_USDT_POOL_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
         // Curve USDT pool is version 1 but we input version 2
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(2), new address[](0));
-
+        bytes memory payload; // Bypass stack too deep error
+        bytes memory takerAssetPermitSig;
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeCurveData(2), new address[](0));
+        }
         vm.expectRevert("AMMWrapper: Curve v2 no underlying");
         userProxy.toAMM(payload);
 
@@ -58,7 +77,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         order.takerAssetAddr = USDC_ADDRESS;
         order.makerAddr = CURVE_USDT_POOL_ADDRESS;
         sig = _signTrade(userPrivateKey, order);
-        payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(2), new address[](0));
+        payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeCurveData(2), new address[](0));
 
         vm.expectRevert("AMMWrapper: Curve v2 no underlying");
         userProxy.toAMM(payload);
@@ -70,8 +89,17 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         // give an unpsorted token to swap
         order.takerAssetAddr = LON_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(2), new address[](0));
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeCurveData(2), new address[](0));
+        }
         vm.expectRevert("PermanentStorage: invalid pair");
         userProxy.toAMM(payload);
     }
@@ -83,7 +111,17 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         order.makerAssetAddr = address(wbtc);
         bytes memory sig = _signTrade(userPrivateKey, order);
         // curve doesn't has v3
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(3), new address[](0));
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeCurveData(3), new address[](0));
+        }
         vm.expectRevert("AMMWrapper: Invalid Curve version");
         userProxy.toAMM(payload);
     }
@@ -97,8 +135,17 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         order.makerAssetAmount = 0;
 
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(2), new address[](0));
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeCurveData(2), new address[](0));
+        }
         vm.expectRevert();
         userProxy.toAMM(payload);
     }
@@ -113,8 +160,19 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         address[] memory path = new address[](2);
 
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(2), path);
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeCurveData(2), path);
+        }
+        // More stack than the one curly bracket can handle,
+        // use the second curly bracket to bypass stack too deep error
         {
             uint256 expectedOutAmount = ammQuoter.getMakerOutAmountWithPath(
                 order.makerAddr,
@@ -154,8 +212,17 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         order.makerAssetAddr = address(wbtc);
         order.makerAssetAmount = 1000 * 1e8; // unlikely to fill this amount
         bytes memory sig = _signTrade(userPrivateKey, order);
-        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(2), new address[](0));
-
+        bytes memory payload; // Bypass stack too deep error
+        {
+            SpenderLibEIP712.SpendWithPermit memory takerAssetPermit = _createSpenderPermitFromOrder(order);
+            bytes memory takerAssetPermitSig = signSpendWithPermit(
+                userPrivateKey,
+                takerAssetPermit,
+                spender.EIP712_DOMAIN_SEPARATOR(),
+                SignatureValidator.SignatureType.EIP712
+            );
+            payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, takerAssetPermitSig, _encodeCurveData(2), new address[](0));
+        }
         vm.expectRevert("Slippage");
         userProxy.toAMM(payload);
     }
