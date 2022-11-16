@@ -79,15 +79,15 @@ contract RFQTest is StrategySharedSetup, Permit {
         vm.stopPrank();
 
         // Deal 100 ETH to each account
-        dealWallet(wallet, 100 ether);
+        dealWallet({ wallet: wallet, amount: 100 ether });
         // Set user token balance and approve
-        setEOABalanceAndApprove(user, tokens, 100);
+        setEOABalanceAndApprove({ eoa: user, tokens: tokens, amount: 100 });
         // Set ERC1271 wallet token balance and approve
-        setWalletContractBalanceAndApprove(user, address(mockERC1271Wallet), tokens, 100);
+        setWalletContractBalanceAndApprove({ owner: user, walletContract: address(mockERC1271Wallet), tokens: tokens, amount: 100 });
         // Set maker token balance and approve
-        setEOABalanceAndApprove(maker, tokens, 100);
+        setEOABalanceAndApprove({ eoa: maker, tokens: tokens, amount: 100 });
         // Set MMP token balance and approve
-        setWalletContractBalanceAndApprove(maker, address(marketMakerProxy), tokens, 100);
+        setWalletContractBalanceAndApprove({ owner: maker, walletContract: address(marketMakerProxy), tokens: tokens, amount: 100 });
         // Deal ETH to WETH contract because it's balances are manipualted without actual ETH deposit
         deal(address(weth), weth.totalSupply());
 
@@ -250,8 +250,8 @@ contract RFQTest is StrategySharedSetup, Permit {
     function testCannotFillWithExpiredOrder() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         order.deadline = block.timestamp - 1;
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory userSig = _signFill(otherPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: otherPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
@@ -279,8 +279,8 @@ contract RFQTest is StrategySharedSetup, Permit {
 
     function testCannotFillWithInvalidUserSig() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory userSig = _signFill(otherPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: otherPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
@@ -308,9 +308,9 @@ contract RFQTest is StrategySharedSetup, Permit {
 
     function testCannotFillWithInvalidUserWallet() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         // Taker is an EOA but user signs a Wallet type fill
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes32);
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
@@ -340,8 +340,8 @@ contract RFQTest is StrategySharedSetup, Permit {
 
     function testCannotFillWithInvalidMakerSig() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder(otherPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrder({ privateKey: otherPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
@@ -369,8 +369,8 @@ contract RFQTest is StrategySharedSetup, Permit {
 
     function testFillDAIToUSDT_EOAUserAndEOAMaker() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
@@ -391,10 +391,10 @@ contract RFQTest is StrategySharedSetup, Permit {
             );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
-        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take({ owner: receiver, token: order.makerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take({ owner: maker, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take({ owner: maker, token: order.makerAssetAddr });
 
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
@@ -407,8 +407,8 @@ contract RFQTest is StrategySharedSetup, Permit {
 
     function testFillDAIToUSDT_EOAUserAndEOAMaker_WithOldEIP712Method() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrderWithOldEIP712Method(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory userSig = _signFillWithOldEIP712Method(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrderWithOldEIP712Method({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFillWithOldEIP712Method({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
@@ -429,10 +429,10 @@ contract RFQTest is StrategySharedSetup, Permit {
             );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
-        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take({ owner: receiver, token: order.makerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take({ owner: maker, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take({ owner: maker, token: order.makerAssetAddr });
 
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
@@ -448,8 +448,8 @@ contract RFQTest is StrategySharedSetup, Permit {
         order.takerAssetAddr = address(weth);
         order.takerAssetAmount = 1 ether;
         order.makerAddr = address(marketMakerProxy);
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.Wallet);
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.Wallet });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
@@ -472,10 +472,10 @@ contract RFQTest is StrategySharedSetup, Permit {
             );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, ETH_ADDRESS);
-        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
-        BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: ETH_ADDRESS });
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take({ owner: receiver, token: order.makerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take({ owner: address(marketMakerProxy), token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take({ owner: address(marketMakerProxy), token: order.makerAssetAddr });
 
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ{ value: order.takerAssetAmount }(payload);
@@ -492,8 +492,8 @@ contract RFQTest is StrategySharedSetup, Permit {
         order.makerAddr = address(marketMakerProxy);
         order.makerAssetAddr = address(weth);
         order.makerAssetAmount = 1 ether;
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.Wallet);
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.WalletBytes32);
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.Wallet });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
@@ -516,10 +516,10 @@ contract RFQTest is StrategySharedSetup, Permit {
             );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
-        BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take(address(mockERC1271Wallet), order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, ETH_ADDRESS);
-        BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take(address(marketMakerProxy), order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take({ owner: address(mockERC1271Wallet), token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take({ owner: receiver, token: ETH_ADDRESS });
+        BalanceSnapshot.Snapshot memory makerMMPTakerAsset = BalanceSnapshot.take({ owner: address(marketMakerProxy), token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerMMPMakerAsset = BalanceSnapshot.take({ owner: address(marketMakerProxy), token: order.makerAssetAddr });
 
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
@@ -533,8 +533,8 @@ contract RFQTest is StrategySharedSetup, Permit {
     function testFillAccrueFeeToFeeCollector() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         order.feeFactor = 1000; // 10% fee
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
@@ -555,11 +555,11 @@ contract RFQTest is StrategySharedSetup, Permit {
             );
             payload = _genFillPayload(order, makerSig, userSig, makerAssetPermitSig, takerAssetPermitSig);
         }
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, order.makerAssetAddr);
-        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, order.takerAssetAddr);
-        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, order.makerAssetAddr);
-        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, order.makerAssetAddr);
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take({ owner: receiver, token: order.makerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take({ owner: maker, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take({ owner: maker, token: order.makerAssetAddr });
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take({ owner: feeCollector, token: order.makerAssetAddr });
 
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
@@ -573,8 +573,8 @@ contract RFQTest is StrategySharedSetup, Permit {
 
     function testCannotFillWithSamePayloadAgain() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
@@ -627,8 +627,8 @@ contract RFQTest is StrategySharedSetup, Permit {
 
     function testEmitSwappedEvent() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-        bytes memory userSig = _signFill(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload; // Bypass stack too deep error
         {
             (
