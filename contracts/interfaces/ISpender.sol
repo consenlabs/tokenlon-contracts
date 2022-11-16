@@ -15,12 +15,6 @@ interface ISpender {
     event BlackListToken(address token, bool isBlacklisted);
     event AuthorizeSpender(address spender, bool isAuthorized);
 
-    function spendFromUser(
-        address _user,
-        address _tokenAddr,
-        uint256 _amount
-    ) external;
-
     function spendFromUserTo(
         address _user,
         address _tokenAddr,
