@@ -24,6 +24,14 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
+    /// @notice Emitted when fee collector address is updated
+    /// @param newFeeCollector The address of the new fee collector
+    event SetFeeCollector(address newFeeCollector);
+
+    /// @notice Emitted when default fee factor is updated
+    /// @param newDefaultFeeFactor The new default fee factor
+    event SetDefaultFeeFactor(uint16 newDefaultFeeFactor);
+
     // Constants do not have storage slot.
     address public immutable UNISWAP_V2_ROUTER_02_ADDRESS;
     address public immutable SUSHISWAP_ROUTER_ADDRESS;
@@ -91,18 +99,16 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
      *           Management functions for Operator               *
      *************************************************************/
 
-    /**
-     * @dev set default fee factor
-     */
+    /// @notice Only owner can call
+    /// @param _defaultFeeFactor The new default fee factor
     function setDefaultFeeFactor(uint16 _defaultFeeFactor) external onlyOwner {
         defaultFeeFactor = _defaultFeeFactor;
 
         emit SetDefaultFeeFactor(defaultFeeFactor);
     }
 
-    /**
-     * @dev set fee collector
-     */
+    /// @notice Only owner can call
+    /// @param _newFeeCollector The new address of fee collector
     function setFeeCollector(address _newFeeCollector) external onlyOwner {
         require(_newFeeCollector != address(0), "AMMWrapper: fee collector can not be zero address");
         feeCollector = _newFeeCollector;
@@ -113,6 +119,7 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
     /************************************************************
      *                   External functions                      *
      *************************************************************/
+    /// @inheritdoc IAMMWrapper
     function trade(
         address _makerAddr,
         address _takerAssetAddr,
