@@ -4,24 +4,31 @@ pragma solidity 0.7.6;
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "contracts/Spender.sol";
-import "contracts/AllowanceTarget.sol";
+import "contracts/interfaces/IAllowanceTarget.sol";
+import "contracts/interfaces/ISetAllowance.sol";
 import { PermanentStorage } from "contracts/PermanentStorage.sol"; // Using "import from" syntax so PermanentStorage and UserProxy's imports will not collide
 import "contracts/ProxyPermanentStorage.sol";
 import { UserProxy } from "contracts/UserProxy.sol"; // Using "import from" syntax so PermanentStorage and UserProxy's imports will not collide
 import "contracts/Tokenlon.sol";
-import "contracts/interfaces/ISetAllowance.sol";
 import "./Addresses.sol";
 import "./BalanceUtil.sol";
 import "./RegisterCurveIndexes.sol";
 
+// An interface only for test setup
+interface ISpenderOps {
+    function authorize(address[] calldata _pendingAuthorized) external;
+
+    function completeAuthorize() external;
+}
+
 contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
     using SafeERC20 for IERC20;
 
-    address upgradeAdmin = address(0x5566);
+    address upgradeAdmin = 0x74C3cA9431C009dC35587591Dc90780078174f8a;
+    address operator = 0x9aFc226Dc049B99342Ad6774Eeb08BfA2F874465;
 
-    AllowanceTarget allowanceTarget;
-    Spender spender;
+    IAllowanceTarget allowanceTarget = IAllowanceTarget(0x8A42d311D282Bfcaa5133b2DE0a8bCDBECea3073);
+    ISpenderOps spender = ISpenderOps(0x3c68dfc45dc92C9c605d92B49858073e10b857A6);
     UserProxy userProxy;
     PermanentStorage permanentStorage;
 
@@ -29,45 +36,33 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
 
     function _deployTokenlonAndUserProxy() internal {
         UserProxy userProxyImpl = new UserProxy();
-        Tokenlon tokenlon = new Tokenlon(
-            address(userProxyImpl),
-            upgradeAdmin,
-            bytes("") // Skip initialization during deployment
-        );
+        Tokenlon tokenlon = Tokenlon(0x03f34bE1BF910116595dB1b11E9d1B2cA5D59659);
+        vm.prank(upgradeAdmin);
+        tokenlon.upgradeTo(address(userProxyImpl));
         userProxy = UserProxy(address(tokenlon));
-        // Set this contract as operator
-        userProxy.initialize(address(this));
     }
 
     function _deployPermanentStorageAndProxy() internal {
         PermanentStorage permanentStorageImpl = new PermanentStorage();
-        ProxyPermanentStorage permanentStorageProxy = new ProxyPermanentStorage(
-            address(permanentStorageImpl),
-            upgradeAdmin,
-            bytes("") // Skip initialization during deployment
-        );
+        ProxyPermanentStorage permanentStorageProxy = ProxyPermanentStorage(0x6D9Cc14a1d36E6fF13fc6efA9e9326FcD12E7903);
+        vm.prank(upgradeAdmin);
+        permanentStorageProxy.upgradeTo(address(permanentStorageImpl));
         permanentStorage = PermanentStorage(address(permanentStorageProxy));
-        // Set this contract as operator
-        permanentStorage.initialize(address(this));
-        permanentStorage.upgradeWETH(WETH_ADDRESS);
-        // Set Curve indexes
-        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), address(this), true);
-        _registerCurveIndexes(permanentStorage);
     }
 
     function setUpSystemContracts() internal {
         // Deploy
-        spender = new Spender(address(this), new address[](1));
-        allowanceTarget = new AllowanceTarget(address(spender));
         _deployTokenlonAndUserProxy();
         _deployPermanentStorageAndProxy();
         address strategy = _deployStrategyAndUpgrade();
         // Setup
-        spender.setAllowanceTarget(address(allowanceTarget));
         address[] memory authListAddress = new address[](1);
         authListAddress[0] = strategy;
+        vm.prank(operator);
         spender.authorize(authListAddress);
-        permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), address(this), true);
+        // fast farward to activate spender authorization
+        vm.warp(block.timestamp + 1 days);
+        spender.completeAuthorize();
 
         vm.label(upgradeAdmin, "UpgradeAdmin");
         vm.label(address(spender), "SpenderContract");

@@ -43,7 +43,6 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     uint16 public makerFeeFactor = 0;
     uint16 public takerFeeFactor = 0;
     uint16 public profitFeeFactor = 0;
-    uint16 public profitCapFactor = LibConstant.BPS_MAX;
 
     constructor(
         address _operator,
@@ -134,20 +133,17 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     function setFactors(
         uint16 _makerFeeFactor,
         uint16 _takerFeeFactor,
-        uint16 _profitFeeFactor,
-        uint16 _profitCapFactor
+        uint16 _profitFeeFactor
     ) external onlyOperator {
         require(_makerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid maker fee factor");
         require(_takerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid taker fee factor");
         require(_profitFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid profit fee factor");
-        require(_profitCapFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid profit cap factor");
 
         makerFeeFactor = _makerFeeFactor;
         takerFeeFactor = _takerFeeFactor;
         profitFeeFactor = _profitFeeFactor;
-        profitCapFactor = _profitCapFactor;
 
-        emit FactorsUpdated(_makerFeeFactor, _takerFeeFactor, _profitFeeFactor, _profitCapFactor);
+        emit FactorsUpdated(_makerFeeFactor, _takerFeeFactor, _profitFeeFactor);
     }
 
     /**
@@ -272,19 +268,20 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         uint256 makerTokenFee = _mulFactor(_settlement.makerTokenAmount, takerFeeFactor);
         uint256 makerTokenForTrader = _settlement.makerTokenAmount.sub(makerTokenFee);
 
-        // trader -> maker
-        spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _settlement.maker, takerTokenForMaker);
-
-        // maker -> recipient
-        spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _settlement.recipient, makerTokenForTrader);
-
+        // Transfer token from trader
+        spender.spendFromUser(_settlement.trader, address(_settlement.takerToken), _settlement.takerTokenAmount);
+        _settlement.takerToken.safeTransfer(_settlement.maker, takerTokenForMaker);
         // Collect maker fee (charged in taker token)
         if (takerTokenFee > 0) {
-            spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), feeCollector, takerTokenFee);
+            _settlement.takerToken.safeTransfer(feeCollector, takerTokenFee);
         }
+
+        // Transfer token from maker
+        spender.spendFromUser(_settlement.maker, address(_settlement.makerToken), _settlement.makerTokenAmount);
+        _settlement.makerToken.safeTransfer(_settlement.recipient, makerTokenForTrader);
         // Collect taker fee (charged in maker token)
         if (makerTokenFee > 0) {
-            spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), feeCollector, makerTokenFee);
+            _settlement.makerToken.safeTransfer(feeCollector, makerTokenFee);
         }
 
         // bypass stack too deep error
@@ -327,7 +324,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
         (uint256 makerTokenAmount, uint256 takerTokenAmount, uint256 remainingAmount) = _quoteOrder(_order, orderHash, _params.takerTokenAmount);
 
-        uint256 takerTokenProfit = _settleForProtocol(
+        uint256 relayerTakerTokenProfit = _settleForProtocol(
             ProtocolSettlement({
                 orderHash: orderHash,
                 allowFillHash: allowFillHash,
@@ -350,7 +347,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
         _recordOrderFilled(orderHash, takerTokenAmount);
 
-        return takerTokenProfit;
+        return relayerTakerTokenProfit;
     }
 
     function _getProtocolAddress(Protocol protocol) internal view returns (address) {
@@ -384,39 +381,29 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
 
     function _settleForProtocol(ProtocolSettlement memory _settlement) internal returns (uint256) {
         // Collect maker token from maker in order to swap through protocol
-        spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), address(this), _settlement.makerTokenAmount);
+        spender.spendFromUser(_settlement.maker, address(_settlement.makerToken), _settlement.makerTokenAmount);
 
         uint256 takerTokenOut = _swapByProtocol(_settlement);
 
         require(takerTokenOut >= _settlement.takerTokenAmount, "LimitOrder: Insufficient token amount out from protocol");
 
-        uint256 takerTokenExtra = takerTokenOut.sub(_settlement.takerTokenAmount);
-
-        // Cap taker token profit
-        uint256 takerTokenProfitCap = _mulFactor(_settlement.takerTokenAmount, profitCapFactor);
-        uint256 takerTokenProfit = takerTokenExtra > takerTokenProfitCap ? takerTokenProfitCap : takerTokenExtra;
-
-        // Calculate taker token profit for relayer
-        uint256 takerTokenProfitFee = _mulFactor(takerTokenProfit, profitFeeFactor);
-        uint256 takerTokenProfitForRelayer = takerTokenProfit.sub(takerTokenProfitFee);
-
+        uint256 ammOutputExtra = takerTokenOut.sub(_settlement.takerTokenAmount);
+        uint256 relayerTakerTokenProfitFee = _mulFactor(ammOutputExtra, profitFeeFactor);
+        uint256 relayerTakerTokenProfit = ammOutputExtra.sub(relayerTakerTokenProfitFee);
         // Distribute taker token profit to profit recipient assigned by relayer
-        _settlement.takerToken.safeTransfer(_settlement.profitRecipient, takerTokenProfitForRelayer);
-        if (takerTokenProfitFee > 0) {
-            _settlement.takerToken.safeTransfer(feeCollector, takerTokenProfitFee);
-        }
+        _settlement.takerToken.safeTransfer(_settlement.profitRecipient, relayerTakerTokenProfit);
 
         // Calculate maker fee (maker receives taker token so fee is charged in taker token)
         uint256 takerTokenFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
         uint256 takerTokenForMaker = _settlement.takerTokenAmount.sub(takerTokenFee);
 
-        // Calculate taker token profit back to maker
-        uint256 takerTokenProfitBackToMaker = takerTokenExtra > takerTokenProfit ? takerTokenExtra.sub(takerTokenProfit) : 0;
-
         // Distribute taker token to maker
-        _settlement.takerToken.safeTransfer(_settlement.maker, takerTokenForMaker.add(takerTokenProfitBackToMaker));
-        if (takerTokenFee > 0) {
-            _settlement.takerToken.safeTransfer(feeCollector, takerTokenFee);
+        _settlement.takerToken.safeTransfer(_settlement.maker, takerTokenForMaker);
+
+        // Collect fee in taker token if any
+        uint256 feeTotal = takerTokenFee.add(relayerTakerTokenProfitFee);
+        if (feeTotal > 0) {
+            _settlement.takerToken.safeTransfer(feeCollector, feeTotal);
         }
 
         // Bypass stack too deep error
@@ -435,13 +422,12 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
                 remainingAmount: _settlement.remainingAmount,
                 makerTokenFee: 0,
                 takerTokenFee: takerTokenFee,
-                takerTokenProfit: takerTokenProfit,
-                takerTokenProfitFee: takerTokenProfitFee,
-                takerTokenProfitBackToMaker: takerTokenProfitBackToMaker
+                relayerTakerTokenProfit: relayerTakerTokenProfit,
+                relayerTakerTokenProfitFee: relayerTakerTokenProfitFee
             })
         );
 
-        return takerTokenProfitForRelayer;
+        return relayerTakerTokenProfit;
     }
 
     function _swapByProtocol(ProtocolSettlement memory _settlement) internal returns (uint256 amountOut) {
@@ -609,9 +595,8 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         uint256 remainingAmount;
         uint256 makerTokenFee;
         uint256 takerTokenFee;
-        uint256 takerTokenProfit;
-        uint256 takerTokenProfitFee;
-        uint256 takerTokenProfitBackToMaker;
+        uint256 relayerTakerTokenProfit;
+        uint256 relayerTakerTokenProfitFee;
     }
 
     function _emitLimitOrderFilledByProtocol(LimitOrderFilledByProtocolParams memory _params) internal {
@@ -631,9 +616,8 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
                 makerTokenFee: _params.makerTokenFee,
                 takerTokenFee: _params.takerTokenFee
             }),
-            _params.takerTokenProfit,
-            _params.takerTokenProfitFee,
-            _params.takerTokenProfitBackToMaker
+            _params.relayerTakerTokenProfit,
+            _params.relayerTakerTokenProfitFee
         );
     }
 }
