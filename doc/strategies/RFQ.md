@@ -1,6 +1,6 @@
 # RFQ
 
-RFQ (Request For Quote) is a contract that settles a trade between two parties. Normally it requires an off-chain quoting system which provides quotes and signaturates from certain makers. A user may request for a quote of a specific trading pair and size. Upon receving the request, any maker willing to trade can respond with a quote to the user. If the user accept it, then both parties will sign the trading order and submit the order with signatures to the RFQ contract. After verifying signatures, the RFQ contract will transfer tokens between user and maker accordingly.
+RFQ (Request For Quote) is a contract that settles a trade between two parties. Normally it requires an off-chain quoting system which provides quotes and signatures from certain makers. A user may request for a quote of a specific trading pair and size. Upon receiving the request, any maker willing to trade can respond with a quote to the user. If the user accepts it, then both parties will sign the trading order and submit the order with signatures to the RFQ contract. After verifying signatures, the RFQ contract will transfer tokens between user and maker accordingly.
 
 ## Order Format
 
