@@ -19,7 +19,7 @@ RFQ (Request For Quote) is a contract that settles a trade between two parties. 
 
 ## Fee
 
-Some portion of maker asset of an order will be deducted as protocol fee. The fee will be transfered to `feeCollector` during the settlement. Each order may have differnt fee factor, it depends on the type and size of an order.
+Some portion of maker asset of an order will be deducted as protocol fee. The fee will be transfered to `feeCollector` during the settlement. Each order may have different fee factor, it depends on the characteristic of an order.
 
 ## WETH
 
@@ -27,4 +27,4 @@ If the `takerAssetAddr` of an order is WETH, then calling contract with ETH is r
 
 ## Avoid replay attack
 
-An order can be only filled by once. Therefore, the hash of a filled order will be recorded on chain which prevent replay attack.
+An order can only be filled once. Therefore, the hash of a filled order will be recorded on chain to prevent replay attack.

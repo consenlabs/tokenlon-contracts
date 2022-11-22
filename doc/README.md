@@ -16,7 +16,7 @@ There are three major categories of contracts in this repo:
 
 ## UserProxy & Tokenlon
 
-User proxy is the entry of the whole procotol while Tokenlon is a transparent upgradeable proxy of it. User proxy navigate users to a specific strategy contract. Meanwhile, it has a multicall entry which allows batching calls between differnt strategy contracts in a single transaction.
+User proxy is the entry of the whole procotol while Tokenlon is a transparent upgradeable proxy of it. User proxy navigate users to a specific strategy contract. Meanwhile, it has a multicall entry which allows batching calls between differnt strategy contracts in a single transaction. Each strategy contract has a corresponding function in `UserProxy` which takes one parameter `bytes _payload` then forward it to the destinated function.
 
 ## PermanentStorage & ProxyPermanentStorage
 
@@ -36,7 +36,7 @@ MarketMakerProxy is an example implementation of a EIP-1271 compatable contract 
 
 # Strategy Contracts
 
-There are multiple strategy contracts in the Tokenlon protocol with different trading mechanisms. A user can navigate to each strategy contract thorugh dedicated routing function in `UserProxy` contract. Each routing function takes one parameter `bytes _payload` which is later then forwarded to a specific strategy contract.
+There are multiple strategy contracts in the Tokenlon protocol with different trading mechanisms. A user can navigate to each strategy contract through dedicated routing function in `UserProxy` contract.
 
 -   AMMWrapper & AMMQuoter
 -   [RFQ](./strategies/RFQ.md)
