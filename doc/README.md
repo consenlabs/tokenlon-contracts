@@ -16,7 +16,7 @@ There are three major categories of contracts in this repo:
 
 ## UserProxy & Tokenlon
 
-User proxy is the entry of the whole procotol while Tokenlon is a transparent upgradeable proxy of it. User proxy navigate users to a specific strategy contract. Meanwhile, it has a multicall entry which allows batching calls between differnt strategy contracts in a single transaction. Each strategy contract has a corresponding function in `UserProxy` which takes one parameter `bytes _payload` then forward it to the destinated function.
+`UserProxy` is the entry of the whole protocol while Tokenlon is a transparent upgradeable proxy of it. `UserProxy` navigates users to a specific strategy contract. Meanwhile, it has a multicall entry which allows batching calls between different strategy contracts in a single transaction. Each strategy contract has a corresponding function in `UserProxy` which takes one parameter `bytes _payload`, and the payload will be forwarded by `UserProxy` to destination strategy contract.
 
 ## PermanentStorage & ProxyPermanentStorage
 
