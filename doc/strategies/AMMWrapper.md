@@ -1,8 +1,8 @@
 # AMMWrapper
 
-The `AMMWrapper` contract is a portal for user to interact with multiple AMM protocols. A user can specify any pair in any size with a suppported AMM protocol address as an order and submit it to Tokenlon. The first step is transfering tokens from user in order to swap with AMM. After the swap, the result is then compared with the original order. If the result is not compatible with the order, then the trasaction is reverted. The `AMMWrapperWithPath` is a newer version of `AMMWrapper` which allows user to speicfy swapping path.
+The `AMMWrapper` contract is a portal for user to interact with multiple AMM protocols. A user can specify any pair in any size with a suppported AMM protocol address as an order and submit it to Tokenlon. The first step is transferring tokens from user in order to swap with AMM. After the swap, the result is then compared with the original order. If the result does not meet the requirement specified in the order, then the transaction is reverted. The `AMMWrapperWithPath` is a newer version of `AMMWrapper` which allows user to speicfy swapping path.
 
-Crrently `AMMWrapperWithPath` support following AMM protocols:
+Currently `AMMWrapperWithPath` supports following AMM protocols:
 
 -   Uniswap v2/v3
 -   Sushiswap
@@ -33,7 +33,7 @@ Some portion of the output from AMM will be deducted as protocol fee. The fee wi
 
 ## Raw ETH
 
-Each AMM protocol may support either WETH or ETH. The `AMMWrapperWithPath` contract provides flexibilities when it comes to an order with taker asset or maker asset is ETH or WETH. An user can choose whether ETH or WETH as the input and ouptut for such order. It should be specified in the order and the `AMMWrapperWithPath` contract will handle WETH wrap/unwrap if needed.
+Each AMM protocol may support either WETH or ETH. The `AMMWrapperWithPath` contract provides flexibilities when it comes to an order with taker asset or maker asset is ETH or WETH. A user can choose whether ETH or WETH as the input and ouptut for such order. It should be specified in the order and the `AMMWrapperWithPath` contract will handle WETH wrap/unwrap if needed.
 
 # AMMQuoter
 
