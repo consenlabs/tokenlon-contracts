@@ -4,7 +4,7 @@ The `LimitOrder` contract provides order book style trading functionalities whic
 
 Besides the traditional taker scenario, an order can also be satisfied by liquidity from a supported AMM protocol. It relies on someone(EOA) trying to match the price of AMM protocols and the opened orders. In order to incentivize relayers to participate, the difference of the price is considered as the profit of a relayer.
 
-To avoid multiple filling transactions for the same order colliding because insufficient amount is left, the coordinator design is introduced. The idea is that every fill should be signed by a coordinator so the available amount can be calculated as early as possible.
+To avoid multiple filling transactions for the same order colliding because insufficient amount is left, the coordinator design is introduced. The idea is that every fill should be signed by a coordinator so all the fills can be executed successfully.
 
 ## Order Format
 
@@ -21,8 +21,8 @@ To avoid multiple filling transactions for the same order colliding because insu
 
 ## Order Cancelling
 
-If a maker wants to cancel an opened order, a special signature is required. More specifically, the maker should modify the original order with `takerTokenAmount` set to zero and sign it. By submitting cancelling signature to the contract, the original order is marked as canceled which can not by filled anymore.
+If a maker wants to cancel an opened order, a special signature is required. More specifically, the maker should modify the original order with `takerTokenAmount` set to zero and sign it. By submitting cancelling signature to the contract, the original order is marked as canceled which can not be filled anymore.
 
 ## Fee
 
-There are totally three different fee factors in `LimitOrder` contract. For `fillByTrader` scenario, `makerFeeFactor` and `takerFeeFactor` can be applied to calculate two kinds of fees. For `fillByProtocol` case, the `takerFeeFactor` is applied to the taker asset as well. However, there's another `profitFeeFactor` for the profit of the relayer. All of the fees will be transferred to `feeCollector` during the settlement.
+There are totally three different fee factors in `LimitOrder` contract. For `fillByTrader` scenario, `makerFeeFactor` and `takerFeeFactor` are applied to calculate two kinds of fees. For `fillByProtocol` case, the `takerFeeFactor` is applied to the taker asset as well. However, there's another `profitFeeFactor` is applied to the profit of the relayer. All of the fees will be transferred to `feeCollector` during the settlement.
