@@ -11,7 +11,7 @@ Currently `L2Deposit` supports following L2 networks:
 
 | Field              |  Type   | Description                                                                               |
 | ------------------ | :-----: | ----------------------------------------------------------------------------------------- |
-| L2Identifier       |  enum   | The identifier of L2 network.                                                             |
+| l2Identifier       |  enum   | The identifier of L2 network.                                                             |
 | l1TokenAddr        | address | The address of token on L1.                                                               |
 | l2TokenAddr        | address | The address of token on L2.                                                               |
 | sender             | address | The address of sender on L1.                                                              |
@@ -20,4 +20,4 @@ Currently `L2Deposit` supports following L2 networks:
 | amount             | uint256 | The amount of asset that is being bridged.                                                |
 | salt               | uint256 | A random number to avoid replay attack.                                                   |
 | expiry             | uint256 | The timestamp of the expiry.                                                              |
-| data               |  bytes  | The abi-encoded meta data. Differnt L2 network may have different data schema.            |
+| data               |  bytes  | The abi-encoded meta data. Different L2 network may have different data schema.           |
