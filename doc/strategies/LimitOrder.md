@@ -2,7 +2,7 @@
 
 The `LimitOrder` contract provides order book style trading functionalities which is similar to what centralized exchange does. Orders can be queried from the off-chain order book system and then be filled on chain. Also, it supports order cancelling and partially fill. The `LimitOrder` contract shares the `AllowanceTarget` design from Tokenlon which allow users to create an order without depositing tokens first. Tokens are transferred between taker and maker only when the order gets filled on chain. This design provides the certainty of price for maker while maintaining filling flexibilities for taker at the same time.
 
-Besides the traditional taker scenario, an order can also be satisfied by liquidity from a supported AMM protocol. It relies on someone(EOA) trying to match the price of AMM protocols and the opened orders. In order to incentivize relayers to participate, the difference of the price is considered as the profit of a relayer.
+Besides the traditional taker scenario, an order can also be satisfied by liquidity from a supported AMM protocol. It relies on relayer(EOA) to match the price of AMM protocols and the opened orders. In order to incentivize relayers to participate, the difference of the price is considered as the profit of a relayer.
 
 To avoid multiple filling transactions for the same order colliding because insufficient amount is left, the coordinator design is introduced. The idea is that every fill should be signed by a coordinator so all the fills can be executed successfully.
 
