@@ -37,4 +37,4 @@ Each AMM protocol may support either WETH or ETH. The `AMMWrapperWithPath` contr
 
 # AMMQuoter
 
-The `AMMQuoter` contract is a read-only contract providing quotes from different AMM protocols. An reference quote is required when creating an order since AMM swap is always successful but the price varies. By integrating supported AMM protocols, the `AMMQuoter` can provide quotes in a single contract call which simplify the complexity of order creation and reduce the number of RPC call as well.
+The `AMMQuoter` contract is a read-only contract providing quotes from different AMM protocols. Usually, a quote of an AMM swap should be provided as a reference for users. By integrating supported AMM protocols, the `AMMQuoter` can provide quotes in a single contract call which simplifies the complexity of order creation and reduce the number of RPC call as well.
