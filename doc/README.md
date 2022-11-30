@@ -38,7 +38,7 @@ MarketMakerProxy is an example implementation of a EIP-1271 compatable contract 
 
 There are multiple strategy contracts in the Tokenlon protocol with different trading mechanisms. A user can navigate to each strategy contract through dedicated routing function in `UserProxy` contract.
 
--   AMMWrapper & AMMQuoter
+-   [AMMWrapper & AMMQuoter](./strategies/AMMWrapper.md)
 -   [RFQ](./strategies/RFQ.md)
 -   Limit Order
 -   L2Deposit
