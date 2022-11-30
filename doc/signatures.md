@@ -32,4 +32,4 @@ Tokenlon supports following signature type
 | EthSign       | 0x03  | The standard EIP-191 signature.                                                                                        |
 | WalletBytes   | 0x04  | This type is for contract wallet which is similar to EIP-1271 but takes `bytes data` and `bytes sig` as input instead. |
 | WalletBytes32 | 0x05  | The standard EIP-1271 signature.                                                                                       |
-| Wallet        | 0x06  | (DEPRECATED) This type is similar to EIP-1271 but `bytes32 hash`, `address walletAddress` and `bytes sig` as input.    |
+| Wallet        | 0x06  | (DEPRECATED) This type is similar to EIP-1271 but takes `bytes32 hash`, `address walletAddress` and `bytes sig` as input.    |
