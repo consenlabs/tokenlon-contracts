@@ -13,7 +13,6 @@ library L2DepositLibEIP712 {
         address l2TokenAddr;
         address sender;
         address recipient;
-        address arbitrumRefundAddr;
         uint256 amount;
         uint256 salt;
         uint256 expiry;
@@ -28,7 +27,6 @@ library L2DepositLibEIP712 {
                 "address l2TokenAddr,",
                 "address sender,",
                 "address recipient,",
-                "address arbitrumRefundAddr,",
                 "uint256 amount,",
                 "uint256 salt,",
                 "uint256 expiry,",
@@ -37,7 +35,7 @@ library L2DepositLibEIP712 {
             )
         );
     */
-    uint256 public constant DEPOSIT_TYPEHASH = 0x48b4034bf822bee4427761f463833610ff0149fb7ef568ebfe2b8519aad3e507;
+    bytes32 public constant DEPOSIT_TYPEHASH = 0xcb01777a6a26e7a311d06c0d9a55950903d8d51be8a9b7d62cc1b6099cda5a1c;
 
     function _getDepositHash(Deposit memory _deposit) internal pure returns (bytes32) {
         return
@@ -49,7 +47,6 @@ library L2DepositLibEIP712 {
                     _deposit.l2TokenAddr,
                     _deposit.sender,
                     _deposit.recipient,
-                    _deposit.arbitrumRefundAddr,
                     _deposit.amount,
                     _deposit.salt,
                     _deposit.expiry,
