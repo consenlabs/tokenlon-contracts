@@ -41,7 +41,7 @@ contract TestL2DepositTopUp is TestL2Deposit {
         BalanceSnapshot.Snapshot memory userL1TokenBal = BalanceSnapshot.take(user, DEFAULT_DEPOSIT.l1TokenAddr);
 
         // overwrite deposit data with encoded arbitrum specific params
-        DEFAULT_DEPOSIT.data = abi.encode(arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
+        DEFAULT_DEPOSIT.data = abi.encode(user, arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
 
         // compose payload with signature
         bytes memory sig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
@@ -67,7 +67,7 @@ contract TestL2DepositTopUp is TestL2Deposit {
 
     function testCannotReplayDeposit() public {
         // overwrite deposit data with encoded arbitrum specific params
-        DEFAULT_DEPOSIT.data = abi.encode(arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
+        DEFAULT_DEPOSIT.data = abi.encode(user, arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
 
         // compose payload with signature
         bytes memory sig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
@@ -86,7 +86,7 @@ contract TestL2DepositTopUp is TestL2Deposit {
         DEFAULT_DEPOSIT.l2TokenAddr = USDC_ADDRESS;
 
         // overwrite deposit data with encoded arbitrum specific params
-        DEFAULT_DEPOSIT.data = abi.encode(arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
+        DEFAULT_DEPOSIT.data = abi.encode(user, arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
 
         // compose payload with signature
         bytes memory sig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
@@ -99,7 +99,7 @@ contract TestL2DepositTopUp is TestL2Deposit {
 
     function testCannotDepositInvalidArbitrumETHAmount() public {
         // overwrite deposit data with encoded arbitrum specific params
-        DEFAULT_DEPOSIT.data = abi.encode(arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
+        DEFAULT_DEPOSIT.data = abi.encode(user, arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);
 
         // compose payload with signature
         bytes memory sig = _signDeposit(userPrivateKey, DEFAULT_DEPOSIT);
