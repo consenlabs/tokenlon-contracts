@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
 import { PermanentStorage } from "contracts/PermanentStorage.sol";
@@ -19,6 +20,12 @@ contract RegisterCurveIndexes {
     address[] C3_POOL_COINS = [DAI_ADDRESS, USDC_ADDRESS, USDT_ADDRESS];
     bool constant C3_POOL_SUPPORT_GET_DX = false;
 
+    address[] ANKRETH_POOL_COINS = [ETH_ADDRESS, ANKRETH_ADDRESS];
+    bool constant ANKRETH_POOL_SUPPORT_GET_DX = false;
+
+    address[] TRICRYPTO2POOL_COINS = [USDT_ADDRESS, WBTC_ADDRESS, WETH_ADDRESS];
+    bool constant TRICRYPTO2POOL_SUPPORT_GET_DX = false;
+
     function _registerCurveIndexes(PermanentStorage pm) internal {
         // register Compound pool
         pm.setCurvePoolInfo(CURVE_COMPOUND_POOL_ADDRESS, COMPOUND_POOL_UNDERLYING_COINS, COMPOUND_POOL_COINS, COMPOUND_POOL_SUPPORT_GET_DX);
@@ -31,5 +38,11 @@ contract RegisterCurveIndexes {
 
         // register 3 pool
         pm.setCurvePoolInfo(CURVE_3_POOL_ADDRESS, new address[](0), C3_POOL_COINS, C3_POOL_SUPPORT_GET_DX);
+
+        // register ANKRETH pool
+        pm.setCurvePoolInfo(CURVE_ANKRETH_POOL_ADDRESS, new address[](0), ANKRETH_POOL_COINS, ANKRETH_POOL_SUPPORT_GET_DX);
+
+        // register tricrypto2 pool
+        pm.setCurvePoolInfo(CURVE_TRICRYPTO2_POOL_ADDRESS, new address[](0), TRICRYPTO2POOL_COINS, TRICRYPTO2POOL_SUPPORT_GET_DX);
     }
 }

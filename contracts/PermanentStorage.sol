@@ -10,6 +10,7 @@ contract PermanentStorage is IPermanentStorage {
     bytes32 public constant transactionSeenStorageId = 0x695d523b8578c6379a2121164fd8de334b9c5b6b36dff5408bd4051a6b1704d0; // keccak256("transactionSeen")
     bytes32 public constant relayerValidStorageId = 0x2c97779b4deaf24e9d46e02ec2699240a957d92782b51165b93878b09dd66f61; // keccak256("relayerValid")
     bytes32 public constant allowFillSeenStorageId = 0x808188d002c47900fbb4e871d29754afff429009f6684806712612d807395dd8; // keccak256("allowFillSeen")
+    bytes32 public constant l2DepositSeenStorageId = 0xc41d08c7c3a2b58aaead61a87efcd02fbd96bb90a1d4d815fe378d9d30426444; // keccak256("l2DepositSeen")
 
     // New supported Curve pools
     address public constant CURVE_renBTC_POOL = 0x93054188d876f558f4a66B2EF1d97d16eDf0895B;
@@ -30,32 +31,11 @@ contract PermanentStorage is IPermanentStorage {
     string public version; // Current version of the contract
     mapping(bytes32 => mapping(address => bool)) private permission;
 
-    // Operator events
-    event TransferOwnership(address newOperator);
-    event SetPermission(bytes32 storageId, address role, bool enabled);
-    event UpgradeAMMWrapper(address newAMMWrapper);
-    event UpgradePMM(address newPMM);
-    event UpgradeRFQ(address newRFQ);
-    event UpgradeLimitOrder(address newLimitOrder);
-    event UpgradeWETH(address newWETH);
-    event SetCurvePoolInfo(address makerAddr, address[] underlyingCoins, address[] coins, bool supportGetD);
-    event SetRelayerValid(address relayer, bool valid);
-
     /************************************************************
      *          Access control and ownership management          *
      *************************************************************/
     modifier onlyOperator() {
         require(operator == msg.sender, "PermanentStorage: not the operator");
-        _;
-    }
-
-    modifier validRole(bool _enabled, address _role) {
-        if (_enabled) {
-            require(
-                (_role == operator) || (_role == ammWrapperAddr()) || (_role == pmmAddr()) || (_role == rfqAddr()) || (_role == limitOrderAddr()),
-                "PermanentStorage: not a valid role"
-            );
-        }
         _;
     }
 
@@ -76,7 +56,13 @@ contract PermanentStorage is IPermanentStorage {
         bytes32 _storageId,
         address _role,
         bool _enabled
-    ) external onlyOperator validRole(_enabled, _role) {
+    ) external onlyOperator {
+        if (_enabled) {
+            require(
+                (_role == operator) || (_role == ammWrapperAddr()) || (_role == rfqAddr()) || (_role == limitOrderAddr()) || (_role == l2DepositAddr()),
+                "PermanentStorage: not a valid role"
+            );
+        }
         permission[_storageId][_role] = _enabled;
 
         emit SetPermission(_storageId, _role, _enabled);
@@ -92,30 +78,30 @@ contract PermanentStorage is IPermanentStorage {
         operator = _operator;
 
         // Upgrade version
-        version = "5.3.0";
+        version = "5.4.0";
     }
 
     /************************************************************
      *                     Getter functions                      *
      *************************************************************/
-    function hasPermission(bytes32 _storageId, address _role) external view returns (bool) {
+    function hasPermission(bytes32 _storageId, address _role) external view override returns (bool) {
         return permission[_storageId][_role];
     }
 
-    function ammWrapperAddr() public view returns (address) {
+    function ammWrapperAddr() public view override returns (address) {
         return PSStorage.getStorage().ammWrapperAddr;
     }
 
-    function pmmAddr() public view returns (address) {
-        return PSStorage.getStorage().pmmAddr;
-    }
-
-    function rfqAddr() public view returns (address) {
+    function rfqAddr() public view override returns (address) {
         return PSStorage.getStorage().rfqAddr;
     }
 
-    function limitOrderAddr() public view returns (address) {
+    function limitOrderAddr() public view override returns (address) {
         return PSStorage.getStorage().limitOrderAddr;
+    }
+
+    function l2DepositAddr() public view override returns (address) {
+        return PSStorage.getStorage().l2DepositAddr;
     }
 
     function wethAddr() external view override returns (address) {
@@ -165,14 +151,6 @@ contract PermanentStorage is IPermanentStorage {
         return (takerAssetIndex, makerAssetIndex, swapMethod, supportGetDx);
     }
 
-    /* 
-    NOTE: `isTransactionSeen` is replaced by `isAMMTransactionSeen`. It is kept for backward compatability.
-    It should be removed from AMM 5.2.1 upward.
-    */
-    function isTransactionSeen(bytes32 _transactionHash) external view override returns (bool) {
-        return AMMWrapperStorage.getStorage().transactionSeen[_transactionHash];
-    }
-
     function isAMMTransactionSeen(bytes32 _transactionHash) external view override returns (bool) {
         return AMMWrapperStorage.getStorage().transactionSeen[_transactionHash];
     }
@@ -189,6 +167,10 @@ contract PermanentStorage is IPermanentStorage {
         return LimitOrderStorage.getStorage().allowFillSeen[_allowFillHash];
     }
 
+    function isL2DepositSeen(bytes32 _l2DepositHash) external view override returns (bool) {
+        return L2DepositStorage.getStorage().l2DepositSeen[_l2DepositHash];
+    }
+
     function isRelayerValid(address _relayer) external view override returns (bool) {
         return AMMWrapperStorage.getStorage().relayerValid[_relayer];
     }
@@ -203,13 +185,6 @@ contract PermanentStorage is IPermanentStorage {
         emit UpgradeAMMWrapper(_newAMMWrapper);
     }
 
-    /// @dev Update PMM contract address.
-    function upgradePMM(address _newPMM) external onlyOperator {
-        PSStorage.getStorage().pmmAddr = _newPMM;
-
-        emit UpgradePMM(_newPMM);
-    }
-
     /// @dev Update RFQ contract address.
     function upgradeRFQ(address _newRFQ) external onlyOperator {
         PSStorage.getStorage().rfqAddr = _newRFQ;
@@ -222,6 +197,13 @@ contract PermanentStorage is IPermanentStorage {
         PSStorage.getStorage().limitOrderAddr = _newLimitOrder;
 
         emit UpgradeLimitOrder(_newLimitOrder);
+    }
+
+    /// @dev Update L2 Deposit contract address.
+    function upgradeL2Deposit(address _newL2Deposit) external onlyOperator {
+        PSStorage.getStorage().l2DepositAddr = _newL2Deposit;
+
+        emit UpgradeL2Deposit(_newL2Deposit);
     }
 
     /// @dev Update WETH contract address.
@@ -258,15 +240,6 @@ contract PermanentStorage is IPermanentStorage {
         emit SetCurvePoolInfo(_makerAddr, _underlyingCoins, _coins, _supportGetDx);
     }
 
-    /* 
-    NOTE: `setTransactionSeen` is replaced by `setAMMTransactionSeen`. It is kept for backward compatability.
-    It should be removed from AMM 5.2.1 upward.
-    */
-    function setTransactionSeen(bytes32 _transactionHash) external override isPermitted(transactionSeenStorageId, msg.sender) {
-        require(!AMMWrapperStorage.getStorage().transactionSeen[_transactionHash], "PermanentStorage: transaction seen before");
-        AMMWrapperStorage.getStorage().transactionSeen[_transactionHash] = true;
-    }
-
     function setAMMTransactionSeen(bytes32 _transactionHash) external override isPermitted(transactionSeenStorageId, msg.sender) {
         require(!AMMWrapperStorage.getStorage().transactionSeen[_transactionHash], "PermanentStorage: transaction seen before");
         AMMWrapperStorage.getStorage().transactionSeen[_transactionHash] = true;
@@ -285,6 +258,11 @@ contract PermanentStorage is IPermanentStorage {
     function setLimitOrderAllowFillSeen(bytes32 _allowFillHash) external override isPermitted(allowFillSeenStorageId, msg.sender) {
         require(!LimitOrderStorage.getStorage().allowFillSeen[_allowFillHash], "PermanentStorage: allow fill seen before");
         LimitOrderStorage.getStorage().allowFillSeen[_allowFillHash] = true;
+    }
+
+    function setL2DepositSeen(bytes32 _l2DepositHash) external override isPermitted(l2DepositSeenStorageId, msg.sender) {
+        require(!L2DepositStorage.getStorage().l2DepositSeen[_l2DepositHash], "PermanentStorage: L2 deposit seen before");
+        L2DepositStorage.getStorage().l2DepositSeen[_l2DepositHash] = true;
     }
 
     function setRelayersValid(address[] calldata _relayers, bool[] calldata _isValids) external override isPermitted(relayerValidStorageId, msg.sender) {

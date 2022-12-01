@@ -9,30 +9,36 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./interfaces/ISpender.sol";
 import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ICurveFi.sol";
+import "./interfaces/ICurveFiV2.sol";
 import "./interfaces/IAMMWrapper.sol";
 import "./interfaces/IWeth.sol";
 import "./interfaces/IPermanentStorage.sol";
+import "./utils/StrategyBase.sol";
 import "./utils/AMMLibEIP712.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
 import "./utils/SignatureValidator.sol";
 
-contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
+contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
     using SafeMath for uint16;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
+    /// @notice Emitted when fee collector address is updated
+    /// @param newFeeCollector The address of the new fee collector
+    event SetFeeCollector(address newFeeCollector);
+
+    /// @notice Emitted when default fee factor is updated
+    /// @param newDefaultFeeFactor The new default fee factor
+    event SetDefaultFeeFactor(uint16 newDefaultFeeFactor);
+
     // Constants do not have storage slot.
-    address public immutable userProxy;
-    IWETH public immutable weth;
-    IPermanentStorage public immutable permStorage;
     address public immutable UNISWAP_V2_ROUTER_02_ADDRESS;
     address public immutable SUSHISWAP_ROUTER_ADDRESS;
 
     // Below are the variables which consume storage slots.
-    address public operator;
     uint16 public defaultFeeFactor;
-    ISpender public spender;
+    address public feeCollector;
 
     /* Struct declaration */
 
@@ -54,26 +60,6 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     receive() external payable {}
 
     /************************************************************
-     *          Access control and ownership management          *
-     *************************************************************/
-    modifier onlyOperator() {
-        require(operator == msg.sender, "AMMWrapper: not the operator");
-        _;
-    }
-
-    modifier onlyUserProxy() {
-        require(address(userProxy) == msg.sender, "AMMWrapper: not the UserProxy contract");
-        _;
-    }
-
-    function transferOwnership(address _newOperator) external onlyOperator {
-        require(_newOperator != address(0), "AMMWrapper: operator can not be zero address");
-        operator = _newOperator;
-
-        emit TransferOwnership(_newOperator);
-    }
-
-    /************************************************************
      *                 Internal function modifier                *
      *************************************************************/
     modifier approveTakerAsset(
@@ -93,81 +79,47 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
      *              Constructor and init functions               *
      *************************************************************/
     constructor(
-        address _operator,
-        uint16 _defaultFeeFactor,
+        address _owner,
         address _userProxy,
-        ISpender _spender,
-        IPermanentStorage _permStorage,
-        IWETH _weth,
+        address _weth,
+        address _permStorage,
+        address _spender,
+        uint16 _defaultFeeFactor,
         address _uniswapV2Router,
-        address _sushiwapRouter
-    ) {
-        operator = _operator;
+        address _sushiwapRouter,
+        address _feeCollector
+    ) StrategyBase(_owner, _userProxy, _weth, _permStorage, _spender) {
         defaultFeeFactor = _defaultFeeFactor;
-        userProxy = _userProxy;
-        spender = _spender;
-        permStorage = _permStorage;
-        weth = _weth;
         UNISWAP_V2_ROUTER_02_ADDRESS = _uniswapV2Router;
         SUSHISWAP_ROUTER_ADDRESS = _sushiwapRouter;
+        feeCollector = _feeCollector;
     }
 
     /************************************************************
      *           Management functions for Operator               *
      *************************************************************/
-    /**
-     * @dev set new Spender
-     */
-    function upgradeSpender(address _newSpender) external onlyOperator {
-        require(_newSpender != address(0), "AMMWrapper: spender can not be zero address");
-        spender = ISpender(_newSpender);
 
-        emit UpgradeSpender(_newSpender);
-    }
-
-    /**
-     * @dev set default fee factor
-     */
-    function setDefaultFeeFactor(uint16 _defaultFeeFactor) external onlyOperator {
+    /// @notice Only owner can call
+    /// @param _defaultFeeFactor The new default fee factor
+    function setDefaultFeeFactor(uint16 _defaultFeeFactor) external onlyOwner {
         defaultFeeFactor = _defaultFeeFactor;
 
         emit SetDefaultFeeFactor(defaultFeeFactor);
     }
 
-    /**
-     * @dev approve spender to transfer tokens from this contract. This is used to collect fee.
-     */
-    function setAllowance(address[] calldata _tokenList, address _spender) external override onlyOperator {
-        for (uint256 i = 0; i < _tokenList.length; i++) {
-            IERC20(_tokenList[i]).safeApprove(_spender, LibConstant.MAX_UINT);
+    /// @notice Only owner can call
+    /// @param _newFeeCollector The new address of fee collector
+    function setFeeCollector(address _newFeeCollector) external onlyOwner {
+        require(_newFeeCollector != address(0), "AMMWrapper: fee collector can not be zero address");
+        feeCollector = _newFeeCollector;
 
-            emit AllowTransfer(_spender);
-        }
-    }
-
-    function closeAllowance(address[] calldata _tokenList, address _spender) external override onlyOperator {
-        for (uint256 i = 0; i < _tokenList.length; i++) {
-            IERC20(_tokenList[i]).safeApprove(_spender, 0);
-
-            emit DisallowTransfer(_spender);
-        }
-    }
-
-    /**
-     * @dev convert collected ETH to WETH
-     */
-    function depositETH() external onlyOperator {
-        uint256 balance = address(this).balance;
-        if (balance > 0) {
-            weth.deposit{ value: balance }();
-
-            emit DepositETH(balance);
-        }
+        emit SetFeeCollector(_newFeeCollector);
     }
 
     /************************************************************
      *                   External functions                      *
      *************************************************************/
+    /// @inheritdoc IAMMWrapper
     function trade(
         address _makerAddr,
         address _takerAssetAddr,
@@ -223,15 +175,16 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
         _prepare(order, internalTxData);
 
         {
-            // Set min amount for swap = _order.makerAssetAmount * (1 + feeFactor)
-            uint256 swapMinOutAmount = order.makerAssetAmount.mul(LibConstant.BPS_MAX.add(txMetaData.feeFactor)).div(LibConstant.BPS_MAX);
+            // Set min amount for swap = _order.makerAssetAmount * (10000 / (10000 - feeFactor))
+            uint256 swapMinOutAmount = order.makerAssetAmount.mul(LibConstant.BPS_MAX).div(LibConstant.BPS_MAX.sub(txMetaData.feeFactor));
             (txMetaData.source, txMetaData.receivedAmount) = _swap(order, internalTxData, swapMinOutAmount);
 
             // Settle
             // Calculate fee using actually received from swap
             uint256 actualFee = txMetaData.receivedAmount.mul(txMetaData.feeFactor).div(LibConstant.BPS_MAX);
             txMetaData.settleAmount = txMetaData.receivedAmount.sub(actualFee);
-            _settle(order, internalTxData, txMetaData.settleAmount);
+            require(txMetaData.settleAmount >= order.makerAssetAmount, "AMMWrapper: insufficient maker output");
+            _settle(order, internalTxData, txMetaData.settleAmount, actualFee);
         }
 
         emitSwappedEvent(order, txMetaData);
@@ -342,6 +295,7 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
                 uint256 balanceBeforeTrade = _getSelfBalance(_internalTxData.makerAssetInternalAddr);
                 _tradeCurveTokenToToken(
                     _order.makerAddr,
+                    1, // AMMWrapper call only interact with curveV1
                     curveData.fromTokenCurveIndex,
                     curveData.toTokenCurveIndex,
                     _order.takerAssetAmount,
@@ -363,7 +317,8 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
     function _settle(
         AMMLibEIP712.Order memory _order,
         InternalTxData memory _internalTxData,
-        uint256 _settleAmount
+        uint256 _settleAmount,
+        uint256 _feeAmount
     ) internal {
         // Transfer token/ETH to receiver
         if (_internalTxData.toEth) {
@@ -376,22 +331,48 @@ contract AMMWrapper is IAMMWrapper, ReentrancyGuard, BaseLibEIP712, SignatureVal
             // other ERC20 tokens
             IERC20(_order.makerAssetAddr).safeTransfer(_order.receiverAddr, _settleAmount);
         }
+        // Collect fee
+        if (_feeAmount > 0) {
+            if (_internalTxData.toEth) {
+                // Transfer WETH directly if internal maker asset is WETH
+                if (!_isInternalAssetETH(_internalTxData.makerAssetInternalAddr)) {
+                    weth.transfer(feeCollector, _feeAmount);
+                } else {
+                    payable(feeCollector).transfer(_feeAmount);
+                }
+            } else {
+                // other ERC20 tokens
+                IERC20(_order.makerAssetAddr).safeTransfer(feeCollector, _feeAmount);
+            }
+        }
     }
 
     function _tradeCurveTokenToToken(
         address _makerAddr,
+        uint8 _version,
         int128 i,
         int128 j,
         uint256 _takerAssetAmount,
         uint256 _makerAssetAmount,
         uint16 _swapMethod
     ) internal {
-        ICurveFi curve = ICurveFi(_makerAddr);
-        if (_swapMethod == 1) {
-            curve.exchange{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
-        } else if (_swapMethod == 2) {
-            curve.exchange_underlying{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+        if (_version == 1) {
+            ICurveFi curve = ICurveFi(_makerAddr);
+            if (_swapMethod == 1) {
+                curve.exchange{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+                return;
+            } else if (_swapMethod == 2) {
+                curve.exchange_underlying{ value: msg.value }(i, j, _takerAssetAmount, _makerAssetAmount);
+                return;
+            }
+            revert("AMMWrapper: Invalid swapMethod for CurveV1");
+        } else if (_version == 2) {
+            ICurveFiV2 curve = ICurveFiV2(_makerAddr);
+            require(_swapMethod == 1, "AMMWrapper: Curve v2 no underlying");
+            curve.exchange{ value: msg.value }(uint256(i), uint256(j), _takerAssetAmount, _makerAssetAmount, true);
+            return;
         }
+        revert("AMMWrapper: Invalid Curve version");
     }
 
     function _tradeUniswapV2TokenToToken(

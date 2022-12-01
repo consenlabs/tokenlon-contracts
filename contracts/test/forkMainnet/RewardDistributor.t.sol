@@ -46,6 +46,7 @@ contract RewardDistributorTest is Test {
 
     Lon lon = Lon(LON_ADDRESS);
     IERC20 usdt = IERC20(USDT_ADDRESS);
+    IERC20 crv = IERC20(CRV_ADDRESS);
 
     MockStrategy[] strategies = [new MockStrategy(), new MockStrategy()];
     MockContract lonStaking = new MockContract();
@@ -81,7 +82,6 @@ contract RewardDistributorTest is Test {
         });
 
     address[] USDT_FEE_TOKEN_PATH = [address(usdt), WETH_ADDRESS, address(lon)];
-    uint24[] USDT_POOL_FEES = [FEE_MEDIUM, FEE_MEDIUM];
     SetFeeTokenParams USDT_FEE_TOKEN =
         SetFeeTokenParams({
             feeTokenAddr: address(usdt),
@@ -91,7 +91,20 @@ contract RewardDistributorTest is Test {
             RFactor: 40,
             enable: true,
             minBuy: 10,
-            maxBuy: 100
+            maxBuy: 100 * 1e6
+        });
+
+    address[] CRV_FEE_TOKEN_PATH = [address(crv), WETH_ADDRESS, address(lon)];
+    SetFeeTokenParams CRV_FEE_TOKEN =
+        SetFeeTokenParams({
+            feeTokenAddr: address(crv),
+            exchangeIndex: SUSHISWAP_EXCHANGE_INDEX,
+            path: CRV_FEE_TOKEN_PATH,
+            LFactor: 20,
+            RFactor: 40,
+            enable: true,
+            minBuy: 10,
+            maxBuy: 10 * 1e18
         });
 
     function setUp() public {
@@ -121,6 +134,9 @@ contract RewardDistributorTest is Test {
             // USDT
             deal(address(usdt), address(strategy), USDT_FEE_TOKEN.maxBuy / strategies.length, true);
             usdt.safeApprove(address(rewardDistributor), type(uint256).max);
+            // CRV
+            deal(address(crv), address(strategy), CRV_FEE_TOKEN.maxBuy / strategies.length, true);
+            crv.safeApprove(address(rewardDistributor), type(uint256).max);
             vm.stopPrank();
         }
         _setStrategyAddrs(strategyAddrs);
@@ -168,7 +184,7 @@ contract RewardDistributorTest is Test {
     event SetOperator(address operator, bool enable);
 
     function testSetOperator() public {
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetOperator(user, true);
         rewardDistributor.setOperator(user, true);
         assertTrue(rewardDistributor.isOperator(user));
@@ -194,7 +210,7 @@ contract RewardDistributorTest is Test {
     function testSetMiningFactor() public {
         uint8 newMiningFactor = 10;
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetMiningFactor(newMiningFactor);
         rewardDistributor.setMiningFactor(newMiningFactor);
 
@@ -214,7 +230,7 @@ contract RewardDistributorTest is Test {
     event SetTreasury(address treasury);
 
     function testSetTreasury() public {
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetTreasury(user);
         rewardDistributor.setTreasury(user);
         assertEq(rewardDistributor.treasury(), user);
@@ -240,7 +256,7 @@ contract RewardDistributorTest is Test {
     function testSetLonStaking() public {
         address newLonStaking = address(lon);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetLonStaking(newLonStaking);
         rewardDistributor.setLonStaking(newLonStaking);
 
@@ -260,7 +276,7 @@ contract RewardDistributorTest is Test {
     event SetMiningTreasury(address miningTreasury);
 
     function testSetMiningTreasury() public {
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetMiningTreasury(user);
         rewardDistributor.setMiningTreasury(user);
         assertEq(rewardDistributor.miningTreasury(), user);
@@ -279,7 +295,7 @@ contract RewardDistributorTest is Test {
     event SetFeeTokenRecipient(address feeTokenRecipient);
 
     function testSetFeeTokenRecipient() public {
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetFeeTokenRecipient(user);
         rewardDistributor.setFeeTokenRecipient(user);
         assertEq(rewardDistributor.feeTokenRecipient(), user);
@@ -304,7 +320,7 @@ contract RewardDistributorTest is Test {
 
         BalanceSnapshot.Snapshot memory ownerLon = BalanceSnapshot.take(address(this), address(lon));
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit Recovered(address(lon), recoverAmount);
         rewardDistributor.recoverERC20(address(lon), recoverAmount);
 
@@ -325,7 +341,7 @@ contract RewardDistributorTest is Test {
 
     function testSetBuybackInterval() public {
         uint32 newBuybackInterval = 86400;
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetBuybackInterval(newBuybackInterval);
         rewardDistributor.setBuybackInterval(newBuybackInterval);
     }
@@ -367,10 +383,10 @@ contract RewardDistributorTest is Test {
         strategyAddrs[0] = address(new MockStrategy());
         strategyAddrs[1] = address(new MockStrategy());
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetStrategy(0, strategyAddrs[0]);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetStrategy(1, strategyAddrs[1]);
 
         _setStrategyAddrs(strategyAddrs);
@@ -488,9 +504,9 @@ contract RewardDistributorTest is Test {
     event SetFeeToken(address feeToken, uint256 exchangeIndex, address[] path, uint256 LFactor, uint256 RFactor, uint256 minBuy, uint256 maxBuy);
 
     function _expectFeeTokenSetEvents(SetFeeTokenParams memory params) internal {
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit EnableFeeToken(params.feeTokenAddr, params.enable);
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetFeeToken(params.feeTokenAddr, params.exchangeIndex, params.path, params.LFactor, params.RFactor, params.minBuy, params.maxBuy);
     }
 
@@ -534,7 +550,7 @@ contract RewardDistributorTest is Test {
         feeTokens[1] = validFeeToken;
 
         // First fee token will fail to be set
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetFeeTokenFailure(invalidFeeToken.feeTokenAddr, "invalid swap path", bytes(""));
 
         // Second fee token will be set
@@ -586,7 +602,7 @@ contract RewardDistributorTest is Test {
     }
 
     function testEnableFeeToken() public {
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit EnableFeeToken(address(usdt), true);
         rewardDistributor.enableFeeToken(address(usdt), true);
 
@@ -748,10 +764,10 @@ contract RewardDistributorTest is Test {
 
         _expectBuybackEvent(feeToken, buybackToSwap, lonOut);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit DistributeLon(lonToTreasury, lonToStaking);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit MintLon(lonToMiningTreasury);
 
         vm.prank(user, user);
@@ -768,51 +784,50 @@ contract RewardDistributorTest is Test {
     /* Sushiswap */
 
     function testCannotBuybackWhenLONBuybackNotEnoughFromSushiswap() public {
-        SetFeeTokenParams memory feeToken = USDT_FEE_TOKEN;
+        SetFeeTokenParams memory feeToken = CRV_FEE_TOKEN;
         _setFeeToken(feeToken);
 
         uint256 buybackAmount = feeToken.maxBuy;
         (, uint256 buybackToSwap) = _splitBuyback(feeToken, buybackAmount);
 
-        uint256[] memory outs = sushiswap.getAmountsOut(buybackToSwap, USDT_FEE_TOKEN_PATH);
-        uint256 lonOut = outs[USDT_FEE_TOKEN_PATH.length - 1];
+        uint256[] memory outs = sushiswap.getAmountsOut(buybackToSwap, CRV_FEE_TOKEN_PATH);
+        uint256 lonOut = outs[CRV_FEE_TOKEN_PATH.length - 1];
 
         vm.expectRevert("UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         vm.prank(user, user);
-        rewardDistributor.buyback(address(usdt), buybackAmount, lonOut + 1);
+        rewardDistributor.buyback(address(crv), buybackAmount, lonOut + 1);
     }
 
     function testBuybackFromSushiswap() public {
-        SetFeeTokenParams memory feeToken = USDT_FEE_TOKEN;
-        feeToken.exchangeIndex = SUSHISWAP_EXCHANGE_INDEX;
+        SetFeeTokenParams memory feeToken = CRV_FEE_TOKEN;
         _setFeeToken(feeToken);
 
         uint256 buybackAmount = feeToken.maxBuy;
         (uint256 buybackToFeeRecipient, uint256 buybackToSwap) = _splitBuyback(feeToken, buybackAmount);
 
-        uint256[] memory outs = sushiswap.getAmountsOut(buybackToSwap, USDT_FEE_TOKEN_PATH);
-        uint256 lonOut = outs[USDT_FEE_TOKEN_PATH.length - 1];
+        uint256[] memory outs = sushiswap.getAmountsOut(buybackToSwap, CRV_FEE_TOKEN_PATH);
+        uint256 lonOut = outs[CRV_FEE_TOKEN_PATH.length - 1];
         (uint256 lonToTreasury, uint256 lonToStaking, uint256 lonToMiningTreasury) = _splitBuybackLON(feeToken, lonOut);
 
-        BalanceSnapshot.Snapshot memory feeTokenRecipientUSDT = BalanceSnapshot.take(feeTokenRecipient, address(usdt));
+        BalanceSnapshot.Snapshot memory feeTokenRecipientCRV = BalanceSnapshot.take(feeTokenRecipient, address(crv));
         BalanceSnapshot.Snapshot memory lonStakingLON = BalanceSnapshot.take(address(lonStaking), address(lon));
         BalanceSnapshot.Snapshot memory treasuryLON = BalanceSnapshot.take(treasury, address(lon));
         BalanceSnapshot.Snapshot memory miningTreasuryLON = BalanceSnapshot.take(miningTreasury, address(lon));
 
         _expectBuybackEvent(feeToken, buybackToSwap, lonOut);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit DistributeLon(lonToTreasury, lonToStaking);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit MintLon(lonToMiningTreasury);
 
         vm.prank(user, user);
-        rewardDistributor.buyback(address(usdt), buybackAmount, lonOut);
+        rewardDistributor.buyback(address(crv), buybackAmount, lonOut);
 
-        _assertFeeTokenLastTimeBuybackUpdated(address(usdt));
+        _assertFeeTokenLastTimeBuybackUpdated(address(crv));
 
-        feeTokenRecipientUSDT.assertChange(int256(buybackToFeeRecipient));
+        feeTokenRecipientCRV.assertChange(int256(buybackToFeeRecipient));
         lonStakingLON.assertChange(int256(lonToStaking));
         treasuryLON.assertChange(int256(lonToTreasury));
         miningTreasuryLON.assertChange(int256(lonToMiningTreasury));
@@ -831,10 +846,10 @@ contract RewardDistributorTest is Test {
         BalanceSnapshot.Snapshot memory treasuryLON = BalanceSnapshot.take(treasury, address(lon));
         BalanceSnapshot.Snapshot memory miningTreasuryLON = BalanceSnapshot.take(miningTreasury, address(lon));
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit DistributeLon(lonToTreasury, lonToStaking);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit MintLon(lonToMiningTreasury);
 
         vm.prank(user, user);
@@ -847,13 +862,18 @@ contract RewardDistributorTest is Test {
         miningTreasuryLON.assertChange(int256(lonToMiningTreasury));
     }
 
-    function _splitBuyback(SetFeeTokenParams memory feeToken, uint256 buybackAmount) internal returns (uint256 buybackToFeeRecipient, uint256 buybackToSwap) {
+    function _splitBuyback(SetFeeTokenParams memory feeToken, uint256 buybackAmount)
+        internal
+        pure
+        returns (uint256 buybackToFeeRecipient, uint256 buybackToSwap)
+    {
         buybackToFeeRecipient = buybackAmount.mul(feeToken.LFactor).div(100);
         buybackToSwap = buybackAmount.sub(buybackToFeeRecipient);
     }
 
     function _splitBuybackLON(SetFeeTokenParams memory feeToken, uint256 lonAmount)
         internal
+        view
         returns (
             uint256 lonToTreasury,
             uint256 lonToStaking,
@@ -870,7 +890,7 @@ contract RewardDistributorTest is Test {
         uint256 swapAmount,
         uint256 lonAmount
     ) internal {
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit BuyBack(feeToken.feeTokenAddr, swapAmount, lonAmount, feeToken.LFactor, feeToken.RFactor, feeToken.minBuy, feeToken.maxBuy);
     }
 
@@ -918,23 +938,23 @@ contract RewardDistributorTest is Test {
         minLonAmounts[1] = 0;
 
         uint256 buybackAmount = amounts[1];
-        (uint256 buybackToFeeRecipient, uint256 buybackToSwap) = _splitBuyback(feeToken, buybackAmount);
+        (, uint256 buybackToSwap) = _splitBuyback(feeToken, buybackAmount);
 
         uint256[] memory outs = uniswapV2.getAmountsOut(buybackToSwap, USDT_FEE_TOKEN_PATH);
         uint256 lonOut = outs[USDT_FEE_TOKEN_PATH.length - 1];
         (uint256 lonToTreasury, uint256 lonToStaking, uint256 lonToMiningTreasury) = _splitBuybackLON(feeToken, lonOut);
 
         // First buyback will fail
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit BuyBackFailure(address(lon), LON_FEE_TOKEN.maxBuy, "fee token is not enabled", bytes(""));
 
         // Second buyback will succeed
         _expectBuybackEvent(feeToken, buybackToSwap, lonOut);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit DistributeLon(lonToTreasury, lonToStaking);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit MintLon(lonToMiningTreasury);
 
         vm.prank(user, user);

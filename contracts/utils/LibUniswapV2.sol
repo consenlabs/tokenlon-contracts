@@ -33,7 +33,7 @@ library LibUniswapV2 {
         address[] memory _path,
         address _tokenIn,
         address _tokenOut
-    ) internal {
+    ) internal pure {
         require(_path.length >= 2, "UniswapV2: Path length must be at least two");
         require(_path[0] == _tokenIn, "UniswapV2: First element of path must match token in");
         require(_path[_path.length - 1] == _tokenOut, "UniswapV2: Last element of path must match token out");

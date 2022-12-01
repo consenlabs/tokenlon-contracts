@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
@@ -5,8 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import "./interfaces/IWeth.sol";
-import "./utils/pmm/LibDecoder.sol";
-import "./Ownable.sol";
+import "./utils/LibConstant.sol";
+import "./utils/Ownable.sol";
 
 interface IIMBTC {
     function burn(uint256 amount, bytes calldata data) external;
@@ -16,11 +17,9 @@ interface IWBTC {
     function burn(uint256 value) external;
 }
 
-contract MarketMakerProxy is Ownable, LibDecoder {
+contract MarketMakerProxy is Ownable {
     using SafeERC20 for IERC20;
 
-    string public constant version = "5.0.0";
-    uint256 private constant MAX_UINT = 2**256 - 1;
     address public SIGNER;
     address public operator;
 
@@ -65,7 +64,7 @@ contract MarketMakerProxy is Ownable, LibDecoder {
     function setAllowance(address[] memory token_addrs, address spender) public onlyOperator {
         for (uint256 i = 0; i < token_addrs.length; i++) {
             address token = token_addrs[i];
-            IERC20(token).safeApprove(spender, MAX_UINT);
+            IERC20(token).safeApprove(spender, LibConstant.MAX_UINT);
         }
     }
 
@@ -100,12 +99,7 @@ contract MarketMakerProxy is Ownable, LibDecoder {
     }
 
     function isValidSignature(bytes32 orderHash, bytes memory signature) public view returns (bytes32) {
-        require(SIGNER == _ecrecoverAddress(orderHash, signature), "MarketMakerProxy: invalid signature");
+        require(SIGNER == ECDSA.recover(ECDSA.toEthSignedMessageHash(orderHash), signature), "MarketMakerProxy: invalid signature");
         return keccak256("isValidWalletSignature(bytes32,address,bytes)");
-    }
-
-    function _ecrecoverAddress(bytes32 orderHash, bytes memory signature) internal pure returns (address) {
-        (uint8 v, bytes32 r, bytes32 s) = decodeMmSignature(signature);
-        return ECDSA.recover(ECDSA.toEthSignedMessageHash(orderHash), v, r, s);
     }
 }

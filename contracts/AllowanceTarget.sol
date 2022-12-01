@@ -19,7 +19,7 @@ contract AllowanceTarget is IAllowanceTarget {
         _;
     }
 
-    constructor(address _spender) public {
+    constructor(address _spender) {
         require(_spender != address(0), "AllowanceTarget: _spender should not be 0");
 
         // Set spender
