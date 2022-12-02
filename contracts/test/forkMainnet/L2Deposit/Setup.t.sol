@@ -59,7 +59,6 @@ contract TestL2Deposit is StrategySharedSetup {
             address(arbitrumLONAddr), // l2TokenAddr
             user, // sender
             user, // recipient
-            user, // arbitrumRefundAddr
             1 ether, // amount
             1234, // salt
             DEFAULT_DEADLINE, // expiry
@@ -101,7 +100,6 @@ contract TestL2Deposit is StrategySharedSetup {
                 "address l2TokenAddr,",
                 "address sender,",
                 "address recipient,",
-                "address arbitrumRefundAddr,",
                 "uint256 amount,",
                 "uint256 salt,",
                 "uint256 expiry,",
@@ -117,7 +115,6 @@ contract TestL2Deposit is StrategySharedSetup {
                 deposit.l2TokenAddr,
                 deposit.sender,
                 deposit.recipient,
-                deposit.arbitrumRefundAddr,
                 deposit.amount,
                 deposit.salt,
                 deposit.expiry,
