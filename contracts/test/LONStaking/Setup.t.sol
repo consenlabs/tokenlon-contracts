@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/Lon.sol";
 import "contracts/LONStaking.sol";
 import "contracts/xLON.sol";
+import "contracts/veLON.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 
 contract TestLONStaking is Test {
@@ -16,6 +17,8 @@ contract TestLONStaking is Test {
     uint256 constant COOLDOWN_SECONDS = 7 days;
     uint256 constant BPS_RAGE_EXIT_PENALTY = 500;
     uint256 constant BPS_MAX = 10000;
+    uint256 DEFAULT_LOCK_TIME = 2 weeks;
+    uint256 DEFAULT_VELON_STAKE_AMOUNT = 10 * (365 days);
 
     uint256 userPrivateKey = uint256(1);
     uint256 otherPrivateKey = uint256(2);
@@ -29,6 +32,7 @@ contract TestLONStaking is Test {
     Lon lon = new Lon(address(this), address(this));
     xLON xLon;
     LONStaking lonStaking;
+    veLON veLon;
 
     uint256 DEFAULT_STAKE_AMOUNT = 1e18;
     uint256 DEADLINE = block.timestamp + 1;
@@ -47,6 +51,7 @@ contract TestLONStaking is Test {
 
         xLon = new xLON(address(lonStakingImpl), upgradeAdmin, initData);
         lonStaking = LONStaking(address(xLon));
+        veLon = new veLON(address(lon));
 
         // Deal 100 ETH to user
         deal(user, 100 ether);
