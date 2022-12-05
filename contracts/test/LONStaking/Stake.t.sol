@@ -14,6 +14,7 @@ contract TestLONStakingStake is TestLONStaking {
     }
 
     function testCannotStakeWhenPaused() public {
+        vm.prank(stakingOwner);
         lonStaking.pause();
         vm.expectRevert("Pausable: paused");
         vm.prank(user);

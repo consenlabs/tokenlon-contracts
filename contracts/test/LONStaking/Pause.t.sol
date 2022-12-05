@@ -7,26 +7,28 @@ import "contracts-test/LONStaking/Setup.t.sol";
 contract TestLONStakingPause is TestLONStaking {
     function testCannotPauseByNotOwner() public {
         vm.expectRevert("not owner");
-        vm.prank(user);
         lonStaking.pause();
     }
 
     function testCannotUnpauseByNotOwner() public {
+        vm.prank(stakingOwner);
         lonStaking.pause();
 
         vm.expectRevert("not owner");
-        vm.prank(user);
         lonStaking.unpause();
     }
 
     function testPause() public {
+        vm.prank(stakingOwner);
         lonStaking.pause();
         assertTrue(lonStaking.paused());
     }
 
     function testUnpause() public {
+        vm.startPrank(stakingOwner);
         lonStaking.pause();
         lonStaking.unpause();
+        vm.stopPrank();
         assertFalse(lonStaking.paused());
     }
 }

@@ -25,6 +25,7 @@ contract TestLONStakingUnstake is TestLONStaking {
     function testUnstakeWhenPaused() public {
         _stake(user, DEFAULT_STAKE_AMOUNT);
 
+        vm.prank(stakingOwner);
         lonStaking.pause();
 
         assertEq(lonStaking.stakersCooldowns(user), 0);

@@ -7,7 +7,7 @@ import "contracts/interfaces/ILon.sol";
 
 contract TestLONStakingSetup is TestLONStaking {
     function testLONStakingSetup() public {
-        assertEq(lonStaking.owner(), address(this));
+        assertEq(lonStaking.owner(), stakingOwner);
         assertEq(address(lonStaking.lonToken()), address(lon));
         assertEq(lonStaking.COOLDOWN_IN_DAYS(), COOLDOWN_IN_DAYS);
         assertEq(lonStaking.BPS_RAGE_EXIT_PENALTY(), BPS_RAGE_EXIT_PENALTY);

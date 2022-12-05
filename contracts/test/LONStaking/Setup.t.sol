@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/Lon.sol";
 import "contracts/LONStaking.sol";
 import "contracts/xLON.sol";
+import "contracts/veLON.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 
 contract TestLONStaking is Test {
@@ -23,15 +24,20 @@ contract TestLONStaking is Test {
     address user = vm.addr(userPrivateKey);
     address other = vm.addr(otherPrivateKey);
     address upgradeAdmin = address(0x133701);
+    address stakingOwner = makeAddr("stakingOwner");
+    address veLONOwner = makeAddr("veLONOwner");
     address spender = address(0x133702);
     address fuzzingUserStartAddress = address(0x133703);
 
     Lon lon = new Lon(address(this), address(this));
     xLON xLon;
     LONStaking lonStaking;
+    veLON veLon;
 
     uint256 DEFAULT_STAKE_AMOUNT = 1e18;
     uint256 DEADLINE = block.timestamp + 1;
+    uint256 DEFAULT_LOCK_TIME = 2 weeks;
+    uint256 DEFAULT_VELON_STAKE_AMOUNT = 10 * (365 days);
 
     // effectively a "beforeEach" block
     function setUp() public virtual {
@@ -40,13 +46,14 @@ contract TestLONStaking is Test {
         bytes memory initData = abi.encodeWithSelector(
             LONStaking.initialize.selector,
             address(lon), // LON
-            address(this), // Owner
+            stakingOwner,
             COOLDOWN_IN_DAYS,
             BPS_RAGE_EXIT_PENALTY
         );
 
         xLon = new xLON(address(lonStakingImpl), upgradeAdmin, initData);
         lonStaking = LONStaking(address(xLon));
+        veLon = new veLON(veLONOwner, address(lon));
 
         // Deal 100 ETH to user
         deal(user, 100 ether);

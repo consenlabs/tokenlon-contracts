@@ -117,6 +117,7 @@ contract TestLONStakingRedeem is TestLONStaking {
         lonStaking.unstake();
 
         vm.warp(block.timestamp + COOLDOWN_SECONDS + 1);
+        vm.prank(stakingOwner);
         lonStaking.pause();
 
         uint256 redeemAmount = lonStaking.balanceOf(user);

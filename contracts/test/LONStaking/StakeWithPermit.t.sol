@@ -53,6 +53,7 @@ contract TestLONStakingStakeWithPermit is TestLONStaking {
         StakeWithPermit memory stakeWithPermit = DEFAULT_STAKEWITHPERMIT;
         (uint8 v, bytes32 r, bytes32 s) = _signStakeWithPermit(userPrivateKey, stakeWithPermit);
 
+        vm.prank(stakingOwner);
         lonStaking.pause();
         vm.expectRevert("Pausable: paused");
         vm.prank(user);
