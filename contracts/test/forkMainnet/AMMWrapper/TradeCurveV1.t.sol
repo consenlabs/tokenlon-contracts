@@ -21,6 +21,7 @@ contract TestAMMWrapperTradeCurveV1 is TestAMMWrapper {
         userProxy.toAMM(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        // FIXME assert balance change precisely
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
     }
 }

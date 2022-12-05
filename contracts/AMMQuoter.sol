@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
@@ -11,6 +12,7 @@ import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/IUniswapV3Quoter.sol";
 import "./interfaces/IBalancerV2Vault.sol";
 import "./utils/LibBytes.sol";
+import "./utils/LibConstant.sol";
 
 /// This contract is designed to be called off-chain.
 /// At T1, 4 requests would be made in order to get quote, which is for Uniswap v2, v3, Sushiswap and others.
@@ -22,14 +24,11 @@ contract AMMQuoter {
     using LibBytes for bytes;
 
     /* Constants */
-    string public constant version = "5.2.0";
-    address private constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    address private constant ZERO_ADDRESS = address(0);
-    address public constant UNISWAP_V2_ROUTER_02_ADDRESS = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address public constant UNISWAP_V3_ROUTER_ADDRESS = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    address public constant UNISWAP_V3_QUOTER_ADDRESS = 0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6;
-    address public constant SUSHISWAP_ROUTER_ADDRESS = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
-    address public constant BALANCER_V2_VAULT_ADDRESS = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
+    address public immutable UNISWAP_V2_ROUTER_02_ADDRESS;
+    address public immutable UNISWAP_V3_ROUTER_ADDRESS;
+    address public immutable UNISWAP_V3_QUOTER_ADDRESS;
+    address public immutable SUSHISWAP_ROUTER_ADDRESS;
+    address public immutable BALANCER_V2_VAULT_ADDRESS;
     address public immutable weth;
     IPermanentStorage public immutable permStorage;
 
@@ -44,13 +43,26 @@ contract AMMQuoter {
 
     event CurveTokenAdded(address indexed makerAddress, address indexed assetAddress, int128 index);
 
-    constructor(IPermanentStorage _permStorage, address _weth) {
+    constructor(
+        address _uniswapV2Router,
+        address _uniswapV3Router,
+        address _uniswapV3Quoter,
+        address _sushiwapRouter,
+        address _balancerV2Vault,
+        IPermanentStorage _permStorage,
+        address _weth
+    ) {
+        UNISWAP_V2_ROUTER_02_ADDRESS = _uniswapV2Router;
+        UNISWAP_V3_ROUTER_ADDRESS = _uniswapV3Router;
+        UNISWAP_V3_QUOTER_ADDRESS = _uniswapV3Quoter;
+        SUSHISWAP_ROUTER_ADDRESS = _sushiwapRouter;
+        BALANCER_V2_VAULT_ADDRESS = _balancerV2Vault;
         permStorage = _permStorage;
         weth = _weth;
     }
 
     function isETH(address assetAddress) public pure returns (bool) {
-        return (assetAddress == ZERO_ADDRESS || assetAddress == ETH_ADDRESS);
+        return (assetAddress == LibConstant.ZERO_ADDRESS || assetAddress == LibConstant.ETH_ADDRESS);
     }
 
     function _balancerFund() private view returns (IBalancerV2Vault.FundManagement memory) {
@@ -105,8 +117,8 @@ contract AMMQuoter {
         }
 
         // Try to match maker with Curve pool list
-        address curveTakerIntenalAsset = isETH(vars.takerAssetAddr) ? ETH_ADDRESS : vars.takerAssetAddr;
-        address curveMakerIntenalAsset = isETH(vars.makerAssetAddr) ? ETH_ADDRESS : vars.makerAssetAddr;
+        address curveTakerIntenalAsset = isETH(vars.takerAssetAddr) ? LibConstant.ETH_ADDRESS : vars.takerAssetAddr;
+        address curveMakerIntenalAsset = isETH(vars.makerAssetAddr) ? LibConstant.ETH_ADDRESS : vars.makerAssetAddr;
         (int128 fromTokenCurveIndex, int128 toTokenCurveIndex, uint16 swapMethod, ) = permStorage.getCurvePoolInfo(
             vars.makerAddr,
             curveTakerIntenalAsset,
@@ -141,8 +153,8 @@ contract AMMQuoter {
             uint256[] memory amounts = router.getAmountsOut(_takerAssetAmount, path);
             makerAssetAmount = amounts[1];
         } else {
-            address curveTakerIntenalAsset = isETH(_takerAssetAddr) ? ETH_ADDRESS : _takerAssetAddr;
-            address curveMakerIntenalAsset = isETH(_makerAssetAddr) ? ETH_ADDRESS : _makerAssetAddr;
+            address curveTakerIntenalAsset = isETH(_takerAssetAddr) ? LibConstant.ETH_ADDRESS : _takerAssetAddr;
+            address curveMakerIntenalAsset = isETH(_makerAssetAddr) ? LibConstant.ETH_ADDRESS : _makerAssetAddr;
             (int128 fromTokenCurveIndex, int128 toTokenCurveIndex, uint16 swapMethod, ) = permStorage.getCurvePoolInfo(
                 _makerAddr,
                 curveTakerIntenalAsset,
@@ -258,8 +270,8 @@ contract AMMQuoter {
         }
 
         // Try to match maker with Curve pool list
-        address curveTakerIntenalAsset = isETH(vars.takerAssetAddr) ? ETH_ADDRESS : vars.takerAssetAddr;
-        address curveMakerIntenalAsset = isETH(vars.makerAssetAddr) ? ETH_ADDRESS : vars.makerAssetAddr;
+        address curveTakerIntenalAsset = isETH(vars.takerAssetAddr) ? LibConstant.ETH_ADDRESS : vars.takerAssetAddr;
+        address curveMakerIntenalAsset = isETH(vars.makerAssetAddr) ? LibConstant.ETH_ADDRESS : vars.makerAssetAddr;
         (int128 fromTokenCurveIndex, int128 toTokenCurveIndex, uint16 swapMethod, bool supportGetDx) = permStorage.getCurvePoolInfo(
             vars.makerAddr,
             curveTakerIntenalAsset,
@@ -295,8 +307,8 @@ contract AMMQuoter {
             uint256[] memory amounts = router.getAmountsIn(_makerAssetAmount, path);
             takerAssetAmount = amounts[0];
         } else {
-            address curveTakerIntenalAsset = isETH(_takerAssetAddr) ? ETH_ADDRESS : _takerAssetAddr;
-            address curveMakerIntenalAsset = isETH(_makerAssetAddr) ? ETH_ADDRESS : _makerAssetAddr;
+            address curveTakerIntenalAsset = isETH(_takerAssetAddr) ? LibConstant.ETH_ADDRESS : _takerAssetAddr;
+            address curveMakerIntenalAsset = isETH(_makerAssetAddr) ? LibConstant.ETH_ADDRESS : _makerAssetAddr;
             (int128 fromTokenCurveIndex, int128 toTokenCurveIndex, uint16 swapMethod, bool supportGetDx) = permStorage.getCurvePoolInfo(
                 _makerAddr,
                 curveTakerIntenalAsset,

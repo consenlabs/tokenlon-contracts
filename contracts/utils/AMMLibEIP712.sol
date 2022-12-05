@@ -2,10 +2,6 @@
 pragma solidity ^0.7.6;
 
 library AMMLibEIP712 {
-    /***********************************|
-    |             Constants             |
-    |__________________________________*/
-
     struct Order {
         address makerAddr;
         address takerAssetAddr;

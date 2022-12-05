@@ -22,4 +22,5 @@ fuzz_max_global_rejects = 10000000
 auto_detect_solc = true                                       # enable auto-detection of the appropriate solc version to use
 ignored_error_codes = []                                      # a list of ignored solc error codes
 
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

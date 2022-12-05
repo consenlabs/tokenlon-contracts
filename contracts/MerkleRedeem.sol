@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
-pragma experimental ABIEncoderV2;
+pragma abicoder v2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "./interfaces/IEmergency.sol";
-import "./Ownable.sol";
+import "./utils/Ownable.sol";
 import "./utils/MerkleProof.sol";
 
 contract MerkleRedeem is Ownable, ReentrancyGuard, IEmergency {

@@ -13,5 +13,5 @@
       "~/*": ["*"]
     }
   },
-  "include": ["hardhat.config.ts", "lib/**/*", "test/**/*"]
+  "include": ["hardhat.config.ts"]
 }

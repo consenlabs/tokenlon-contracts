@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
 import "../interfaces/IERC1271Wallet.sol";
@@ -28,9 +29,6 @@ contract SignatureValidator {
 
     // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
     bytes4 internal constant ERC1271_MAGICVALUE_BYTES32 = 0x1626ba7e;
-
-    // keccak256("isValidWalletSignature(bytes32,address,bytes)")
-    bytes4 internal constant ERC1271_FALLBACK_MAGICVALUE_BYTES32 = 0xb0671381;
 
     // Allowed signature types.
     enum SignatureType {
