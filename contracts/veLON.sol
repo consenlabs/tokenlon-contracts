@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
 import "./interfaces/IveLON.sol";
 import "./interfaces/ILon.sol";
 import "./interfaces/IMigrateStake.sol";
-import "./Ownable.sol";
+import "./utils/Ownable.sol";
 
 contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
