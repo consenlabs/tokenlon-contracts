@@ -92,7 +92,7 @@ contract TestLONStakingConversion is TestLONStaking {
         uint256 _duration,
         uint256 _amount,
         uint256 _maxLockDuration
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         uint256 lockEnd = _duration.add(block.timestamp).div(1 weeks).mul(1 weeks);
         uint256 power = _amount.div(_maxLockDuration).mul(lockEnd.sub(block.timestamp));
         return power;

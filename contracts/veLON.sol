@@ -208,13 +208,13 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
     }
 
     function _transfer(
-        address from,
-        address to,
-        uint256 tokenId
+        address _from,
+        address _to,
+        uint256 _tokenId
     ) internal override {
         // set the block of ownership transfer (for Flash NFT protection)
-        ownershipChange[tokenId] = block.number;
-        super._transfer(from, to, tokenId);
+        ownershipChange[_tokenId] = block.number;
+        super._transfer(_from, _to, _tokenId);
     }
 
     /// @notice Get timestamp when `_tokenId`'s lock finishes
@@ -251,14 +251,14 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         require(_value > 0, "Zero lock amount");
 
         // unlockTime is rounded down to weeks
-        uint256 unlockTime = ((block.timestamp).add(_lockDuration)).div(WEEK).mul(WEEK);
-        require(unlockTime > block.timestamp, "Lock duration too short");
-        require(unlockTime <= (block.timestamp).add(maxLockDuration), "Unlock time exceed maximun");
+        uint256 _unlockTime = ((block.timestamp).add(_lockDuration)).div(WEEK).mul(WEEK);
+        require(_unlockTime > block.timestamp, "Lock duration too short");
+        require(_unlockTime <= (block.timestamp).add(maxLockDuration), "Unlock time exceed maximun");
 
         ++tokenId;
         uint256 _tokenId = tokenId;
         _safeMint(_to, _tokenId);
-        _depositFor(_tokenId, _value, unlockTime, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
+        _depositFor(_tokenId, _value, _unlockTime, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
         return _tokenId;
     }
 
@@ -286,11 +286,11 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         require(_locked.end > block.timestamp, "Lock expired");
         require(_locked.amount > 0, "Nothing is locked");
 
-        uint256 unlockTime = ((block.timestamp).add(_lockDuration)).div(WEEK).mul(WEEK);
-        require(unlockTime > _locked.end, "Can only increase lock duration");
-        require(unlockTime <= (block.timestamp).add(maxLockDuration), "Unlock time exceed maximun");
+        uint256 _unlockTime = ((block.timestamp).add(_lockDuration)).div(WEEK).mul(WEEK);
+        require(_unlockTime > _locked.end, "Can only increase lock duration");
+        require(_unlockTime <= (block.timestamp).add(maxLockDuration), "Unlock time exceed maximun");
 
-        _depositFor(_tokenId, 0, unlockTime, _locked, DepositType.INCREASE_UNLOCK_TIME);
+        _depositFor(_tokenId, 0, _unlockTime, _locked, DepositType.INCREASE_UNLOCK_TIME);
     }
 
     /// @notice Deposit and lock tokens for a user
@@ -554,7 +554,7 @@ contract veLON is IveLON, ERC721, Ownable, ReentrancyGuard {
         revert();
     }
 
-    function _lockIsActive(LockedBalance memory lock) private returns (bool) {
+    function _lockIsActive(LockedBalance memory lock) private view returns (bool) {
         return lock.end > block.timestamp && lock.amount > 0;
     }
 
