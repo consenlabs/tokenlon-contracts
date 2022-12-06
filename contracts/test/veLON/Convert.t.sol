@@ -9,6 +9,8 @@ contract TestVeLONDeposit is TestVeLON {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
     using SafeMath for uint256;
 
+    bytes convertData = abi.encode(address(this));
+
     function testEnableAndDisableConversion() public {
         MockMigrateStake migrateStake = new MockMigrateStake(address(lon));
         uint256 penaltyRateBefore = veLon.earlyWithdrawPenaltyRate();
@@ -17,12 +19,12 @@ contract TestVeLONDeposit is TestVeLON {
         assertEq(veLon.conversion(), false);
         vm.prank(user);
         vm.expectRevert("conversion is not enabled");
-        veLon.convert("some thing");
+        veLon.convert(convertData);
 
         // enable the conversion
         veLon.enableConversion(address(migrateStake));
         vm.prank(user);
-        veLon.convert("some thing");
+        veLon.convert(convertData);
 
         assertEq(veLon.dstToken(), address(migrateStake));
         assertEq(veLon.conversion(), true);
@@ -37,7 +39,7 @@ contract TestVeLONDeposit is TestVeLON {
 
         vm.prank(user);
         vm.expectRevert("conversion is not enabled");
-        veLon.convert("some thing");
+        veLon.convert(convertData);
     }
 
     function testConvertVeLontoMigrateStake() public {
@@ -54,7 +56,7 @@ contract TestVeLONDeposit is TestVeLON {
         uint256 totalNftSupply = veLon.totalSupply();
         veLon.enableConversion(address(migrateStake));
         vm.prank(staker);
-        uint256 convertedAmount = veLon.convert("some thing");
+        uint256 convertedAmount = veLon.convert(convertData);
 
         veLonLon.assertChange(-int256(stakeAmount));
         migrateStakeLon.assertChange(int256(stakeAmount));
