@@ -46,8 +46,6 @@ contract TestVeLONBalance is TestVeLON {
         vm.warp(block.timestamp + dt);
         vm.roll(block.number + 1);
 
-        // calculate bob's current vBalance
-        uint256 bobBalance = expectedBobInitvBal.sub(dt * 15);
         total = total.sub(dt * 15);
 
         uint256 aliceStakeAmount = 31 * 365 days;
@@ -364,7 +362,7 @@ contract TestVeLONBalance is TestVeLON {
 
     // test vBalanceOfAtTime() when the target _t is before lastPoint.ts
     function testTotalVBalanceAtTimeBeforeLastPoint() public {
-        uint256 aliceTokenId = _stakeAndValidate(alice, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        _stakeAndValidate(alice, DEFAULT_STAKE_AMOUNT, 2 weeks);
         uint256 aliceBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
 
         assertEq(veLon.epoch(), 1);
@@ -402,7 +400,7 @@ contract TestVeLONBalance is TestVeLON {
 
     // test totalVBalanceAtBlk() when the target block is before lastPoint.blk
     function testTotalVBalanceAtBlkBeforeLastPoint() public {
-        uint256 aliceTokenId = _stakeAndValidate(alice, DEFAULT_STAKE_AMOUNT, 4 weeks);
+        _stakeAndValidate(alice, DEFAULT_STAKE_AMOUNT, 4 weeks);
         uint256 aliceBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 4 weeks);
 
         assertEq(veLon.epoch(), 1);
@@ -411,7 +409,7 @@ contract TestVeLONBalance is TestVeLON {
         // fast forward 2 weeks and 2 blocks, second user createlock
         vm.warp(block.timestamp + 2 weeks);
         vm.roll(block.number + 2);
-        uint256 bobTokenId = _stakeAndValidate(bob, DEFAULT_STAKE_AMOUNT, 2 weeks);
+        _stakeAndValidate(bob, DEFAULT_STAKE_AMOUNT, 2 weeks);
         uint256 bobBalance = _initialvBalance(DEFAULT_STAKE_AMOUNT, 2 weeks);
 
         // verify the totalvBalance now

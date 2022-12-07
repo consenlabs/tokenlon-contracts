@@ -82,7 +82,7 @@ contract TestVeLON is Test {
      *         Stake utils           *
      *********************************/
     // compute the initial voting power added when staking
-    function _initialvBalance(uint256 stakeAmount, uint256 lockDuration) internal returns (uint256) {
+    function _initialvBalance(uint256 stakeAmount, uint256 lockDuration) internal view returns (uint256) {
         // Unlocktime is rounded down to weeks
         uint256 unlockTime = (block.timestamp.add(lockDuration)).mul(1 weeks).div(1 weeks);
 

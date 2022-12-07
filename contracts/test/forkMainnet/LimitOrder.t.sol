@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
@@ -17,6 +17,7 @@ import "contracts-test/utils/BalanceSnapshot.sol";
 import "contracts-test/utils/StrategySharedSetup.sol";
 import "contracts-test/utils/UniswapV3Util.sol";
 import "contracts-test/utils/SushiswapUtil.sol";
+import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
 
 contract LimitOrderTest is StrategySharedSetup {
     using SafeMath for uint256;
@@ -38,9 +39,8 @@ contract LimitOrderTest is StrategySharedSetup {
         address relayer,
         address profitRecipient,
         ILimitOrder.FillReceipt fillReceipt,
-        uint256 takerTokenProfit,
-        uint256 takerTokenProfitFee,
-        uint256 takerTokenProfitBackToMaker
+        uint256 relayerTakerTokenProfit,
+        uint256 relayerTakerTokenProfitFee
     );
 
     uint256 userPrivateKey = uint256(1);
@@ -50,16 +50,12 @@ contract LimitOrderTest is StrategySharedSetup {
     address user = vm.addr(userPrivateKey);
     address maker = vm.addr(makerPrivateKey);
     address coordinator = vm.addr(coordinatorPrivateKey);
-    address receiver = address(0x133702);
-    address feeCollector = address(0x133703);
+    address owner = makeAddr("owner");
+    address feeCollector = makeAddr("feeCollector");
+    address receiver = makeAddr("receiver");
     MockERC1271Wallet mockERC1271Wallet = new MockERC1271Wallet(user);
     address[] wallet = [user, maker, coordinator, address(mockERC1271Wallet)];
-
-    IWETH weth = IWETH(WETH_ADDRESS);
-    IERC20 usdt = IERC20(USDT_ADDRESS);
-    IERC20 dai = IERC20(DAI_ADDRESS);
-    IERC20[] tokens = [dai, usdt];
-    address[] tokenAddrs = [address(dai), address(usdt)];
+    address[] tokenAddrs;
 
     LimitOrderLibEIP712.Order DEFAULT_ORDER;
     bytes32 DEFAULT_ORDER_HASH;
@@ -78,6 +74,8 @@ contract LimitOrderTest is StrategySharedSetup {
         // Setup
         setUpSystemContracts();
 
+        tokenAddrs = [address(dai), address(usdt)];
+
         // Default params
         DEFAULT_ORDER = LimitOrderLibEIP712.Order(
             dai, // makerToken
@@ -89,7 +87,7 @@ contract LimitOrderTest is StrategySharedSetup {
             uint256(1001), // salt
             DEADLINE // expiry
         );
-        DEFAULT_ORDER_HASH = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(DEFAULT_ORDER));
+        DEFAULT_ORDER_HASH = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(DEFAULT_ORDER));
         DEFAULT_ORDER_MAKER_SIG = _signOrder(makerPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
         DEFAULT_FILL = LimitOrderLibEIP712.Fill(DEFAULT_ORDER_HASH, user, receiver, DEFAULT_ORDER.takerTokenAmount, uint256(1002), DEADLINE);
         DEFAULT_TRADER_PARAMS = ILimitOrder.TraderParams(
@@ -144,22 +142,35 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
         limitOrder = new LimitOrder(
-            address(this), // This contract would be the operator
-            coordinator,
+            owner,
             address(userProxy),
-            ISpender(address(spender)),
-            IPermanentStorage(address(permanentStorage)),
-            IWETH(address(weth)),
+            address(weth),
+            address(permanentStorage),
+            address(spender),
+            coordinator,
             UNISWAP_V3_ADDRESS,
             SUSHISWAP_ADDRESS,
             feeCollector
         );
         // Setup
         userProxy.upgradeLimitOrder(address(limitOrder), true);
+        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeLimitOrder(address(limitOrder));
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(limitOrder), true);
         permanentStorage.setPermission(permanentStorage.allowFillSeenStorageId(), address(limitOrder), true);
+        vm.stopPrank();
         return address(limitOrder);
+    }
+
+    function _setupDeployedStrategy() internal override {
+        limitOrder = LimitOrder(payable(vm.envAddress("LIMITORDER_ADDRESS")));
+
+        // prank owner and update coordinator address
+        owner = limitOrder.owner();
+        vm.prank(owner, owner);
+        limitOrder.upgradeCoordinator(coordinator);
+        // update local feeCollector address
+        feeCollector = limitOrder.feeCollector();
     }
 
     /*********************************
@@ -167,7 +178,7 @@ contract LimitOrderTest is StrategySharedSetup {
      *********************************/
 
     function testSetupLimitOrder() public {
-        assertEq(limitOrder.operator(), address(this));
+        assertEq(limitOrder.owner(), owner);
         assertEq(limitOrder.coordinator(), coordinator);
         assertEq(limitOrder.userProxy(), address(userProxy));
         assertEq(address(limitOrder.spender()), address(spender));
@@ -179,45 +190,50 @@ contract LimitOrderTest is StrategySharedSetup {
         assertEq(uint256(limitOrder.makerFeeFactor()), 0);
         assertEq(uint256(limitOrder.takerFeeFactor()), 0);
         assertEq(uint256(limitOrder.profitFeeFactor()), 0);
-        assertEq(uint256(limitOrder.profitCapFactor()), uint256(LibConstant.BPS_MAX));
     }
 
     /*********************************
      *     Test: transferOwnership   *
      *********************************/
 
-    function testCannotTransferOwnershipByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotTransferOwnershipByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
-        limitOrder.transferOwnership(user);
+        limitOrder.nominateNewOwner(user);
     }
 
-    function testCannotTransferOwnershipToZeroAddr() public {
-        vm.expectRevert("LimitOrder: operator can not be zero address");
-        limitOrder.transferOwnership(address(0));
+    function testCannotAcceptOwnershipIfNotNominated() public {
+        vm.expectRevert("not nominated");
+        vm.prank(user);
+        limitOrder.acceptOwnership();
     }
 
     function testTransferOwnership() public {
-        limitOrder.transferOwnership(user);
-        assertEq(limitOrder.operator(), user);
+        vm.prank(owner, owner);
+        limitOrder.nominateNewOwner(user);
+        vm.prank(user);
+        limitOrder.acceptOwnership();
+        assertEq(limitOrder.owner(), user);
     }
 
     /*********************************
      *     Test: upgradeSpender      *
      *********************************/
 
-    function testCannotUpgradeSpenderByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotUpgradeSpenderByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.upgradeSpender(user);
     }
 
     function testCannotUpgradeSpenderToZeroAddr() public {
-        vm.expectRevert("LimitOrder: spender can not be zero address");
+        vm.expectRevert("Strategy: spender can not be zero address");
+        vm.prank(owner, owner);
         limitOrder.upgradeSpender(address(0));
     }
 
     function testUpgradeSpender() public {
+        vm.prank(owner, owner);
         limitOrder.upgradeSpender(user);
         assertEq(address(limitOrder.spender()), user);
     }
@@ -226,18 +242,20 @@ contract LimitOrderTest is StrategySharedSetup {
      *     Test: upgradeCoordinator  *
      *********************************/
 
-    function testCannotUpgradeCoordinatorByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotUpgradeCoordinatorByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.upgradeCoordinator(user);
     }
 
     function testCannotUpgradeCoordinatorToZeroAddr() public {
         vm.expectRevert("LimitOrder: coordinator can not be zero address");
+        vm.prank(owner, owner);
         limitOrder.upgradeCoordinator(address(0));
     }
 
     function testUpgradeCoordinator() public {
+        vm.prank(owner, owner);
         limitOrder.upgradeCoordinator(user);
         assertEq(address(limitOrder.coordinator()), user);
     }
@@ -246,25 +264,27 @@ contract LimitOrderTest is StrategySharedSetup {
      *   Test: set/close allowance   *
      *********************************/
 
-    function testCannotSetAllowanceByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotSetAllowanceByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.setAllowance(tokenAddrs, address(allowanceTarget));
     }
 
-    function testCannotCloseAllowanceByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotCloseAllowanceByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.closeAllowance(tokenAddrs, address(allowanceTarget));
     }
 
     function testSetAndCloseAllowance() public {
         // Set allowance
+        vm.prank(owner, owner);
         limitOrder.setAllowance(tokenAddrs, address(allowanceTarget));
         assertEq(usdt.allowance(address(limitOrder), address(allowanceTarget)), LibConstant.MAX_UINT);
         assertEq(dai.allowance(address(limitOrder), address(allowanceTarget)), LibConstant.MAX_UINT);
 
         // Close allowance
+        vm.prank(owner, owner);
         limitOrder.closeAllowance(tokenAddrs, address(allowanceTarget));
         assertEq(usdt.allowance(address(limitOrder), address(allowanceTarget)), 0);
         assertEq(dai.allowance(address(limitOrder), address(allowanceTarget)), 0);
@@ -274,8 +294,8 @@ contract LimitOrderTest is StrategySharedSetup {
      *        Test: depoitETH        *
      *********************************/
 
-    function testCannotDepositETHByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotDepositETHByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.depositETH();
     }
@@ -284,6 +304,7 @@ contract LimitOrderTest is StrategySharedSetup {
         // Send ether to limit order contract
         uint256 amount = 1234 ether;
         deal(address(limitOrder), amount);
+        vm.prank(owner, owner);
         limitOrder.depositETH();
         assertEq(weth.balanceOf(address(limitOrder)), amount);
     }
@@ -294,39 +315,44 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function testCannotSetFactorsIfLargerThanBpsMax() public {
         vm.expectRevert("LimitOrder: Invalid maker fee factor");
-        limitOrder.setFactors(LibConstant.BPS_MAX + 1, 1, 1, 1);
+        vm.prank(owner, owner);
+        limitOrder.setFactors(LibConstant.BPS_MAX + 1, 1, 1);
+
         vm.expectRevert("LimitOrder: Invalid taker fee factor");
-        limitOrder.setFactors(1, LibConstant.BPS_MAX + 1, 1, 1);
+        vm.prank(owner, owner);
+        limitOrder.setFactors(1, LibConstant.BPS_MAX + 1, 1);
+
         vm.expectRevert("LimitOrder: Invalid profit fee factor");
-        limitOrder.setFactors(1, 1, LibConstant.BPS_MAX + 1, 1);
-        vm.expectRevert("LimitOrder: Invalid profit cap factor");
-        limitOrder.setFactors(1, 1, 1, LibConstant.BPS_MAX + 1);
+        vm.prank(owner, owner);
+        limitOrder.setFactors(1, 1, LibConstant.BPS_MAX + 1);
     }
 
     function testSetFactors() public {
-        limitOrder.setFactors(1, 2, 3, 4);
+        vm.prank(owner, owner);
+        limitOrder.setFactors(1, 2, 3);
         assertEq(uint256(limitOrder.makerFeeFactor()), 1);
         assertEq(uint256(limitOrder.takerFeeFactor()), 2);
         assertEq(uint256(limitOrder.profitFeeFactor()), 3);
-        assertEq(uint256(limitOrder.profitCapFactor()), 4);
     }
 
     /*********************************
      *     Test: setFeeCollector     *
      *********************************/
 
-    function testCannotSetFeeCollectorByNotOperator() public {
-        vm.expectRevert("LimitOrder: not operator");
+    function testCannotSetFeeCollectorByNotOwner() public {
+        vm.expectRevert("not owner");
         vm.prank(user);
         limitOrder.setFeeCollector(feeCollector);
     }
 
     function testCannotSetFeeCollectorToZeroAddr() public {
         vm.expectRevert("LimitOrder: fee collector can not be zero address");
+        vm.prank(owner, owner);
         limitOrder.setFeeCollector(address(0));
     }
 
     function testSetFeeCollector() public {
+        vm.prank(owner, owner);
         limitOrder.setFeeCollector(user);
         assertEq(address(limitOrder.feeCollector()), user);
     }
@@ -336,7 +362,7 @@ contract LimitOrderTest is StrategySharedSetup {
      *********************************/
 
     function testCannotFillByTraderIfNotFromUserProxy() public {
-        vm.expectRevert("LimitOrder: not the UserProxy contract");
+        vm.expectRevert("Strategy: not from UserProxy contract");
         // Call limit order contract directly will get reverted since msg.sender is not from UserProxy
         limitOrder.fillLimitOrderByTrader(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
     }
@@ -372,7 +398,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         order.expiry = uint64(block.timestamp - 1);
 
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -416,7 +442,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
         order.taker = coordinator;
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -594,8 +620,9 @@ contract LimitOrderTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.takerToken));
 
         // makerFeeFactor/takerFeeFactor : 10%
-        // profitFeeFactor/profitCapFactor : 20%
-        limitOrder.setFactors(1000, 1000, 2000, 2000);
+        // profitFeeFactor : 20%
+        vm.prank(owner, owner);
+        limitOrder.setFactors(1000, 1000, 2000);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectEmit(true, true, true, true);
@@ -603,7 +630,7 @@ contract LimitOrderTest is StrategySharedSetup {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.maker,
             user,
-            _getEIP712Hash(LimitOrderLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
+            getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
             DEFAULT_TRADER_PARAMS.recipient,
             ILimitOrder.FillReceipt(
                 address(DEFAULT_ORDER.makerToken),
@@ -650,7 +677,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
         order.taker = user;
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -674,7 +701,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
         order.taker = user;
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrderWithOldEIP712Method(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -811,7 +838,7 @@ contract LimitOrderTest is StrategySharedSetup {
     }
 
     function testCannotFillByProtocolIfNotFromUserProxy() public {
-        vm.expectRevert("LimitOrder: not the UserProxy contract");
+        vm.expectRevert("Strategy: not from UserProxy contract");
         // Call limit order contract directly will get reverted since msg.sender is not from UserProxy
         limitOrder.fillLimitOrderByProtocol(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
     }
@@ -841,7 +868,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         order.expiry = uint64(block.timestamp - 1);
 
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -872,7 +899,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
         order.taker = SUSHISWAP_ADDRESS;
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
@@ -905,7 +932,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerTokenAmount = 9000 * 1e6;
 
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
@@ -1017,12 +1044,14 @@ contract LimitOrderTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.takerToken));
 
         // makerFeeFactor/takerFeeFactor : 10%
-        // profitFeeFactor/profitCapFactor : 20%
-        limitOrder.setFactors(1000, 1000, 2000, 2000);
+        // profitFeeFactor : 20%
+        vm.prank(owner, owner);
+        limitOrder.setFactors(1000, 1000, 2000);
 
         // get quote from AMM
         uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);
-        uint256 profit = ammTakerTokenOut.sub(DEFAULT_ORDER.takerTokenAmount);
+        uint256 ammOutputExtra = ammTakerTokenOut.sub(DEFAULT_ORDER.takerTokenAmount);
+        uint256 relayerTakerTokenProfitFee = ammOutputExtra.mul(20).div(100);
 
         // Allow fill is bound by tx.origin in protocol case.
         vm.startPrank(user, user);
@@ -1032,7 +1061,7 @@ contract LimitOrderTest is StrategySharedSetup {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.maker,
             UNISWAP_V3_ADDRESS,
-            _getEIP712Hash(LimitOrderLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
+            getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
             user,
             receiver,
             ILimitOrder.FillReceipt(
@@ -1044,21 +1073,85 @@ contract LimitOrderTest is StrategySharedSetup {
                 0, // makerTokenFee should be zero in protocol case
                 DEFAULT_ORDER.takerTokenAmount.mul(10).div(100) // takerTokenFee = 10% takerTokenAmount
             ),
-            profit, // takerTokenProfit
-            profit.mul(20).div(100), // takerTokenProfitFee = 20% takerTokenProfit
-            0 // takerTokenProfitBackToMaker
+            ammOutputExtra.sub(relayerTakerTokenProfitFee), // relayerTakerTokenProfit
+            relayerTakerTokenProfitFee // relayerTakerTokenProfitFee
         );
         userProxy.toLimitOrder(payload);
         vm.stopPrank();
 
         userTakerAsset.assertChange(0);
-        // To avoid precision issue
-        receiverTakerAsset.assertChangeGt(int256(profit.mul(80).div(100)));
+        // To avoid precision issue, use great than instead
+        receiverTakerAsset.assertChangeGt(int256(ammOutputExtra.mul(80).div(100)));
         makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(90).div(100)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
-        uint256 feeTotal = DEFAULT_ORDER.takerTokenAmount.mul(10).div(100);
-        feeTotal = feeTotal.add(profit.mul(20).div(100));
-        fcTakerAsset.assertChange(int256(feeTotal));
+
+        // fee = taker fee + relayer profit fee
+        uint256 fee = DEFAULT_ORDER.takerTokenAmount.mul(10).div(100);
+        fee = fee.add(relayerTakerTokenProfitFee);
+        fcTakerAsset.assertChangeGt(int256(fee));
+    }
+
+    function testFillByProtocolRelayerProfit() public {
+        address relayer = 0x52D82cD20F092DB55fb1e006a2C2773AB17F6Ff2;
+        BalanceSnapshot.Snapshot memory relayerTakerAsset = BalanceSnapshot.take(relayer, address(DEFAULT_ORDER.takerToken));
+
+        // set order with extreme low price leaving huge profit for relayer
+        LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.takerTokenAmount = 1 * 1e6;
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+
+        // update protocolParams
+        ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
+        protocolParams.takerTokenAmount = order.takerTokenAmount;
+        protocolParams.profitRecipient = relayer;
+
+        // update allowFill
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = orderHash;
+        allowFill.executor = relayer;
+        allowFill.fillAmount = order.takerTokenAmount;
+
+        // update crdParams
+        ILimitOrder.CoordinatorParams memory crdParams = ILimitOrder.CoordinatorParams(
+            _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712),
+            allowFill.salt,
+            allowFill.expiry
+        );
+
+        // get expected profit for relayer
+        uint256 ammOutputExtra = quoteUniswapV3ExactInput(protocolParams.data, order.makerTokenAmount).sub(order.takerTokenAmount);
+
+        vm.startPrank(relayer, relayer);
+        vm.expectEmit(true, true, true, true);
+        ILimitOrder.FillReceipt memory fillReceipt = ILimitOrder.FillReceipt(
+            address(order.makerToken),
+            address(order.takerToken),
+            order.makerTokenAmount,
+            order.takerTokenAmount,
+            0, // remainingAmount should be zero after order fully filled
+            0, // makerTokenFee should be zero in protocol case
+            0 // takerTokenFee = 0 since feeFactor = 0
+        );
+        emit LimitOrderFilledByProtocol(
+            orderHash,
+            order.maker,
+            UNISWAP_V3_ADDRESS,
+            getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getAllowFillStructHash(allowFill)),
+            relayer, // relayer
+            relayer, // profitRecipient
+            fillReceipt,
+            ammOutputExtra, // relayerTakerTokenProfit
+            0 // profit fee = 0
+        );
+        userProxy.toLimitOrder(_genFillByProtocolPayload(order, makerSig, protocolParams, crdParams));
+        vm.stopPrank();
+
+        // whole profit should be given to relayer
+        relayerTakerAsset.assertChange(int256(ammOutputExtra));
+        // no token should left in limitOrder
+        assertEq(order.makerToken.balanceOf(address(limitOrder)), 0);
+        assertEq(order.takerToken.balanceOf(address(limitOrder)), 0);
     }
 
     function testFullyFillBySushiSwap() public {
@@ -1077,7 +1170,7 @@ contract LimitOrderTest is StrategySharedSetup {
         // Since profitFeeFactor is zero, so the extra token from AMM is the profit for relayer.
         uint256 profit = amountOuts[amountOuts.length - 1].sub(order.takerTokenAmount);
 
-        bytes32 orderHash = _getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerHash = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
@@ -1161,19 +1254,13 @@ contract LimitOrderTest is StrategySharedSetup {
      *             Helpers           *
      *********************************/
 
-    function _getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
-        string memory EIP191_HEADER = "\x19\x01";
-        bytes32 EIP712_DOMAIN_SEPARATOR = limitOrder.EIP712_DOMAIN_SEPARATOR();
-        return keccak256(abi.encodePacked(EIP191_HEADER, EIP712_DOMAIN_SEPARATOR, structHash));
-    }
-
     function _signOrder(
         uint256 privateKey,
         LimitOrderLibEIP712.Order memory order,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = LimitOrderLibEIP712._getOrderStructHash(order);
-        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
         if (sigType == SignatureValidator.SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -1192,7 +1279,7 @@ contract LimitOrderTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = LimitOrderLibEIP712._getOrderStructHash(order);
-        bytes32 EIP712SignDigest = _getEIP712Hash(orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), orderHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
@@ -1204,7 +1291,7 @@ contract LimitOrderTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 fillHash = LimitOrderLibEIP712._getFillStructHash(fill);
-        bytes32 EIP712SignDigest = _getEIP712Hash(fillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), fillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
     }
@@ -1215,7 +1302,7 @@ contract LimitOrderTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 fillHash = LimitOrderLibEIP712._getFillStructHash(fill);
-        bytes32 EIP712SignDigest = _getEIP712Hash(fillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), fillHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
@@ -1227,7 +1314,7 @@ contract LimitOrderTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 allowFillHash = LimitOrderLibEIP712._getAllowFillStructHash(allowFill);
-        bytes32 EIP712SignDigest = _getEIP712Hash(allowFillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
     }
@@ -1238,7 +1325,7 @@ contract LimitOrderTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 allowFillHash = LimitOrderLibEIP712._getAllowFillStructHash(allowFill);
-        bytes32 EIP712SignDigest = _getEIP712Hash(allowFillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
@@ -1250,14 +1337,7 @@ contract LimitOrderTest is StrategySharedSetup {
         ILimitOrder.TraderParams memory params,
         ILimitOrder.CoordinatorParams memory crdParams
     ) internal view returns (bytes memory payload) {
-        return
-            abi.encodeWithSignature(
-                "fillLimitOrderByTrader((address,address,uint256,uint256,address,address,uint256,uint64),bytes,(address,address,uint256,uint256,uint64,bytes),(bytes,uint256,uint64))",
-                order,
-                orderMakerSig,
-                params,
-                crdParams
-            );
+        return abi.encodeWithSelector(limitOrder.fillLimitOrderByTrader.selector, order, orderMakerSig, params, crdParams);
     }
 
     function _genFillByProtocolPayload(
@@ -1266,14 +1346,7 @@ contract LimitOrderTest is StrategySharedSetup {
         ILimitOrder.ProtocolParams memory params,
         ILimitOrder.CoordinatorParams memory crdParams
     ) internal view returns (bytes memory payload) {
-        return
-            abi.encodeWithSignature(
-                "fillLimitOrderByProtocol((address,address,uint256,uint256,address,address,uint256,uint64),bytes,(uint8,bytes,address,uint256,uint256,uint64),(bytes,uint256,uint64))",
-                order,
-                orderMakerSig,
-                params,
-                crdParams
-            );
+        return abi.encodeWithSelector(limitOrder.fillLimitOrderByProtocol.selector, order, orderMakerSig, params, crdParams);
     }
 
     function _genCancelLimitOrderPayload(LimitOrderLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
@@ -1281,6 +1354,6 @@ contract LimitOrderTest is StrategySharedSetup {
         view
         returns (bytes memory payload)
     {
-        return abi.encodeWithSignature("cancelLimitOrder((address,address,uint256,uint256,address,address,uint256,uint64),bytes)", order, cancelOrderMakerSig);
+        return abi.encodeWithSelector(limitOrder.cancelLimitOrder.selector, order, cancelOrderMakerSig);
     }
 }

@@ -11,6 +11,8 @@ abstract contract Multicall is IMulticall {
         results = new bytes[](data.length);
         for (uint256 i = 0; i < data.length; i++) {
             (bool success, bytes memory result) = address(this).delegatecall(data[i]);
+            successes[i] = success;
+            results[i] = result;
 
             if (!success) {
                 // Get failed reason
@@ -29,8 +31,6 @@ abstract contract Multicall is IMulticall {
                 }
                 emit MulticallFailure(i, revertReason);
             }
-            successes[i] = success;
-            results[i] = result;
         }
     }
 }

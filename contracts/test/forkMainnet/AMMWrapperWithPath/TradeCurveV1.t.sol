@@ -10,13 +10,12 @@ contract TestAMMWrapperWithPathTradeCurveV1 is TestAMMWrapperWithPath {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     function testTradeCurveV1() public {
-        uint256 feeFactor = 0;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = CURVE_USDT_POOL_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
         address[] memory path = new address[](0);
         bytes memory makerSpecificData = _encodeCurveData(1);
-        bytes memory payload = _genTradePayload(order, feeFactor, sig, makerSpecificData, path);
+        bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, makerSpecificData, path);
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
@@ -25,6 +24,7 @@ contract TestAMMWrapperWithPathTradeCurveV1 is TestAMMWrapperWithPath {
         userProxy.toAMM(payload);
 
         userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        // FIXME assert balance change precisely
         userMakerAsset.assertChangeGt(int256(order.makerAssetAmount));
     }
 }

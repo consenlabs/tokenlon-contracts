@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
@@ -8,6 +8,7 @@ import "contracts-test/mocks/MockStrategy.sol";
 
 contract UserProxyTest is Test {
     event TearDownAllowanceTarget(uint256 tearDownTimeStamp);
+    event MulticallFailure(uint256 index, string reason);
 
     address user = address(0x133701);
     address relayer = address(0x133702);
@@ -105,40 +106,6 @@ contract UserProxyTest is Test {
     }
 
     /***************************************************
-     *                Test: set PMM               *
-     ***************************************************/
-
-    function testSetPMMStatusByNotOperator() public {
-        vm.expectRevert("UserProxy: not the operator");
-        vm.prank(user);
-        userProxy.setPMMStatus(true);
-    }
-
-    function testUpgradePMMByNotOperator() public {
-        vm.expectRevert("UserProxy: not the operator");
-        vm.prank(user);
-        userProxy.upgradePMM(address(strategy), true);
-    }
-
-    function testSetPMMStatus() public {
-        assertFalse(userProxy.isPMMEnabled());
-
-        userProxy.setPMMStatus(true);
-
-        assertTrue(userProxy.isPMMEnabled());
-    }
-
-    function testUpgradePMM() public {
-        assertFalse(userProxy.isPMMEnabled());
-        assertEq(userProxy.pmmAddr(), address(0));
-
-        userProxy.upgradePMM(address(strategy), true);
-
-        assertTrue(userProxy.isPMMEnabled());
-        assertEq(userProxy.pmmAddr(), address(strategy));
-    }
-
-    /***************************************************
      *                Test: set RFQ               *
      ***************************************************/
 
@@ -207,6 +174,40 @@ contract UserProxyTest is Test {
     }
 
     /***************************************************
+     *               Test: set L2Deposit               *
+     ***************************************************/
+
+    function testCannotSetL2DepositStatusByNotOperator() public {
+        vm.expectRevert("UserProxy: not the operator");
+        vm.prank(user);
+        userProxy.setL2DepositStatus(true);
+    }
+
+    function testCannotUpgradeL2DepositByNotOperator() public {
+        vm.expectRevert("UserProxy: not the operator");
+        vm.prank(user);
+        userProxy.upgradeL2Deposit(address(strategy), true);
+    }
+
+    function testSetL2DepositStatus() public {
+        assertFalse(userProxy.isL2DepositEnabled());
+
+        userProxy.setL2DepositStatus(true);
+
+        assertTrue(userProxy.isL2DepositEnabled());
+    }
+
+    function testUpgradeL2Deposit() public {
+        assertFalse(userProxy.isL2DepositEnabled());
+        assertEq(userProxy.l2DepositAddr(), address(0));
+
+        userProxy.upgradeL2Deposit(address(strategy), true);
+
+        assertTrue(userProxy.isL2DepositEnabled());
+        assertEq(userProxy.l2DepositAddr(), address(strategy));
+    }
+
+    /***************************************************
      *                 Test: call AMM                  *
      ***************************************************/
 
@@ -228,39 +229,6 @@ contract UserProxyTest is Test {
     function testToAMM() public {
         userProxy.upgradeAMMWrapper(address(strategy), true);
         userProxy.toAMM(abi.encode(MockStrategy.execute.selector));
-    }
-
-    /***************************************************
-     *                 Test: call PMM                  *
-     ***************************************************/
-
-    function testCannotToPMMWhenDisabled() public {
-        userProxy.setPMMStatus(false);
-        vm.expectRevert("UserProxy: PMM is disabled");
-        userProxy.toPMM(abi.encode(MockStrategy.execute.selector));
-    }
-
-    function testCannotToPMMByNotEOA() public {
-        userProxy.setPMMStatus(true);
-        vm.expectRevert("UserProxy: only EOA");
-        userProxy.toPMM(abi.encode(MockStrategy.execute.selector));
-    }
-
-    function testToPMM() public {
-        userProxy.upgradePMM(address(strategy), true);
-        vm.prank(relayer, relayer);
-        userProxy.toPMM(abi.encode(MockStrategy.execute.selector));
-    }
-
-    function testCannotToPMMWithWrongFunction() public {
-        userProxy.upgradePMM(address(strategy), true);
-        vm.expectRevert();
-        vm.prank(relayer, relayer);
-        userProxy.toPMM("0x");
-
-        vm.expectRevert();
-        vm.prank(relayer, relayer);
-        userProxy.toPMM(abi.encode(userProxy.setAMMStatus.selector));
     }
 
     /***************************************************
@@ -297,30 +265,111 @@ contract UserProxyTest is Test {
     }
 
     /***************************************************
+     *              Test: call LimitOrder               *
+     ***************************************************/
+
+    function testCannotToLimitOrderWhenDisabled() public {
+        userProxy.setLimitOrderStatus(false);
+        vm.expectRevert("UserProxy: Limit Order is disabled");
+        userProxy.toLimitOrder(abi.encode(MockStrategy.execute.selector));
+    }
+
+    function testCannotToLimitOrderByNotEOA() public {
+        userProxy.setLimitOrderStatus(true);
+        vm.expectRevert("UserProxy: only EOA");
+        userProxy.toLimitOrder(abi.encode(MockStrategy.execute.selector));
+    }
+
+    function testToLimitOrder() public {
+        userProxy.upgradeLimitOrder(address(strategy), true);
+        vm.prank(relayer, relayer);
+        userProxy.toLimitOrder(abi.encode(MockStrategy.execute.selector));
+    }
+
+    function testCannotToLimitOrdertWithWrongFunction() public {
+        userProxy.upgradeLimitOrder(address(strategy), true);
+        vm.expectRevert();
+        vm.prank(relayer, relayer);
+        userProxy.toLimitOrder("0x");
+
+        vm.expectRevert();
+        vm.prank(relayer, relayer);
+        userProxy.toLimitOrder(abi.encode(userProxy.setAMMStatus.selector));
+    }
+
+    /***************************************************
+     *              Test: call L2Deposit               *
+     ***************************************************/
+
+    function testCannotToL2DepositWhenDisabled() public {
+        userProxy.setL2DepositStatus(false);
+        vm.expectRevert("UserProxy: L2 Deposit is disabled");
+        userProxy.toL2Deposit(abi.encode(MockStrategy.execute.selector));
+    }
+
+    function testToL2Deposit() public {
+        userProxy.upgradeL2Deposit(address(strategy), true);
+        userProxy.toL2Deposit(abi.encode(MockStrategy.execute.selector));
+    }
+
+    function testCannotToL2DepositWithWrongFunction() public {
+        userProxy.upgradeL2Deposit(address(strategy), true);
+        vm.expectRevert();
+        userProxy.toL2Deposit("0x");
+
+        vm.expectRevert();
+        userProxy.toL2Deposit(abi.encode(userProxy.setAMMStatus.selector));
+    }
+
+    /***************************************************
      *                Test: multicall                  *
      ***************************************************/
 
-    function testMulticallAMMandRFQ() public {
-        userProxy.upgradeAMMWrapper(address(strategy), true);
-        userProxy.upgradeRFQ(address(strategy), false);
+    function testMulticallNoRevertOnFail() public {
+        MockStrategy mockAMM = new MockStrategy();
+        mockAMM.setShouldFail(false);
+        userProxy.upgradeAMMWrapper(address(mockAMM), true);
+        MockStrategy mockRFQ = new MockStrategy();
+        mockRFQ.setShouldFail(true);
+        userProxy.upgradeRFQ(address(mockRFQ), true);
 
         bytes[] memory data = new bytes[](2);
-        data[0] = abi.encodeWithSelector(UserProxy.toAMM.selector, MockStrategy.execute.selector);
-        data[1] = abi.encodeWithSelector(UserProxy.toRFQ.selector, MockStrategy.execute.selector);
+        bytes memory strategyData = abi.encodeWithSelector(MockStrategy.execute.selector);
+        data[0] = abi.encodeWithSelector(UserProxy.toAMM.selector, strategyData);
+        data[1] = abi.encodeWithSelector(UserProxy.toRFQ.selector, strategyData);
+
+        // MulticallFailure event should be emitted to indicate failures
+        vm.expectEmit(true, true, true, true);
+        emit MulticallFailure(1, "Execution failed");
+
+        // tx should succeed even one of subcall failed (RFQ)
         vm.prank(relayer, relayer);
-        // should succeed even RFQ is disabled
-        userProxy.multicall(data, false);
+
+        (bool[] memory successes, bytes[] memory results) = userProxy.multicall(data, false);
+        bytes[] memory expectedResult = new bytes[](2);
+        expectedResult[1] = abi.encodeWithSignature("Error(string)", "Execution failed");
+        assertEq(successes[0], true);
+        assertEq0(results[0], expectedResult[0]);
+        assertEq(successes[1], false);
+        assertEq0(results[1], expectedResult[1]);
     }
 
     function testMulticallRevertOnFail() public {
-        userProxy.upgradeAMMWrapper(address(strategy), true);
-        userProxy.upgradeRFQ(address(strategy), false);
+        MockStrategy mockAMM = new MockStrategy();
+        mockAMM.setShouldFail(false);
+        userProxy.upgradeAMMWrapper(address(mockAMM), true);
+        MockStrategy mockRFQ = new MockStrategy();
+        mockRFQ.setShouldFail(true);
+        userProxy.upgradeRFQ(address(mockRFQ), true);
 
         bytes[] memory data = new bytes[](2);
-        data[0] = abi.encodeWithSelector(UserProxy.toAMM.selector, MockStrategy.execute.selector);
-        data[1] = abi.encodeWithSelector(UserProxy.toRFQ.selector, MockStrategy.execute.selector);
+        bytes memory strategyData = abi.encodeWithSelector(MockStrategy.execute.selector);
+        data[0] = abi.encodeWithSelector(UserProxy.toAMM.selector, strategyData);
+        data[1] = abi.encodeWithSelector(UserProxy.toRFQ.selector, strategyData);
+
+        // Should revert with message from MockStrategy
+        vm.expectRevert("Execution failed");
         vm.prank(relayer, relayer);
-        vm.expectRevert("Delegatecall failed");
         userProxy.multicall(data, true);
     }
 }

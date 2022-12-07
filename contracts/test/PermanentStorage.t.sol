@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
 import "forge-std/Test.sol";
@@ -9,9 +9,9 @@ contract PermanentStorageTest is Test {
     event TransferOwnership(address newOperator);
     event SetPermission(bytes32 storageId, address role, bool enabled);
     event UpgradeAMMWrapper(address newAMMWrapper);
-    event UpgradePMM(address newPMM);
     event UpgradeRFQ(address newRFQ);
     event UpgradeLimitOrder(address newLimitOrder);
+    event UpgradeL2Deposit(address newL2Deposit);
     event UpgradeWETH(address newWETH);
     event SetCurvePoolInfo(address makerAddr, address[] underlyingCoins, address[] coins, bool supportGetD);
     event SetRelayerValid(address relayer, bool valid);
@@ -75,7 +75,7 @@ contract PermanentStorageTest is Test {
     function testCannotInitializeAgain() public {
         PermanentStorage ps = new PermanentStorage();
         ps.initialize(address(this));
-        assertEq(ps.version(), "5.3.0");
+        assertEq(ps.version(), "5.4.0");
         assertEq(ps.operator(), address(this));
 
         vm.expectRevert("PermanentStorage: not upgrading from empty");
@@ -94,24 +94,10 @@ contract PermanentStorageTest is Test {
 
     function testUpgradeAMMWrapper() public {
         assertEq(permanentStorage.ammWrapperAddr(), address(0));
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit UpgradeAMMWrapper(strategy);
         permanentStorage.upgradeAMMWrapper(strategy);
         assertEq(permanentStorage.ammWrapperAddr(), strategy);
-    }
-
-    function testCannotUpgradePMMByNotOperator() public {
-        vm.expectRevert("PermanentStorage: not the operator");
-        vm.prank(user);
-        permanentStorage.upgradePMM(strategy);
-    }
-
-    function testUpgradePMM() public {
-        assertEq(permanentStorage.pmmAddr(), address(0));
-        vm.expectEmit(false, false, false, true);
-        emit UpgradePMM(strategy);
-        permanentStorage.upgradePMM(strategy);
-        assertEq(permanentStorage.pmmAddr(), strategy);
     }
 
     function testCannotUpgradeRFQByNotOperator() public {
@@ -122,7 +108,7 @@ contract PermanentStorageTest is Test {
 
     function testUpgradeRFQ() public {
         assertEq(permanentStorage.rfqAddr(), address(0));
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit UpgradeRFQ(strategy);
         permanentStorage.upgradeRFQ(strategy);
         assertEq(permanentStorage.rfqAddr(), strategy);
@@ -136,10 +122,24 @@ contract PermanentStorageTest is Test {
 
     function testUpgradeLimitOrder() public {
         assertEq(permanentStorage.limitOrderAddr(), address(0));
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit UpgradeLimitOrder(strategy);
         permanentStorage.upgradeLimitOrder(strategy);
         assertEq(permanentStorage.limitOrderAddr(), strategy);
+    }
+
+    function testCannotUpgradeL2DepositByNotOperator() public {
+        vm.expectRevert("PermanentStorage: not the operator");
+        vm.prank(user);
+        permanentStorage.upgradeL2Deposit(strategy);
+    }
+
+    function testUpgradeL2Deposit() public {
+        assertEq(permanentStorage.l2DepositAddr(), address(0));
+        vm.expectEmit(true, true, true, true);
+        emit UpgradeL2Deposit(strategy);
+        permanentStorage.upgradeL2Deposit(strategy);
+        assertEq(permanentStorage.l2DepositAddr(), strategy);
     }
 
     function testCannotUpgradeWETHByNotOperator() public {
@@ -150,7 +150,7 @@ contract PermanentStorageTest is Test {
 
     function testUpgradeWETH() public {
         assertEq(permanentStorage.wethAddr(), address(0));
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit UpgradeWETH(strategy);
         permanentStorage.upgradeWETH(strategy);
         assertEq(permanentStorage.wethAddr(), strategy);
@@ -179,13 +179,13 @@ contract PermanentStorageTest is Test {
 
         assertFalse(permanentStorage.hasPermission(storageId, strategy));
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetPermission(storageId, strategy, true);
 
         permanentStorage.setPermission(storageId, strategy, true);
         assertTrue(permanentStorage.hasPermission(storageId, strategy));
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetPermission(storageId, strategy, false);
 
         permanentStorage.setPermission(storageId, strategy, false);
@@ -195,27 +195,6 @@ contract PermanentStorageTest is Test {
     /***************************************************
      *            Test: set TransactionSeen            *
      ***************************************************/
-
-    function testCannotSetTransactionSeenWithoutPermission() public {
-        vm.expectRevert("PermanentStorage: has no permission");
-        vm.prank(user);
-        permanentStorage.setTransactionSeen(DEFAULT_TRANSACION_HASH);
-    }
-
-    function testSetTransactionSeen() public {
-        permanentStorage.upgradeAMMWrapper(strategy);
-        bytes32 storageId = permanentStorage.transactionSeenStorageId();
-        permanentStorage.setPermission(storageId, strategy, true);
-
-        vm.startPrank(strategy);
-        assertFalse(permanentStorage.isTransactionSeen(DEFAULT_TRANSACION_HASH));
-        permanentStorage.setTransactionSeen(DEFAULT_TRANSACION_HASH);
-        assertTrue(permanentStorage.isTransactionSeen(DEFAULT_TRANSACION_HASH));
-
-        vm.expectRevert("PermanentStorage: transaction seen before");
-        permanentStorage.setTransactionSeen(DEFAULT_TRANSACION_HASH);
-        vm.stopPrank();
-    }
 
     function testCannotSetAMMTransactionSeenWithoutPermission() public {
         vm.expectRevert("PermanentStorage: has no permission");
@@ -280,6 +259,27 @@ contract PermanentStorageTest is Test {
         vm.stopPrank();
     }
 
+    function testCannotSetL2DepositSeenWithoutPermission() public {
+        vm.expectRevert("PermanentStorage: has no permission");
+        vm.prank(user);
+        permanentStorage.setL2DepositSeen(DEFAULT_TRANSACION_HASH);
+    }
+
+    function testSetSetL2DepositSeen() public {
+        permanentStorage.upgradeL2Deposit(strategy);
+        bytes32 storageId = permanentStorage.l2DepositSeenStorageId();
+        permanentStorage.setPermission(storageId, strategy, true);
+
+        vm.startPrank(strategy);
+        assertFalse(permanentStorage.isL2DepositSeen(DEFAULT_TRANSACION_HASH));
+        permanentStorage.setL2DepositSeen(DEFAULT_TRANSACION_HASH);
+        assertTrue(permanentStorage.isL2DepositSeen(DEFAULT_TRANSACION_HASH));
+
+        vm.expectRevert("PermanentStorage: L2 deposit seen before");
+        permanentStorage.setL2DepositSeen(DEFAULT_TRANSACION_HASH);
+        vm.stopPrank();
+    }
+
     /***************************************************
      *            Test: set AllowFillSeen            *
      ***************************************************/
@@ -334,7 +334,7 @@ contract PermanentStorageTest is Test {
             address _relayer = DEFAULT_RELAYERS[i];
             bool valid = DEFAULT_RELAYER_VALIDS[i];
             assertFalse(permanentStorage.isRelayerValid(_relayer));
-            vm.expectEmit(false, false, false, true);
+            vm.expectEmit(true, true, true, true);
             emit SetRelayerValid(_relayer, valid);
         }
         permanentStorage.setRelayersValid(DEFAULT_RELAYERS, DEFAULT_RELAYER_VALIDS);
@@ -376,7 +376,7 @@ contract PermanentStorageTest is Test {
         bytes32 storageId = permanentStorage.curveTokenIndexStorageId();
         permanentStorage.setPermission(storageId, address(this), true);
 
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit SetCurvePoolInfo(DEFAULT_CURVE_POOL_ADDRESS, DEFAULT_CURVE_POOL_UNDERLYING_COINS, DEFAULT_CURVE_POOL_COINS, DEFAULT_CURVE_SUPPORT_GET_DX);
         permanentStorage.setCurvePoolInfo(
             DEFAULT_CURVE_POOL_ADDRESS,

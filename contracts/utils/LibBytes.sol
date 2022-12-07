@@ -11,6 +11,7 @@
   limitations under the License.
   This is a truncated version of the original LibBytes.sol library from ZeroEx.
 */
+// SPDX-License-Identifier: Apache-2.0
 
 pragma solidity ^0.7.6;
 

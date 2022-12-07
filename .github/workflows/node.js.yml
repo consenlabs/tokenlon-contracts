@@ -41,8 +41,6 @@ jobs:
       - name: Test
         env:
           MAINNET_NODE_RPC_URL: ${{ secrets.MAINNET_NODE_RPC_URL }}
-          FORK_BLOCK_NUMBER: 14340000
         run: |
-          yarn run test-hardhat
           yarn run test-foundry-local-no-fuzz
           yarn run test-foundry-fork
