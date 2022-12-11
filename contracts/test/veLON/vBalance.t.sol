@@ -2,7 +2,7 @@
 pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
-import "contracts/test/veLON/Setup.t.sol";
+import "contracts-test/veLON/Setup.t.sol";
 
 contract TestVeLONBalance is TestVeLON {
     using SafeMath for uint256;

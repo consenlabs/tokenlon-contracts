@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
-import "contracts/test/veLON/Setup.t.sol";
+import "contracts-test/veLON/Setup.t.sol";
 
 contract TestVeLONDeposit is TestVeLON {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
