@@ -20,6 +20,11 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
+      - name: "Cache RPC Responses"
+        uses: "actions/cache@v3"
+        with:
+          path: "~/.foundry/cache/rpc/mainnet/15451000"
+          key: "${{ runner.os }}-mainnet-15451000"
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v1
         with:
