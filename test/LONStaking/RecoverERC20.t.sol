@@ -2,8 +2,8 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
-import "contracts-test/LONStaking/Setup.t.sol";
-import "contracts-test/mocks/MockERC20.sol";
+import "test/LONStaking/Setup.t.sol";
+import "test/mocks/MockERC20.sol";
 
 contract TestLONStakingRecoverERC20 is TestLONStaking {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;

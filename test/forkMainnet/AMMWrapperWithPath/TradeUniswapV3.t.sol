@@ -2,9 +2,9 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
-import "contracts-test/forkMainnet/AMMWrapperWithPath/Setup.t.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
-import "contracts-test/utils/AMMUtil.sol"; // Using the Encode Data function
+import "test/forkMainnet/AMMWrapperWithPath/Setup.t.sol";
+import "test/utils/BalanceSnapshot.sol";
+import "test/utils/AMMUtil.sol"; // Using the Encode Data function
 import "contracts/interfaces/IAMMWrapper.sol";
 import "contracts/AMMQuoter.sol";
 

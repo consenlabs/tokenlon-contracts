@@ -6,8 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/TreasuryVester.sol";
 import "contracts/TreasuryVesterFactory.sol";
-import "contracts-test/mocks/MockERC20.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
+import "test/mocks/MockERC20.sol";
+import "test/utils/BalanceSnapshot.sol";
 
 contract TreasuryVesterTest is Test {
     using SafeMath for uint256;

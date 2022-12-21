@@ -3,8 +3,8 @@ pragma solidity 0.7.6;
 pragma abicoder v2;
 
 import "contracts/interfaces/IL2Deposit.sol";
-import "contracts-test/forkMainnet/L2Deposit/Setup.t.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
+import "test/forkMainnet/L2Deposit/Setup.t.sol";
+import "test/utils/BalanceSnapshot.sol";
 
 contract TestL2DepositTopUp is TestL2Deposit {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;

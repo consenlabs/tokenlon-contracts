@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "contracts-test/LON/Setup.t.sol";
-import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
+import "test/LON/Setup.t.sol";
+import { getEIP712Hash } from "test/utils/Sig.sol";
 
 contract TestLONPermit is TestLON {
     uint256 otherPrivateKey = uint256(2);

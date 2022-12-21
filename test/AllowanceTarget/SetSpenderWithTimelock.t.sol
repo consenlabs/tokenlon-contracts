@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "contracts-test/AllowanceTarget/Setup.t.sol";
+import "test/AllowanceTarget/Setup.t.sol";
 
 contract TestAllowanceTargetSetSpenderWithTimelock is TestAllowanceTarget {
     function testCannotSetByRandomEOA() public {

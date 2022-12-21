@@ -6,8 +6,8 @@ import "contracts/AMMQuoter.sol";
 import "contracts/interfaces/IPermanentStorage.sol";
 import "contracts/interfaces/ISpender.sol";
 import "contracts/utils/AMMLibEIP712.sol";
-import "contracts-test/utils/StrategySharedSetup.sol"; // Using the deployment Strategy Contract function
-import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
+import "test/utils/StrategySharedSetup.sol"; // Using the deployment Strategy Contract function
+import { getEIP712Hash } from "test/utils/Sig.sol";
 
 contract TestAMMWrapper is StrategySharedSetup {
     uint256 constant BPS_MAX = 10000;

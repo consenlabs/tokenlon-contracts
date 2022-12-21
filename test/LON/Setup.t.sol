@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/Lon.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
+import "test/utils/BalanceSnapshot.sol";
 
 contract TestLON is Test {
     uint256 userPrivateKey = uint256(1);

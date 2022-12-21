@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/Lon.sol";
 import "contracts/LONStaking.sol";
 import "contracts/xLON.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
+import "test/utils/BalanceSnapshot.sol";
 
 contract TestLONStaking is Test {
     using SafeMath for uint256;

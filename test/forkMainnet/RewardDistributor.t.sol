@@ -16,11 +16,11 @@ import "contracts/LONStaking.sol";
 import "contracts/RewardDistributor.sol";
 import "contracts/xLON.sol";
 
-import "contracts-test/mocks/MockContract.sol";
-import "contracts-test/mocks/MockStrategy.sol";
-import "contracts-test/utils/Addresses.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
-import "contracts-test/utils/UniswapV3Util.sol";
+import "test/mocks/MockContract.sol";
+import "test/mocks/MockStrategy.sol";
+import "test/utils/Addresses.sol";
+import "test/utils/BalanceSnapshot.sol";
+import "test/utils/UniswapV3Util.sol";
 
 contract RewardDistributorTest is Test {
     using SafeMath for uint256;

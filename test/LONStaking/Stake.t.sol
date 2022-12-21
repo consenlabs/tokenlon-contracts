@@ -2,7 +2,7 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
-import "contracts-test/LONStaking/Setup.t.sol";
+import "test/LONStaking/Setup.t.sol";
 
 contract TestLONStakingStake is TestLONStaking {
     using SafeMath for uint256;

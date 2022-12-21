@@ -5,9 +5,9 @@ pragma abicoder v2;
 import "contracts/AMMWrapperWithPath.sol";
 import "contracts/interfaces/IPermanentStorage.sol";
 import "contracts/utils/AMMLibEIP712.sol";
-import "contracts-test/utils/UniswapV3Util.sol";
-import "contracts-test/utils/StrategySharedSetup.sol"; // Using the deployment Strategy Contract function
-import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
+import "test/utils/UniswapV3Util.sol";
+import "test/utils/StrategySharedSetup.sol"; // Using the deployment Strategy Contract function
+import { getEIP712Hash } from "test/utils/Sig.sol";
 import "contracts/AMMQuoter.sol";
 
 contract TestAMMWrapperWithPath is StrategySharedSetup {

@@ -2,9 +2,9 @@
 pragma solidity 0.7.6;
 
 import "forge-std/Test.sol";
-import "contracts-test/utils/BalanceUtil.sol";
-import "contracts-test/utils/StrategySharedSetup.sol";
-import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
+import "test/utils/BalanceUtil.sol";
+import "test/utils/StrategySharedSetup.sol";
+import { getEIP712Hash } from "test/utils/Sig.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";

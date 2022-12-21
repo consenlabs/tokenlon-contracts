@@ -3,7 +3,7 @@ pragma solidity 0.7.6;
 
 import "forge-std/Test.sol";
 import "contracts/AllowanceTarget.sol";
-import "contracts-test/mocks/MockStrategy.sol";
+import "test/mocks/MockStrategy.sol";
 
 contract TestAllowanceTarget is Test {
     address newSpender = address(new MockStrategy());

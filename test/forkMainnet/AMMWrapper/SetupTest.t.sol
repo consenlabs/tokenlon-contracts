@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "contracts-test/forkMainnet/AMMWrapper/Setup.t.sol";
+import "test/forkMainnet/AMMWrapper/Setup.t.sol";
 
 contract TestAMMWrapperSetup is TestAMMWrapper {
     function testTokensAllowanceAmountWhenSetup() public {

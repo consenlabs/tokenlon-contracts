@@ -2,7 +2,7 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
-import "contracts-test/forkMainnet/AMMWrapperWithPath/Setup.t.sol";
+import "test/forkMainnet/AMMWrapperWithPath/Setup.t.sol";
 
 contract TestAMMWrapperWithPathSetup is TestAMMWrapperWithPath {
     function testTokensAllowanceAmountWhenSetup() public {

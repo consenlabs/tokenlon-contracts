@@ -4,7 +4,7 @@ pragma abicoder v2;
 
 import "forge-std/Test.sol";
 import "contracts/UserProxy.sol";
-import "contracts-test/mocks/MockStrategy.sol";
+import "test/mocks/MockStrategy.sol";
 
 contract UserProxyTest is Test {
     event TearDownAllowanceTarget(uint256 tearDownTimeStamp);

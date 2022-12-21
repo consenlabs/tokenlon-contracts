@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "contracts-test/forkMainnet/AMMWrapper/Setup.t.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
+import "test/forkMainnet/AMMWrapper/Setup.t.sol";
+import "test/utils/BalanceSnapshot.sol";
 
 contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;

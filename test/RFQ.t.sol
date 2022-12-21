@@ -8,12 +8,12 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/MarketMakerProxy.sol";
 import "contracts/RFQ.sol";
 import "contracts/utils/SignatureValidator.sol";
-import "contracts-test/mocks/MockERC1271Wallet.sol";
-import "contracts-test/mocks/MockERC20.sol";
-import "contracts-test/mocks/MockWETH.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
-import "contracts-test/utils/StrategySharedSetup.sol";
-import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
+import "test/mocks/MockERC1271Wallet.sol";
+import "test/mocks/MockERC20.sol";
+import "test/mocks/MockWETH.sol";
+import "test/utils/BalanceSnapshot.sol";
+import "test/utils/StrategySharedSetup.sol";
+import { getEIP712Hash } from "test/utils/Sig.sol";
 
 contract RFQTest is StrategySharedSetup {
     using SafeMath for uint256;

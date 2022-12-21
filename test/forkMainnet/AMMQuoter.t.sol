@@ -4,8 +4,8 @@ pragma solidity 0.7.6;
 import "contracts/AMMQuoter.sol";
 import "contracts/interfaces/IBalancerV2Vault.sol";
 import "contracts/interfaces/IPermanentStorage.sol";
-import "contracts-test/utils/AMMUtil.sol";
-import "contracts-test/utils/StrategySharedSetup.sol";
+import "test/utils/AMMUtil.sol";
+import "test/utils/StrategySharedSetup.sol";
 
 contract AMMQuoterTest is StrategySharedSetup {
     uint256 constant BPS_MAX = 10000;

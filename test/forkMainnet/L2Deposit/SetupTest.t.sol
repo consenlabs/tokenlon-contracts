@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.6;
 
-import "contracts-test/forkMainnet/L2Deposit/Setup.t.sol";
+import "test/forkMainnet/L2Deposit/Setup.t.sol";
 
 contract TestL2DepositSetup is TestL2Deposit {
     function testSetupL2Deposit() public {

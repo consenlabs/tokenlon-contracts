@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "contracts-test/AllowanceTarget/Setup.t.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
-import "contracts-test/mocks/MockERC20.sol";
+import "test/AllowanceTarget/Setup.t.sol";
+import "test/utils/BalanceSnapshot.sol";
+import "test/mocks/MockERC20.sol";
 
 contract TestAllowanceTargetExecuteCall is TestAllowanceTarget {
     // include Snapshot struct from BalanceSnapshot

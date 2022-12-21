@@ -6,11 +6,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "contracts/Spender.sol";
 import "contracts/AllowanceTarget.sol";
-import "contracts-test/mocks/MockERC20.sol";
-import "contracts-test/mocks/MockDeflationaryERC20.sol";
-import "contracts-test/mocks/MockNoReturnERC20.sol";
-import "contracts-test/mocks/MockNoRevertERC20.sol";
-import "contracts-test/utils/BalanceUtil.sol";
+import "test/mocks/MockERC20.sol";
+import "test/mocks/MockDeflationaryERC20.sol";
+import "test/mocks/MockNoReturnERC20.sol";
+import "test/mocks/MockNoRevertERC20.sol";
+import "test/utils/BalanceUtil.sol";
 
 contract SpenderTest is BalanceUtil {
     using SafeERC20 for IERC20;

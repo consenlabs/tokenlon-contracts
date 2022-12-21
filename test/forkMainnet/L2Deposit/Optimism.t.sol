@@ -4,8 +4,8 @@ pragma abicoder v2;
 
 import "contracts/interfaces/IL2Deposit.sol";
 import "contracts/utils/L2DepositLibEIP712.sol";
-import "contracts-test/forkMainnet/L2Deposit/Setup.t.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
+import "test/forkMainnet/L2Deposit/Setup.t.sol";
+import "test/utils/BalanceSnapshot.sol";
 
 contract TestL2DepositOptimism is TestL2Deposit {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;

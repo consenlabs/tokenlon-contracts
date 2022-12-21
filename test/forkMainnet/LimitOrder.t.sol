@@ -12,12 +12,12 @@ import "contracts/utils/SignatureValidator.sol";
 import "contracts/utils/LimitOrderLibEIP712.sol";
 import "contracts/utils/LibConstant.sol";
 
-import "contracts-test/mocks/MockERC1271Wallet.sol";
-import "contracts-test/utils/BalanceSnapshot.sol";
-import "contracts-test/utils/StrategySharedSetup.sol";
-import "contracts-test/utils/UniswapV3Util.sol";
-import "contracts-test/utils/SushiswapUtil.sol";
-import { getEIP712Hash } from "contracts-test/utils/Sig.sol";
+import "test/mocks/MockERC1271Wallet.sol";
+import "test/utils/BalanceSnapshot.sol";
+import "test/utils/StrategySharedSetup.sol";
+import "test/utils/UniswapV3Util.sol";
+import "test/utils/SushiswapUtil.sol";
+import { getEIP712Hash } from "test/utils/Sig.sol";
 
 contract LimitOrderTest is StrategySharedSetup {
     using SafeMath for uint256;

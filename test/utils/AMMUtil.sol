@@ -3,7 +3,7 @@ pragma solidity 0.7.6;
 pragma abicoder v2;
 
 import "contracts/interfaces/IBalancerV2Vault.sol";
-import "contracts-test/utils/UniswapV3Util.sol";
+import "test/utils/UniswapV3Util.sol";
 
 function _encodeUniswapSinglePoolData(uint256 swapType, uint24 poolFee) pure returns (bytes memory) {
     return abi.encode(swapType, poolFee);
