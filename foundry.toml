@@ -1,9 +1,8 @@
 [profile.default]
 src = 'contracts'                                             # the source directory
 test = 'contracts/test'                                       # the test directory
-out = 'artifacts-foundry'                                     # the output directory (for artifacts)
+out = 'artifacts'                                             # the output directory (for artifacts)
 cache = true                                                  # whether to cache builds or not
-cache_path = 'cache-foundry'                                  # where the cache is stored if enabled
 force = false                                                 # whether to ignore the cache (clean build)
 
 optimizer = true                                              # enable or disable the solc optimizer
