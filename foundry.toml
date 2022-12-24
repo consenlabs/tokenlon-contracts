@@ -4,22 +4,17 @@ test = 'test'                                                 # the test directo
 out = 'artifacts'                                             # the output directory (for artifacts)
 cache = true                                                  # whether to cache builds or not
 force = false                                                 # whether to ignore the cache (clean build)
-
+auto_detect_solc = true                                       # enable auto-detection of the appropriate solc version to use
 optimizer = true                                              # enable or disable the solc optimizer
 optimizer_runs = 200                                          # the number of optimizer runs
-
+ignored_error_codes = []                                      # a list of ignored solc error codes
 block_number = 10000
 block_timestamp = 1640966400                                  # 2022/01/01 00:00
 initial_balance = '0xffffffffffffffffffffffff'                # the initial balance of the test contract
 gas_limit = 9223372036854775807                               # the gas limit in tests
 gas_price = 0                                                 # the gas price (in wei) in tests
 
-verbosity = 3
-fuzz_runs = 1000                                              # the number of fuzz runs for tests
-fuzz_max_global_rejects = 10000000
-
-auto_detect_solc = true                                       # enable auto-detection of the appropriate solc version to use
-ignored_error_codes = []                                      # a list of ignored solc error codes
-
+[fuzz]
+runs = 100000                                                   # the number of fuzz runs for tests
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
