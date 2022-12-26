@@ -20,16 +20,18 @@ contract TestL2Deposit is StrategySharedSetup {
 
     uint256 userPrivateKey = uint256(1);
     uint256 bobPrivateKey = uint256(2);
+    address owner = makeAddr("owner");
     address user = vm.addr(userPrivateKey);
 
     L2Deposit l2Deposit;
 
     // Arbitrum
-    IArbitrumL1GatewayRouter arbitrumL1GatewayRouter = IArbitrumL1GatewayRouter(ARBITRUM_L1_GATEWAY_ROUTER_ADDR);
-    IERC20 arbitrumLONAddr = IERC20(arbitrumL1GatewayRouter.calculateL2TokenAddress(LON_ADDRESS));
+    IArbitrumL1GatewayRouter arbitrumL1GatewayRouter;
+    IArbitrumBridge arbitrumL1Bridge;
+    IERC20 arbitrumLONAddr;
 
     // Optimism
-    IOptimismL1StandardBridge optimismL1StandardBridge = IOptimismL1StandardBridge(OPTIMISM_L1_STANDARD_BRIDGE_ADDR);
+    IOptimismL1StandardBridge optimismL1StandardBridge;
 
     uint256 DEFAULT_DEADLINE = block.timestamp + 1;
     L2DepositLibEIP712.Deposit DEFAULT_DEPOSIT;
@@ -50,12 +52,14 @@ contract TestL2Deposit is StrategySharedSetup {
         // Setup
         setUpSystemContracts();
 
+        arbitrumLONAddr = IERC20(arbitrumL1GatewayRouter.calculateL2TokenAddress(address(lon)));
+
         // Set user token balance and approve
         setEOABalanceAndApprove(user, tokens, 100);
 
         DEFAULT_DEPOSIT = L2DepositLibEIP712.Deposit(
             L2DepositLibEIP712.L2Identifier.Arbitrum, // l2Identifier
-            LON_ADDRESS, // l1TokenAddr
+            address(lon), // l1TokenAddr
             address(arbitrumLONAddr), // l2TokenAddr
             user, // sender
             user, // recipient
@@ -71,8 +75,12 @@ contract TestL2Deposit is StrategySharedSetup {
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
+        arbitrumL1GatewayRouter = IArbitrumL1GatewayRouter(ARBITRUM_L1_GATEWAY_ROUTER_ADDR);
+        arbitrumL1Bridge = IArbitrumBridge(ARBITRUM_L1_BRIDGE_ADDR);
+        optimismL1StandardBridge = IOptimismL1StandardBridge(OPTIMISM_L1_STANDARD_BRIDGE_ADDR);
+
         l2Deposit = new L2Deposit(
-            address(this), // This contract would be the owner
+            owner,
             address(userProxy),
             WETH_ADDRESS,
             address(permanentStorage),
@@ -88,6 +96,14 @@ contract TestL2Deposit is StrategySharedSetup {
         permanentStorage.setPermission(permanentStorage.l2DepositSeenStorageId(), address(l2Deposit), true);
         vm.stopPrank();
         return address(l2Deposit);
+    }
+
+    function _setupDeployedStrategy() internal override {
+        arbitrumL1GatewayRouter = IArbitrumL1GatewayRouter(vm.envAddress("ARBITRUM_L1_GATEWAY_ROUTER_ADDRESS"));
+        arbitrumL1Bridge = IArbitrumBridge(vm.envAddress("ARBITRUM_L1_BRIDGE_ADDRESS"));
+        optimismL1StandardBridge = IOptimismL1StandardBridge(vm.envAddress("OPTIMISM_L1_STANDARD_BRIDGE_ADDRESS"));
+        l2Deposit = L2Deposit(payable(vm.envAddress("L2DEPOSIT_ADDRESS")));
+        owner = l2Deposit.owner();
     }
 
     function _signDeposit(uint256 privateKey, L2DepositLibEIP712.Deposit memory deposit) internal returns (bytes memory) {

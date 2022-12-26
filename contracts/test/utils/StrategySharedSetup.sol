@@ -69,6 +69,9 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
             userProxy = UserProxy(payable(vm.envAddress("USERPROXY_ADDRESS")));
             permanentStorage = PermanentStorage(vm.envAddress("PERMANENTSTORAGE_ADDRESS"));
 
+            // overwrite psOperator
+            psOperator = permanentStorage.operator();
+
             _setupDeployedStrategy();
         } else {
             // Deploy

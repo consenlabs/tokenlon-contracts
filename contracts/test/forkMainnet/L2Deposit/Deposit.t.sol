@@ -49,7 +49,7 @@ contract TestL2DepositTopUp is TestL2Deposit {
         uint256 callValue = arbMaxSubmissionCost + (arbMaxGas * arbGasPriceBid);
 
         vm.expectEmit(true, true, true, true);
-        uint256 seqNum = IArbitrumBridge(ARBITRUM_L1_BRIDGE_ADDR).delayedMessageCount();
+        uint256 seqNum = arbitrumL1Bridge.delayedMessageCount();
         emit Deposited(
             DEFAULT_DEPOSIT.l2Identifier,
             DEFAULT_DEPOSIT.l1TokenAddr,

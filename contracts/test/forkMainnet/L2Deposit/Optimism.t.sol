@@ -19,7 +19,7 @@ contract TestL2DepositOptimism is TestL2Deposit {
         DEFAULT_DEPOSIT.l2Identifier = L2DepositLibEIP712.L2Identifier.Optimism;
 
         // overwrite l2TokenAddr with LON address on L1
-        DEFAULT_DEPOSIT.l2TokenAddr = LON_ADDRESS;
+        DEFAULT_DEPOSIT.l2TokenAddr = address(lon);
 
         // overwrite deposit data with encoded optimism specific params
         DEFAULT_DEPOSIT.data = abi.encode(optL2Gas);
