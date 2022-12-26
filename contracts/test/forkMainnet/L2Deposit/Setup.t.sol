@@ -15,6 +15,10 @@ import "contracts/utils/L2DepositLibEIP712.sol";
 import "contracts/interfaces/IArbitrumL1GatewayRouter.sol";
 import "contracts/interfaces/IOptimismL1StandardBridge.sol";
 
+interface IArbitrumBridge {
+    function delayedMessageCount() external view returns (uint256);
+}
+
 contract TestL2Deposit is StrategySharedSetup {
     using SafeERC20 for IERC20;
 

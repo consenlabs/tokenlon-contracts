@@ -6,10 +6,6 @@ import "contracts/interfaces/IL2Deposit.sol";
 import "contracts-test/forkMainnet/L2Deposit/Setup.t.sol";
 import "contracts-test/utils/BalanceSnapshot.sol";
 
-interface IArbitrumBridge {
-    function delayedMessageCount() external view returns (uint256);
-}
-
 contract TestL2DepositTopUp is TestL2Deposit {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
