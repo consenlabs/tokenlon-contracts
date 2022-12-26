@@ -43,6 +43,7 @@ jobs:
       - name: Test
         env:
           MAINNET_NODE_RPC_URL: ${{ secrets.MAINNET_NODE_RPC_URL }}
+          FOUNDRY_PROFILE: CI
         run: |
           yarn run test-foundry-local
           yarn run test-foundry-fork
