@@ -15,6 +15,6 @@ gas_limit = 9223372036854775807                               # the gas limit in
 gas_price = 0                                                 # the gas price (in wei) in tests
 
 [fuzz]
-runs = 100000                                                   # the number of fuzz runs for tests
+runs = 1000                                                   # the number of fuzz runs for tests
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
