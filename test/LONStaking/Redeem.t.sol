@@ -129,11 +129,8 @@ contract TestLONStakingRedeem is TestLONStaking {
      *********************************/
 
     function testFuzz_RedeemPartial(uint256 stakeAmount, uint256 redeemAmount) public {
-        vm.assume(stakeAmount > 0);
-        vm.assume(redeemAmount > 0);
-        vm.assume(redeemAmount < stakeAmount);
-        vm.assume(stakeAmount <= lon.cap());
-        vm.assume(stakeAmount.add(lon.totalSupply()) <= lon.cap());
+        stakeAmount = bound(stakeAmount, 2, lon.cap().sub(lon.totalSupply()));
+        redeemAmount = bound(redeemAmount, 1, stakeAmount);
 
         lon.mint(user, stakeAmount);
         _stake(user, stakeAmount);
@@ -145,18 +142,16 @@ contract TestLONStakingRedeem is TestLONStaking {
         _redeemAndValidate(user, redeemAmount);
     }
 
-    function testFuzz_RedeemPartialOneByOneWithMultipleStake(uint80[2][16] memory stakeAndRedeemAmounts) public {
-        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+    function testFuzz_RedeemPartialOneByOneWithMultipleStake(uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) public {
         uint256 totalLONAmount = lon.totalSupply();
-        (uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) = _determineStakeRedeemAmount(stakeAndRedeemAmounts);
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            uint256 stakeAmount = stakeAmounts[i];
-            uint256 redeemAmount = redeemAmounts[i];
-            vm.assume(stakeAmount > 0);
-            vm.assume(redeemAmount > 0);
-            vm.assume(stakeAmount > redeemAmount);
-            totalLONAmount = totalLONAmount.add(stakeAmount);
-            vm.assume(totalLONAmount <= lon.cap());
+            uint256 itemsLeft = stakeAmounts.length - i - 1;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount will all be zero and become invalid.
+            // So an additional `2 * itemsLeft` is subtracted from the max value of the current stake amount
+            // Also minimal stake amount is 2 because `1 <= redeemAmount < stakeAmount`
+            stakeAmounts[i] = bound(stakeAmounts[i], 2, lon.cap().sub(totalLONAmount).sub(2 * itemsLeft));
+            redeemAmounts[i] = bound(redeemAmounts[i], 1, stakeAmounts[i]);
+            totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
         }
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
@@ -174,18 +169,16 @@ contract TestLONStakingRedeem is TestLONStaking {
         }
     }
 
-    function testFuzz_RedeemPartialOneTimeWithMultipleStake(uint80[2][16] memory stakeAndRedeemAmounts) public {
-        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+    function testFuzz_RedeemPartialOneTimeWithMultipleStake(uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) public {
         uint256 totalLONAmount = lon.totalSupply();
-        (uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) = _determineStakeRedeemAmount(stakeAndRedeemAmounts);
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            uint256 stakeAmount = stakeAmounts[i];
-            uint256 redeemAmount = redeemAmounts[i];
-            vm.assume(stakeAmount > 0);
-            vm.assume(redeemAmount > 0);
-            vm.assume(stakeAmount > redeemAmount);
-            totalLONAmount = totalLONAmount.add(stakeAmount);
-            vm.assume(totalLONAmount <= lon.cap());
+            uint256 itemsLeft = stakeAmounts.length - i - 1;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount will all be zero and become invalid.
+            // So an additional `2 * itemsLeft` is subtracted from the max value of the current stake amount
+            // Also minimal stake amount is 2 because `1 <= redeemAmount < stakeAmount`
+            stakeAmounts[i] = bound(stakeAmounts[i], 2, lon.cap().sub(totalLONAmount).sub(2 * itemsLeft));
+            redeemAmounts[i] = bound(redeemAmounts[i], 1, stakeAmounts[i]);
+            totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
         }
 
         // All stake and unstake
@@ -208,9 +201,7 @@ contract TestLONStakingRedeem is TestLONStaking {
     }
 
     function testFuzz_RedeemAll(uint256 stakeAmount) public {
-        vm.assume(stakeAmount > 0);
-        vm.assume(stakeAmount <= lon.cap());
-        vm.assume(stakeAmount.add(lon.totalSupply()) <= lon.cap());
+        stakeAmount = bound(stakeAmount, 2, lon.cap().sub(lon.totalSupply()));
 
         lon.mint(user, stakeAmount);
         _stake(user, stakeAmount);
@@ -223,14 +214,14 @@ contract TestLONStakingRedeem is TestLONStaking {
         _redeemAndValidate(user, redeemAmount);
     }
 
-    function testFuzz_RedeemAllOneByOneWithMultipleStake(uint80[16] memory stakeAmounts) public {
-        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+    function testFuzz_RedeemAllOneByOneWithMultipleStake(uint256[16] memory stakeAmounts) public {
         uint256 totalLONAmount = lon.totalSupply();
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            uint256 stakeAmount = stakeAmounts[i];
-            vm.assume(stakeAmount > 0);
-            totalLONAmount = totalLONAmount.add(stakeAmount);
-            vm.assume(totalLONAmount <= lon.cap());
+            uint256 itemsLeft = stakeAmounts.length - i - 1;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount will all be zero and become invalid.
+            // So an additional `itemsLeft` is subtracted from the max value of the current stake amount
+            stakeAmounts[i] = bound(stakeAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(itemsLeft));
+            totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
         }
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
@@ -248,14 +239,14 @@ contract TestLONStakingRedeem is TestLONStaking {
         }
     }
 
-    function testFuzz_RedeemAllOneTimeWithMultipleStake(uint80[16] memory stakeAmounts) public {
-        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+    function testFuzz_RedeemAllOneTimeWithMultipleStake(uint256[16] memory stakeAmounts) public {
         uint256 totalLONAmount = lon.totalSupply();
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            uint256 stakeAmount = stakeAmounts[i];
-            vm.assume(stakeAmount > 0);
-            totalLONAmount = totalLONAmount.add(stakeAmount);
-            vm.assume(totalLONAmount <= lon.cap());
+            uint256 itemsLeft = stakeAmounts.length - i - 1;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount will all be zero and become invalid.
+            // So an additional `itemsLeft` is subtracted from the max value of the current stake amount
+            stakeAmounts[i] = bound(stakeAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(itemsLeft));
+            totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
         }
 
         // All stake and unstake
@@ -276,29 +267,34 @@ contract TestLONStakingRedeem is TestLONStaking {
         }
     }
 
-    function testFuzz_RedeemMultipleOneByOneWithBuyback(uint80[2][16] memory stakeAndRedeemAmounts, uint80[16] memory buybackAmounts) public {
-        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
-        uint256 totalLONAmount = lon.totalSupply();
-        (uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) = _determineStakeRedeemAmount(stakeAndRedeemAmounts);
-        for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            uint256 stakeAmount = stakeAmounts[i];
-            uint256 redeemAmount = redeemAmounts[i];
-            vm.assume(stakeAmount > 0);
-            vm.assume(redeemAmount > 0);
-            vm.assume(stakeAmount > redeemAmount);
-            totalLONAmount = totalLONAmount.add(stakeAmount);
-            vm.assume(totalLONAmount <= lon.cap());
-        }
-        for (uint256 i = 0; i < buybackAmounts.length; i++) {
-            vm.assume(buybackAmounts[i] > 0);
-            totalLONAmount = totalLONAmount.add(buybackAmounts[i]);
-            vm.assume(totalLONAmount <= lon.cap());
-        }
-
+    function testFuzz_RedeemMultipleOneByOneWithBuyback(
+        uint256[16] memory stakeAmounts,
+        uint256[16] memory redeemAmounts,
+        uint256[16] memory buybackAmounts
+    ) public {
         // Make initial big enough deposit so LON amount will not increase dramatically relative to xLON amount due to buyback
         // and hence result in later staker getting zero shares
-        lon.mint(address(0x5566), 10_000_000e18);
-        _stake(address(0x5566), 10_000_000e18); // stake 10m LON
+        lon.mint(makeAddr("initial_depositor"), 10_000_000e18);
+        _stake(makeAddr("initial_depositor"), 10_000_000e18); // stake 10m LON
+
+        uint256 totalLONAmount = lon.totalSupply();
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 stakeItemsLeft = stakeAmounts.length - i - 1;
+            uint256 buybackItemsLeft = buybackAmounts.length;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount and buyback amount will all be zero and become invalid.
+            // So an additional `2 * stakeItemsLeft + buybackItemsLeft` is subtracted from the max value of the current stake amount
+            // Also minimal stake amount is 2 because `1 <= redeemAmount < stakeAmount`
+            stakeAmounts[i] = bound(stakeAmounts[i], 2, lon.cap().sub(totalLONAmount).sub(2 * stakeItemsLeft + buybackItemsLeft));
+            redeemAmounts[i] = bound(redeemAmounts[i], 1, stakeAmounts[i]);
+            totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
+        }
+        for (uint256 i = 0; i < buybackAmounts.length; i++) {
+            uint256 itemsLeft = buybackAmounts.length - i - 1;
+            // If buyback amount is set to `lon.cap().sub(totalLONAmount)`, rest of the buyback amount will all be zero and become invalid.
+            // So an additional `itemsLeft` is subtracted from the max value of the current buyback amount
+            buybackAmounts[i] = bound(buybackAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(itemsLeft));
+            totalLONAmount = totalLONAmount.add(buybackAmounts[i]);
+        }
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
             address staker = address(uint256(fuzzingUserStartAddress) + i);
@@ -319,21 +315,27 @@ contract TestLONStakingRedeem is TestLONStaking {
         }
     }
 
-    function testFuzz_RedeemMultipleOneTimeWithBuyback(uint80[2][16] memory stakeAndRedeemAmounts, uint80 buybackAmount) public {
-        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+    function testFuzz_RedeemMultipleOneTimeWithBuyback(
+        uint256[16] memory stakeAmounts,
+        uint256[16] memory redeemAmounts,
+        uint256 buybackAmount
+    ) public {
+        // Make initial big enough deposit so LON amount will not increase dramatically relative to xLON amount due to buyback
+        // and hence result in later staker getting zero shares
+        lon.mint(makeAddr("initial_depositor"), 10_000_000e18);
+        _stake(makeAddr("initial_depositor"), 10_000_000e18); // stake 10m LON
+
         uint256 totalLONAmount = lon.totalSupply();
-        (uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) = _determineStakeRedeemAmount(stakeAndRedeemAmounts);
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            uint256 stakeAmount = stakeAmounts[i];
-            uint256 redeemAmount = redeemAmounts[i];
-            vm.assume(stakeAmount > 0);
-            vm.assume(redeemAmount > 0);
-            vm.assume(stakeAmount > redeemAmount);
-            totalLONAmount = totalLONAmount.add(stakeAmount);
-            vm.assume(totalLONAmount <= lon.cap());
+            uint256 itemsLeft = stakeAmounts.length - i;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount and buyback amount will all be zero and become invalid.
+            // So an additional `2 * itemsLeft` is subtracted from the max value of the current stake amount
+            // Also minimal stake amount is 2 because `1 <= redeemAmount < stakeAmount`
+            stakeAmounts[i] = bound(stakeAmounts[i], 2, lon.cap().sub(totalLONAmount).sub(2 * itemsLeft));
+            redeemAmounts[i] = bound(redeemAmounts[i], 1, stakeAmounts[i]);
+            totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
         }
-        vm.assume(buybackAmount > 0);
-        vm.assume(totalLONAmount.add(buybackAmount) <= lon.cap());
+        buybackAmount = uint80(bound(buybackAmount, 1, lon.cap().sub(totalLONAmount)));
 
         // All stake and unstake
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
@@ -384,22 +386,6 @@ contract TestLONStakingRedeem is TestLONStaking {
         redeemerLON.assertChange(int256(expectedLONAmount));
         if (redeemPartial) {
             assertGt(lonStaking.stakersCooldowns(redeemer), 0, "Cooldown record remains until user redeem all shares");
-        }
-    }
-
-    function _determineStakeRedeemAmount(uint80[2][16] memory stakeAndRedeemAmounts)
-        internal
-        pure
-        returns (uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts)
-    {
-        for (uint256 i = 0; i < stakeAndRedeemAmounts.length; i++) {
-            if (stakeAndRedeemAmounts[i][0] >= stakeAndRedeemAmounts[i][1]) {
-                stakeAmounts[i] = stakeAndRedeemAmounts[i][0];
-                redeemAmounts[i] = stakeAndRedeemAmounts[i][1];
-            } else {
-                stakeAmounts[i] = stakeAndRedeemAmounts[i][1];
-                redeemAmounts[i] = stakeAndRedeemAmounts[i][0];
-            }
         }
     }
 }

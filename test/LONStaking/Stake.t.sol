@@ -29,21 +29,20 @@ contract TestLONStakingStake is TestLONStaking {
      *********************************/
 
     function testFuzz_Stake(uint256 stakeAmount) public {
-        vm.assume(stakeAmount > 0);
-        vm.assume(stakeAmount <= lon.cap());
-        vm.assume(stakeAmount.add(lon.totalSupply()) <= lon.cap());
+        stakeAmount = bound(stakeAmount, 1, lon.cap().sub(lon.totalSupply()));
 
         lon.mint(user, stakeAmount);
         _stakeAndValidate(user, stakeAmount);
     }
 
-    function testFuzz_StakeMultiple(uint80[16] memory stakeAmounts) public {
-        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
+    function testFuzz_StakeMultiple(uint256[16] memory stakeAmounts) public {
         uint256 totalLONAmount = lon.totalSupply();
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            vm.assume(stakeAmounts[i] > 0);
+            uint256 itemsLeft = stakeAmounts.length - i - 1;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount will all be zero and become invalid.
+            // So an additional `itemsLeft` is subtracted from the max value of the current stake amount
+            stakeAmounts[i] = bound(stakeAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(itemsLeft));
             totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
-            vm.assume(totalLONAmount <= lon.cap());
         }
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
@@ -54,24 +53,27 @@ contract TestLONStakingStake is TestLONStaking {
         }
     }
 
-    function testFuzz_StakeMultipleWithBuybackOneByOne(uint80[16] memory stakeAmounts, uint80[16] memory buybackAmounts) public {
-        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
-        uint256 totalLONAmount = lon.totalSupply();
-        for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            vm.assume(stakeAmounts[i] > 0);
-            totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
-            vm.assume(totalLONAmount <= lon.cap());
-        }
-        for (uint256 i = 0; i < buybackAmounts.length; i++) {
-            vm.assume(buybackAmounts[i] > 0);
-            totalLONAmount = totalLONAmount.add(buybackAmounts[i]);
-            vm.assume(totalLONAmount <= lon.cap());
-        }
-
+    function testFuzz_StakeMultipleWithBuybackOneByOne(uint256[16] memory stakeAmounts, uint256[16] memory buybackAmounts) public {
         // Make initial big enough deposit so LON amount will not increase dramatically relative to xLON amount due to buyback
         // and hence result in later staker getting zero shares
-        lon.mint(address(0x5566), 10_000_000e18);
-        _stake(address(0x5566), 10_000_000e18); // stake 10m LON
+        lon.mint(makeAddr("initial_depositor"), 10_000_000e18);
+        _stake(makeAddr("initial_depositor"), 10_000_000e18); // stake 10m LON
+
+        uint256 totalLONAmount = lon.totalSupply();
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 itemsLeft = stakeAmounts.length + buybackAmounts.length - i - 1;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount and buyback amount will all be zero and become invalid.
+            // So an additional `itemsLeft` is subtracted from the max value of the current stake amount
+            stakeAmounts[i] = bound(stakeAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(itemsLeft));
+            totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
+        }
+        for (uint256 i = 0; i < buybackAmounts.length; i++) {
+            uint256 itemsLeft = buybackAmounts.length - i - 1;
+            // If buyback amount is set to `lon.cap().sub(totalLONAmount)`, rest of the buyback amount will all be zero and become invalid.
+            // So an additional `itemsLeft` is subtracted from the max value of the current buyback amount
+            buybackAmounts[i] = bound(buybackAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(itemsLeft));
+            totalLONAmount = totalLONAmount.add(buybackAmounts[i]);
+        }
 
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
             address staker = address(uint256(fuzzingUserStartAddress) + i);
@@ -82,21 +84,23 @@ contract TestLONStakingStake is TestLONStaking {
         }
     }
 
-    function testFuzz_StakeMultipleWithBuybackOneTime(uint80[16] memory stakeAmounts, uint80 buybackAmount) public {
-        // LON cap lies between 2**87 and 2**88, setting upper bound of stake amount to 2**80 - 1 so stake amount will not exceed cap
-        uint256 totalLONAmount = lon.totalSupply();
-        for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            vm.assume(stakeAmounts[i] > 0);
-            totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
-            vm.assume(totalLONAmount <= lon.cap());
-        }
-        vm.assume(buybackAmount > 0);
-        vm.assume(totalLONAmount.add(buybackAmount) <= lon.cap());
-
+    function testFuzz_StakeMultipleWithBuybackOneTime(uint256[16] memory stakeAmounts, uint256 buybackAmount) public {
         // Make initial big enough deposit so LON amount will not increase dramatically relative to xLON amount due to buyback
         // and hence result in later staker getting zero shares
-        lon.mint(address(0x5566), 10_000_000e18);
-        _stake(address(0x5566), 10_000_000e18); // stake 10m LON
+        lon.mint(makeAddr("initial_depositor"), 10_000_000e18);
+        _stake(makeAddr("initial_depositor"), 10_000_000e18); // stake 10m LON
+
+        uint256 totalLONAmount = lon.totalSupply();
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 itemsLeft = stakeAmounts.length - i;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount and buyback amount will all be zero and become invalid.
+            // So an additional `2 * itemsLeft` is subtracted from the max value of the current stake amount
+            stakeAmounts[i] = bound(stakeAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(2 * itemsLeft));
+            // Divide stake amount by half for two rounds of staking
+            stakeAmounts[i] = stakeAmounts[i] > 1 ? stakeAmounts[i] / 2 : 1;
+            totalLONAmount = totalLONAmount.add(stakeAmounts[i].mul(2));
+        }
+        buybackAmount = bound(buybackAmount, 1, lon.cap().sub(totalLONAmount));
 
         // First batch of users stake
         address firstBatchUsersAddressStart = fuzzingUserStartAddress;
