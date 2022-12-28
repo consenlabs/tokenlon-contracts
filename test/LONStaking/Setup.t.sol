@@ -12,6 +12,9 @@ import "test/utils/BalanceSnapshot.sol";
 contract TestLONStaking is Test {
     using SafeMath for uint256;
 
+    uint256 constant MIN_STAKE_AMOUNT = 1;
+    uint256 constant MIN_REDEEM_AMOUNT = 1;
+    uint256 constant MIN_BUYBACK_AMOUNT = 1;
     uint256 constant COOLDOWN_IN_DAYS = 7;
     uint256 constant COOLDOWN_SECONDS = 7 days;
     uint256 constant BPS_RAGE_EXIT_PENALTY = 500;

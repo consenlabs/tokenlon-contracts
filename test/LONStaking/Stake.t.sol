@@ -29,7 +29,7 @@ contract TestLONStakingStake is TestLONStaking {
      *********************************/
 
     function testFuzz_Stake(uint256 stakeAmount) public {
-        stakeAmount = bound(stakeAmount, 1, lon.cap().sub(lon.totalSupply()));
+        stakeAmount = bound(stakeAmount, MIN_STAKE_AMOUNT, lon.cap().sub(lon.totalSupply()));
 
         lon.mint(user, stakeAmount);
         _stakeAndValidate(user, stakeAmount);
@@ -38,10 +38,10 @@ contract TestLONStakingStake is TestLONStaking {
     function testFuzz_StakeMultiple(uint256[16] memory stakeAmounts) public {
         uint256 totalLONAmount = lon.totalSupply();
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            uint256 itemsLeft = stakeAmounts.length - i - 1;
+            uint256 numStakeAmountLeft = stakeAmounts.length - i - 1;
             // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount will all be zero and become invalid.
-            // So an additional `itemsLeft` is subtracted from the max value of the current stake amount
-            stakeAmounts[i] = bound(stakeAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(itemsLeft));
+            // So an additional `numStakeAmountLeft * MIN_STAKE_AMOUNT` is subtracted from the max value of the current stake amount
+            stakeAmounts[i] = bound(stakeAmounts[i], MIN_STAKE_AMOUNT, lon.cap().sub(totalLONAmount).sub(numStakeAmountLeft * MIN_STAKE_AMOUNT));
             totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
         }
 
@@ -61,17 +61,22 @@ contract TestLONStakingStake is TestLONStaking {
 
         uint256 totalLONAmount = lon.totalSupply();
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            uint256 itemsLeft = stakeAmounts.length + buybackAmounts.length - i - 1;
+            uint256 numStakeAmountLeft = stakeAmounts.length - i - 1;
+            uint256 numBuybackAmountLeft = buybackAmounts.length;
             // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount and buyback amount will all be zero and become invalid.
-            // So an additional `itemsLeft` is subtracted from the max value of the current stake amount
-            stakeAmounts[i] = bound(stakeAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(itemsLeft));
+            // So an additional `numStakeAmountLeft * MIN_STAKE_AMOUNT + numBuybackAmountLeft * MIN_BUYBACK_AMOUNT` is subtracted from the max value of the current stake amount
+            stakeAmounts[i] = bound(
+                stakeAmounts[i],
+                MIN_STAKE_AMOUNT,
+                lon.cap().sub(totalLONAmount).sub(numStakeAmountLeft * MIN_STAKE_AMOUNT + numBuybackAmountLeft * MIN_BUYBACK_AMOUNT)
+            );
             totalLONAmount = totalLONAmount.add(stakeAmounts[i]);
         }
         for (uint256 i = 0; i < buybackAmounts.length; i++) {
-            uint256 itemsLeft = buybackAmounts.length - i - 1;
+            uint256 numBuybackAmountLeft = buybackAmounts.length - i - 1;
             // If buyback amount is set to `lon.cap().sub(totalLONAmount)`, rest of the buyback amount will all be zero and become invalid.
-            // So an additional `itemsLeft` is subtracted from the max value of the current buyback amount
-            buybackAmounts[i] = bound(buybackAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(itemsLeft));
+            // So an additional `numBuybackAmountLeft * MIN_BUYBACK_AMOUNT` is subtracted from the max value of the current buyback amount
+            buybackAmounts[i] = bound(buybackAmounts[i], MIN_BUYBACK_AMOUNT, lon.cap().sub(totalLONAmount).sub(numBuybackAmountLeft * MIN_BUYBACK_AMOUNT));
             totalLONAmount = totalLONAmount.add(buybackAmounts[i]);
         }
 
@@ -92,15 +97,20 @@ contract TestLONStakingStake is TestLONStaking {
 
         uint256 totalLONAmount = lon.totalSupply();
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
-            uint256 itemsLeft = stakeAmounts.length - i;
+            uint256 numStakeAmountLeft = stakeAmounts.length - i - 1;
+            uint256 numBuybackAmountLeft = 1;
             // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount and buyback amount will all be zero and become invalid.
-            // So an additional `2 * itemsLeft` is subtracted from the max value of the current stake amount
-            stakeAmounts[i] = bound(stakeAmounts[i], 1, lon.cap().sub(totalLONAmount).sub(2 * itemsLeft));
+            // So an additional `numStakeAmountLeft * MIN_STAKE_AMOUNT * 2 + numBuybackAmountLeft * MIN_BUYBACK_AMOUNT` is subtracted from the max value of the current stake amount
+            stakeAmounts[i] = bound(
+                stakeAmounts[i],
+                MIN_STAKE_AMOUNT,
+                lon.cap().sub(totalLONAmount).sub(numStakeAmountLeft * MIN_STAKE_AMOUNT * 2 + numBuybackAmountLeft * MIN_BUYBACK_AMOUNT)
+            );
             // Divide stake amount by half for two rounds of staking
             stakeAmounts[i] = stakeAmounts[i] > 1 ? stakeAmounts[i] / 2 : 1;
             totalLONAmount = totalLONAmount.add(stakeAmounts[i].mul(2));
         }
-        buybackAmount = bound(buybackAmount, 1, lon.cap().sub(totalLONAmount));
+        buybackAmount = bound(buybackAmount, MIN_BUYBACK_AMOUNT, lon.cap().sub(totalLONAmount));
 
         // First batch of users stake
         address firstBatchUsersAddressStart = fuzzingUserStartAddress;
