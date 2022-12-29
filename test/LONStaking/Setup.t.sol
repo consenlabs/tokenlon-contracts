@@ -94,4 +94,64 @@ contract TestLONStaking is Test {
     function _simulateBuyback(uint256 amount) internal {
         lon.mint(address(lonStaking), amount);
     }
+
+    function _boundStakeAmounts(
+        uint256[16] memory stakeAmounts,
+        uint256 minStakeAmount,
+        uint256 totalLONAmount
+    ) internal returns (uint256[16] memory boundedStakeAmounts, uint256 newTotalLONAmount) {
+        newTotalLONAmount = totalLONAmount;
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 numStakeAmountLeft = stakeAmounts.length - i - 1;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount will all be zero and become invalid.
+            // So an additional `numStakeAmountLeft * minStakeAmount` is subtracted from the max value of the current stake amount
+            boundedStakeAmounts[i] = bound(stakeAmounts[i], minStakeAmount, lon.cap().sub(newTotalLONAmount).sub(numStakeAmountLeft * minStakeAmount));
+            newTotalLONAmount = newTotalLONAmount.add(boundedStakeAmounts[i]);
+        }
+    }
+
+    function _boundStakeAndBuybackAmounts(
+        uint256[16] memory stakeAmounts,
+        uint256[16] memory buybackAmounts,
+        uint256 minStakeAmount,
+        uint256 totalLONAmount
+    )
+        internal
+        returns (
+            uint256[16] memory boundedStakeAmounts,
+            uint256[16] memory boundedBuybackAmounts,
+            uint256 newTotalLONAmount
+        )
+    {
+        newTotalLONAmount = totalLONAmount;
+        for (uint256 i = 0; i < stakeAmounts.length; i++) {
+            uint256 numStakeAmountLeft = stakeAmounts.length - i - 1;
+            uint256 numBuybackAmountLeft = buybackAmounts.length;
+            // If stake amount is set to `lon.cap().sub(totalLONAmount)`, rest of the stake amount and buyback amount will all be zero and become invalid.
+            // So an additional `numStakeAmountLeft * minStakeAmount + numBuybackAmountLeft * MIN_BUYBACK_AMOUNT` is subtracted from the max value of the current stake amount
+            boundedStakeAmounts[i] = bound(
+                stakeAmounts[i],
+                minStakeAmount,
+                lon.cap().sub(newTotalLONAmount).sub(numStakeAmountLeft * minStakeAmount + numBuybackAmountLeft * MIN_BUYBACK_AMOUNT)
+            );
+            newTotalLONAmount = newTotalLONAmount.add(boundedStakeAmounts[i]);
+        }
+        for (uint256 i = 0; i < buybackAmounts.length; i++) {
+            uint256 numBuybackAmountLeft = buybackAmounts.length - i - 1;
+            // If buyback amount is set to `lon.cap().sub(totalLONAmount)`, rest of the buyback amount will all be zero and become invalid.
+            // So an additional `numBuybackAmountLeft * MIN_BUYBACK_AMOUNT` is subtracted from the max value of the current buyback amount
+            boundedBuybackAmounts[i] = bound(
+                buybackAmounts[i],
+                MIN_BUYBACK_AMOUNT,
+                lon.cap().sub(newTotalLONAmount).sub(numBuybackAmountLeft * MIN_BUYBACK_AMOUNT)
+            );
+            newTotalLONAmount = newTotalLONAmount.add(boundedBuybackAmounts[i]);
+        }
+    }
+
+    function _boundRedeemAmounts(uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts) internal returns (uint256[16] memory boundedRedeemAmounts) {
+        for (uint256 i = 0; i < redeemAmounts.length; i++) {
+            boundedRedeemAmounts[i] = bound(redeemAmounts[i], MIN_REDEEM_AMOUNT, stakeAmounts[i]);
+        }
+    }
 }
