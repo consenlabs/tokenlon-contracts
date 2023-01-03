@@ -1,0 +1,49 @@
+name: Tokenlon Contracts CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [14.x]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: "Cache RPC Responses"
+        uses: "actions/cache@v3"
+        with:
+          path: "~/.foundry/cache/rpc/mainnet/"
+          key: "${{ runner.os }}-mainnet"
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install
+        run: yarn install --frozen-lockfile
+      - name: Install Foundry and Setup
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: Format
+        run: yarn run check-pretty
+      - name: Lint
+        run: |
+          yarn run lint
+      - name: Compile
+        run: |
+          yarn run compile
+      - name: Test
+        env:
+          MAINNET_NODE_RPC_URL: ${{ secrets.MAINNET_NODE_RPC_URL }}
+          FOUNDRY_PROFILE: CI
+        run: |
+          yarn run test-foundry-local
+          yarn run test-foundry-fork

@@ -12,6 +12,5 @@
     "paths": {
       "~/*": ["*"]
     }
-  },
-  "include": ["hardhat.config.ts"]
+  }
 }
