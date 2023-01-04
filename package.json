@@ -6,7 +6,7 @@
   "author": "Charles Jhong <charlesjhongc@gmail.com>",
   "license": "MIT",
   "engines": {
-    "node": ">=14.0.0 <16",
+    "node": ">=16.0.0 <18",
     "yarn": "^1.22.10"
   },
   "scripts": {
