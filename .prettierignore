@@ -16,3 +16,6 @@ coverage.json
 artifacts-foundry/
 cache-foundry/
 lib/
+
+# Signing test payload
+test/signing/payload/
