@@ -14,6 +14,7 @@ block_timestamp = 1640966400                                  # 2022/01/01 00:00
 initial_balance = '0xffffffffffffffffffffffff'                # the initial balance of the test contract
 gas_limit = 9223372036854775807                               # the gas limit in tests
 gas_price = 0                                                 # the gas price (in wei) in tests
+fs_permissions = [{ access = "read", path = "./test/signing/payload/"}]
 
 [profile.ci]
 force = false                                                 # whether to ignore the cache (clean build)
