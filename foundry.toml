@@ -15,6 +15,14 @@ initial_balance = '0xffffffffffffffffffffffff'                # the initial bala
 gas_limit = 9223372036854775807                               # the gas limit in tests
 gas_price = 0                                                 # the gas price (in wei) in tests
 
+[fmt]
+line_length = 160                                             # Maximum line length where formatter will try to wrap the line
+tab_width = 4                                                 # Number of spaces per indentation level
+bracket_spacing = true                                        # Whether or not to print spaces between brackets
+multiline_func_header = 'params_first'
+quote_style = 'double'
+ignore = ['test/**/*.sol']
+
 [profile.ci]
 force = false                                                 # whether to ignore the cache (clean build)
 
