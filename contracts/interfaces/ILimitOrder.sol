@@ -32,12 +32,7 @@ interface ILimitOrder is IStrategyBase {
     /// @param recipient The address of the recipient which will receive tokens from maker
     /// @param fillReceipt Contains details of this single fill
     event LimitOrderFilledByTrader(
-        bytes32 indexed orderHash,
-        address indexed maker,
-        address indexed taker,
-        bytes32 allowFillHash,
-        address recipient,
-        FillReceipt fillReceipt
+        bytes32 indexed orderHash, address indexed maker, address indexed taker, bytes32 allowFillHash, address recipient, FillReceipt fillReceipt
     );
 
     /// @notice Emitted when an order is filled by interacting with an external protocol
