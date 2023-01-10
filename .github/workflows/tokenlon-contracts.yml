@@ -47,3 +47,7 @@ jobs:
         run: |
           yarn run test-foundry-local
           yarn run test-foundry-fork
+      - name: Signing Test
+        run: |
+          npx ts-node test/signing/sdkSign.ts
+          forge script test/signing/foundrySign.s.sol
