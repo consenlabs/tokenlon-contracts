@@ -806,7 +806,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function testCannotFillByUniswapV3LessThanProtocolOutMinimum() public {
         // get quote from AMM
-        uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);
+        uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(UNISWAP_V3_QUOTER_ADDRESS, DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);
 
         ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
         protocolParams.protocolOutMinimum = ammTakerTokenOut.mul(2); // require 2x output from AMM
@@ -821,7 +821,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function testCannotFillBySushiSwapLessThanProtocolOutMinimum() public {
         // get quote from AMM
-        uint256[] memory amountOuts = getSushiAmountsOut(DEFAULT_ORDER.makerTokenAmount, tokenAddrs);
+        uint256[] memory amountOuts = getSushiAmountsOut(SUSHISWAP_ADDRESS, DEFAULT_ORDER.makerTokenAmount, tokenAddrs);
 
         address[] memory path = tokenAddrs;
         ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
@@ -1049,7 +1049,7 @@ contract LimitOrderTest is StrategySharedSetup {
         limitOrder.setFactors(1000, 1000, 2000);
 
         // get quote from AMM
-        uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);
+        uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(UNISWAP_V3_QUOTER_ADDRESS, DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);
         uint256 ammOutputExtra = ammTakerTokenOut.sub(DEFAULT_ORDER.takerTokenAmount);
         uint256 relayerTakerTokenProfitFee = ammOutputExtra.mul(20).div(100);
 
@@ -1120,7 +1120,7 @@ contract LimitOrderTest is StrategySharedSetup {
         );
 
         // get expected profit for relayer
-        uint256 ammOutputExtra = quoteUniswapV3ExactInput(protocolParams.data, order.makerTokenAmount).sub(order.takerTokenAmount);
+        uint256 ammOutputExtra = quoteUniswapV3ExactInput(UNISWAP_V3_QUOTER_ADDRESS, protocolParams.data, order.makerTokenAmount).sub(order.takerTokenAmount);
 
         vm.startPrank(relayer, relayer);
         vm.expectEmit(true, true, true, true);
@@ -1166,7 +1166,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         // get quote from AMM
         address[] memory path = tokenAddrs;
-        uint256[] memory amountOuts = getSushiAmountsOut(order.makerTokenAmount, path);
+        uint256[] memory amountOuts = getSushiAmountsOut(SUSHISWAP_ADDRESS, order.makerTokenAmount, path);
         // Since profitFeeFactor is zero, so the extra token from AMM is the profit for relayer.
         uint256 profit = amountOuts[amountOuts.length - 1].sub(order.takerTokenAmount);
 

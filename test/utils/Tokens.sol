@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "forge-std/Test.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "test/mocks/MockERC20.sol";
 import "test/mocks/MockWETH.sol";
 import "test/utils/Addresses.sol";
 
-contract Tokens is Test {
+contract Tokens is Addresses {
     IERC20 public weth;
     IERC20 public usdt;
     IERC20 public usdc;
@@ -28,10 +27,7 @@ contract Tokens is Test {
             lon = IERC20(vm.envAddress("LON_ADDRESS"));
             ankreth = IERC20(vm.envAddress("ANKRETH_ADDRESS"));
         } else {
-            uint256 chainId;
-            assembly {
-                chainId := chainid()
-            }
+            uint256 chainId = getChainId();
 
             if (chainId == 31337) {
                 // local testnet, deploy new ERC20s

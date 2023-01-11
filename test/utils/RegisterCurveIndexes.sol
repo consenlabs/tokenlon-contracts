@@ -2,9 +2,9 @@
 pragma solidity 0.7.6;
 
 import { PermanentStorage } from "contracts/PermanentStorage.sol";
-import "./Addresses.sol";
+import "test/utils/Addresses.sol";
 
-contract RegisterCurveIndexes {
+contract RegisterCurveIndexes is Addresses {
     address[] COMPOUND_POOL_UNDERLYING_COINS = [DAI_ADDRESS, USDC_ADDRESS];
     address[] COMPOUND_POOL_COINS = [cDAI_ADDRESS, cUSDC_ADDRESS];
     bool constant COMPOUND_POOL_SUPPORT_GET_DX = true;
