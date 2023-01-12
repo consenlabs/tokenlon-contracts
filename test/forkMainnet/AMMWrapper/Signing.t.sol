@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "forge-std/Script.sol";
-
-import "contracts/AMMWrapper.sol";
-import "contracts/utils/AMMLibEIP712.sol";
-import { getEIP712Hash } from "test/utils/Sig.sol";
+import "test/utils/StrategySharedSetup.sol";
 
 function computeEIP712DomainSeparator(address verifyingContract) returns (bytes32) {
     uint256 CHAIN_ID = 1;
@@ -20,12 +17,8 @@ function computeEIP712DomainSeparator(address verifyingContract) returns (bytes3
     return EIP712_DOMAIN_SEPARATOR;
 }
 
-contract SigningScript is Script {
-    function run() external {
-        checkAMMSig();
-    }
-
-    function checkAMMSig() internal {
+contract TestAMMWrapperSigning is StrategySharedSetup {
+    function testAMMOrderEIP712Sig() public {
         string memory ammWrapperPayloadJson = vm.readFile("test/signing/payload/ammWrapper.json");
 
         AMMLibEIP712.Order memory order = AMMLibEIP712.Order(
