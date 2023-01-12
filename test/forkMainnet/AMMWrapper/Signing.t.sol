@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
+import "contracts/utils/AMMLibEIP712.sol";
 import "test/utils/StrategySharedSetup.sol";
+import { getEIP712Hash } from "test/utils/Sig.sol";
 
 function computeEIP712DomainSeparator(address verifyingContract) returns (bytes32) {
     uint256 CHAIN_ID = 1;
