@@ -5,26 +5,43 @@ import { PermanentStorage } from "contracts/PermanentStorage.sol";
 import "test/utils/Addresses.sol";
 
 contract RegisterCurveIndexes is Addresses {
-    address[] COMPOUND_POOL_UNDERLYING_COINS = [DAI_ADDRESS, USDC_ADDRESS];
-    address[] COMPOUND_POOL_COINS = [cDAI_ADDRESS, cUSDC_ADDRESS];
+    address[] COMPOUND_POOL_UNDERLYING_COINS;
+    address[] COMPOUND_POOL_COINS;
     bool constant COMPOUND_POOL_SUPPORT_GET_DX = true;
 
-    address[] USDT_POOL_UNDERLYING_COINS = [DAI_ADDRESS, USDC_ADDRESS, USDT_ADDRESS];
-    address[] USDT_POOL_COINS = [cDAI_ADDRESS, cUSDC_ADDRESS, USDT_ADDRESS];
+    address[] USDT_POOL_UNDERLYING_COINS;
+    address[] USDT_POOL_COINS;
     bool constant USDT_POOL_SUPPORT_GET_DX = true;
 
-    address[] Y_POOL_UNDERLYING_COINS = [DAI_ADDRESS, USDC_ADDRESS, USDT_ADDRESS, TUSD_ADDRESS];
-    address[] Y_POOL_COINS = [yDAI_ADDRESS, yUSDC_ADDRESS, yUSDT_ADDRESS, yTUSD_ADDRESS];
+    address[] Y_POOL_UNDERLYING_COINS;
+    address[] Y_POOL_COINS;
     bool constant Y_POOL_SUPPORT_GET_DX = true;
 
-    address[] C3_POOL_COINS = [DAI_ADDRESS, USDC_ADDRESS, USDT_ADDRESS];
+    address[] C3_POOL_COINS;
     bool constant C3_POOL_SUPPORT_GET_DX = false;
 
-    address[] ANKRETH_POOL_COINS = [ETH_ADDRESS, ANKRETH_ADDRESS];
+    address[] ANKRETH_POOL_COINS;
     bool constant ANKRETH_POOL_SUPPORT_GET_DX = false;
 
-    address[] TRICRYPTO2POOL_COINS = [USDT_ADDRESS, WBTC_ADDRESS, WETH_ADDRESS];
+    address[] TRICRYPTO2POOL_COINS;
     bool constant TRICRYPTO2POOL_SUPPORT_GET_DX = false;
+
+    constructor() {
+        COMPOUND_POOL_UNDERLYING_COINS = [DAI_ADDRESS, USDC_ADDRESS];
+        COMPOUND_POOL_COINS = [cDAI_ADDRESS, cUSDC_ADDRESS];
+
+        USDT_POOL_UNDERLYING_COINS = [DAI_ADDRESS, USDC_ADDRESS, USDT_ADDRESS];
+        USDT_POOL_COINS = [cDAI_ADDRESS, cUSDC_ADDRESS, USDT_ADDRESS];
+
+        Y_POOL_UNDERLYING_COINS = [DAI_ADDRESS, USDC_ADDRESS, USDT_ADDRESS, TUSD_ADDRESS];
+        Y_POOL_COINS = [yDAI_ADDRESS, yUSDC_ADDRESS, yUSDT_ADDRESS, yTUSD_ADDRESS];
+
+        C3_POOL_COINS = [DAI_ADDRESS, USDC_ADDRESS, USDT_ADDRESS];
+
+        ANKRETH_POOL_COINS = [ETH_ADDRESS, ANKRETH_ADDRESS];
+
+        TRICRYPTO2POOL_COINS = [USDT_ADDRESS, WBTC_ADDRESS, WETH_ADDRESS];
+    }
 
     function _registerCurveIndexes(PermanentStorage pm) internal {
         // register Compound pool
