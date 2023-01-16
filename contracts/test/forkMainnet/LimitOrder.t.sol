@@ -71,6 +71,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
     LimitOrder limitOrder;
     uint64 DEADLINE = uint64(block.timestamp + 2 days);
+    uint256 FACTORSDEALY = 12 hours;
 
     // effectively a "beforeEach" block
     function setUp() public {
@@ -149,6 +150,7 @@ contract LimitOrderTest is StrategySharedSetup {
             ISpender(address(spender)),
             IPermanentStorage(address(permanentStorage)),
             IWETH(address(weth)),
+            FACTORSDEALY,
             UNISWAP_V3_ADDRESS,
             SUSHISWAP_ADDRESS,
             feeCollector
@@ -303,6 +305,14 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function testSetFactors() public {
         limitOrder.setFactors(1, 2, 3);
+        // fee factors should stay same before new ones activate
+        assertEq(uint256(limitOrder.makerFeeFactor()), 0);
+        assertEq(uint256(limitOrder.takerFeeFactor()), 0);
+        assertEq(uint256(limitOrder.profitFeeFactor()), 0);
+        vm.warp(block.timestamp + limitOrder.factorActivateDelay());
+
+        // fee factors should be updated now
+        limitOrder.activateFactors();
         assertEq(uint256(limitOrder.makerFeeFactor()), 1);
         assertEq(uint256(limitOrder.takerFeeFactor()), 2);
         assertEq(uint256(limitOrder.profitFeeFactor()), 3);
@@ -593,6 +603,8 @@ contract LimitOrderTest is StrategySharedSetup {
         // makerFeeFactor/takerFeeFactor : 10%
         // profitFeeFactor : 20%
         limitOrder.setFactors(1000, 1000, 2000);
+        vm.warp(block.timestamp + limitOrder.factorActivateDelay());
+        limitOrder.activateFactors();
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectEmit(true, true, true, true);
@@ -993,6 +1005,8 @@ contract LimitOrderTest is StrategySharedSetup {
         // makerFeeFactor/takerFeeFactor : 10%
         // profitFeeFactor : 20%
         limitOrder.setFactors(1000, 1000, 2000);
+        vm.warp(block.timestamp + limitOrder.factorActivateDelay());
+        limitOrder.activateFactors();
 
         // get quote from AMM
         uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);
