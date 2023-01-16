@@ -27,6 +27,8 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
+    uint256 public immutable factorActivateDelay;
+
     // AMM
     address public immutable uniswapV3RouterAddress;
     address public immutable sushiswapRouterAddress;
@@ -36,9 +38,13 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
     address public feeCollector;
 
     // Factors
+    uint256 public factorsTimeLock;
     uint16 public makerFeeFactor = 0;
+    uint16 public pendingMakerFeeFactor;
     uint16 public takerFeeFactor = 0;
+    uint16 public pendingTakerFeeFactor;
     uint16 public profitFeeFactor = 0;
+    uint16 public pendingProfitFeeFactor;
 
     constructor(
         address _owner,
@@ -47,11 +53,13 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         address _permStorage,
         address _spender,
         address _coordinator,
+        uint256 _factorActivateDelay,
         address _uniswapV3RouterAddress,
         address _sushiswapRouterAddress,
         address _feeCollector
     ) StrategyBase(_owner, _userProxy, _weth, _permStorage, _spender) {
         coordinator = _coordinator;
+        factorActivateDelay = _factorActivateDelay;
         uniswapV3RouterAddress = _uniswapV3RouterAddress;
         sushiswapRouterAddress = _sushiswapRouterAddress;
         feeCollector = _feeCollector;
@@ -81,11 +89,26 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         require(_takerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid taker fee factor");
         require(_profitFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid profit fee factor");
 
-        makerFeeFactor = _makerFeeFactor;
-        takerFeeFactor = _takerFeeFactor;
-        profitFeeFactor = _profitFeeFactor;
+        pendingMakerFeeFactor = _makerFeeFactor;
+        pendingTakerFeeFactor = _takerFeeFactor;
+        pendingProfitFeeFactor = _profitFeeFactor;
 
-        emit FactorsUpdated(_makerFeeFactor, _takerFeeFactor, _profitFeeFactor);
+        factorsTimeLock = block.timestamp + factorActivateDelay;
+    }
+
+    /// @notice Only owner can call
+    function activateFactors() external onlyOwner {
+        require(factorsTimeLock != 0, "LimitOrder: no pending fee factors");
+        require(block.timestamp >= factorsTimeLock, "LimitOrder: fee factors timelocked");
+        factorsTimeLock = 0;
+        makerFeeFactor = pendingMakerFeeFactor;
+        takerFeeFactor = pendingTakerFeeFactor;
+        profitFeeFactor = pendingProfitFeeFactor;
+        pendingMakerFeeFactor = 0;
+        pendingTakerFeeFactor = 0;
+        pendingProfitFeeFactor = 0;
+
+        emit FactorsUpdated(makerFeeFactor, takerFeeFactor, profitFeeFactor);
     }
 
     /// @notice Only owner can call
