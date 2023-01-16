@@ -200,6 +200,10 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
     }
 
     function _settleForTrader(TraderSettlement memory _settlement) internal returns (uint256) {
+        // memory cache
+        ISpender _spender = spender;
+        address _feeCollector = feeCollector;
+
         // Calculate maker fee (maker receives taker token so fee is charged in taker token)
         uint256 takerTokenFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
         uint256 takerTokenForMaker = _settlement.takerTokenAmount.sub(takerTokenFee);
@@ -209,18 +213,18 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         uint256 makerTokenForTrader = _settlement.makerTokenAmount.sub(makerTokenFee);
 
         // trader -> maker
-        spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _settlement.maker, takerTokenForMaker);
+        _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _settlement.maker, takerTokenForMaker);
 
         // maker -> recipient
-        spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _settlement.recipient, makerTokenForTrader);
+        _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _settlement.recipient, makerTokenForTrader);
 
         // Collect maker fee (charged in taker token)
         if (takerTokenFee > 0) {
-            spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), feeCollector, takerTokenFee);
+            _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _feeCollector, takerTokenFee);
         }
         // Collect taker fee (charged in maker token)
         if (makerTokenFee > 0) {
-            spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), feeCollector, makerTokenFee);
+            _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _feeCollector, makerTokenFee);
         }
 
         // bypass stack too deep error
