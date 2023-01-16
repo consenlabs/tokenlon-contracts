@@ -431,7 +431,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     }
 
     function _swapByProtocol(ProtocolSettlement memory _settlement) internal returns (uint256 amountOut) {
-        _settlement.makerToken.safeApprove(_settlement.protocolAddress, _settlement.makerTokenAmount);
+        _settlement.makerToken.approve(_settlement.protocolAddress, _settlement.makerTokenAmount);
 
         // UniswapV3
         if (_settlement.protocol == Protocol.UniswapV3) {
@@ -463,8 +463,6 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
                 })
             );
         }
-
-        _settlement.makerToken.safeApprove(_settlement.protocolAddress, 0);
     }
 
     /**
