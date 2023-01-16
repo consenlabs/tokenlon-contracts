@@ -103,7 +103,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
      * @dev approve spender to transfer tokens from this contract. This is used to collect fee.
      */
     function setAllowance(address[] calldata _tokenList, address _spender) external onlyOperator {
-        for (uint256 i = 0; i < _tokenList.length; i++) {
+        for (uint256 i = 0; i < _tokenList.length; ++i) {
             IERC20(_tokenList[i]).safeApprove(_spender, LibConstant.MAX_UINT);
 
             emit AllowTransfer(_spender);
@@ -111,7 +111,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     }
 
     function closeAllowance(address[] calldata _tokenList, address _spender) external onlyOperator {
-        for (uint256 i = 0; i < _tokenList.length; i++) {
+        for (uint256 i = 0; i < _tokenList.length; ++i) {
             IERC20(_tokenList[i]).safeApprove(_spender, 0);
 
             emit DisallowTransfer(_spender);
