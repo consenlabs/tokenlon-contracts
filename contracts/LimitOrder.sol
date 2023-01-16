@@ -467,6 +467,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         uint256 makerTokenQuota = takerTokenQuota.mul(_order.makerTokenAmount).div(_order.takerTokenAmount);
         uint256 remainingAfterFill = takerTokenFillableAmount.sub(takerTokenQuota);
 
+        require(makerTokenQuota != 0 && takerTokenQuota != 0, "LimitOrder: zero token amount");
         return (makerTokenQuota, takerTokenQuota, remainingAfterFill);
     }
 
