@@ -147,6 +147,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
 
     function _validateTraderFill(LimitOrderLibEIP712.Fill memory _fill, bytes memory _fillTakerSig) internal {
         require(_fill.expiry > uint64(block.timestamp), "LimitOrder: Fill request is expired");
+        require(_fill.recipient != address(0), "LimitOrder: recipient can not be zero address");
 
         bytes32 fillHash = getEIP712Hash(LimitOrderLibEIP712._getFillStructHash(_fill));
         require(isValidSignature(_fill.taker, fillHash, bytes(""), _fillTakerSig), "LimitOrder: Fill is not signed by taker");
@@ -316,6 +317,8 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
     }
 
     function _settleForProtocol(ProtocolSettlement memory _settlement) internal returns (uint256) {
+        require(_settlement.profitRecipient != address(0), "LimitOrder: profitRecipient can not be zero address");
+
         // Collect maker token from maker in order to swap through protocol
         spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), address(this), _settlement.makerTokenAmount);
 

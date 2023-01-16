@@ -611,6 +611,16 @@ contract LimitOrderTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload2);
     }
 
+    function testCannotFillByZeroTrader() public {
+        ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.recipient = address(0);
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
+        vm.expectRevert("LimitOrder: recipient can not be zero address");
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
+    }
+
     function testFullyFillByTrader() public {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
@@ -1032,6 +1042,17 @@ contract LimitOrderTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload);
 
         vm.expectRevert("PermanentStorage: allow fill seen before");
+        userProxy.toLimitOrder(payload);
+        vm.stopPrank();
+    }
+
+    function testCannotFillByProtocolWithZeroProfitRecipient() public {
+        ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
+        protocolParams.profitRecipient = address(0);
+
+        vm.startPrank(user, user);
+        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, protocolParams, DEFAULT_CRD_PARAMS);
+        vm.expectRevert("LimitOrder: profitRecipient can not be zero address");
         userProxy.toLimitOrder(payload);
         vm.stopPrank();
     }
