@@ -65,8 +65,7 @@ function readAddresses(Vm vm) returns (string memory data) {
     } else if (chainId == 421613) {
         fileName = "test/utils/config/arbitrumGoerli.json";
     } else if (chainId == 31337) {
-        // Local testnet
-        return "";
+        fileName = "test/utils/config/local.json";
     } else {
         string memory errorMsg = string(abi.encodePacked("No address config support for network ", chainId));
         revert(errorMsg);
