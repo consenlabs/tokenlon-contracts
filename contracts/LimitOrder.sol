@@ -137,7 +137,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         }
     }
 
-    function setFactors(
+    function proposeFactors(
         uint16 _makerFeeFactor,
         uint16 _takerFeeFactor,
         uint16 _profitFeeFactor

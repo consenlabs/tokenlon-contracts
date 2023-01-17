@@ -179,6 +179,7 @@ contract LimitOrderTest is StrategySharedSetup {
         assertEq(limitOrder.uniswapV3RouterAddress(), UNISWAP_V3_ADDRESS);
         assertEq(limitOrder.sushiswapRouterAddress(), SUSHISWAP_ADDRESS);
 
+        assertEq(limitOrder.factorActivateDelay(), FACTORSDEALY);
         assertEq(uint256(limitOrder.makerFeeFactor()), 0);
         assertEq(uint256(limitOrder.takerFeeFactor()), 0);
         assertEq(uint256(limitOrder.profitFeeFactor()), 0);
@@ -291,20 +292,20 @@ contract LimitOrderTest is StrategySharedSetup {
     }
 
     /*********************************
-     *        Test: setFactors       *
+     *        Test: proposeFactors       *
      *********************************/
 
     function testCannotSetFactorsIfLargerThanBpsMax() public {
         vm.expectRevert("LimitOrder: Invalid maker fee factor");
-        limitOrder.setFactors(LibConstant.BPS_MAX + 1, 1, 1);
+        limitOrder.proposeFactors(LibConstant.BPS_MAX + 1, 1, 1);
         vm.expectRevert("LimitOrder: Invalid taker fee factor");
-        limitOrder.setFactors(1, LibConstant.BPS_MAX + 1, 1);
+        limitOrder.proposeFactors(1, LibConstant.BPS_MAX + 1, 1);
         vm.expectRevert("LimitOrder: Invalid profit fee factor");
-        limitOrder.setFactors(1, 1, LibConstant.BPS_MAX + 1);
+        limitOrder.proposeFactors(1, 1, LibConstant.BPS_MAX + 1);
     }
 
     function testSetFactors() public {
-        limitOrder.setFactors(1, 2, 3);
+        limitOrder.proposeFactors(1, 2, 3);
         // fee factors should stay same before new ones activate
         assertEq(uint256(limitOrder.makerFeeFactor()), 0);
         assertEq(uint256(limitOrder.takerFeeFactor()), 0);
@@ -602,7 +603,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         // makerFeeFactor/takerFeeFactor : 10%
         // profitFeeFactor : 20%
-        limitOrder.setFactors(1000, 1000, 2000);
+        limitOrder.proposeFactors(1000, 1000, 2000);
         vm.warp(block.timestamp + limitOrder.factorActivateDelay());
         limitOrder.activateFactors();
 
@@ -1004,7 +1005,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         // makerFeeFactor/takerFeeFactor : 10%
         // profitFeeFactor : 20%
-        limitOrder.setFactors(1000, 1000, 2000);
+        limitOrder.proposeFactors(1000, 1000, 2000);
         vm.warp(block.timestamp + limitOrder.factorActivateDelay());
         limitOrder.activateFactors();
 
