@@ -261,6 +261,10 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     }
 
     function _settleForTrader(TraderSettlement memory _settlement) internal returns (uint256) {
+        // memory cache
+        ISpender _spender = spender;
+        address _feeCollector = feeCollector;
+
         // Calculate maker fee (maker receives taker token so fee is charged in taker token)
         uint256 takerTokenFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
         uint256 takerTokenForMaker = _settlement.takerTokenAmount.sub(takerTokenFee);
@@ -270,19 +274,19 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         uint256 makerTokenForTrader = _settlement.makerTokenAmount.sub(makerTokenFee);
 
         // Transfer token from trader
-        spender.spendFromUser(_settlement.trader, address(_settlement.takerToken), _settlement.takerTokenAmount);
+        _spender.spendFromUser(_settlement.trader, address(_settlement.takerToken), _settlement.takerTokenAmount);
         _settlement.takerToken.safeTransfer(_settlement.maker, takerTokenForMaker);
         // Collect maker fee (charged in taker token)
         if (takerTokenFee > 0) {
-            _settlement.takerToken.safeTransfer(feeCollector, takerTokenFee);
+            _settlement.takerToken.safeTransfer(_feeCollector, takerTokenFee);
         }
 
         // Transfer token from maker
-        spender.spendFromUser(_settlement.maker, address(_settlement.makerToken), _settlement.makerTokenAmount);
+        _spender.spendFromUser(_settlement.maker, address(_settlement.makerToken), _settlement.makerTokenAmount);
         _settlement.makerToken.safeTransfer(_settlement.recipient, makerTokenForTrader);
         // Collect taker fee (charged in maker token)
         if (makerTokenFee > 0) {
-            _settlement.makerToken.safeTransfer(feeCollector, makerTokenFee);
+            _settlement.makerToken.safeTransfer(_feeCollector, makerTokenFee);
         }
 
         // bypass stack too deep error
