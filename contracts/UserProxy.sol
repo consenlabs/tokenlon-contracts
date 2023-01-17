@@ -175,7 +175,7 @@ contract UserProxy is Multicall {
         require(isAMMEnabled(), "UserProxy: AMM is disabled");
 
         (bool callSucceed, ) = ammWrapperAddr().call{ value: msg.value }(_payload);
-        if (callSucceed == false) {
+        if (!callSucceed) {
             // Get the error message returned
             assembly {
                 let ptr := mload(0x40)
@@ -194,7 +194,7 @@ contract UserProxy is Multicall {
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
         (bool callSucceed, ) = pmmAddr().call{ value: msg.value }(_payload);
-        if (callSucceed == false) {
+        if (!callSucceed) {
             // Get the error message returned
             assembly {
                 let ptr := mload(0x40)
@@ -213,7 +213,7 @@ contract UserProxy is Multicall {
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
         (bool callSucceed, ) = rfqAddr().call{ value: msg.value }(_payload);
-        if (callSucceed == false) {
+        if (!callSucceed) {
             // Get the error message returned
             assembly {
                 let ptr := mload(0x40)
@@ -229,7 +229,7 @@ contract UserProxy is Multicall {
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
         (bool callSucceed, ) = limitOrderAddr().call(_payload);
-        if (callSucceed == false) {
+        if (!callSucceed) {
             // Get the error message returned
             assembly {
                 let ptr := mload(0x40)
