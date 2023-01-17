@@ -12,14 +12,14 @@ contract AMMQuoterTest is StrategySharedSetup {
 
     AMMQuoter ammQuoter;
 
-    address DEFAULT_MAKER_ADDR;
-    address DEFAULT_TAKER_ASSET_ADDR;
-    address DEFAULT_MAKER_ASSET_ADDR;
+    address DEFAULT_MAKER_ADDR = UNISWAP_V2_ADDRESS;
+    address DEFAULT_TAKER_ASSET_ADDR = DAI_ADDRESS;
+    address DEFAULT_MAKER_ASSET_ADDR = USDT_ADDRESS;
     uint256 DEFAULT_TAKER_ASSET_AMOUNT = 100 * 1e18;
     uint256 DEFAULT_MAKER_ASSET_AMOUNT = 100 * 1e6;
     address[] EMPTY_PATH = new address[](0);
-    address[] DEFAULT_SINGLE_HOP_PATH;
-    address[] DEFAULT_MULTI_HOP_PATH;
+    address[] DEFAULT_SINGLE_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, DEFAULT_MAKER_ASSET_ADDR];
+    address[] DEFAULT_MULTI_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, WETH_ADDRESS, DEFAULT_MAKER_ASSET_ADDR];
     uint24[] DEFAULT_MULTI_HOP_POOL_FEES = [FEE_MEDIUM, FEE_MEDIUM];
 
     // BalancerV2
@@ -30,7 +30,6 @@ contract AMMQuoterTest is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
-        _setAddresses();
         _deployPermanentStorageAndProxy();
         ammQuoter = new AMMQuoter(
             UNISWAP_V2_ADDRESS,
@@ -49,14 +48,6 @@ contract AMMQuoterTest is StrategySharedSetup {
         vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
         vm.label(UNISWAP_V3_ADDRESS, "UniswapV3");
         vm.label(UNISWAP_V3_QUOTER_ADDRESS, "UniswapV3Quoter");
-    }
-
-    function _setAddresses() internal {
-        DEFAULT_MAKER_ADDR = UNISWAP_V2_ADDRESS;
-        DEFAULT_TAKER_ASSET_ADDR = DAI_ADDRESS;
-        DEFAULT_MAKER_ASSET_ADDR = USDT_ADDRESS;
-        DEFAULT_SINGLE_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, DEFAULT_MAKER_ASSET_ADDR];
-        DEFAULT_MULTI_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, WETH_ADDRESS, DEFAULT_MAKER_ASSET_ADDR];
     }
 
     /*********************************
