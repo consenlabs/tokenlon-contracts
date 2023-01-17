@@ -153,7 +153,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         factorsTimeLock = block.timestamp + factorActivateDelay;
     }
 
-    function activateFactors() external onlyOperator {
+    function activateFactors() external {
         require(factorsTimeLock != 0, "LimitOrder: no pending fee factors");
         require(block.timestamp >= factorsTimeLock, "LimitOrder: fee factors timelocked");
         factorsTimeLock = 0;
