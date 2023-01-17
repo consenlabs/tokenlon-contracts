@@ -25,6 +25,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     using SafeERC20 for IERC20;
 
     string public constant version = "1.0.0";
+    uint256 public immutable factorActivateDelay;
     IPermanentStorage public immutable permStorage;
     address public immutable userProxy;
     IWETH public immutable weth;
@@ -41,9 +42,13 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     address private nominatedOperator;
 
     // Factors
+    uint256 public factorsTimeLock;
     uint16 public makerFeeFactor = 0;
+    uint16 public pendingMakerFeeFactor;
     uint16 public takerFeeFactor = 0;
+    uint16 public pendingTakerFeeFactor;
     uint16 public profitFeeFactor = 0;
+    uint16 public pendingProfitFeeFactor;
 
     constructor(
         address _operator,
@@ -52,6 +57,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         ISpender _spender,
         IPermanentStorage _permStorage,
         IWETH _weth,
+        uint256 _factorActivateDelay,
         address _uniswapV3RouterAddress,
         address _sushiswapRouterAddress,
         address _feeCollector
@@ -62,6 +68,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         spender = _spender;
         permStorage = _permStorage;
         weth = _weth;
+        factorActivateDelay = _factorActivateDelay;
         uniswapV3RouterAddress = _uniswapV3RouterAddress;
         sushiswapRouterAddress = _sushiswapRouterAddress;
         feeCollector = _feeCollector;
@@ -139,7 +146,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         }
     }
 
-    function setFactors(
+    function proposeFactors(
         uint16 _makerFeeFactor,
         uint16 _takerFeeFactor,
         uint16 _profitFeeFactor
@@ -148,11 +155,25 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         require(_takerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid taker fee factor");
         require(_profitFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid profit fee factor");
 
-        makerFeeFactor = _makerFeeFactor;
-        takerFeeFactor = _takerFeeFactor;
-        profitFeeFactor = _profitFeeFactor;
+        pendingMakerFeeFactor = _makerFeeFactor;
+        pendingTakerFeeFactor = _takerFeeFactor;
+        pendingProfitFeeFactor = _profitFeeFactor;
 
-        emit FactorsUpdated(_makerFeeFactor, _takerFeeFactor, _profitFeeFactor);
+        factorsTimeLock = block.timestamp + factorActivateDelay;
+    }
+
+    function activateFactors() external {
+        require(factorsTimeLock != 0, "LimitOrder: no pending fee factors");
+        require(block.timestamp >= factorsTimeLock, "LimitOrder: fee factors timelocked");
+        factorsTimeLock = 0;
+        makerFeeFactor = pendingMakerFeeFactor;
+        takerFeeFactor = pendingTakerFeeFactor;
+        profitFeeFactor = pendingProfitFeeFactor;
+        pendingMakerFeeFactor = 0;
+        pendingTakerFeeFactor = 0;
+        pendingProfitFeeFactor = 0;
+
+        emit FactorsUpdated(makerFeeFactor, takerFeeFactor, profitFeeFactor);
     }
 
     /**
