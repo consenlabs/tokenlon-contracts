@@ -183,22 +183,30 @@ contract LimitOrderTest is StrategySharedSetup {
     }
 
     /*********************************
-     *     Test: transferOwnership   *
+     *     Test: nominateNewOperator   *
      *********************************/
 
-    function testCannotTransferOwnershipByNotOperator() public {
+    function testCannotNominateOperatorByNotOperator() public {
         vm.expectRevert("LimitOrder: not operator");
         vm.prank(user);
-        limitOrder.transferOwnership(user);
+        limitOrder.nominateNewOperator(user);
     }
 
-    function testCannotTransferOwnershipToZeroAddr() public {
+    function testCannotNominateOperatorToZeroAddr() public {
         vm.expectRevert("LimitOrder: operator can not be zero address");
-        limitOrder.transferOwnership(address(0));
+        limitOrder.nominateNewOperator(address(0));
     }
 
-    function testTransferOwnership() public {
-        limitOrder.transferOwnership(user);
+    function testCannotAcceptOperatorIfNotNominated() public {
+        limitOrder.nominateNewOperator(user);
+        vm.expectRevert("LimitOrder: not nominated");
+        limitOrder.acceptOwnership();
+    }
+
+    function testChangeOperator() public {
+        limitOrder.nominateNewOperator(user);
+        vm.prank(user);
+        limitOrder.acceptOwnership();
         assertEq(limitOrder.operator(), user);
     }
 

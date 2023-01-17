@@ -29,9 +29,11 @@ contract PermanentStorage is IPermanentStorage {
     address public operator;
     string public version; // Current version of the contract
     mapping(bytes32 => mapping(address => bool)) private permission;
+    address private nominatedOperator;
 
     // Operator events
-    event TransferOwnership(address newOperator);
+    event OperatorNominated(address indexed newOperator);
+    event OperatorChanged(address indexed oldOperator, address indexed newOperator);
     event SetPermission(bytes32 storageId, address role, bool enabled);
     event UpgradeAMMWrapper(address newAMMWrapper);
     event UpgradePMM(address newPMM);
@@ -64,11 +66,19 @@ contract PermanentStorage is IPermanentStorage {
         _;
     }
 
-    function transferOwnership(address _newOperator) external onlyOperator {
+    function nominateNewOperator(address _newOperator) external onlyOperator {
         require(_newOperator != address(0), "PermanentStorage: operator can not be zero address");
-        operator = _newOperator;
+        nominatedOperator = _newOperator;
 
-        emit TransferOwnership(_newOperator);
+        emit OperatorNominated(_newOperator);
+    }
+
+    function acceptOwnership() external {
+        require(msg.sender == nominatedOperator, "PermanentStorage: not nominated");
+        emit OperatorChanged(operator, nominatedOperator);
+
+        operator = nominatedOperator;
+        nominatedOperator = address(0);
     }
 
     /// @dev Set permission for entity to write certain storage.

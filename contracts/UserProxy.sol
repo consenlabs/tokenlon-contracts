@@ -13,9 +13,11 @@ contract UserProxy is Multicall {
     // Below are the variables which consume storage slots.
     address public operator;
     string public version; // Current version of the contract
+    address private nominatedOperator;
 
     // Operator events
-    event TransferOwnership(address newOperator);
+    event OperatorNominated(address indexed newOperator);
+    event OperatorChanged(address indexed oldOperator, address indexed newOperator);
     event SetAMMStatus(bool enable);
     event UpgradeAMMWrapper(address newAMMWrapper);
     event SetPMMStatus(bool enable);
@@ -35,11 +37,19 @@ contract UserProxy is Multicall {
         _;
     }
 
-    function transferOwnership(address _newOperator) external onlyOperator {
+    function nominateNewOperator(address _newOperator) external onlyOperator {
         require(_newOperator != address(0), "UserProxy: operator can not be zero address");
-        operator = _newOperator;
+        nominatedOperator = _newOperator;
 
-        emit TransferOwnership(_newOperator);
+        emit OperatorNominated(_newOperator);
+    }
+
+    function acceptOwnership() external {
+        require(msg.sender == nominatedOperator, "UserProxy: not nominated");
+        emit OperatorChanged(operator, nominatedOperator);
+
+        operator = nominatedOperator;
+        nominatedOperator = address(0);
     }
 
     /************************************************************

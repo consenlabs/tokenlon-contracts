@@ -38,6 +38,7 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
     address public coordinator;
     ISpender public spender;
     address public feeCollector;
+    address private nominatedOperator;
 
     // Factors
     uint16 public makerFeeFactor = 0;
@@ -78,11 +79,19 @@ contract LimitOrder is ILimitOrder, BaseLibEIP712, SignatureValidator, Reentranc
         _;
     }
 
-    function transferOwnership(address _newOperator) external onlyOperator {
+    function nominateNewOperator(address _newOperator) external onlyOperator {
         require(_newOperator != address(0), "LimitOrder: operator can not be zero address");
-        operator = _newOperator;
+        nominatedOperator = _newOperator;
 
-        emit TransferOwnership(_newOperator);
+        emit OperatorNominated(_newOperator);
+    }
+
+    function acceptOwnership() external {
+        require(msg.sender == nominatedOperator, "LimitOrder: not nominated");
+        emit OperatorChanged(operator, nominatedOperator);
+
+        operator = nominatedOperator;
+        nominatedOperator = address(0);
     }
 
     function upgradeSpender(address _newSpender) external onlyOperator {

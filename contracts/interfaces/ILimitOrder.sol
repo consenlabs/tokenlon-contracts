@@ -7,7 +7,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../utils/LimitOrderLibEIP712.sol";
 
 interface ILimitOrder {
-    event TransferOwnership(address newOperator);
+    event OperatorNominated(address indexed newOperator);
+    event OperatorChanged(address indexed oldOperator, address indexed newOperator);
     event UpgradeSpender(address newSpender);
     event UpgradeCoordinator(address newCoordinator);
     event AllowTransfer(address spender);
