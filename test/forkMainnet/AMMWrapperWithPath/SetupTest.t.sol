@@ -12,6 +12,20 @@ contract TestAMMWrapperWithPathSetup is TestAMMWrapperWithPath {
     }
 
     function testAMMWrapperWithPathSetup() public {
+        // Check fork mainnet addresses are not zero addresses
+        assertTrue(uint160(UNISWAP_V2_ADDRESS) != 0);
+        assertTrue(uint160(UNISWAP_V3_ADDRESS) != 0);
+        assertTrue(uint160(UNISWAP_V3_QUOTER_ADDRESS) != 0);
+        assertTrue(uint160(SUSHISWAP_ADDRESS) != 0);
+        assertTrue(uint160(BALANCER_V2_ADDRESS) != 0);
+        assertTrue(uint160(CURVE_USDT_POOL_ADDRESS) != 0);
+        assertTrue(uint160(CURVE_TRICRYPTO2_POOL_ADDRESS) != 0);
+        assertTrue(uint160(WETH_ADDRESS) != 0);
+        assertTrue(uint160(DAI_ADDRESS) != 0);
+        assertTrue(uint160(USDT_ADDRESS) != 0);
+        assertTrue(uint160(USDC_ADDRESS) != 0);
+        assertTrue(uint160(WBTC_ADDRESS) != 0);
+
         assertEq(ammWrapperWithPath.owner(), owner);
         assertEq(uint256(ammWrapperWithPath.defaultFeeFactor()), uint256(DEFAULT_FEE_FACTOR));
         assertEq(ammWrapperWithPath.userProxy(), address(userProxy));

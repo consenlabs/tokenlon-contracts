@@ -58,6 +58,7 @@ contract TestL2Deposit is StrategySharedSetup {
         arbitrumLONAddr = IERC20(arbitrumL1GatewayRouter.calculateL2TokenAddress(address(lon)));
 
         // Set user token balance and approve
+        tokens = [lon];
         setEOABalanceAndApprove(user, tokens, 100);
 
         DEFAULT_DEPOSIT = L2DepositLibEIP712.Deposit(
@@ -74,7 +75,12 @@ contract TestL2Deposit is StrategySharedSetup {
 
         // Label addresses for easier debugging
         vm.label(user, "User");
+        vm.label(owner, "Owner");
         vm.label(address(this), "TestingContract");
+        vm.label(address(l2Deposit), "L2DepositContract");
+        vm.label(address(arbitrumL1GatewayRouter), "ArbitrumL1GatewayContract");
+        vm.label(address(arbitrumL1Bridge), "ArbitrumL1BridgeContract");
+        vm.label(address(optimismL1StandardBridge), "OptimismL1StandardBridgeContract");
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {

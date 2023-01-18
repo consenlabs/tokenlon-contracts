@@ -154,8 +154,6 @@ contract RewardDistributorTest is Addresses {
         vm.label(address(sushiswap), "Sushiswap");
         vm.label(address(uniswapV3), "UniswapV3");
         vm.label(address(uniswapV3Quoter), "UniswapV3Quoter");
-        vm.label(address(usdt), "USDT");
-        vm.label(address(lon), "LON");
         vm.label(address(lonStaking), "LONStaking");
         vm.label(address(rewardDistributor), "RewardDistributor");
     }
@@ -165,6 +163,15 @@ contract RewardDistributorTest is Addresses {
      *********************************/
 
     function testSetup() public {
+        // Check fork mainnet addresses are not zero addresses
+        assertTrue(uint160(UNISWAP_V2_ADDRESS) != 0);
+        assertTrue(uint160(UNISWAP_V3_ADDRESS) != 0);
+        assertTrue(uint160(UNISWAP_V3_QUOTER_ADDRESS) != 0);
+        assertTrue(uint160(SUSHISWAP_ADDRESS) != 0);
+        assertTrue(uint160(LON_ADDRESS) != 0);
+        assertTrue(uint160(CRV_ADDRESS) != 0);
+        assertTrue(uint160(USDT_ADDRESS) != 0);
+
         address minter = lon.minter();
         assertEq(minter, address(rewardDistributor));
     }

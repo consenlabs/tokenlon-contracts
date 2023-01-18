@@ -59,6 +59,7 @@ contract TestAMMWrapper is StrategySharedSetup {
         // Deal 100 ETH to each account
         dealWallet(wallet, 100 ether);
         // Set token balance and approve
+        tokens = [weth, usdt, dai, ankreth];
         setEOABalanceAndApprove(user, tokens, uint256(100));
 
         // Default order
@@ -76,10 +77,17 @@ contract TestAMMWrapper is StrategySharedSetup {
 
         // Label addresses for easier debugging
         vm.label(user, "User");
+        vm.label(owner, "Owner");
+        vm.label(feeCollector, "FeeCollector");
         vm.label(relayer, "Relayer");
         vm.label(address(this), "TestingContract");
+        vm.label(address(ammQuoter), "AMMQuoterContract");
         vm.label(address(ammWrapper), "AMMWrapperContract");
         vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
+        vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
+        vm.label(UNISWAP_V3_ADDRESS, "UniswapV3");
+        vm.label(CURVE_USDT_POOL_ADDRESS, "CurveUSDTPool");
+        vm.label(CURVE_TRICRYPTO2_POOL_ADDRESS, "CurveTriCryptoPool");
     }
 
     // Deploy the strategy contract by overriding the StrategySharedSetup.sol deployment function

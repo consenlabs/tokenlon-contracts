@@ -45,9 +45,10 @@ contract AMMQuoterTest is StrategySharedSetup {
         vm.label(address(this), "TestingContract");
         vm.label(address(ammQuoter), "AMMQuoterContract");
         vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
-        vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
         vm.label(UNISWAP_V3_ADDRESS, "UniswapV3");
         vm.label(UNISWAP_V3_QUOTER_ADDRESS, "UniswapV3Quoter");
+        vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
+        vm.label(BALANCER_V2_ADDRESS, "Balancer");
     }
 
     /*********************************
@@ -55,6 +56,16 @@ contract AMMQuoterTest is StrategySharedSetup {
      *********************************/
 
     function testSetupAMMQuoter() public {
+        // Check fork mainnet addresses are not zero addresses
+        assertTrue(uint160(UNISWAP_V2_ADDRESS) != 0);
+        assertTrue(uint160(UNISWAP_V3_ADDRESS) != 0);
+        assertTrue(uint160(UNISWAP_V3_QUOTER_ADDRESS) != 0);
+        assertTrue(uint160(SUSHISWAP_ADDRESS) != 0);
+        assertTrue(uint160(BALANCER_V2_ADDRESS) != 0);
+        assertTrue(uint160(WETH_ADDRESS) != 0);
+        assertTrue(uint160(DAI_ADDRESS) != 0);
+        assertTrue(uint160(USDT_ADDRESS) != 0);
+
         assertEq(address(ammQuoter.permStorage()), address(permanentStorage));
         assertEq(ammQuoter.weth(), WETH_ADDRESS);
     }
