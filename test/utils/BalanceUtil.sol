@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "forge-std/Test.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./Addresses.sol";
+import "test/utils/Addresses.sol";
 
-contract BalanceUtil is Test {
+contract BalanceUtil is Addresses {
     using stdStorage for StdStorage;
 
     function setERC20Balance(

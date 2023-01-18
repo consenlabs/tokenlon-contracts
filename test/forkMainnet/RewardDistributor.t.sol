@@ -2,8 +2,6 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
-import "forge-std/Test.sol";
-
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
@@ -22,7 +20,7 @@ import "test/utils/Addresses.sol";
 import "test/utils/BalanceSnapshot.sol";
 import "test/utils/UniswapV3Util.sol";
 
-contract RewardDistributorTest is Test {
+contract RewardDistributorTest is Addresses {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
