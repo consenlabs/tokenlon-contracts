@@ -21,7 +21,7 @@ contract MarketMakerProxy is Ownable {
 
     // bytes4(keccak256("isValidSignature(bytes32,bytes)")
     bytes4 public constant EIP1271_MAGICVALUE = 0x1626ba7e;
-    IWETH immutable WETH;
+    IWETH public immutable WETH;
 
     address public signer;
     mapping(address => bool) public isWithdrawWhitelist;
