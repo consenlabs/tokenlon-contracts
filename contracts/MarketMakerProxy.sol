@@ -4,102 +4,89 @@ pragma solidity 0.7.6;
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 import "./interfaces/IWeth.sol";
 import "./utils/LibConstant.sol";
 import "./utils/Ownable.sol";
 
-interface IIMBTC {
-    function burn(uint256 amount, bytes calldata data) external;
-}
-
-interface IWBTC {
-    function burn(uint256 value) external;
-}
-
 contract MarketMakerProxy is Ownable {
     using SafeERC20 for IERC20;
+    using Address for address payable;
 
-    address public SIGNER;
-    address public operator;
+    event ChangeSigner(address);
+    event UpdateWhitelist(address, bool);
+    event WrapETH(uint256);
+    event WithdrawETH(uint256);
 
-    // auto withdraw weth to eth
-    address public WETH_ADDR;
-    address public withdrawer;
+    // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+    bytes4 public constant EIP1271_MAGICVALUE = 0x1626ba7e;
+    IWETH immutable WETH;
+
+    address public signer;
     mapping(address => bool) public isWithdrawWhitelist;
 
-    modifier onlyWithdrawer() {
-        require(msg.sender == withdrawer, "MarketMakerProxy: only contract withdrawer");
-        _;
-    }
-
-    modifier onlyOperator() {
-        require(msg.sender == operator, "MarketMakerProxy: only contract operator");
-        _;
-    }
-
-    constructor() Ownable(msg.sender) {
-        operator = msg.sender;
+    constructor(
+        address _owner,
+        address _signer,
+        IWETH _weth
+    ) Ownable(_owner) {
+        require(_signer != address(0), "MarketMakerProxy: zero address");
+        signer = _signer;
+        WETH = _weth;
     }
 
     receive() external payable {}
 
-    // Manage
-    function setSigner(address _signer) public onlyOperator {
-        SIGNER = _signer;
+    function setSigner(address _signer) external onlyOwner {
+        require(_signer != address(0), "MarketMakerProxy: zero address");
+        emit ChangeSigner(_signer);
+        signer = _signer;
     }
 
-    function setConfig(address _weth) public onlyOperator {
-        WETH_ADDR = _weth;
-    }
-
-    function setWithdrawer(address _withdrawer) public onlyOperator {
-        withdrawer = _withdrawer;
-    }
-
-    function setOperator(address _newOperator) public onlyOwner {
-        operator = _newOperator;
-    }
-
-    function setAllowance(address[] memory token_addrs, address spender) public onlyOperator {
-        for (uint256 i = 0; i < token_addrs.length; i++) {
-            address token = token_addrs[i];
-            IERC20(token).safeApprove(spender, LibConstant.MAX_UINT);
+    function setAllowance(address[] calldata tokenAddrs, address spender) external onlyOwner {
+        for (uint256 i = 0; i < tokenAddrs.length; i++) {
+            IERC20(tokenAddrs[i]).safeApprove(spender, LibConstant.MAX_UINT);
         }
     }
 
-    function closeAllowance(address[] memory token_addrs, address spender) public onlyOperator {
-        for (uint256 i = 0; i < token_addrs.length; i++) {
-            address token = token_addrs[i];
-            IERC20(token).safeApprove(spender, 0);
+    function closeAllowance(address[] calldata tokenAddrs, address spender) external onlyOwner {
+        for (uint256 i = 0; i < tokenAddrs.length; i++) {
+            IERC20(tokenAddrs[i]).safeApprove(spender, 0);
         }
     }
 
-    function registerWithdrawWhitelist(address _addr, bool _add) public onlyOperator {
-        isWithdrawWhitelist[_addr] = _add;
+    function updateWithdrawWhitelist(address _addr, bool _enabled) external onlyOwner {
+        require(_addr != address(0), "MarketMakerProxy: zero address");
+        isWithdrawWhitelist[_addr] = _enabled;
+        emit UpdateWhitelist(_addr, _enabled);
     }
 
-    function withdraw(
+    function wrapETH() external onlyOwner {
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            WETH.deposit{ value: balance }();
+            emit WrapETH(balance);
+        }
+    }
+
+    function withdrawToken(
         address token,
-        address payable to,
+        address to,
         uint256 amount
-    ) public onlyWithdrawer {
+    ) external onlyOwner {
         require(isWithdrawWhitelist[to], "MarketMakerProxy: not in withdraw whitelist");
-        if (token == WETH_ADDR) {
-            IWETH(WETH_ADDR).withdraw(amount);
-            to.transfer(amount);
-        } else {
-            IERC20(token).safeTransfer(to, amount);
-        }
+        IERC20(token).safeTransfer(to, amount);
     }
 
-    function withdrawETH(address payable to, uint256 amount) public onlyWithdrawer {
+    function withdrawETH(address payable to, uint256 amount) external onlyOwner {
         require(isWithdrawWhitelist[to], "MarketMakerProxy: not in withdraw whitelist");
-        to.transfer(amount);
+        to.sendValue(amount);
+        emit WithdrawETH(amount);
     }
 
-    function isValidSignature(bytes32 orderHash, bytes memory signature) public view returns (bytes32) {
-        require(SIGNER == ECDSA.recover(ECDSA.toEthSignedMessageHash(orderHash), signature), "MarketMakerProxy: invalid signature");
-        return keccak256("isValidWalletSignature(bytes32,address,bytes)");
+    function isValidSignature(bytes32 dataHash, bytes calldata signature) external view returns (bytes4) {
+        require(signer == ECDSA.recover(dataHash, signature), "MarketMakerProxy: invalid signature");
+        return EIP1271_MAGICVALUE;
     }
 }

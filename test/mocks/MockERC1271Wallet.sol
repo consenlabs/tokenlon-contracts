@@ -28,6 +28,8 @@ contract MockERC1271Wallet is IERC1271Wallet {
         operator = _operator;
     }
 
+    receive() external payable {}
+
     function setAllowance(address[] memory _tokenList, address _spender) external onlyOperator {
         for (uint256 i = 0; i < _tokenList.length; i++) {
             IERC20(_tokenList[i]).safeApprove(_spender, MAX_UINT);
