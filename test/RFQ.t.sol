@@ -452,12 +452,11 @@ contract RFQTest is StrategySharedSetup {
         if (sigType == SignatureValidator.SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
             sig = abi.encodePacked(r, s, v, uint8(sigType));
-        } else if (
-            sigType == SignatureValidator.SignatureType.Wallet ||
-            sigType == SignatureValidator.SignatureType.WalletBytes ||
-            sigType == SignatureValidator.SignatureType.WalletBytes32
-        ) {
+        } else if (sigType == SignatureValidator.SignatureType.Wallet) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
+            sig = abi.encodePacked(r, s, v, uint8(sigType));
+        } else if (sigType == SignatureValidator.SignatureType.WalletBytes || sigType == SignatureValidator.SignatureType.WalletBytes32) {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
             sig = abi.encodePacked(r, s, v, uint8(sigType));
         } else {
             revert("Invalid signature type");
