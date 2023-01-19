@@ -6,14 +6,14 @@ import "test/forkMainnet/L2Deposit/Setup.t.sol";
 contract TestL2DepositSetup is TestL2Deposit {
     function testSetupL2Deposit() public {
         // Check fork mainnet addresses are not zero addresses
-        assertTrue(uint160(ARBITRUM_L1_GATEWAY_ROUTER_ADDR) != 0);
-        assertTrue(uint160(ARBITRUM_L1_BRIDGE_ADDR) != 0);
-        assertTrue(uint160(OPTIMISM_L1_STANDARD_BRIDGE_ADDR) != 0);
-        assertTrue(uint160(WETH_ADDRESS) != 0);
-        assertTrue(uint160(DAI_ADDRESS) != 0);
-        assertTrue(uint160(USDT_ADDRESS) != 0);
-        assertTrue(uint160(USDC_ADDRESS) != 0);
-        assertTrue(uint160(LON_ADDRESS) != 0);
+        assertTrue(ARBITRUM_L1_GATEWAY_ROUTER_ADDR != address(0));
+        assertTrue(ARBITRUM_L1_BRIDGE_ADDR != address(0));
+        assertTrue(OPTIMISM_L1_STANDARD_BRIDGE_ADDR != address(0));
+        assertTrue(WETH_ADDRESS != address(0));
+        assertTrue(DAI_ADDRESS != address(0));
+        assertTrue(USDT_ADDRESS != address(0));
+        assertTrue(USDC_ADDRESS != address(0));
+        assertTrue(LON_ADDRESS != address(0));
 
         assertEq(l2Deposit.owner(), owner);
         assertEq(l2Deposit.userProxy(), address(userProxy));

@@ -57,14 +57,14 @@ contract AMMQuoterTest is StrategySharedSetup {
 
     function testSetupAMMQuoter() public {
         // Check fork mainnet addresses are not zero addresses
-        assertTrue(uint160(UNISWAP_V2_ADDRESS) != 0);
-        assertTrue(uint160(UNISWAP_V3_ADDRESS) != 0);
-        assertTrue(uint160(UNISWAP_V3_QUOTER_ADDRESS) != 0);
-        assertTrue(uint160(SUSHISWAP_ADDRESS) != 0);
-        assertTrue(uint160(BALANCER_V2_ADDRESS) != 0);
-        assertTrue(uint160(WETH_ADDRESS) != 0);
-        assertTrue(uint160(DAI_ADDRESS) != 0);
-        assertTrue(uint160(USDT_ADDRESS) != 0);
+        assertTrue(UNISWAP_V2_ADDRESS != address(0));
+        assertTrue(UNISWAP_V3_ADDRESS != address(0));
+        assertTrue(UNISWAP_V3_QUOTER_ADDRESS != address(0));
+        assertTrue(SUSHISWAP_ADDRESS != address(0));
+        assertTrue(BALANCER_V2_ADDRESS != address(0));
+        assertTrue(WETH_ADDRESS != address(0));
+        assertTrue(DAI_ADDRESS != address(0));
+        assertTrue(USDT_ADDRESS != address(0));
 
         assertEq(address(ammQuoter.permStorage()), address(permanentStorage));
         assertEq(ammQuoter.weth(), WETH_ADDRESS);

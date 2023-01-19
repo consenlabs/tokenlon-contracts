@@ -164,13 +164,13 @@ contract RewardDistributorTest is Addresses {
 
     function testSetup() public {
         // Check fork mainnet addresses are not zero addresses
-        assertTrue(uint160(UNISWAP_V2_ADDRESS) != 0);
-        assertTrue(uint160(UNISWAP_V3_ADDRESS) != 0);
-        assertTrue(uint160(UNISWAP_V3_QUOTER_ADDRESS) != 0);
-        assertTrue(uint160(SUSHISWAP_ADDRESS) != 0);
-        assertTrue(uint160(LON_ADDRESS) != 0);
-        assertTrue(uint160(CRV_ADDRESS) != 0);
-        assertTrue(uint160(USDT_ADDRESS) != 0);
+        assertTrue(UNISWAP_V2_ADDRESS != address(0));
+        assertTrue(UNISWAP_V3_ADDRESS != address(0));
+        assertTrue(UNISWAP_V3_QUOTER_ADDRESS != address(0));
+        assertTrue(SUSHISWAP_ADDRESS != address(0));
+        assertTrue(LON_ADDRESS != address(0));
+        assertTrue(CRV_ADDRESS != address(0));
+        assertTrue(USDT_ADDRESS != address(0));
 
         address minter = lon.minter();
         assertEq(minter, address(rewardDistributor));
