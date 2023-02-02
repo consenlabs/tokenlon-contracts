@@ -9,8 +9,6 @@ import "contracts/MarketMakerProxy.sol";
 import "contracts/RFQ.sol";
 import "contracts/utils/SignatureValidator.sol";
 import "test/mocks/MockERC1271Wallet.sol";
-import "test/mocks/MockERC20.sol";
-import "test/mocks/MockWETH.sol";
 import "test/utils/BalanceSnapshot.sol";
 import "test/utils/StrategySharedSetup.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
@@ -58,9 +56,6 @@ contract RFQTest is StrategySharedSetup {
         // Setup
         if (!vm.envBool("DEPLOYED")) {
             // overwrite tokens with locally deployed mocks
-            weth = IERC20(address(new MockWETH("Wrapped ETH", "WETH", 18)));
-            usdt = new MockERC20("USDT", "USDT", 6);
-            dai = new MockERC20("DAI", "DAI", 18);
             tokens = [weth, usdt, dai];
         }
         setUpSystemContracts();

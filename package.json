@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "repository": "git@github.com:consenlabs/tokenlon-contract.git",
-  "author": "Charles Jhong <charlesjhongc@gmail.com>",
+  "author": "imToken Labs",
   "license": "MIT",
   "engines": {
     "node": ">=16.0.0 <18",

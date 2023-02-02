@@ -1,20 +1,13 @@
 # dependency
 node_modules/
 
-# Hardhat files
-cache/
-artifacts/
-
-# Typechain artifacts
-typechain-types/
-
 # Coverage files
 coverage/
 coverage.json
 
 # Foundry
-artifacts-foundry/
-cache-foundry/
+artifacts/
+cache/
 lib/
 
 # Signing test payload
