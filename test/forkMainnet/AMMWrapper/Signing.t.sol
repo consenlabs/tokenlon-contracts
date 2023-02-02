@@ -3,21 +3,7 @@ pragma solidity 0.7.6;
 
 import "contracts/utils/AMMLibEIP712.sol";
 import "test/utils/StrategySharedSetup.sol";
-import { getEIP712Hash } from "test/utils/Sig.sol";
-
-function computeEIP712DomainSeparator(address verifyingContract) returns (bytes32) {
-    uint256 CHAIN_ID = 1;
-    bytes32 EIP712_DOMAIN_SEPARATOR = keccak256(
-        abi.encode(
-            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-            keccak256(bytes("Tokenlon")),
-            keccak256(bytes("v5")),
-            CHAIN_ID,
-            verifyingContract
-        )
-    );
-    return EIP712_DOMAIN_SEPARATOR;
-}
+import { getEIP712Hash, computeEIP712DomainSeparator } from "test/utils/Sig.sol";
 
 contract TestAMMWrapperSigning is StrategySharedSetup {
     function testAMMOrderEIP712Sig() public {
