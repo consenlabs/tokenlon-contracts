@@ -397,11 +397,6 @@
   dependencies:
     antlr4ts "^0.5.0-alpha.4"
 
-"@tokenlon/contracts-lib@^0.0.1":
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/@tokenlon/contracts-lib/-/contracts-lib-0.0.1.tgz#898c9bd6df3dda25dc9407fa7d4488d553794d95"
-  integrity sha512-/NdpcE4F76XipgjznZ5/iKO6+zSLcJuUl0P1iFgnU30RbOjj976h/JDhM0NQu4Fp0pZeTyJhrONagP3rkIcm6g==
-
 "@tsconfig/node10@^1.0.7":
   version "1.0.8"
   resolved "https://registry.yarnpkg.com/@tsconfig/node10/-/node10-1.0.8.tgz#c1e4e80d6f964fbecb3359c43bd48b40f7cadad9"

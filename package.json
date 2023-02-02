@@ -15,11 +15,9 @@
     "lint": "solhint \"contracts/**/*.sol\"",
     "compile": "forge build --force",
     "test-foundry-local": "DEPLOYED=false forge test --no-match-path 'test/forkMainnet/*.t.sol'",
-    "test-foundry-fork": "DEPLOYED=false forge test --fork-url $MAINNET_NODE_RPC_URL --fork-block-number 15451000 --match-path 'test/forkMainnet/*.t.sol'",
-    "sdk-sign": "npx ts-node test/signing/sdkSign.ts"
+    "test-foundry-fork": "DEPLOYED=false forge test --fork-url $MAINNET_NODE_RPC_URL --fork-block-number 15451000 --match-path 'test/forkMainnet/*.t.sol'"
   },
   "devDependencies": {
-    "@tokenlon/contracts-lib": "^0.0.1",
     "@types/node": "^18.11.18",
     "ethers": "^5.7.2",
     "prettier": "^2.6.2",
