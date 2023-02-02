@@ -6,7 +6,7 @@ function getEIP712Hash(bytes32 domainSeparator, bytes32 structHash) pure returns
     return keccak256(abi.encodePacked(EIP191_HEADER, domainSeparator, structHash));
 }
 
-function computeEIP712DomainSeparator(address verifyingContract) pure returns (bytes32) {
+function computeMainnetEIP712DomainSeparator(address verifyingContract) pure returns (bytes32) {
     uint256 CHAIN_ID = 1;
     bytes32 EIP712_DOMAIN_SEPARATOR = keccak256(
         abi.encode(

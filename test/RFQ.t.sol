@@ -11,7 +11,7 @@ import "contracts/utils/SignatureValidator.sol";
 import "test/mocks/MockERC1271Wallet.sol";
 import "test/utils/BalanceSnapshot.sol";
 import "test/utils/StrategySharedSetup.sol";
-import { getEIP712Hash, computeEIP712DomainSeparator } from "test/utils/Sig.sol";
+import { computeMainnetEIP712DomainSeparator, getEIP712Hash } from "test/utils/Sig.sol";
 
 contract RFQTest is StrategySharedSetup {
     using SafeMath for uint256;
@@ -464,13 +464,13 @@ contract RFQTest is StrategySharedSetup {
         );
 
         address rfqAddr = abi.decode(vm.parseJson(rfqPayloadJson, "RFQ"), (address));
-        uint256 makerPrivateKey = abi.decode(vm.parseJson(rfqPayloadJson, "signingKey"), (uint256));
+        uint256 signingKey = abi.decode(vm.parseJson(rfqPayloadJson, "signingKey"), (uint256));
 
-        bytes memory orderSig = _signOrderEIP712(rfqAddr, makerPrivateKey, order);
+        bytes memory orderSig = _signOrderEIP712(rfqAddr, signingKey, order);
         bytes memory expectedOrderSig = abi.decode(vm.parseJson(rfqPayloadJson, "expectedOrderSig"), (bytes));
         require(keccak256(orderSig) == keccak256(expectedOrderSig), "Not expected RFQ order sig");
 
-        bytes memory fillSig = _signFillEIP712(rfqAddr, makerPrivateKey, order);
+        bytes memory fillSig = _signFillEIP712(rfqAddr, signingKey, order);
         bytes memory expectedFillSig = abi.decode(vm.parseJson(rfqPayloadJson, "expectedFillSig"), (bytes));
         require(keccak256(fillSig) == keccak256(expectedFillSig), "Not expected RFQ fill sig");
     }
@@ -481,7 +481,7 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = RFQLibEIP712._getOrderHash(order);
-        bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(rfqAddr), orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(rfqAddr), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
@@ -492,7 +492,7 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order
     ) internal returns (bytes memory sig) {
         bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
-        bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(rfqAddr), transactionHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(rfqAddr), transactionHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }

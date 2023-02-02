@@ -3,7 +3,7 @@ pragma solidity 0.7.6;
 
 import "contracts/utils/AMMLibEIP712.sol";
 import "test/utils/StrategySharedSetup.sol";
-import { getEIP712Hash, computeEIP712DomainSeparator } from "test/utils/Sig.sol";
+import { computeMainnetEIP712DomainSeparator, getEIP712Hash } from "test/utils/Sig.sol";
 
 contract TestAMMWrapperSigning is StrategySharedSetup {
     function testAMMOrderEIP712Sig() public {
@@ -35,7 +35,7 @@ contract TestAMMWrapperSigning is StrategySharedSetup {
         AMMLibEIP712.Order memory order
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = AMMLibEIP712._getOrderHash(order);
-        bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(ammWrapperAddr), orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(ammWrapperAddr), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
