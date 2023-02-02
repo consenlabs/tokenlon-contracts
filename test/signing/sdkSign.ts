@@ -20,6 +20,8 @@ const RFQPath = path.join(__dirname, "./payload/rfq.json")
 const rfqPayloadJson = JSON.parse(fs.readFileSync(RFQPath).toString())
 const LimitOrderPath = path.join(__dirname, "./payload/limitOrder.json")
 const limitOrderPayloadJson = JSON.parse(fs.readFileSync(LimitOrderPath).toString())
+const L2DepositPath = path.join(__dirname, "./payload/l2Deposit.json")
+const l2DepositPayloadJson = JSON.parse(fs.readFileSync(L2DepositPath).toString())
 
 async function signAMMOrder(signer: Wallet) {
     const ammOrder: AMMOrder = {
@@ -130,6 +132,44 @@ async function signLimitOrderOrderAndFill(signer: Wallet) {
     fs.writeFileSync(LimitOrderPath, JSON.stringify(limitOrderPayloadJson, null, 2))
 }
 
+async function signL2Deposit(signer: Wallet) {
+    const deposit = {
+        l2Identifier: l2DepositPayloadJson.l2Identifier,
+        l1TokenAddr: l2DepositPayloadJson.l1TokenAddr,
+        l2TokenAddr: l2DepositPayloadJson.l2TokenAddr,
+        sender: l2DepositPayloadJson.sender,
+        recipient: l2DepositPayloadJson.recipient,
+        amount: l2DepositPayloadJson.amount,
+        salt: l2DepositPayloadJson.salt,
+        expiry: l2DepositPayloadJson.expiry,
+        data: l2DepositPayloadJson.data,
+    }
+    const EIP712Types = {
+        Deposit: [
+            { name: "l2Identifier", type: "uint8" },
+            { name: "l1TokenAddr", type: "address" },
+            { name: "l2TokenAddr", type: "address" },
+            { name: "sender", type: "address" },
+            { name: "recipient", type: "address" },
+            { name: "amount", type: "uint256" },
+            { name: "salt", type: "uint256" },
+            { name: "expiry", type: "uint256" },
+            { name: "data", type: "bytes" },
+        ],
+    }
+    const EIP712Domain = {
+        name: "Tokenlon",
+        version: "v5",
+        chainId: CHAIN_ID,
+        verifyingContract: l2DepositPayloadJson.L2Deposit,
+    }
+    const l2DepositRawSig = await signer._signTypedData(EIP712Domain, EIP712Types, deposit)
+    const l2DepositSig = l2DepositRawSig + "00".repeat(32) + SignatureType.EIP712
+    l2DepositPayloadJson["expectedSig"] = l2DepositSig
+
+    fs.writeFileSync(L2DepositPath, JSON.stringify(l2DepositPayloadJson, null, 2))
+}
+
 async function main() {
     const signer = new Wallet(ammWrapperPayloadJson.signingKey, getDefaultProvider("mainnet"))
     assert((await signer.getChainId()) == CHAIN_ID, `Must sign with chain ID ${CHAIN_ID}`)
@@ -137,6 +177,7 @@ async function main() {
     await signAMMOrder(signer)
     await signRFQOrderAndFill(signer)
     await signLimitOrderOrderAndFill(signer)
+    await signL2Deposit(signer)
 }
 
 main()
