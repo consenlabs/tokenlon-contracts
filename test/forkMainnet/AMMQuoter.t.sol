@@ -45,9 +45,10 @@ contract AMMQuoterTest is StrategySharedSetup {
         vm.label(address(this), "TestingContract");
         vm.label(address(ammQuoter), "AMMQuoterContract");
         vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
-        vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
         vm.label(UNISWAP_V3_ADDRESS, "UniswapV3");
         vm.label(UNISWAP_V3_QUOTER_ADDRESS, "UniswapV3Quoter");
+        vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
+        vm.label(BALANCER_V2_ADDRESS, "Balancer");
     }
 
     /*********************************

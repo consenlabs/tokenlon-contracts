@@ -55,8 +55,9 @@ contract LimitOrderTest is StrategySharedSetup {
     address receiver = makeAddr("receiver");
     MockERC1271Wallet mockERC1271Wallet = new MockERC1271Wallet(user);
     address[] wallet = [user, maker, coordinator, address(mockERC1271Wallet)];
-    address[] tokenAddrs;
+    address[] allowanceAddrs;
 
+    address[] DEFAULT_AMM_PATH;
     LimitOrderLibEIP712.Order DEFAULT_ORDER;
     bytes32 DEFAULT_ORDER_HASH;
     bytes DEFAULT_ORDER_MAKER_SIG;
@@ -74,7 +75,8 @@ contract LimitOrderTest is StrategySharedSetup {
         // Setup
         setUpSystemContracts();
 
-        tokenAddrs = [address(dai), address(usdt)];
+        DEFAULT_AMM_PATH = [address(dai), address(usdt)];
+        allowanceAddrs = DEFAULT_AMM_PATH;
 
         // Default params
         DEFAULT_ORDER = LimitOrderLibEIP712.Order(
@@ -122,6 +124,7 @@ contract LimitOrderTest is StrategySharedSetup {
         // Deal 100 ETH to each account
         dealWallet(wallet, 100 ether);
         // Set token balance and approve
+        tokens = [weth, usdt, dai];
         setEOABalanceAndApprove(user, tokens, 10000);
         setEOABalanceAndApprove(maker, tokens, 10000);
         setEOABalanceAndApprove(address(mockERC1271Wallet), tokens, 10000);
@@ -135,9 +138,6 @@ contract LimitOrderTest is StrategySharedSetup {
         vm.label(address(this), "TestingContract");
         vm.label(address(limitOrder), "LimitOrderContract");
         vm.label(address(mockERC1271Wallet), "MockERC1271Wallet");
-        vm.label(address(weth), "WETH");
-        vm.label(address(usdt), "USDT");
-        vm.label(address(dai), "DAI");
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
@@ -267,25 +267,25 @@ contract LimitOrderTest is StrategySharedSetup {
     function testCannotSetAllowanceByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(user);
-        limitOrder.setAllowance(tokenAddrs, address(allowanceTarget));
+        limitOrder.setAllowance(allowanceAddrs, address(allowanceTarget));
     }
 
     function testCannotCloseAllowanceByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(user);
-        limitOrder.closeAllowance(tokenAddrs, address(allowanceTarget));
+        limitOrder.closeAllowance(allowanceAddrs, address(allowanceTarget));
     }
 
     function testSetAndCloseAllowance() public {
         // Set allowance
         vm.prank(owner, owner);
-        limitOrder.setAllowance(tokenAddrs, address(allowanceTarget));
+        limitOrder.setAllowance(allowanceAddrs, address(allowanceTarget));
         assertEq(usdt.allowance(address(limitOrder), address(allowanceTarget)), LibConstant.MAX_UINT);
         assertEq(dai.allowance(address(limitOrder), address(allowanceTarget)), LibConstant.MAX_UINT);
 
         // Close allowance
         vm.prank(owner, owner);
-        limitOrder.closeAllowance(tokenAddrs, address(allowanceTarget));
+        limitOrder.closeAllowance(allowanceAddrs, address(allowanceTarget));
         assertEq(usdt.allowance(address(limitOrder), address(allowanceTarget)), 0);
         assertEq(dai.allowance(address(limitOrder), address(allowanceTarget)), 0);
     }
@@ -821,9 +821,9 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function testCannotFillBySushiSwapLessThanProtocolOutMinimum() public {
         // get quote from AMM
-        uint256[] memory amountOuts = getSushiAmountsOut(SUSHISWAP_ADDRESS, DEFAULT_ORDER.makerTokenAmount, tokenAddrs);
+        uint256[] memory amountOuts = getSushiAmountsOut(SUSHISWAP_ADDRESS, DEFAULT_ORDER.makerTokenAmount, DEFAULT_AMM_PATH);
 
-        address[] memory path = tokenAddrs;
+        address[] memory path = DEFAULT_AMM_PATH;
         ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
         protocolParams.protocol = ILimitOrder.Protocol.Sushiswap;
         protocolParams.protocolOutMinimum = amountOuts[1].mul(2); // require 2x output from AMM
@@ -1165,7 +1165,7 @@ contract LimitOrderTest is StrategySharedSetup {
         order.takerTokenAmount = 8 * 1e6;
 
         // get quote from AMM
-        address[] memory path = tokenAddrs;
+        address[] memory path = DEFAULT_AMM_PATH;
         uint256[] memory amountOuts = getSushiAmountsOut(SUSHISWAP_ADDRESS, order.makerTokenAmount, path);
         // Since profitFeeFactor is zero, so the extra token from AMM is the profit for relayer.
         uint256 profit = amountOuts[amountOuts.length - 1].sub(order.takerTokenAmount);

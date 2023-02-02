@@ -55,7 +55,6 @@ contract RFQTest is StrategySharedSetup {
     function setUp() public {
         // Setup
         if (!vm.envBool("DEPLOYED")) {
-            // overwrite tokens with locally deployed mocks
             tokens = [weth, usdt, dai];
         }
         setUpSystemContracts();
