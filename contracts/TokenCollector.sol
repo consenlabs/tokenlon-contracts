@@ -41,7 +41,8 @@ contract TokenCollector is ITokenCollector {
         bytes memory data
     ) private {
         if (data.length > 0) {
-            token.call(abi.encodePacked(IERC20Permit.permit.selector, data));
+            (bool success, ) = token.call(abi.encodePacked(IERC20Permit.permit.selector, data));
+            require(success, "TokenCollector: token permit failed");
         }
         IERC20(token).safeTransferFrom(from, to, amount);
     }
