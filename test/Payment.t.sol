@@ -36,7 +36,7 @@ contract TestPayment is Test {
         token.approve(address(this), amount);
 
         bytes memory data = abi.encode(Payment.Type.Token, bytes(""));
-        Payment.fulfill(user, address(token), amount, data);
+        Payment.fulfill(address(spender), user, address(token), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, amount);
@@ -54,7 +54,20 @@ contract TestPayment is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
 
         bytes memory data = abi.encode(Payment.Type.Token, abi.encode(user, address(this), amount, deadline, v, r, s));
-        Payment.fulfill(user, address(token), amount, data);
+        Payment.fulfill(address(spender), user, address(token), amount, data);
+
+        uint256 balance = token.balanceOf(address(this));
+        assertEq(balance, amount);
+    }
+
+    function testPayBySpenderApproval() public {
+        uint256 amount = 100 * 1e18;
+
+        vm.prank(user);
+        token.approve(address(allowanceTarget), amount);
+
+        bytes memory data = abi.encode(Payment.Type.Spender, bytes(""));
+        Payment.fulfill(address(spender), user, address(token), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, amount);
