@@ -223,14 +223,14 @@ contract PermanentStorage is IPermanentStorage {
         bool _supportGetDx
     ) external override isPermitted(curveTokenIndexStorageId, msg.sender) {
         int128 underlyingCoinsLength = int128(_underlyingCoins.length);
-        for (int128 i = 0; i < underlyingCoinsLength; i++) {
+        for (int128 i = 0; i < underlyingCoinsLength; ++i) {
             address assetAddr = _underlyingCoins[uint256(i)];
             // underlying coins for original DAI, USDC, TUSD
             AMMWrapperStorage.getStorage().curveTokenIndexes[_makerAddr][assetAddr] = i + 1; // Start the index from 1
         }
 
         int128 coinsLength = int128(_coins.length);
-        for (int128 i = 0; i < coinsLength; i++) {
+        for (int128 i = 0; i < coinsLength; ++i) {
             address assetAddr = _coins[uint256(i)];
             // wrapped coins for cDAI, cUSDC, yDAI, yUSDC, yTUSD, yBUSD
             AMMWrapperStorage.getStorage().curveWrappedTokenIndexes[_makerAddr][assetAddr] = i + 1; // Start the index from 1
@@ -267,7 +267,7 @@ contract PermanentStorage is IPermanentStorage {
 
     function setRelayersValid(address[] calldata _relayers, bool[] calldata _isValids) external override isPermitted(relayerValidStorageId, msg.sender) {
         require(_relayers.length == _isValids.length, "PermanentStorage: inputs length mismatch");
-        for (uint256 i = 0; i < _relayers.length; i++) {
+        for (uint256 i = 0; i < _relayers.length; ++i) {
             AMMWrapperStorage.getStorage().relayerValid[_relayers[i]] = _isValids[i];
             emit SetRelayerValid(_relayers[i], _isValids[i]);
         }

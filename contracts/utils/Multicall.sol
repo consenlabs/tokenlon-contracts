@@ -9,7 +9,7 @@ abstract contract Multicall is IMulticall {
     function multicall(bytes[] calldata data, bool revertOnFail) external override returns (bool[] memory successes, bytes[] memory results) {
         successes = new bool[](data.length);
         results = new bytes[](data.length);
-        for (uint256 i = 0; i < data.length; i++) {
+        for (uint256 i = 0; i < data.length; ++i) {
             (bool success, bytes memory result) = address(this).delegatecall(data[i]);
             successes[i] = success;
             results[i] = result;
