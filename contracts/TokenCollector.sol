@@ -54,6 +54,11 @@ contract TokenCollector is ITokenCollector {
         uint256 amount,
         bytes memory data
     ) private {
+        if (data.length > 0) {
+            (bool success, ) = spender.call(abi.encodePacked(ISpender.spendFromUserToWithPermit.selector, data));
+            require(success, "TokenCollector: spend with permit failed");
+            return;
+        }
         ISpender(spender).spendFromUserTo(from, token, to, amount);
     }
 }
