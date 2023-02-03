@@ -6,50 +6,53 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import { ISpender } from "contracts/interfaces/ISpender.sol";
+import { ITokenCollector } from "contracts/interfaces/ITokenCollector.sol";
 
-library Payment {
+contract TokenCollector is ITokenCollector {
     using SafeERC20 for IERC20;
 
-    enum Type {
-        Token,
-        Spender
+    address public immutable spender;
+
+    constructor(address _spender) {
+        spender = _spender;
     }
 
-    function fulfill(
-        address spender,
-        address payer,
+    function collect(
         address token,
+        address from,
+        address to,
         uint256 amount,
         bytes memory data
-    ) internal {
-        (Type t, bytes memory data) = abi.decode(data, (Type, bytes));
-        if (t == Type.Token) {
-            return transferFromToken(payer, token, amount, data);
+    ) external override {
+        (Source src, bytes memory data) = abi.decode(data, (Source, bytes));
+        if (src == Source.Token) {
+            return transferFromToken(token, from, to, amount, data);
         }
-        if (t == Type.Spender) {
-            return transferFromSpender(spender, payer, token, amount, data);
+        if (src == Source.Spender) {
+            return transferFromSpender(token, from, to, amount, data);
         }
     }
 
     function transferFromToken(
-        address payer,
         address token,
+        address from,
+        address to,
         uint256 amount,
         bytes memory data
     ) private {
         if (data.length > 0) {
             token.call(abi.encodePacked(IERC20Permit.permit.selector, data));
         }
-        IERC20(token).safeTransferFrom(payer, address(this), amount);
+        IERC20(token).safeTransferFrom(from, to, amount);
     }
 
     function transferFromSpender(
-        address spender,
-        address payer,
         address token,
+        address from,
+        address to,
         uint256 amount,
         bytes memory data
     ) private {
-        ISpender(spender).spendFromUserTo(payer, token, address(this), amount);
+        ISpender(spender).spendFromUserTo(from, token, to, amount);
     }
 }
