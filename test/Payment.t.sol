@@ -29,10 +29,6 @@ contract TestPayment is Test {
         vm.label(address(token), "TKN");
     }
 
-    function testCanary() public {
-        assertTrue(true);
-    }
-
     function testPayByTokenApproval() public {
         uint256 amount = 100 * 1e18;
 
