@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.0;
+pragma abicoder v2;
+
+import "../utils/SpenderLibEIP712.sol";
 
 interface ISpender {
     // System events
@@ -24,4 +27,6 @@ interface ISpender {
         address _receiverAddr,
         uint256 _amount
     ) external;
+
+    function spendFromUserToWithPermit(SpenderLibEIP712.SpendWithPermit calldata _params, bytes calldata _spendWithPermitSig) external;
 }
