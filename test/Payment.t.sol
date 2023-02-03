@@ -2,6 +2,8 @@
 pragma solidity 0.7.6;
 
 import { Test } from "forge-std/Test.sol";
+import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
+import { Spender } from "contracts/Spender.sol";
 import { Payment } from "contracts/utils/Payment.sol";
 import { MockERC20Permit } from "test/mocks/MockERC20Permit.sol";
 
@@ -11,7 +13,16 @@ contract TestPayment is Test {
 
     MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
 
-    function setUp() public virtual {
+    Spender spender = new Spender(address(this), new address[](0));
+    AllowanceTarget allowanceTarget = new AllowanceTarget(address(spender));
+
+    function setUp() public {
+        spender.setAllowanceTarget(address(allowanceTarget));
+
+        address[] memory authorizedList = new address[](1);
+        authorizedList[0] = address(this);
+        spender.authorize(authorizedList);
+
         token.mint(user, 10000 * 1e18);
 
         vm.label(address(this), "TestingContract");
@@ -22,7 +33,7 @@ contract TestPayment is Test {
         assertTrue(true);
     }
 
-    function testPayByTokenDirectlyApproval() public {
+    function testPayByTokenApproval() public {
         uint256 amount = 100 * 1e18;
 
         vm.prank(user);
