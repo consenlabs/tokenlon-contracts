@@ -9,3 +9,6 @@ coverage.json
 artifacts/
 cache/
 lib/
+
+# Signing test payload
+test/signing/payload/

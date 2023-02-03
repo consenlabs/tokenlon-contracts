@@ -11,7 +11,7 @@ import "contracts/utils/SignatureValidator.sol";
 import "test/mocks/MockERC1271Wallet.sol";
 import "test/utils/BalanceSnapshot.sol";
 import "test/utils/StrategySharedSetup.sol";
-import { getEIP712Hash } from "test/utils/Sig.sol";
+import { computeMainnetEIP712DomainSeparator, getEIP712Hash } from "test/utils/Sig.sol";
 
 contract RFQTest is StrategySharedSetup {
     using SafeMath for uint256;
@@ -440,6 +440,60 @@ contract RFQTest is StrategySharedSetup {
         _expectEvent(order);
         vm.prank(user, user); // Only EOA
         userProxy.toRFQ(payload);
+    }
+
+    /*********************************
+     *        Test: signing          *
+     *********************************/
+
+    function testRFQOrderEIP712Sig() public {
+        string memory rfqPayloadJson = vm.readFile("test/signing/payload/rfq.json");
+
+        RFQLibEIP712.Order memory order = RFQLibEIP712.Order(
+            abi.decode(vm.parseJson(rfqPayloadJson, "takerAddr"), (address)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "makerAddr"), (address)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "takerAssetAddr"), (address)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "makerAssetAddr"), (address)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "takerAssetAmount"), (uint256)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "makerAssetAmount"), (uint256)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "receiverAddr"), (address)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "salt"), (uint256)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "deadline"), (uint256)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "feeFactor"), (uint256))
+        );
+
+        address rfqAddr = abi.decode(vm.parseJson(rfqPayloadJson, "RFQ"), (address));
+        uint256 signingKey = abi.decode(vm.parseJson(rfqPayloadJson, "signingKey"), (uint256));
+
+        bytes memory orderSig = _signOrderEIP712(rfqAddr, signingKey, order);
+        bytes memory expectedOrderSig = abi.decode(vm.parseJson(rfqPayloadJson, "expectedOrderSig"), (bytes));
+        require(keccak256(orderSig) == keccak256(expectedOrderSig), "Not expected RFQ order sig");
+
+        bytes memory fillSig = _signFillEIP712(rfqAddr, signingKey, order);
+        bytes memory expectedFillSig = abi.decode(vm.parseJson(rfqPayloadJson, "expectedFillSig"), (bytes));
+        require(keccak256(fillSig) == keccak256(expectedFillSig), "Not expected RFQ fill sig");
+    }
+
+    function _signOrderEIP712(
+        address rfqAddr,
+        uint256 privateKey,
+        RFQLibEIP712.Order memory order
+    ) internal returns (bytes memory sig) {
+        bytes32 orderHash = RFQLibEIP712._getOrderHash(order);
+        bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(rfqAddr), orderHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
+    }
+
+    function _signFillEIP712(
+        address rfqAddr,
+        uint256 privateKey,
+        RFQLibEIP712.Order memory order
+    ) internal returns (bytes memory sig) {
+        bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
+        bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(rfqAddr), transactionHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
 
     /*********************************
