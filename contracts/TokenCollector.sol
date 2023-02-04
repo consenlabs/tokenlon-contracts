@@ -7,14 +7,17 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import { ISpender } from "contracts/interfaces/ISpender.sol";
 import { ITokenCollector } from "contracts/interfaces/ITokenCollector.sol";
+import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 
 contract TokenCollector is ITokenCollector {
     using SafeERC20 for IERC20;
 
     address public immutable spender;
+    address public immutable uniswapPermit2;
 
-    constructor(address _spender) {
+    constructor(address _spender, address _uniswapPermit2) {
         spender = _spender;
+        uniswapPermit2 = _uniswapPermit2;
     }
 
     function collect(
@@ -24,12 +27,15 @@ contract TokenCollector is ITokenCollector {
         uint256 amount,
         bytes memory data
     ) external override {
-        (Source src, bytes memory data) = abi.decode(data, (Source, bytes));
+        (Source src, bytes memory srcData) = abi.decode(data, (Source, bytes));
         if (src == Source.Token) {
-            return collectFromToken(token, from, to, amount, data);
+            return collectFromToken(token, from, to, amount, srcData);
         }
         if (src == Source.Spender) {
-            return collectFromSpender(token, from, to, amount, data);
+            return collectFromSpender(token, from, to, amount, srcData);
+        }
+        if (src == Source.UniswapPermit2) {
+            return collectFromUniswapPermit2(token, from, to, amount, srcData);
         }
     }
 
@@ -60,5 +66,16 @@ contract TokenCollector is ITokenCollector {
             return;
         }
         ISpender(spender).spendFromUserTo(from, token, to, amount);
+    }
+
+    function collectFromUniswapPermit2(
+        address token,
+        address from,
+        address to,
+        uint256 amount,
+        bytes memory data
+    ) private {
+        (bool success, ) = uniswapPermit2.call(abi.encodePacked(IUniswapPermit2.permitTransferFrom.selector, data));
+        require(success, "TokenCollector: permit2 permit transfer from failed");
     }
 }
