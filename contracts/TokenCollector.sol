@@ -12,10 +12,12 @@ import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 contract TokenCollector is ITokenCollector {
     using SafeERC20 for IERC20;
 
+    address public immutable owner;
     address public immutable spender;
     address public immutable uniswapPermit2;
 
     constructor(address _spender, address _uniswapPermit2) {
+        owner = msg.sender;
         spender = _spender;
         uniswapPermit2 = _uniswapPermit2;
     }
@@ -27,6 +29,8 @@ contract TokenCollector is ITokenCollector {
         uint256 amount,
         bytes memory data
     ) external override {
+        require(msg.sender == owner, "TokenCollector: not owner");
+
         (Source src, bytes memory srcData) = abi.decode(data, (Source, bytes));
         if (src == Source.Token) {
             return collectFromToken(token, from, to, amount, srcData);
@@ -37,6 +41,7 @@ contract TokenCollector is ITokenCollector {
         if (src == Source.UniswapPermit2) {
             return collectFromUniswapPermit2(token, from, to, amount, srcData);
         }
+        revert("TokenCollector: unknown token source");
     }
 
     function collectFromToken(

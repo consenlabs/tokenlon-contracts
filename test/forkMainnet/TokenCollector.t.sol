@@ -36,6 +36,13 @@ contract TestTokenCollector is Addresses {
         vm.label(address(token), "TKN");
     }
 
+    function testCannotCollectByOther() public {
+        bytes memory data = abi.encode(ITokenCollector.Source.Token, bytes(""));
+        vm.expectRevert("TokenCollector: not owner");
+        vm.prank(user);
+        tokenCollector.collect(address(token), user, address(this), 100, data);
+    }
+
     /* Token */
 
     function testCollectByTokenApproval() public {
