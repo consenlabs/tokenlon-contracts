@@ -36,6 +36,8 @@ contract TestTokenCollector is Addresses {
         vm.label(address(token), "TKN");
     }
 
+    /* Token */
+
     function testCollectByTokenApproval() public {
         uint256 amount = 100 * 1e18;
 
@@ -66,6 +68,8 @@ contract TestTokenCollector is Addresses {
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, amount);
     }
+
+    /* Spender */
 
     function testCollectBySpenderApproval() public {
         uint256 amount = 100 * 1e18;
