@@ -26,14 +26,14 @@ contract TokenCollector is ITokenCollector {
     ) external override {
         (Source src, bytes memory data) = abi.decode(data, (Source, bytes));
         if (src == Source.Token) {
-            return transferFromToken(token, from, to, amount, data);
+            return collectFromToken(token, from, to, amount, data);
         }
         if (src == Source.Spender) {
-            return transferFromSpender(token, from, to, amount, data);
+            return collectFromSpender(token, from, to, amount, data);
         }
     }
 
-    function transferFromToken(
+    function collectFromToken(
         address token,
         address from,
         address to,
@@ -47,7 +47,7 @@ contract TokenCollector is ITokenCollector {
         IERC20(token).safeTransferFrom(from, to, amount);
     }
 
-    function transferFromSpender(
+    function collectFromSpender(
         address token,
         address from,
         address to,
