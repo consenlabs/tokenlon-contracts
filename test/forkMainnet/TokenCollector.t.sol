@@ -121,10 +121,10 @@ contract TestTokenCollector is Addresses {
 
     /* Permit2 */
 
-    bytes32 constant TOKEN_PERMISSIONS_TYPEHASH = keccak256("TokenPermissions(address token,uint256 amount)");
-    bytes32 constant PERMIT_TRANSFER_FROM_TYPEHASH =
+    bytes32 constant PERMIT_DETAILS_TYPEHASH = keccak256("PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)");
+    bytes32 constant PERMIT_SINGLE_TYPEHASH =
         keccak256(
-            "PermitTransferFrom(TokenPermissions permitted,address spender,uint256 nonce,uint256 deadline)TokenPermissions(address token,uint256 amount)"
+            "PermitSingle(PermitDetails details,address spender,uint256 sigDeadline)PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)"
         );
 
     function testCollectByUniswapPermit2() public {
@@ -133,26 +133,25 @@ contract TestTokenCollector is Addresses {
         vm.prank(user);
         token.approve(UNISWAP_PERMIT2_ADDRESS, amount);
 
-        IUniswapPermit2.PermitTransferFrom memory permit = IUniswapPermit2.PermitTransferFrom({
-            permitted: IUniswapPermit2.TokenPermissions({ token: address(token), amount: amount }),
-            nonce: 1,
-            deadline: block.timestamp + 1 days
-        });
-        IUniswapPermit2.SignatureTransferDetails memory transferDetails = IUniswapPermit2.SignatureTransferDetails({
-            to: address(this),
-            requestedAmount: amount
+        IUniswapPermit2.PermitSingle memory permit = IUniswapPermit2.PermitSingle({
+            details: IUniswapPermit2.PermitDetails({
+                token: address(token),
+                amount: uint160(amount),
+                expiration: uint48(block.timestamp + 1 days),
+                nonce: uint48(0)
+            }),
+            spender: address(tokenCollector),
+            sigDeadline: block.timestamp + 1 days
         });
 
-        bytes32 structHashTokenPermissions = keccak256(abi.encode(TOKEN_PERMISSIONS_TYPEHASH, permit.permitted));
-        bytes32 structHash = keccak256(
-            abi.encode(PERMIT_TRANSFER_FROM_TYPEHASH, structHashTokenPermissions, address(tokenCollector), permit.nonce, permit.deadline)
-        );
+        bytes32 structHashPermitDetails = keccak256(abi.encode(PERMIT_DETAILS_TYPEHASH, permit.details));
+        bytes32 structHash = keccak256(abi.encode(PERMIT_SINGLE_TYPEHASH, structHashPermitDetails, permit.spender, permit.sigDeadline));
         bytes32 permitHash = keccak256(abi.encodePacked("\x19\x01", IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS).DOMAIN_SEPARATOR(), structHash));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
         bytes memory permitSig = abi.encodePacked(r, s, v);
 
-        bytes memory data = abi.encode(ITokenCollector.Source.UniswapPermit2, abi.encode(permit, transferDetails, user, permitSig));
+        bytes memory data = abi.encode(ITokenCollector.Source.UniswapPermit2, abi.encode(user, permit, permitSig));
         tokenCollector.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));

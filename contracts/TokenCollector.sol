@@ -76,6 +76,7 @@ contract TokenCollector is ITokenCollector {
 
             (bool success, ) = spender.call(abi.encodePacked(ISpender.spendFromUserToWithPermit.selector, data));
             require(success, "TokenCollector: spend with permit failed");
+
             return;
         }
         ISpender(spender).spendFromUserTo(from, token, to, amount);
@@ -88,7 +89,11 @@ contract TokenCollector is ITokenCollector {
         uint256 amount,
         bytes memory data
     ) private {
-        (bool success, ) = uniswapPermit2.call(abi.encodePacked(IUniswapPermit2.permitTransferFrom.selector, data));
-        require(success, "TokenCollector: permit2 permit transfer from failed");
+        require(amount < uint256(type(uint160).max), "TokenCollector: permit2 amount too large");
+        if (data.length > 0) {
+            (bool success, ) = uniswapPermit2.call(abi.encodePacked(IUniswapPermit2.permit.selector, data));
+            require(success, "TokenCollector: permit2 permit failed");
+        }
+        IUniswapPermit2(uniswapPermit2).transferFrom(from, to, uint160(amount), token);
     }
 }
