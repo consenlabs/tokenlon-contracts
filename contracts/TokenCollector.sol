@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.6;
+pragma abicoder v2;
 
 import { IERC20Permit } from "@openzeppelin/contracts/drafts/IERC20Permit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -8,6 +9,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import { ISpender } from "contracts/interfaces/ISpender.sol";
 import { ITokenCollector } from "contracts/interfaces/ITokenCollector.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
+import { SpenderLibEIP712 } from "contracts/utils/SpenderLibEIP712.sol";
 
 contract TokenCollector is ITokenCollector {
     using SafeERC20 for IERC20;
@@ -66,6 +68,12 @@ contract TokenCollector is ITokenCollector {
         bytes memory data
     ) private {
         if (data.length > 0) {
+            (SpenderLibEIP712.SpendWithPermit memory permit, ) = abi.decode(data, (SpenderLibEIP712.SpendWithPermit, bytes));
+            require(permit.tokenAddr == token, "TokenCollector: invalid token");
+            require(permit.user == from, "TokenCollector: invalid user");
+            require(permit.recipient == to, "TokenCollector: invalid recipient");
+            require(permit.amount == amount, "TokenCollector: invalid amount");
+
             (bool success, ) = spender.call(abi.encodePacked(ISpender.spendFromUserToWithPermit.selector, data));
             require(success, "TokenCollector: spend with permit failed");
             return;
