@@ -68,7 +68,8 @@ contract LimitOrderTest is StrategySharedSetup {
     ILimitOrder.CoordinatorParams DEFAULT_CRD_PARAMS;
 
     LimitOrder limitOrder;
-    uint64 DEADLINE = uint64(block.timestamp + 1);
+    uint64 DEADLINE = uint64(block.timestamp + 2 days);
+    uint256 FACTORSDEALY = 12 hours;
 
     // effectively a "beforeEach" block
     function setUp() public {
@@ -148,6 +149,7 @@ contract LimitOrderTest is StrategySharedSetup {
             address(permanentStorage),
             address(spender),
             coordinator,
+            FACTORSDEALY,
             UNISWAP_V3_ADDRESS,
             SUSHISWAP_ADDRESS,
             feeCollector
@@ -328,8 +330,17 @@ contract LimitOrderTest is StrategySharedSetup {
     }
 
     function testSetFactors() public {
-        vm.prank(owner, owner);
+        vm.startPrank(owner, owner);
         limitOrder.setFactors(1, 2, 3);
+        // fee factors should stay same before new ones activate
+        assertEq(uint256(limitOrder.makerFeeFactor()), 0);
+        assertEq(uint256(limitOrder.takerFeeFactor()), 0);
+        assertEq(uint256(limitOrder.profitFeeFactor()), 0);
+        vm.warp(block.timestamp + limitOrder.factorActivateDelay());
+
+        // fee factors should be updated now
+        limitOrder.activateFactors();
+        vm.stopPrank();
         assertEq(uint256(limitOrder.makerFeeFactor()), 1);
         assertEq(uint256(limitOrder.takerFeeFactor()), 2);
         assertEq(uint256(limitOrder.profitFeeFactor()), 3);
@@ -611,6 +622,16 @@ contract LimitOrderTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload2);
     }
 
+    function testCannotFillByZeroTrader() public {
+        ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.recipient = address(0);
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
+        vm.expectRevert("LimitOrder: recipient can not be zero address");
+        vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
+    }
+
     function testFullyFillByTrader() public {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
@@ -621,8 +642,11 @@ contract LimitOrderTest is StrategySharedSetup {
 
         // makerFeeFactor/takerFeeFactor : 10%
         // profitFeeFactor : 20%
-        vm.prank(owner, owner);
+        vm.startPrank(owner, owner);
         limitOrder.setFactors(1000, 1000, 2000);
+        vm.warp(block.timestamp + limitOrder.factorActivateDelay());
+        limitOrder.activateFactors();
+        vm.stopPrank();
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectEmit(true, true, true, true);
@@ -1036,6 +1060,17 @@ contract LimitOrderTest is StrategySharedSetup {
         vm.stopPrank();
     }
 
+    function testCannotFillByProtocolWithZeroProfitRecipient() public {
+        ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
+        protocolParams.profitRecipient = address(0);
+
+        vm.startPrank(user, user);
+        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, protocolParams, DEFAULT_CRD_PARAMS);
+        vm.expectRevert("LimitOrder: profitRecipient can not be zero address");
+        userProxy.toLimitOrder(payload);
+        vm.stopPrank();
+    }
+
     function testFullyFillByUniswapV3WithEvent() public {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory receiverTakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.takerToken));
@@ -1045,8 +1080,11 @@ contract LimitOrderTest is StrategySharedSetup {
 
         // makerFeeFactor/takerFeeFactor : 10%
         // profitFeeFactor : 20%
-        vm.prank(owner, owner);
+        vm.startPrank(owner, owner);
         limitOrder.setFactors(1000, 1000, 2000);
+        vm.warp(block.timestamp + limitOrder.factorActivateDelay());
+        limitOrder.activateFactors();
+        vm.stopPrank();
 
         // get quote from AMM
         uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(UNISWAP_V3_QUOTER_ADDRESS, DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);

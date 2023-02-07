@@ -62,14 +62,14 @@ contract MarketMakerProxy is Ownable {
     }
 
     function setAllowance(address[] memory token_addrs, address spender) public onlyOperator {
-        for (uint256 i = 0; i < token_addrs.length; i++) {
+        for (uint256 i = 0; i < token_addrs.length; ++i) {
             address token = token_addrs[i];
             IERC20(token).safeApprove(spender, LibConstant.MAX_UINT);
         }
     }
 
     function closeAllowance(address[] memory token_addrs, address spender) public onlyOperator {
-        for (uint256 i = 0; i < token_addrs.length; i++) {
+        for (uint256 i = 0; i < token_addrs.length; ++i) {
             address token = token_addrs[i];
             IERC20(token).safeApprove(spender, 0);
         }

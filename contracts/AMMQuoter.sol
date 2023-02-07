@@ -187,7 +187,7 @@ contract AMMQuoter {
     ) external view returns (address bestMaker, uint256 bestAmount) {
         bestAmount = 0;
         uint256 poolLength = _makerAddresses.length;
-        for (uint256 i = 0; i < poolLength; i++) {
+        for (uint256 i = 0; i < poolLength; ++i) {
             address makerAddress = _makerAddresses[i];
             uint256 makerAssetAmount = getMakerOutAmount(makerAddress, _takerAssetAddr, _makerAssetAddr, _takerAssetAmount);
             if (makerAssetAmount > bestAmount) {
@@ -350,7 +350,7 @@ contract AMMQuoter {
     ) external view returns (address bestMaker, uint256 bestAmount) {
         bestAmount = 2**256 - 1;
         uint256 poolLength = _makerAddresses.length;
-        for (uint256 i = 0; i < poolLength; i++) {
+        for (uint256 i = 0; i < poolLength; ++i) {
             address makerAddress = _makerAddresses[i];
             uint256 takerAssetAmount = getTakerInAmount(makerAddress, _takerAssetAddr, _makerAssetAddr, _makerAssetAmount);
             if (takerAssetAmount < bestAmount) {
