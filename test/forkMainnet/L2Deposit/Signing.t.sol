@@ -10,22 +10,22 @@ contract TestL2DepositWrapperSigning is StrategySharedSetup {
         string memory l2DepositPayloadJson = vm.readFile("test/signing/payload/l2Deposit.json");
 
         L2DepositLibEIP712.Deposit memory deposit = L2DepositLibEIP712.Deposit(
-            abi.decode(vm.parseJson(l2DepositPayloadJson, "l2Identifier"), (L2DepositLibEIP712.L2Identifier)),
-            abi.decode(vm.parseJson(l2DepositPayloadJson, "l1TokenAddr"), (address)),
-            abi.decode(vm.parseJson(l2DepositPayloadJson, "l2TokenAddr"), (address)),
-            abi.decode(vm.parseJson(l2DepositPayloadJson, "sender"), (address)),
-            abi.decode(vm.parseJson(l2DepositPayloadJson, "recipient"), (address)),
-            abi.decode(vm.parseJson(l2DepositPayloadJson, "amount"), (uint256)),
-            abi.decode(vm.parseJson(l2DepositPayloadJson, "salt"), (uint256)),
-            abi.decode(vm.parseJson(l2DepositPayloadJson, "expiry"), (uint256)),
-            abi.decode(vm.parseJson(l2DepositPayloadJson, "data"), (bytes))
+            abi.decode(vm.parseJson(l2DepositPayloadJson, "$.l2Identifier"), (L2DepositLibEIP712.L2Identifier)),
+            abi.decode(vm.parseJson(l2DepositPayloadJson, "$.l1TokenAddr"), (address)),
+            abi.decode(vm.parseJson(l2DepositPayloadJson, "$.l2TokenAddr"), (address)),
+            abi.decode(vm.parseJson(l2DepositPayloadJson, "$.sender"), (address)),
+            abi.decode(vm.parseJson(l2DepositPayloadJson, "$.recipient"), (address)),
+            abi.decode(vm.parseJson(l2DepositPayloadJson, "$.amount"), (uint256)),
+            abi.decode(vm.parseJson(l2DepositPayloadJson, "$.salt"), (uint256)),
+            abi.decode(vm.parseJson(l2DepositPayloadJson, "$.expiry"), (uint256)),
+            abi.decode(vm.parseJson(l2DepositPayloadJson, "$.data"), (bytes))
         );
 
-        address l2DepositAddr = abi.decode(vm.parseJson(l2DepositPayloadJson, "L2Deposit"), (address));
-        uint256 signingKey = abi.decode(vm.parseJson(l2DepositPayloadJson, "signingKey"), (uint256));
+        address l2DepositAddr = abi.decode(vm.parseJson(l2DepositPayloadJson, "$.L2Deposit"), (address));
+        uint256 signingKey = abi.decode(vm.parseJson(l2DepositPayloadJson, "$.signingKey"), (uint256));
         bytes memory sig = _signL2Deposit(l2DepositAddr, signingKey, deposit);
 
-        bytes memory expectedSig = abi.decode(vm.parseJson(l2DepositPayloadJson, "expectedSig"), (bytes));
+        bytes memory expectedSig = abi.decode(vm.parseJson(l2DepositPayloadJson, "$.expectedSig"), (bytes));
         require(keccak256(sig) == keccak256(expectedSig), "Not expected L2Deposit sig");
     }
 

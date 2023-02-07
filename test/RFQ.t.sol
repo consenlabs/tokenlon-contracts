@@ -450,27 +450,27 @@ contract RFQTest is StrategySharedSetup {
         string memory rfqPayloadJson = vm.readFile("test/signing/payload/rfq.json");
 
         RFQLibEIP712.Order memory order = RFQLibEIP712.Order(
-            abi.decode(vm.parseJson(rfqPayloadJson, "takerAddr"), (address)),
-            abi.decode(vm.parseJson(rfqPayloadJson, "makerAddr"), (address)),
-            abi.decode(vm.parseJson(rfqPayloadJson, "takerAssetAddr"), (address)),
-            abi.decode(vm.parseJson(rfqPayloadJson, "makerAssetAddr"), (address)),
-            abi.decode(vm.parseJson(rfqPayloadJson, "takerAssetAmount"), (uint256)),
-            abi.decode(vm.parseJson(rfqPayloadJson, "makerAssetAmount"), (uint256)),
-            abi.decode(vm.parseJson(rfqPayloadJson, "receiverAddr"), (address)),
-            abi.decode(vm.parseJson(rfqPayloadJson, "salt"), (uint256)),
-            abi.decode(vm.parseJson(rfqPayloadJson, "deadline"), (uint256)),
-            abi.decode(vm.parseJson(rfqPayloadJson, "feeFactor"), (uint256))
+            abi.decode(vm.parseJson(rfqPayloadJson, "$.takerAddr"), (address)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "$.makerAddr"), (address)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "$.takerAssetAddr"), (address)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "$.makerAssetAddr"), (address)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "$.takerAssetAmount"), (uint256)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "$.makerAssetAmount"), (uint256)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "$.receiverAddr"), (address)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "$.salt"), (uint256)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "$.deadline"), (uint256)),
+            abi.decode(vm.parseJson(rfqPayloadJson, "$.feeFactor"), (uint256))
         );
 
-        address rfqAddr = abi.decode(vm.parseJson(rfqPayloadJson, "RFQ"), (address));
-        uint256 signingKey = abi.decode(vm.parseJson(rfqPayloadJson, "signingKey"), (uint256));
+        address rfqAddr = abi.decode(vm.parseJson(rfqPayloadJson, "$.RFQ"), (address));
+        uint256 signingKey = abi.decode(vm.parseJson(rfqPayloadJson, "$.signingKey"), (uint256));
 
         bytes memory orderSig = _signOrderEIP712(rfqAddr, signingKey, order);
-        bytes memory expectedOrderSig = abi.decode(vm.parseJson(rfqPayloadJson, "expectedOrderSig"), (bytes));
+        bytes memory expectedOrderSig = abi.decode(vm.parseJson(rfqPayloadJson, "$.expectedOrderSig"), (bytes));
         require(keccak256(orderSig) == keccak256(expectedOrderSig), "Not expected RFQ order sig");
 
         bytes memory fillSig = _signFillEIP712(rfqAddr, signingKey, order);
-        bytes memory expectedFillSig = abi.decode(vm.parseJson(rfqPayloadJson, "expectedFillSig"), (bytes));
+        bytes memory expectedFillSig = abi.decode(vm.parseJson(rfqPayloadJson, "$.expectedFillSig"), (bytes));
         require(keccak256(fillSig) == keccak256(expectedFillSig), "Not expected RFQ fill sig");
     }
 

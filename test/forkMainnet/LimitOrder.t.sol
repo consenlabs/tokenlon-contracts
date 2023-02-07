@@ -1296,46 +1296,46 @@ contract LimitOrderTest is StrategySharedSetup {
         string memory limitOrderPayloadJson = vm.readFile("test/signing/payload/limitOrder.json");
 
         LimitOrderLibEIP712.Order memory order = LimitOrderLibEIP712.Order(
-            IERC20(abi.decode(vm.parseJson(limitOrderPayloadJson, "makerToken"), (address))),
-            IERC20(abi.decode(vm.parseJson(limitOrderPayloadJson, "takerToken"), (address))),
-            abi.decode(vm.parseJson(limitOrderPayloadJson, "makerTokenAmount"), (uint256)),
-            abi.decode(vm.parseJson(limitOrderPayloadJson, "takerTokenAmount"), (uint256)),
-            abi.decode(vm.parseJson(limitOrderPayloadJson, "maker"), (address)),
-            abi.decode(vm.parseJson(limitOrderPayloadJson, "taker"), (address)),
-            abi.decode(vm.parseJson(limitOrderPayloadJson, "salt"), (uint256)),
-            abi.decode(vm.parseJson(limitOrderPayloadJson, "expiry"), (uint64))
+            IERC20(abi.decode(vm.parseJson(limitOrderPayloadJson, "$.makerToken"), (address))),
+            IERC20(abi.decode(vm.parseJson(limitOrderPayloadJson, "$.takerToken"), (address))),
+            abi.decode(vm.parseJson(limitOrderPayloadJson, "$.makerTokenAmount"), (uint256)),
+            abi.decode(vm.parseJson(limitOrderPayloadJson, "$.takerTokenAmount"), (uint256)),
+            abi.decode(vm.parseJson(limitOrderPayloadJson, "$.maker"), (address)),
+            abi.decode(vm.parseJson(limitOrderPayloadJson, "$.taker"), (address)),
+            abi.decode(vm.parseJson(limitOrderPayloadJson, "$.salt"), (uint256)),
+            abi.decode(vm.parseJson(limitOrderPayloadJson, "$.expiry"), (uint64))
         );
 
-        address limitOrderAddr = abi.decode(vm.parseJson(limitOrderPayloadJson, "LimitOrder"), (address));
-        uint256 signingKey = abi.decode(vm.parseJson(limitOrderPayloadJson, "signingKey"), (uint256));
+        address limitOrderAddr = abi.decode(vm.parseJson(limitOrderPayloadJson, "$.LimitOrder"), (address));
+        uint256 signingKey = abi.decode(vm.parseJson(limitOrderPayloadJson, "$.signingKey"), (uint256));
 
         bytes memory orderSig = _signOrderEIP712(limitOrderAddr, signingKey, order);
-        bytes memory expectedOrderSig = abi.decode(vm.parseJson(limitOrderPayloadJson, "expectedOrderSig"), (bytes));
+        bytes memory expectedOrderSig = abi.decode(vm.parseJson(limitOrderPayloadJson, "$.expectedOrderSig"), (bytes));
         require(keccak256(orderSig) == keccak256(expectedOrderSig), "Not expected LimitOrder order sig");
 
         LimitOrderLibEIP712.Fill memory fill = LimitOrderLibEIP712.Fill(
             getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), LimitOrderLibEIP712._getOrderStructHash(order)),
             order.taker,
-            abi.decode(vm.parseJson(limitOrderPayloadJson, "recipient"), (address)),
+            abi.decode(vm.parseJson(limitOrderPayloadJson, "$.recipient"), (address)),
             order.takerTokenAmount,
             order.salt,
             order.expiry
         );
 
         bytes memory fillSig = _signFillEIP712(limitOrderAddr, signingKey, fill);
-        bytes memory expectedFillSig = abi.decode(vm.parseJson(limitOrderPayloadJson, "expectedFillSig"), (bytes));
+        bytes memory expectedFillSig = abi.decode(vm.parseJson(limitOrderPayloadJson, "$.expectedFillSig"), (bytes));
         require(keccak256(fillSig) == keccak256(expectedFillSig), "Not expected LimitOrder fill sig");
 
         LimitOrderLibEIP712.AllowFill memory allowFill = LimitOrderLibEIP712.AllowFill(
             getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), LimitOrderLibEIP712._getOrderStructHash(order)),
-            abi.decode(vm.parseJson(limitOrderPayloadJson, "executor"), (address)),
+            abi.decode(vm.parseJson(limitOrderPayloadJson, "$.executor"), (address)),
             order.takerTokenAmount,
             order.salt,
             order.expiry
         );
 
         bytes memory allowFillSig = _signAllowFillEIP712(limitOrderAddr, signingKey, allowFill);
-        bytes memory expectedAllowFillSig = abi.decode(vm.parseJson(limitOrderPayloadJson, "expectedAllowFillSig"), (bytes));
+        bytes memory expectedAllowFillSig = abi.decode(vm.parseJson(limitOrderPayloadJson, "$.expectedAllowFillSig"), (bytes));
         require(keccak256(allowFillSig) == keccak256(expectedAllowFillSig), "Not expected LimitOrder allow fill sig");
     }
 
