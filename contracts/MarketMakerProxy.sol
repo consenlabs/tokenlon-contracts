@@ -14,10 +14,10 @@ contract MarketMakerProxy is Ownable {
     using SafeERC20 for IERC20;
     using Address for address payable;
 
-    event ChangeSigner(address);
-    event UpdateWhitelist(address, bool);
-    event WrapETH(uint256);
-    event WithdrawETH(uint256);
+    event ChangeSigner(address newSigner);
+    event UpdateWhitelist(address addr, bool enabled);
+    event WrapETH(uint256 amount);
+    event WithdrawETH(uint256 amount);
 
     // bytes4(keccak256("isValidSignature(bytes32,bytes)")
     bytes4 public constant EIP1271_MAGICVALUE = 0x1626ba7e;

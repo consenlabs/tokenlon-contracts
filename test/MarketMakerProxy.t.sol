@@ -5,10 +5,11 @@ pragma abicoder v2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/MarketMakerProxy.sol";
 import "test/utils/BalanceSnapshot.sol";
-import "test/utils/StrategySharedSetup.sol";
+import "test/utils/BalanceUtil.sol";
+import "test/utils/Tokens.sol";
 import "test/mocks/MockERC1271Wallet.sol";
 
-contract MarketMakerProxyTest is StrategySharedSetup {
+contract MarketMakerProxyTest is BalanceUtil, Tokens {
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
