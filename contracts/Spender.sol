@@ -50,7 +50,7 @@ contract Spender is ISpender, Ownable {
         timelockActivated = false;
         contractDeployedTime = block.timestamp;
 
-        for (uint256 i = 0; i < _consumeGasERC20Tokens.length; i++) {
+        for (uint256 i = 0; i < _consumeGasERC20Tokens.length; ++i) {
             consumeGasERC20Tokens[_consumeGasERC20Tokens[i]] = true;
         }
     }
@@ -100,7 +100,7 @@ contract Spender is ISpender, Ownable {
 
     function blacklist(address[] calldata _tokenAddrs, bool[] calldata _isBlacklisted) external onlyOwner {
         require(_tokenAddrs.length == _isBlacklisted.length, "Spender: length mismatch");
-        for (uint256 i = 0; i < _tokenAddrs.length; i++) {
+        for (uint256 i = 0; i < _tokenAddrs.length; ++i) {
             tokenBlacklist[_tokenAddrs[i]] = _isBlacklisted[i];
 
             emit BlackListToken(_tokenAddrs[i], _isBlacklisted[i]);
@@ -117,13 +117,13 @@ contract Spender is ISpender, Ownable {
 
         if (timelockActivated) {
             numPendingAuthorized = uint64(_pendingAuthorized.length);
-            for (uint256 i = 0; i < _pendingAuthorized.length; i++) {
+            for (uint256 i = 0; i < _pendingAuthorized.length; ++i) {
                 require(_pendingAuthorized[i] != address(0), "Spender: can not authorize zero address");
                 pendingAuthorized[i] = _pendingAuthorized[i];
             }
             timelockExpirationTime = block.timestamp + TIME_LOCK_DURATION;
         } else {
-            for (uint256 i = 0; i < _pendingAuthorized.length; i++) {
+            for (uint256 i = 0; i < _pendingAuthorized.length; ++i) {
                 require(_pendingAuthorized[i] != address(0), "Spender: can not authorize zero address");
                 authorized[_pendingAuthorized[i]] = true;
 
@@ -136,7 +136,7 @@ contract Spender is ISpender, Ownable {
         require(timelockExpirationTime != 0, "Spender: no pending authorize");
         require(block.timestamp >= timelockExpirationTime, "Spender: time lock not expired yet");
 
-        for (uint256 i = 0; i < numPendingAuthorized; i++) {
+        for (uint256 i = 0; i < numPendingAuthorized; ++i) {
             authorized[pendingAuthorized[i]] = true;
             emit AuthorizeSpender(pendingAuthorized[i], true);
             delete pendingAuthorized[i];
@@ -146,7 +146,7 @@ contract Spender is ISpender, Ownable {
     }
 
     function deauthorize(address[] calldata _deauthorized) external onlyOwner {
-        for (uint256 i = 0; i < _deauthorized.length; i++) {
+        for (uint256 i = 0; i < _deauthorized.length; ++i) {
             authorized[_deauthorized[i]] = false;
 
             emit AuthorizeSpender(_deauthorized[i], false);
@@ -154,7 +154,7 @@ contract Spender is ISpender, Ownable {
     }
 
     function setConsumeGasERC20Tokens(address[] memory _consumeGasERC20Tokens) external onlyOwner {
-        for (uint256 i = 0; i < _consumeGasERC20Tokens.length; i++) {
+        for (uint256 i = 0; i < _consumeGasERC20Tokens.length; ++i) {
             consumeGasERC20Tokens[_consumeGasERC20Tokens[i]] = true;
 
             emit SetConsumeGasERC20Token(_consumeGasERC20Tokens[i]);

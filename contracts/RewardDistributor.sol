@@ -199,7 +199,7 @@ contract RewardDistributor is Ownable, Pausable {
     function setStrategyAddrs(uint256[] calldata _indexes, address[] calldata _strategyAddrs) external only_Operator_or_Owner {
         require(_indexes.length == _strategyAddrs.length, "input not the same length");
 
-        for (uint256 i = 0; i < _indexes.length; i++) {
+        for (uint256 i = 0; i < _indexes.length; ++i) {
             require(Address.isContract(_strategyAddrs[i]), "strategy is not a contract");
             require(_indexes[i] <= numStrategyAddr, "index out of bound");
 
@@ -212,7 +212,7 @@ contract RewardDistributor is Ownable, Pausable {
     function setExchangeAddrs(uint256[] calldata _indexes, address[] calldata _exchangeAddrs) external only_Operator_or_Owner {
         require(_indexes.length == _exchangeAddrs.length, "input not the same length");
 
-        for (uint256 i = 0; i < _indexes.length; i++) {
+        for (uint256 i = 0; i < _indexes.length; ++i) {
             require(Address.isContract(_exchangeAddrs[i]), "exchange is not a contract");
             require(_indexes[i] <= numExchangeAddr, "index out of bound");
 
@@ -277,7 +277,7 @@ contract RewardDistributor is Ownable, Pausable {
             "input not the same length"
         );
 
-        for (uint256 i = 0; i < inputLength; i++) {
+        for (uint256 i = 0; i < inputLength; ++i) {
             try this.setFeeToken(_feeTokenAddr[i], _exchangeIndex[i], _path[i], _LFactor[i], _RFactor[i], _enable[i], _minBuy[i], _maxBuy[i]) {
                 continue;
             } catch Error(string memory reason) {
@@ -299,7 +299,7 @@ contract RewardDistributor is Ownable, Pausable {
     function enableFeeTokens(address[] calldata _feeTokenAddr, bool[] calldata _enable) external only_Operator_or_Owner {
         require(_feeTokenAddr.length == _enable.length, "input not the same length");
 
-        for (uint256 i = 0; i < _feeTokenAddr.length; i++) {
+        for (uint256 i = 0; i < _feeTokenAddr.length; ++i) {
             FeeToken storage feeToken = feeTokens[_feeTokenAddr[i]];
             if (feeToken.enable != _enable[i]) {
                 feeToken.enable = _enable[i];
@@ -338,7 +338,7 @@ contract RewardDistributor is Ownable, Pausable {
         uint256 balanceInStrategy;
         uint256 amountToTransferFrom;
         uint256 cumulatedAmount;
-        for (uint256 i = 0; i < numStrategyAddr; i++) {
+        for (uint256 i = 0; i < numStrategyAddr; ++i) {
             strategyAddr = strategyAddrs[i];
             balanceInStrategy = IERC20(_feeTokenAddr).balanceOf(strategyAddr);
             if (cumulatedAmount.add(balanceInStrategy) > _totalFeeTokenAmount) {
@@ -480,7 +480,7 @@ contract RewardDistributor is Ownable, Pausable {
         uint256 inputLength = _feeTokenAddr.length;
         require((_amount.length == inputLength) && (_minLonAmount.length == inputLength), "input not the same length");
 
-        for (uint256 i = 0; i < inputLength; i++) {
+        for (uint256 i = 0; i < inputLength; ++i) {
             try this.buyback(_feeTokenAddr[i], _amount[i], _minLonAmount[i]) {
                 continue;
             } catch Error(string memory reason) {

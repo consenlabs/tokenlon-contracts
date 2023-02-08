@@ -334,7 +334,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         require(_path[swapSteps[swapSteps.length - 1].assetOutIndex] == _makerAssetAddr, "AMMWrapper: BalancerV2 last step asset out should match maker asset");
 
         require(swapSteps[0].amount <= _takerAssetAmount, "AMMWrapper: BalancerV2 cannot swap more than taker asset amount");
-        for (uint256 i = 1; i < swapSteps.length; i++) {
+        for (uint256 i = 1; i < swapSteps.length; ++i) {
             require(swapSteps[i].amount == 0, "AMMWrapper: BalancerV2 can only specify amount at first step");
         }
 
@@ -349,7 +349,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         int256[] memory limits = new int256[](_path.length);
         // amount swapped in to balancer will denoted with positive sign
         limits[0] = int256(_takerAssetAmount);
-        for (uint256 i = 1; i < _path.length - 1; i++) {
+        for (uint256 i = 1; i < _path.length - 1; ++i) {
             // we only care final maker asset out amount
             limits[i] = LibConstant.MAX_INT;
         }

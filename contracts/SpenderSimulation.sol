@@ -23,7 +23,7 @@ contract SpenderSimulation {
     constructor(ISpender _spender, address[] memory _hasBlackListERC20Tokens) {
         spender = _spender;
 
-        for (uint256 i = 0; i < _hasBlackListERC20Tokens.length; i++) {
+        for (uint256 i = 0; i < _hasBlackListERC20Tokens.length; ++i) {
             hasBlackListERC20Tokens[_hasBlackListERC20Tokens[i]] = true;
         }
     }

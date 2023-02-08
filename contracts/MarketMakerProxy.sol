@@ -51,7 +51,7 @@ contract MarketMakerProxy is Ownable {
     }
 
     function closeAllowance(address[] calldata tokenAddrs, address spender) external onlyOwner {
-        for (uint256 i = 0; i < tokenAddrs.length; i++) {
+        for (uint256 i = 0; i < tokenAddrs.length; ++i) {
             IERC20(tokenAddrs[i]).safeApprove(spender, 0);
         }
     }

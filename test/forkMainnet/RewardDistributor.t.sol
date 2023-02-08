@@ -154,8 +154,6 @@ contract RewardDistributorTest is Addresses {
         vm.label(address(sushiswap), "Sushiswap");
         vm.label(address(uniswapV3), "UniswapV3");
         vm.label(address(uniswapV3Quoter), "UniswapV3Quoter");
-        vm.label(address(usdt), "USDT");
-        vm.label(address(lon), "LON");
         vm.label(address(lonStaking), "LONStaking");
         vm.label(address(rewardDistributor), "RewardDistributor");
     }
