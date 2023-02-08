@@ -172,18 +172,6 @@ contract Spender is ISpender, Ownable, BaseLibEIP712, SignatureValidator {
     /// @dev Spend tokens on user's behalf. Only an authority can call this.
     /// @param _user The user to spend token from.
     /// @param _tokenAddr The address of the token.
-    /// @param _amount Amount to spend.
-    function spendFromUser(
-        address _user,
-        address _tokenAddr,
-        uint256 _amount
-    ) external override onlyAuthorized {
-        _transferTokenFromUserTo(_user, _tokenAddr, msg.sender, _amount);
-    }
-
-    /// @dev Spend tokens on user's behalf. Only an authority can call this.
-    /// @param _user The user to spend token from.
-    /// @param _tokenAddr The address of the token.
     /// @param _recipient The receiver of the token.
     /// @param _amount Amount to spend.
     function spendFromUserTo(

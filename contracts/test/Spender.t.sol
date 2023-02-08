@@ -211,60 +211,6 @@ contract SpenderTest is BalanceUtil, Permit {
     }
 
     /*********************************
-     *     Test: spendFromUser       *
-     *********************************/
-
-    function testCannotSpendFromUserByNotAuthorized() public {
-        vm.expectRevert("Spender: not authorized");
-        vm.prank(unauthorized);
-        spender.spendFromUser(user, address(lon), 100);
-    }
-
-    function testCannotSpendFromUserWithBlakclistedToken() public {
-        address[] memory blacklistAddress = new address[](1);
-        blacklistAddress[0] = address(lon);
-        bool[] memory blacklistBool = new bool[](1);
-        blacklistBool[0] = true;
-        spender.blacklist(blacklistAddress, blacklistBool);
-
-        vm.expectRevert("Spender: token is blacklisted");
-        spender.spendFromUser(user, address(lon), 100);
-    }
-
-    function testCannotSpendFromUserInsufficientBalance_NoReturnValueToken() public {
-        uint256 userBalance = noReturnERC20.balanceOf(user);
-        vm.expectRevert("Spender: ERC20 transferFrom failed");
-        spender.spendFromUser(user, address(noReturnERC20), userBalance + 1);
-    }
-
-    function testCannotSpendFromUserInsufficientBalance_ReturnFalseToken() public {
-        uint256 userBalance = noRevertERC20.balanceOf(user);
-        vm.expectRevert("Spender: ERC20 transferFrom failed");
-        spender.spendFromUser(user, address(noRevertERC20), userBalance + 1);
-    }
-
-    function testCannotSpendFromUserWithDeflationaryToken() public {
-        vm.expectRevert("Spender: ERC20 transferFrom amount mismatch");
-        spender.spendFromUser(user, address(deflationaryERC20), 100);
-    }
-
-    function testSpendFromUser() public {
-        assertEq(lon.balanceOf(address(this)), 0);
-
-        spender.spendFromUser(user, address(lon), 100);
-
-        assertEq(lon.balanceOf(address(this)), 100);
-    }
-
-    function testSpendFromUserWithNoReturnValueToken() public {
-        assertEq(noReturnERC20.balanceOf(address(this)), 0);
-
-        spender.spendFromUser(user, address(noReturnERC20), 100);
-
-        assertEq(noReturnERC20.balanceOf(address(this)), 100);
-    }
-
-    /*********************************
      *     Test: spendFromUserTo     *
      *********************************/
 
