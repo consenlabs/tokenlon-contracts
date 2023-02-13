@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.6;
+pragma solidity ^0.8.0;
 
 abstract contract BaseLibEIP712 {
     // EIP-191 Header
@@ -7,7 +7,7 @@ abstract contract BaseLibEIP712 {
 
     // EIP712Domain
     string public constant EIP712_DOMAIN_NAME = "Tokenlon";
-    string public constant EIP712_DOMAIN_VERSION = "v5";
+    string public constant EIP712_DOMAIN_VERSION = "v6";
 
     // EIP712Domain Separator
     bytes32 public immutable EIP712_DOMAIN_SEPARATOR =
@@ -24,7 +24,7 @@ abstract contract BaseLibEIP712 {
     /**
      * @dev Return `chainId`
      */
-    function getChainID() internal pure returns (uint256) {
+    function getChainID() internal view returns (uint256) {
         uint256 chainId;
         assembly {
             chainId := chainid()

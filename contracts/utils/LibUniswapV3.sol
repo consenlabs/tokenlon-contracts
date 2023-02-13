@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.7.6;
-pragma abicoder v2;
+pragma solidity ^0.8.0;
 
-import { ISwapRouter } from "../interfaces/IUniswapV3SwapRouter.sol";
-import { Path } from "./UniswapV3PathLib.sol";
+import { ISwapRouter } from "contracts/interfaces/IUniswapV3SwapRouter.sol";
+import { Path } from "contracts/utils/UniswapV3PathLib.sol";
 
 library LibUniswapV3 {
     using Path for bytes;

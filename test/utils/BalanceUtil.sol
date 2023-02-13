@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "test/utils/Addresses.sol";
+import { StdStorage, stdStorage } from "forge-std/StdStorage.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { Addresses } from "test/utils/Addresses.sol";
 
 contract BalanceUtil is Addresses {
     using stdStorage for StdStorage;

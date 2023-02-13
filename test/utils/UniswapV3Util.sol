@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
-
-import "./Addresses.sol";
+pragma solidity ^0.8.0;
 
 uint24 constant FEE_LOW = 500;
 uint24 constant FEE_MEDIUM = 3000;

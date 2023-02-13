@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.6;
-pragma abicoder v2;
+pragma solidity ^0.8.0;
 
-import "../interfaces/IUniswapRouterV2.sol";
+import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 
 library LibUniswapV2 {
     struct SwapExactTokensForTokensParams {

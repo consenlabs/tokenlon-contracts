@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
-pragma abicoder v2;
+pragma solidity ^0.8.0;
 
-import "../interfaces/IMulticall.sol";
+import { IMulticall } from "contracts/interfaces/IMulticall.sol";
 
 // Modified from https://github.com/Uniswap/uniswap-v3-periphery/blob/v1.1.1/contracts/base/Multicall.sol
 abstract contract Multicall is IMulticall {

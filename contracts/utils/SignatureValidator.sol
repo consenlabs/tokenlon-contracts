@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
+pragma solidity ^0.8.0;
 
-import "../interfaces/IERC1271Wallet.sol";
-import "./LibBytes.sol";
+import { IERC1271Wallet } from "contracts/interfaces/IERC1271Wallet.sol";
+import { LibBytes } from "contracts/utils/LibBytes.sol";
 
 interface IWallet {
     /// @dev Verifies that a signature is valid.

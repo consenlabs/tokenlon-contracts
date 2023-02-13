@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.0;
+pragma solidity >=0.8.0;
 
 interface IArbitrumL1GatewayRouter {
     // DepositInitiated actually is not fired by gateway router, but by underlying token gateway (ERC20, Custom, or others).

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./Addresses.sol";
+import "test/utils/Addresses.sol";
 
 library BalanceSnapshot {
     struct Snapshot {

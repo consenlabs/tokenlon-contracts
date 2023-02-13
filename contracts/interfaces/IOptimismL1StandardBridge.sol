@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.0;
+pragma solidity >=0.8.0;
 
 interface IOptimismL1StandardBridge {
     event ERC20DepositInitiated(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 amount, bytes data);

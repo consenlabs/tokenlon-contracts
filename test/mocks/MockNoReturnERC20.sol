@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
-
-import "@openzeppelin/contracts/math/SafeMath.sol";
+pragma solidity ^0.8.0;
 
 /**
  * @dev No return value on approve, transfer, transferFrom. (USDT)
  */
 contract MockNoReturnERC20 {
-    using SafeMath for uint256;
-
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event Transfer(address indexed from, address indexed to, uint256 value);
 
@@ -42,8 +38,9 @@ contract MockNoReturnERC20 {
         address recipient,
         uint256 amount
     ) public {
+        require(_allowances[sender][msg.sender] >= amount, "ERC20: transfer amount exceeds allowance");
         _transfer(sender, recipient, amount);
-        _approve(sender, msg.sender, _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        _approve(sender, msg.sender, _allowances[sender][msg.sender] - amount);
     }
 
     function _approve(
@@ -66,9 +63,10 @@ contract MockNoReturnERC20 {
     ) internal {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
+        require(_balances[sender] >= amount, "ERC20: transfer amount exceeds balance");
 
-        _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
-        _balances[recipient] = _balances[recipient].add(amount);
+        _balances[sender] = _balances[sender] - amount;
+        _balances[recipient] = _balances[recipient] + amount;
         emit Transfer(sender, recipient, amount);
     }
 }

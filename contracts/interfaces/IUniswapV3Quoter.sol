@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.0;
+pragma solidity >=0.8.0;
 
 /// @title Quoter Interface
 /// @notice Supports quoting the calculated amounts from exact input or exact output swaps
