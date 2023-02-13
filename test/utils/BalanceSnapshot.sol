@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "test/utils/Addresses.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Constant } from "contracts/libraries/Constant.sol";
 
 library BalanceSnapshot {
     struct Snapshot {
@@ -13,7 +13,7 @@ library BalanceSnapshot {
 
     function take(address owner, address token) internal view returns (Snapshot memory) {
         uint256 balanceBefore;
-        if (token == ETH_ADDRESS) {
+        if (token == Constant.ETH_ADDRESS) {
             balanceBefore = owner.balance;
         } else {
             balanceBefore = IERC20(token).balanceOf(owner);
@@ -22,7 +22,7 @@ library BalanceSnapshot {
     }
 
     function _getBalanceAfter(Snapshot memory snapshot) internal view returns (int256) {
-        if (address(snapshot.token) == ETH_ADDRESS) {
+        if (address(snapshot.token) == Constant.ETH_ADDRESS) {
             return int256(snapshot.owner.balance);
         } else {
             return int256(snapshot.token.balanceOf(snapshot.owner));

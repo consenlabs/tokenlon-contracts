@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-abstract contract BaseLibEIP712 {
+abstract contract EIP712 {
     // EIP-191 Header
     string public constant EIP191_HEADER = "\x19\x01";
 

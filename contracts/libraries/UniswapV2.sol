@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 
-library LibUniswapV2 {
+library UniswapV2 {
     struct SwapExactTokensForTokensParams {
         address tokenIn;
         uint256 tokenInAmount;
@@ -26,6 +26,14 @@ library LibUniswapV2 {
         );
 
         return amounts[amounts.length - 1];
+    }
+
+    function getAmountsOut(
+        address _uniswapV2Router,
+        uint256 _amountIn,
+        address[] memory _path
+    ) internal view returns (uint256[] memory amounts) {
+        return IUniswapRouterV2(_uniswapV2Router).getAmountsOut(_amountIn, _path);
     }
 
     function _validatePath(

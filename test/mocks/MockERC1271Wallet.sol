@@ -6,11 +6,11 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import { IERC1271Wallet } from "contracts/interfaces/IERC1271Wallet.sol";
-import { LibBytes } from "contracts/utils/LibBytes.sol";
+import { Bytes } from "contracts/libraries/Bytes.sol";
 
 contract MockERC1271Wallet is IERC1271Wallet {
     using SafeERC20 for IERC20;
-    using LibBytes for bytes;
+    using Bytes for bytes;
 
     // bytes4(keccak256("isValidSignature(bytes,bytes)"))
     bytes4 internal constant ERC1271_MAGICVALUE = 0x20c13b0b;

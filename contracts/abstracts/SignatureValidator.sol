@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { IERC1271Wallet } from "contracts/interfaces/IERC1271Wallet.sol";
-import { LibBytes } from "contracts/utils/LibBytes.sol";
+import { Bytes } from "contracts/libraries/Bytes.sol";
 
 interface IWallet {
     /// @dev Verifies that a signature is valid.
@@ -17,8 +17,8 @@ interface IWallet {
  * Signatures from wallet contracts assume ERC-1271 support (https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1271.md)
  * Notes: Methods are strongly inspired by contracts in https://github.com/0xProject/0x-monorepo/blob/development/
  */
-contract SignatureValidator {
-    using LibBytes for bytes;
+abstract contract SignatureValidator {
+    using Bytes for bytes;
 
     /***********************************|
   |             Variables             |

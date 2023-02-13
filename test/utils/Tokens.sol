@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "test/mocks/MockERC20.sol";
-import "test/mocks/MockWETH.sol";
-import "test/utils/Addresses.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { MockERC20 } from "test/mocks/MockERC20.sol";
+import { MockWETH } from "test/mocks/MockWETH.sol";
+import { Addresses } from "test/utils/Addresses.sol";
 
 contract Tokens is Addresses {
     IERC20 public weth;
