@@ -100,7 +100,6 @@ library UniswapV3 {
     }
 }
 
-
 /// @title Functions for manipulating path data for multihop swaps
 library Path {
     using Bytes for bytes;

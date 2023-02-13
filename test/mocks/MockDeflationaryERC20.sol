@@ -39,7 +39,7 @@ contract MockDeflationaryERC20 is IERC20 {
         address recipient,
         uint256 amount
     ) public override returns (bool) {
-        require(_allowances[sender][msg.sender] >= amount,  "ERC20: transfer amount exceeds allowance");
+        require(_allowances[sender][msg.sender] >= amount, "ERC20: transfer amount exceeds allowance");
         _transfer(sender, recipient, amount);
         _approve(sender, msg.sender, _allowances[sender][msg.sender] - amount);
         return true;
