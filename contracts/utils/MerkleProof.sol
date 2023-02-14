@@ -18,7 +18,7 @@ library MerkleProof {
     ) internal pure returns (bool) {
         bytes32 computedHash = leaf;
 
-        for (uint256 i = 0; i < proof.length; i++) {
+        for (uint256 i = 0; i < proof.length; ++i) {
             bytes32 proofElement = proof[i];
 
             if (computedHash <= proofElement) {

@@ -27,6 +27,8 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
+    uint256 public immutable factorActivateDelay;
+
     // AMM
     address public immutable uniswapV3RouterAddress;
     address public immutable sushiswapRouterAddress;
@@ -36,9 +38,13 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
     address public feeCollector;
 
     // Factors
+    uint256 public factorsTimeLock;
     uint16 public makerFeeFactor = 0;
+    uint16 public pendingMakerFeeFactor;
     uint16 public takerFeeFactor = 0;
+    uint16 public pendingTakerFeeFactor;
     uint16 public profitFeeFactor = 0;
+    uint16 public pendingProfitFeeFactor;
 
     constructor(
         address _owner,
@@ -47,11 +53,13 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         address _permStorage,
         address _spender,
         address _coordinator,
+        uint256 _factorActivateDelay,
         address _uniswapV3RouterAddress,
         address _sushiswapRouterAddress,
         address _feeCollector
     ) StrategyBase(_owner, _userProxy, _weth, _permStorage, _spender) {
         coordinator = _coordinator;
+        factorActivateDelay = _factorActivateDelay;
         uniswapV3RouterAddress = _uniswapV3RouterAddress;
         sushiswapRouterAddress = _sushiswapRouterAddress;
         feeCollector = _feeCollector;
@@ -81,11 +89,26 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         require(_takerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid taker fee factor");
         require(_profitFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid profit fee factor");
 
-        makerFeeFactor = _makerFeeFactor;
-        takerFeeFactor = _takerFeeFactor;
-        profitFeeFactor = _profitFeeFactor;
+        pendingMakerFeeFactor = _makerFeeFactor;
+        pendingTakerFeeFactor = _takerFeeFactor;
+        pendingProfitFeeFactor = _profitFeeFactor;
 
-        emit FactorsUpdated(_makerFeeFactor, _takerFeeFactor, _profitFeeFactor);
+        factorsTimeLock = block.timestamp + factorActivateDelay;
+    }
+
+    /// @notice Only owner can call
+    function activateFactors() external onlyOwner {
+        require(factorsTimeLock != 0, "LimitOrder: no pending fee factors");
+        require(block.timestamp >= factorsTimeLock, "LimitOrder: fee factors timelocked");
+        factorsTimeLock = 0;
+        makerFeeFactor = pendingMakerFeeFactor;
+        takerFeeFactor = pendingTakerFeeFactor;
+        profitFeeFactor = pendingProfitFeeFactor;
+        pendingMakerFeeFactor = 0;
+        pendingTakerFeeFactor = 0;
+        pendingProfitFeeFactor = 0;
+
+        emit FactorsUpdated(makerFeeFactor, takerFeeFactor, profitFeeFactor);
     }
 
     /// @notice Only owner can call
@@ -147,6 +170,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
 
     function _validateTraderFill(LimitOrderLibEIP712.Fill memory _fill, bytes memory _fillTakerSig) internal {
         require(_fill.expiry > uint64(block.timestamp), "LimitOrder: Fill request is expired");
+        require(_fill.recipient != address(0), "LimitOrder: recipient can not be zero address");
 
         bytes32 fillHash = getEIP712Hash(LimitOrderLibEIP712._getFillStructHash(_fill));
         require(isValidSignature(_fill.taker, fillHash, bytes(""), _fillTakerSig), "LimitOrder: Fill is not signed by taker");
@@ -199,6 +223,10 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
     }
 
     function _settleForTrader(TraderSettlement memory _settlement) internal returns (uint256) {
+        // memory cache
+        ISpender _spender = spender;
+        address _feeCollector = feeCollector;
+
         // Calculate maker fee (maker receives taker token so fee is charged in taker token)
         uint256 takerTokenFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
         uint256 takerTokenForMaker = _settlement.takerTokenAmount.sub(takerTokenFee);
@@ -208,18 +236,18 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         uint256 makerTokenForTrader = _settlement.makerTokenAmount.sub(makerTokenFee);
 
         // trader -> maker
-        spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _settlement.maker, takerTokenForMaker);
+        _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _settlement.maker, takerTokenForMaker);
 
         // maker -> recipient
-        spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _settlement.recipient, makerTokenForTrader);
+        _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _settlement.recipient, makerTokenForTrader);
 
         // Collect maker fee (charged in taker token)
         if (takerTokenFee > 0) {
-            spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), feeCollector, takerTokenFee);
+            _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _feeCollector, takerTokenFee);
         }
         // Collect taker fee (charged in maker token)
         if (makerTokenFee > 0) {
-            spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), feeCollector, makerTokenFee);
+            _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _feeCollector, makerTokenFee);
         }
 
         // bypass stack too deep error
@@ -316,6 +344,8 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
     }
 
     function _settleForProtocol(ProtocolSettlement memory _settlement) internal returns (uint256) {
+        require(_settlement.profitRecipient != address(0), "LimitOrder: profitRecipient can not be zero address");
+
         // Collect maker token from maker in order to swap through protocol
         spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), address(this), _settlement.makerTokenAmount);
 
@@ -464,6 +494,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         uint256 makerTokenQuota = takerTokenQuota.mul(_order.makerTokenAmount).div(_order.takerTokenAmount);
         uint256 remainingAfterFill = takerTokenFillableAmount.sub(takerTokenQuota);
 
+        require(makerTokenQuota != 0 && takerTokenQuota != 0, "LimitOrder: zero token amount");
         return (makerTokenQuota, takerTokenQuota, remainingAfterFill);
     }
 

@@ -63,7 +63,7 @@ contract MerkleRedeem is Ownable, ReentrancyGuard, IEmergency {
         uint256 totalBalance = 0;
         Claim memory claim;
 
-        for (uint256 i = 0; i < claims.length; i++) {
+        for (uint256 i = 0; i < claims.length; ++i) {
             claim = claims[i];
 
             require(!claimed[claim.period][recipient]);
@@ -83,7 +83,7 @@ contract MerkleRedeem is Ownable, ReentrancyGuard, IEmergency {
     ) external view returns (bool[] memory) {
         uint256 size = 1 + end - begin;
         bool[] memory arr = new bool[](size);
-        for (uint256 i = 0; i < size; i++) {
+        for (uint256 i = 0; i < size; ++i) {
             arr[i] = claimed[begin + i][recipient];
         }
         return arr;
@@ -92,7 +92,7 @@ contract MerkleRedeem is Ownable, ReentrancyGuard, IEmergency {
     function merkleRoots(uint256 begin, uint256 end) external view returns (bytes32[] memory) {
         uint256 size = 1 + end - begin;
         bytes32[] memory arr = new bytes32[](size);
-        for (uint256 i = 0; i < size; i++) {
+        for (uint256 i = 0; i < size; ++i) {
             arr[i] = periodMerkleRoots[begin + i];
         }
         return arr;
