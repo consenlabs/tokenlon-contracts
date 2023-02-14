@@ -52,3 +52,19 @@ jobs:
         with:
           report: gasreport-fork.ansi
         id: gas_diff_fork
+
+      - name: Add gas diff local to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          # delete the comment in case changes no longer impact gas costs
+          delete: ${{ !steps.gas_diff_local.outputs.markdown }}
+          message: ${{ steps.gas_diff_local.outputs.markdown }}
+
+      - name: Add gas diff fork to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          # delete the comment in case changes no longer impact gas costs
+          delete: ${{ !steps.gas_diff_fork.outputs.markdown }}
+          message: ${{ steps.gas_diff_fork.outputs.markdown }}
