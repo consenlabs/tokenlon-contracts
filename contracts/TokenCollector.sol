@@ -6,40 +6,40 @@ import { IERC20Permit } from "@openzeppelin/contracts/drafts/IERC20Permit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import { ITokenCollector } from "contracts/interfaces/ITokenCollector.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 
-contract TokenCollector is ITokenCollector {
+abstract contract TokenCollector {
     using SafeERC20 for IERC20;
 
-    address public immutable owner;
+    enum Source {
+        Token,
+        UniswapPermit2
+    }
+
     address public immutable uniswapPermit2;
 
     constructor(address _uniswapPermit2) {
-        owner = msg.sender;
         uniswapPermit2 = _uniswapPermit2;
     }
 
-    function collect(
+    function _collect(
         address token,
         address from,
         address to,
         uint256 amount,
         bytes memory data
-    ) external override {
-        require(msg.sender == owner, "TokenCollector: not owner");
-
+    ) internal {
         (Source src, bytes memory srcData) = abi.decode(data, (Source, bytes));
         if (src == Source.Token) {
-            return collectFromToken(token, from, to, amount, srcData);
+            return _collectFromToken(token, from, to, amount, srcData);
         }
         if (src == Source.UniswapPermit2) {
-            return collectFromUniswapPermit2(token, from, to, amount, srcData);
+            return _collectFromUniswapPermit2(token, from, to, amount, srcData);
         }
         revert("TokenCollector: unknown token source");
     }
 
-    function collectFromToken(
+    function _collectFromToken(
         address token,
         address from,
         address to,
@@ -53,7 +53,7 @@ contract TokenCollector is ITokenCollector {
         IERC20(token).safeTransferFrom(from, to, amount);
     }
 
-    function collectFromUniswapPermit2(
+    function _collectFromUniswapPermit2(
         address token,
         address from,
         address to,

@@ -4,17 +4,12 @@ pragma abicoder v2;
 
 import { SignatureValidator } from "contracts/utils/SignatureValidator.sol";
 import { TokenCollector } from "contracts/TokenCollector.sol";
-import { ITokenCollector } from "contracts/interfaces/ITokenCollector.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { MockERC20Permit } from "test/mocks/MockERC20Permit.sol";
 import { Addresses } from "test/utils/Addresses.sol";
 
-contract Strategy {
-    TokenCollector public tokenCollector;
-
-    constructor(address _uniswapPermit2) {
-        tokenCollector = new TokenCollector(_uniswapPermit2);
-    }
+contract Strategy is TokenCollector {
+    constructor(address _uniswapPermit2) TokenCollector(_uniswapPermit2) {}
 
     function collect(
         address token,
@@ -23,7 +18,7 @@ contract Strategy {
         uint256 amount,
         bytes memory data
     ) external {
-        tokenCollector.collect(token, from, to, amount, data);
+        _collect(token, from, to, amount, data);
     }
 }
 
@@ -34,7 +29,6 @@ contract TestTokenCollector is Addresses {
     MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
 
     Strategy strategy = new Strategy(UNISWAP_PERMIT2_ADDRESS);
-    TokenCollector tokenCollector = strategy.tokenCollector();
 
     function setUp() public {
         token.mint(user, 10000 * 1e18);
@@ -43,22 +37,15 @@ contract TestTokenCollector is Addresses {
         vm.label(address(token), "TKN");
     }
 
-    function testCannotCollectByOther() public {
-        bytes memory data = abi.encode(ITokenCollector.Source.Token, bytes(""));
-        vm.expectRevert("TokenCollector: not owner");
-        vm.prank(user);
-        tokenCollector.collect(address(token), user, address(this), 100, data);
-    }
-
     /* Token */
 
     function testCollectByTokenApproval() public {
         uint256 amount = 100 * 1e18;
 
         vm.prank(user);
-        token.approve(address(tokenCollector), amount);
+        token.approve(address(strategy), amount);
 
-        bytes memory data = abi.encode(ITokenCollector.Source.Token, bytes(""));
+        bytes memory data = abi.encode(TokenCollector.Source.Token, bytes(""));
         strategy.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
@@ -71,12 +58,12 @@ contract TestTokenCollector is Addresses {
         uint256 nonce = token.nonces(user);
         uint256 deadline = block.timestamp + 1 days;
 
-        bytes32 structHash = keccak256(abi.encode(token._PERMIT_TYPEHASH(), user, address(tokenCollector), amount, nonce, deadline));
+        bytes32 structHash = keccak256(abi.encode(token._PERMIT_TYPEHASH(), user, address(strategy), amount, nonce, deadline));
         bytes32 permitHash = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), structHash));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
 
-        bytes memory data = abi.encode(ITokenCollector.Source.Token, abi.encode(user, address(tokenCollector), amount, deadline, v, r, s));
+        bytes memory data = abi.encode(TokenCollector.Source.Token, abi.encode(user, address(strategy), amount, deadline, v, r, s));
         strategy.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
@@ -104,7 +91,7 @@ contract TestTokenCollector is Addresses {
                 expiration: uint48(block.timestamp + 1 days),
                 nonce: uint48(0)
             }),
-            spender: address(tokenCollector),
+            spender: address(strategy),
             sigDeadline: block.timestamp + 1 days
         });
 
@@ -115,7 +102,7 @@ contract TestTokenCollector is Addresses {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
         bytes memory permitSig = abi.encodePacked(r, s, v);
 
-        bytes memory data = abi.encode(ITokenCollector.Source.UniswapPermit2, abi.encode(user, permit, permitSig));
+        bytes memory data = abi.encode(TokenCollector.Source.UniswapPermit2, abi.encode(user, permit, permitSig));
         strategy.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
