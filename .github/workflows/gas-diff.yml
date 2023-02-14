@@ -25,17 +25,20 @@ jobs:
         with:
           version: nightly
 
-      - name: Run gas report on local tests
-        run: yarn gas-report-local > gasreport-local.ansi # <- this file name should be unique in your repository!
+      - name: Run gas report on local and fork tests
+        env:
+          MAINNET_NODE_RPC_URL: ${{ secrets.MAINNET_NODE_RPC_URL }}
+          FOUNDRY_PROFILE: CI
+        # the report file name, e.g. gasreport-local.ansi, should be unique in your repository!
+        run: |
+          yarn gas-report-local > gasreport-local.ansi
+          yarn gas-report-fork > gasreport-fork.ansi
 
       - name: Compare gas reports of local tests
         uses: Rubilmax/foundry-gas-diff@v3.13.3
         with:
           report: gasreport-local.ansi
         id: gas_diff_local
-
-      - name: Run gas report on fork tests
-        run: yarn gas-report-fork > gasreport-fork.ansi # <- this file name should be unique in your repository!
 
       - name: Compare gas reports of fork tests
         uses: Rubilmax/foundry-gas-diff@v3.13.3
