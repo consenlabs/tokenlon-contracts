@@ -4,7 +4,6 @@ pragma solidity >=0.7.0;
 interface ITokenCollector {
     enum Source {
         Token,
-        Spender,
         UniswapPermit2
     }
 

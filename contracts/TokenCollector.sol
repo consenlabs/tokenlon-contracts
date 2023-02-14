@@ -6,21 +6,17 @@ import { IERC20Permit } from "@openzeppelin/contracts/drafts/IERC20Permit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import { ISpender } from "contracts/interfaces/ISpender.sol";
 import { ITokenCollector } from "contracts/interfaces/ITokenCollector.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
-import { SpenderLibEIP712 } from "contracts/utils/SpenderLibEIP712.sol";
 
 contract TokenCollector is ITokenCollector {
     using SafeERC20 for IERC20;
 
     address public immutable owner;
-    address public immutable spender;
     address public immutable uniswapPermit2;
 
-    constructor(address _spender, address _uniswapPermit2) {
+    constructor(address _uniswapPermit2) {
         owner = msg.sender;
-        spender = _spender;
         uniswapPermit2 = _uniswapPermit2;
     }
 
@@ -36,9 +32,6 @@ contract TokenCollector is ITokenCollector {
         (Source src, bytes memory srcData) = abi.decode(data, (Source, bytes));
         if (src == Source.Token) {
             return collectFromToken(token, from, to, amount, srcData);
-        }
-        if (src == Source.Spender) {
-            return collectFromSpender(token, from, to, amount, srcData);
         }
         if (src == Source.UniswapPermit2) {
             return collectFromUniswapPermit2(token, from, to, amount, srcData);
@@ -58,28 +51,6 @@ contract TokenCollector is ITokenCollector {
             require(success, "TokenCollector: token permit failed");
         }
         IERC20(token).safeTransferFrom(from, to, amount);
-    }
-
-    function collectFromSpender(
-        address token,
-        address from,
-        address to,
-        uint256 amount,
-        bytes memory data
-    ) private {
-        if (data.length > 0) {
-            (SpenderLibEIP712.SpendWithPermit memory permit, ) = abi.decode(data, (SpenderLibEIP712.SpendWithPermit, bytes));
-            require(permit.tokenAddr == token, "TokenCollector: invalid token");
-            require(permit.user == from, "TokenCollector: invalid user");
-            require(permit.recipient == to, "TokenCollector: invalid recipient");
-            require(permit.amount == amount, "TokenCollector: invalid amount");
-
-            (bool success, ) = spender.call(abi.encodePacked(ISpender.spendFromUserToWithPermit.selector, data));
-            require(success, "TokenCollector: spend with permit failed");
-
-            return;
-        }
-        ISpender(spender).spendFromUserTo(from, token, to, amount);
     }
 
     function collectFromUniswapPermit2(
