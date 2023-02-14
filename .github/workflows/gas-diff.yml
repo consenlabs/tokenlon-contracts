@@ -45,12 +45,14 @@ jobs:
         uses: Rubilmax/foundry-gas-diff@v3.13.3
         with:
           report: gasreport-local.ansi
+          ignore: test/**/*
         id: gas_diff_local
 
       - name: Compare gas reports of fork tests
         uses: Rubilmax/foundry-gas-diff@v3.13.3
         with:
           report: gasreport-fork.ansi
+          ignore: test/**/*
         id: gas_diff_fork
 
       - name: Add gas diff local to sticky comment
