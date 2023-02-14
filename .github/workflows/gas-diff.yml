@@ -33,6 +33,10 @@ jobs:
         run: |
           yarn gas-report-local > gasreport-local.ansi
           yarn gas-report-fork > gasreport-fork.ansi
+          echo "### Local tests gas report" >> $GITHUB_STEP_SUMMARY
+          cat gasreport-local.ansi >> $GITHUB_STEP_SUMMARY
+          echo "### Fork tests gas report" >> $GITHUB_STEP_SUMMARY
+          cat gasreport-fork.ansi >> $GITHUB_STEP_SUMMARY
 
       - name: Compare gas reports of local tests
         uses: Rubilmax/foundry-gas-diff@v3.13.3
