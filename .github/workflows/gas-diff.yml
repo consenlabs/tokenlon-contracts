@@ -1,0 +1,44 @@
+name: Report gas diff
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - contracts/**
+      - test/**
+      - foundry.toml
+      - remappings.txt
+      - .github/workflows/gas-diff.yml
+
+jobs:
+  compare_gas_reports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: onbjerg/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run gas report on local tests
+        run: yarn gas-report-local > gasreport-local.ansi # <- this file name should be unique in your repository!
+
+      - name: Compare gas reports of local tests
+        uses: Rubilmax/foundry-gas-diff@v3.13.3
+        with:
+          report: gasreport-local.ansi
+        id: gas_diff_local
+
+      - name: Run gas report on fork tests
+        run: yarn gas-report-fork > gasreport-fork.ansi # <- this file name should be unique in your repository!
+
+      - name: Compare gas reports of fork tests
+        uses: Rubilmax/foundry-gas-diff@v3.13.3
+        with:
+          report: gasreport-fork.ansi
+        id: gas_diff_fork
