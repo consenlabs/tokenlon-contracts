@@ -91,6 +91,7 @@ contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
         uint256 _takerAssetAmount,
         address _makerAddr,
         address _makerAssetAddr,
+        // solhint-disable-next-line
         bytes memory _makerSpecificData,
         address[] memory _path,
         uint256 _deadline
