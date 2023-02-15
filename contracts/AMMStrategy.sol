@@ -75,18 +75,11 @@ contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
         uint256 inputAmount,
         bytes calldata data
     ) external override nonReentrant onlyEntryPoint {
-        (address makerAddr, address makerAssetAddr, uint256 minMakerAssetAmount, bytes memory makerSpecificData, address[] memory path, uint256 deadline) = abi
-            .decode(data, (address, address, uint256, bytes, address[], uint256));
-        (string memory source, uint256 receivedAmount) = _swap(
-            srcToken,
-            inputAmount,
-            makerAddr,
-            makerAssetAddr,
-            minMakerAssetAmount,
-            makerSpecificData,
-            path,
-            deadline
+        (address makerAddr, address makerAssetAddr, bytes memory makerSpecificData, address[] memory path, uint256 deadline) = abi.decode(
+            data,
+            (address, address, bytes, address[], uint256)
         );
+        (string memory source, uint256 receivedAmount) = _swap(srcToken, inputAmount, makerAddr, makerAssetAddr, makerSpecificData, path, deadline);
         IERC20(makerAssetAddr).safeTransfer(entryPoint, receivedAmount);
         // should emit event?
         // which parameter should be indexed?
@@ -98,22 +91,13 @@ contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
         uint256 _takerAssetAmount,
         address _makerAddr,
         address _makerAssetAddr,
-        uint256 _minMakerAssetAmount,
         bytes memory _makerSpecificData,
         address[] memory _path,
         uint256 _deadline
     ) internal approveTakerAsset(_takerAssetAddr, _makerAddr, _takerAssetAmount) returns (string memory source, uint256 receivedAmount) {
         if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) {
             source = (_makerAddr == SUSHISWAP_ROUTER_ADDRESS) ? "SushiSwap" : "Uniswap V2";
-            receivedAmount = _tradeUniswapV2TokenToToken(
-                _makerAddr,
-                _takerAssetAddr,
-                _makerAssetAddr,
-                _takerAssetAmount,
-                _minMakerAssetAmount,
-                _deadline,
-                _path
-            );
+            receivedAmount = _tradeUniswapV2TokenToToken(_makerAddr, _takerAssetAddr, _makerAssetAddr, _takerAssetAmount, _deadline, _path);
         }
     }
 
@@ -122,7 +106,6 @@ contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
         address _takerAssetAddr,
         address _makerAssetAddr,
         uint256 _takerAssetAmount,
-        uint256 _minMakerAssetAmount,
         uint256 _deadline,
         address[] memory _path
     ) internal returns (uint256) {
@@ -134,7 +117,8 @@ contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
         } else {
             _validateAMMPath(_path, _takerAssetAddr, _makerAssetAddr);
         }
-        uint256[] memory amounts = router.swapExactTokensForTokens(_takerAssetAmount, _minMakerAssetAmount, _path, address(this), _deadline);
+        // min received token should be assured by entryPoint
+        uint256[] memory amounts = router.swapExactTokensForTokens(_takerAssetAmount, 0, _path, address(this), _deadline);
         return amounts[amounts.length - 1];
     }
 
