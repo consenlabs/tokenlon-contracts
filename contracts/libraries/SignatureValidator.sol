@@ -15,7 +15,7 @@ library SignatureValidator {
     enum SignatureType {
         EIP712, // 0x00 Signature using EIP712
         EthSign, // 0x01 Signed using web3.eth_sign() or Ethers wallet.signMessage()
-        ContractWallet // 0x02 Standard 1271 wallet type
+        EIP1271 // 0x02 Standard 1271 wallet type
     }
 
     /**
