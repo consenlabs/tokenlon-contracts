@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.0;
-pragma abicoder v2;
+pragma solidity >=0.8.0;
 
 /// @dev Minimal Balancer V2 Vault interface
 ///      for documentation refer to https://github.com/balancer-labs/balancer-core-v2/blob/master/contracts/vault/interfaces/IVault.sol

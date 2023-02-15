@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "contracts/utils/LibBytes.sol";
-import "contracts/interfaces/IERC1271Wallet.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
+import { IERC1271Wallet } from "contracts/interfaces/IERC1271Wallet.sol";
+import { Bytes } from "contracts/libraries/Bytes.sol";
 
 contract MockERC1271Wallet is IERC1271Wallet {
     using SafeERC20 for IERC20;
-    using LibBytes for bytes;
+    using Bytes for bytes;
 
     // bytes4(keccak256("isValidSignature(bytes,bytes)"))
     bytes4 internal constant ERC1271_MAGICVALUE = 0x20c13b0b;

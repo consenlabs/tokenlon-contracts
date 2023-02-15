@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @dev Burn a portion of tokens while transferring. (STA)
  */
 contract MockDeflationaryERC20 is IERC20 {
-    using SafeMath for uint256;
-
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
 
@@ -42,8 +39,9 @@ contract MockDeflationaryERC20 is IERC20 {
         address recipient,
         uint256 amount
     ) public override returns (bool) {
+        require(_allowances[sender][msg.sender] >= amount, "ERC20: transfer amount exceeds allowance");
         _transfer(sender, recipient, amount);
-        _approve(sender, msg.sender, _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        _approve(sender, msg.sender, _allowances[sender][msg.sender] - amount);
         return true;
     }
 
@@ -68,12 +66,13 @@ contract MockDeflationaryERC20 is IERC20 {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
 
-        uint256 amountToBurn = amount.mul(1).div(100);
-        uint256 amountToTransfer = amount.sub(amountToBurn);
+        uint256 amountToBurn = (amount * 1) / 100;
+        uint256 amountToTransfer = amount - amountToBurn;
 
-        _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
-        _balances[recipient] = _balances[recipient].add(amountToTransfer);
-        _balances[address(0)] = _balances[address(0)].add(amountToBurn);
+        require(_balances[sender] >= amount, "ERC20: transfer amount exceeds balance");
+        _balances[sender] = _balances[sender] - amount;
+        _balances[recipient] = _balances[recipient] + amountToTransfer;
+        _balances[address(0)] = _balances[address(0)] + amountToBurn;
 
         emit Transfer(sender, recipient, amountToTransfer);
     }
