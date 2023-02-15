@@ -9,13 +9,32 @@ import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { MockERC20Permit } from "test/mocks/MockERC20Permit.sol";
 import { Addresses } from "test/utils/Addresses.sol";
 
+contract Strategy {
+    TokenCollector public tokenCollector;
+
+    constructor(address _uniswapPermit2) {
+        tokenCollector = new TokenCollector(_uniswapPermit2);
+    }
+
+    function collect(
+        address token,
+        address from,
+        address to,
+        uint256 amount,
+        bytes memory data
+    ) external {
+        tokenCollector.collect(token, from, to, amount, data);
+    }
+}
+
 contract TestTokenCollector is Addresses {
     uint256 userPrivateKey = uint256(1);
     address user = vm.addr(userPrivateKey);
 
     MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
 
-    TokenCollector tokenCollector = new TokenCollector(UNISWAP_PERMIT2_ADDRESS);
+    Strategy strategy = new Strategy(UNISWAP_PERMIT2_ADDRESS);
+    TokenCollector tokenCollector = strategy.tokenCollector();
 
     function setUp() public {
         token.mint(user, 10000 * 1e18);
@@ -40,7 +59,7 @@ contract TestTokenCollector is Addresses {
         token.approve(address(tokenCollector), amount);
 
         bytes memory data = abi.encode(ITokenCollector.Source.Token, bytes(""));
-        tokenCollector.collect(address(token), user, address(this), amount, data);
+        strategy.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, amount);
@@ -58,7 +77,7 @@ contract TestTokenCollector is Addresses {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
 
         bytes memory data = abi.encode(ITokenCollector.Source.Token, abi.encode(user, address(tokenCollector), amount, deadline, v, r, s));
-        tokenCollector.collect(address(token), user, address(this), amount, data);
+        strategy.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, amount);
@@ -97,7 +116,7 @@ contract TestTokenCollector is Addresses {
         bytes memory permitSig = abi.encodePacked(r, s, v);
 
         bytes memory data = abi.encode(ITokenCollector.Source.UniswapPermit2, abi.encode(user, permit, permitSig));
-        tokenCollector.collect(address(token), user, address(this), amount, data);
+        strategy.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, amount);
