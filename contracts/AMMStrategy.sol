@@ -79,6 +79,7 @@ contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
             data,
             (address, address, bytes, address[], uint256)
         );
+        // should swap out to entry point directly?
         (string memory source, uint256 receivedAmount) = _swap(srcToken, inputAmount, makerAddr, makerAssetAddr, makerSpecificData, path, deadline);
         IERC20(makerAssetAddr).safeTransfer(entryPoint, receivedAmount);
         // should emit event?
