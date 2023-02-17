@@ -2,8 +2,8 @@
 pragma solidity 0.7.6;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
-import "contracts/test/veLON/Setup.t.sol";
-import "contracts/test/mocks/MockMigrateStake.sol";
+import "contracts-test/veLON/Setup.t.sol";
+import "contracts-test/mocks/MockMigrateStake.sol";
 
 contract TestVeLONDeposit is TestVeLON {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
