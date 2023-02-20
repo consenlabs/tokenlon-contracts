@@ -4,7 +4,7 @@ pragma abicoder v2;
 
 import "./IStrategy.sol";
 
-/// @title IAMMWrapperWithPath Interface
+/// @title IAMMStrategy Interface
 /// @author imToken Labs
 interface IAMMStrategy is IStrategy {
     /// @notice Emitted when entry point address is updated
@@ -24,7 +24,7 @@ interface IAMMStrategy is IStrategy {
     /// @param makerAssetAmount The swap amount of maker asset
     event Swapped(address takerAssetAddr, uint256 takerAssetAmount, address[] makerAddr, address makerAssetAddr, uint256 makerAssetAmount);
 
-    /** @dev The encoded Operation list should be passed as `data` when calling `IStrategy.executeStrategy` */
+    /** @dev The encoded operation list should be passed as `data` when calling `IStrategy.executeStrategy` */
     struct Operation {
         address dest;
         bytes data;
