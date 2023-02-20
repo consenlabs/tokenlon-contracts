@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
+pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
+import { Test, Vm } from "forge-std/Test.sol";
 
 address constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -43,14 +43,14 @@ contract Addresses is Test {
     address ARBITRUM_L1_BRIDGE_ADDR = abi.decode(vm.parseJson(file, "$.ARBITRUM_L1_BRIDGE_ADDR"), (address));
     address OPTIMISM_L1_STANDARD_BRIDGE_ADDR = abi.decode(vm.parseJson(file, "$.OPTIMISM_L1_STANDARD_BRIDGE_ADDR"), (address));
 
-    function getChainId() internal returns (uint256 chainId) {
+    function getChainId() internal view returns (uint256 chainId) {
         assembly {
             chainId := chainid()
         }
     }
 }
 
-function readAddresses(Vm vm) returns (string memory data) {
+function readAddresses(Vm vm) view returns (string memory data) {
     uint256 chainId;
     assembly {
         chainId := chainid()
