@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.0;
-pragma abicoder v2;
+pragma solidity >=0.8.0;
 
 interface IUniswapPermit2 {
     /// @notice The permit data for a token
