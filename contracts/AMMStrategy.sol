@@ -80,6 +80,7 @@ contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
         for (uint256 i = 0; i < ops.length; ++i) {
             Operation memory op = ops[i];
             require(ammMapping[op.dest], "not a valid op target");
+            opDests[i] = op.dest;
             _call(op.dest, 0, op.data);
         }
         uint256 receivedAmount = IERC20(targetToken).balanceOf(address(this));
