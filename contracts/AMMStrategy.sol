@@ -75,11 +75,12 @@ contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
         bytes calldata data
     ) external override nonReentrant onlyEntryPoint {
         Operation[] memory ops = abi.decode(data, (Operation[]));
+        require(ops.length > 0, "empty operations");
         uint256 balanceBefore = IERC20(targetToken).balanceOf(entryPoint);
         address[] memory opDests = new address[](ops.length);
         for (uint256 i = 0; i < ops.length; ++i) {
             Operation memory op = ops[i];
-            require(ammMapping[op.dest], "not a valid op target");
+            require(ammMapping[op.dest], "not a valid operation destination");
             opDests[i] = op.dest;
             _call(op.dest, 0, op.data);
         }
