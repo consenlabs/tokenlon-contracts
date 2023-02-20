@@ -47,6 +47,13 @@ contract SignatureValidatorTest is Test {
         SignatureValidator.isValidSignature(vm.addr(userPrivateKey), digest, signature);
     }
 
+    function testEIP712WithEmptySignature() public {
+        bytes memory signature;
+        // will be reverted in OZ ECDSA lib
+        vm.expectRevert("ECDSA: invalid signature length");
+        SignatureValidator.isValidSignature(vm.addr(userPrivateKey), digest, signature);
+    }
+
     function testEIP1271Signature() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(walletAdminPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -58,6 +65,16 @@ contract SignatureValidatorTest is Test {
         bytes memory signature = abi.encodePacked(r, s, v);
         vm.expectRevert("MockERC1271Wallet: invalid signature");
         SignatureValidator.isValidSignature(address(mockERC1271Wallet), digest, signature);
+    }
+
+    function testEIP1271WithZeroAddressSigner() public {
+        (, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+        // change the value of v so ecrecover will return address(0)
+        bytes memory signature = abi.encodePacked(r, s, uint8(10));
+        // OZ ECDSA lib will handle the zero address case and throw error instead
+        // so the zero address will never be matched
+        vm.expectRevert("ECDSA: invalid signature");
+        SignatureValidator.isValidSignature(address(0), digest, signature);
     }
 
     function testEIP1271WithWrongReturnValue() public {
