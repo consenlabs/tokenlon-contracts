@@ -14,6 +14,11 @@ import "./interfaces/IUniswapRouterV2.sol";
 contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
+    struct Operation {
+        address dest;
+        bytes data;
+    }
+
     /// @notice Emitted when entry point address is updated
     /// @param newEntryPoint The address of the new entry point
     event SetEntryPoint(address newEntryPoint);
@@ -67,15 +72,15 @@ contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
         address srcToken,
         uint256 inputAmount,
         address targetToken,
-        address[] calldata opDests,
-        bytes[] calldata ops
+        bytes calldata data
     ) external override nonReentrant onlyEntryPoint {
-        require(opDests.length == ops.length, "wrong array lengths");
+        Operation[] memory ops = abi.decode(data, (Operation[]));
         uint256 balanceBefore = IERC20(targetToken).balanceOf(entryPoint);
-        for (uint256 i = 0; i < opDests.length; ++i) {
-            address opDest = opDests[i];
-            require(ammMapping[opDest], "not a valid op target");
-            _call(opDest, 0, ops[i]);
+        address[] memory opDests = new address[](ops.length);
+        for (uint256 i = 0; i < ops.length; ++i) {
+            Operation memory op = ops[i];
+            require(ammMapping[op.dest], "not a valid op target");
+            _call(op.dest, 0, op.data);
         }
         uint256 receivedAmount = IERC20(targetToken).balanceOf(address(this));
         if (receivedAmount != 0) {

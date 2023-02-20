@@ -8,7 +8,6 @@ interface IStrategy {
         address srcToken,
         uint256 inputAmount,
         address targetToken,
-        address[] calldata opTargets,
-        bytes[] calldata ops
+        bytes calldata data
     ) external;
 }
