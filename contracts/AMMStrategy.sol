@@ -78,7 +78,9 @@ contract AMMStrategy is IStrategy, ReentrancyGuard, Ownable {
             _call(opDest, 0, ops[i]);
         }
         uint256 receivedAmount = IERC20(targetToken).balanceOf(address(this));
-        IERC20(targetToken).safeTransfer(entryPoint, receivedAmount);
+        if (receivedAmount != 0) {
+            IERC20(targetToken).safeTransfer(entryPoint, receivedAmount);
+        }
         uint256 balanceAfter = IERC20(targetToken).balanceOf(entryPoint);
         emit Swapped(srcToken, inputAmount, opDests, targetToken, balanceAfter - balanceBefore);
     }
