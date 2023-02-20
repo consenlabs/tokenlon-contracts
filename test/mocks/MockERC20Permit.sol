@@ -2,10 +2,10 @@
 // OpenZeppelin Contracts v4.4.1 (token/ERC20/extensions/IERC20Permit.sol)
 
 // NOTE: Internally downgrade to Solidity 0.7.6 and refine to fit our usage
-pragma solidity 0.7.6;
+pragma solidity ^0.8.0;
 
-import { ECDSA } from "@openzeppelin/contracts/cryptography/ECDSA.sol";
-import { EIP712 } from "@openzeppelin/contracts/drafts/EIP712.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 import { MockERC20 } from "./MockERC20.sol";
 
