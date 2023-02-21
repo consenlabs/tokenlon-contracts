@@ -14,10 +14,20 @@ on:
 jobs:
   compare_gas_reports:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x]
+
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
 
       - name: Install Foundry
         uses: onbjerg/foundry-toolchain@v1
