@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { TokenCollector } from "contracts/TokenCollector.sol";
+import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { MockERC20Permit } from "test/mocks/MockERC20Permit.sol";
 import { Addresses } from "test/utils/Addresses.sol";
