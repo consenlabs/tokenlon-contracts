@@ -25,6 +25,7 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
     function setUp() public {
         ammStrategy = new AMMStrategy(entryPoint, [address(SUSHISWAP_ADDRESS), UNISWAP_V2_ADDRESS, UNISWAP_V3_ADDRESS, BALANCER_V2_ADDRESS]);
         ammStrategy.transferOwnership(owner);
+        ammStrategy.approveAssets([address(weth), usdt, dai, ankreth], _ammAddrs, _assetAmounts);
         // Deal 100 ETH to each account
         dealWallet(wallet, 100 ether);
         // Set token balance and approve
