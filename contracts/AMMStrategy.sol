@@ -64,9 +64,9 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
     /// @param _ammAddrs The approved amm addresses
     /// @param _assetAmounts The approved asset amounts
     function approveAssets(
-        address[] _assetAddrs,
-        address[] _ammAddrs,
-        uint256[] _assetAmounts
+        address[] calldata _assetAddrs,
+        address[] calldata _ammAddrs,
+        uint256[] calldata _assetAmounts
     ) external onlyOwner {
         for (uint256 i = 0; i < _assetAddrs.length; ++i) {
             for (uint256 j = 0; j < _ammAddrs.length; ++j) {
