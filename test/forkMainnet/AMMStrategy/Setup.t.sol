@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import "forge-std/Test.sol";
+
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -13,7 +15,9 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
 
     address entryPoint = makeAddr("entryPoint");
     address owner = makeAddr("owner");
-    address[] wallet = [entryPoint, owner];
+    address[] wallets = [entryPoint, owner];
+    address[] amms = [address(SUSHISWAP_ADDRESS), UNISWAP_V2_ADDRESS, UNISWAP_V3_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS];
+    address[] assets = [address(WETH_ADDRESS), USDT_ADDRESS, USDC_ADDRESS, DAI_ADDRESS, WBTC_ADDRESS, LON_ADDRESS, ANKRETH_ADDRESS];
 
     AMMStrategy ammStrategy;
 
@@ -23,15 +27,13 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
 
     // effectively a "beforeEach" block
     function setUp() public {
-        ammStrategy = new AMMStrategy(entryPoint, [address(SUSHISWAP_ADDRESS), UNISWAP_V2_ADDRESS, UNISWAP_V3_ADDRESS, BALANCER_V2_ADDRESS]);
+        dealWallets(100);
+        ammStrategy = new AMMStrategy(entryPoint, amms);
+        ammStrategy.approveAssets(assets, amms, type(uint256).max);
         ammStrategy.transferOwnership(owner);
-        ammStrategy.approveAssets([address(weth), usdt, dai, ankreth], _ammAddrs, _assetAmounts);
-        // Deal 100 ETH to each account
-        dealWallet(wallet, 100 ether);
         // Set token balance and approve
-        tokens = [weth, usdt, dai, ankreth];
-        for (uint256 i = 0; i < tokens.length; i++) {
-            setERC20Balance(address(tokens[i]), entryPoint, uint256(100));
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            setERC20Balance(address(assets[i]), entryPoint, uint256(100));
         }
 
         // Label addresses for easier debugging
@@ -42,25 +44,32 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
         vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
         vm.label(UNISWAP_V3_ADDRESS, "UniswapV3");
         vm.label(BALANCER_V2_ADDRESS, "BalancerV2");
+        vm.label(CURVE_USDT_POOL_ADDRESS, "CurveUSDTPool");
     }
 
     /*********************************
      *          Test Helpers         *
      *********************************/
-
-    function _genTradePayload(AMMStrategyEntry memory entry)
-        internal
-        pure
-        returns (
-            address srcToken,
-            uint256 inputAmount,
-            bytes memory data
-        )
-    {
-        srcToken = entry.takerAssetAddr;
-        inputAmount = entry.takerAssetAmount;
-        data = abi.encode(entry.makerAddr, entry.makerAssetAddr, entry.makerSpecificData, entry.path, entry.deadline);
+    function dealWallets(uint256 amount) internal {
+        // Deal 100 ETH to each account
+        for (uint256 i = 0; i < wallets.length; i++) {
+            deal(wallets[i], amount);
+        }
     }
+
+    // function _genTradePayload(AMMStrategyEntry memory entry)
+    //     internal
+    //     pure
+    //     returns (
+    //         address srcToken,
+    //         uint256 inputAmount,
+    //         bytes memory data
+    //     )
+    // {
+    //     srcToken = entry.takerAssetAddr;
+    //     inputAmount = entry.takerAssetAmount;
+    //     data = abi.encode(entry.makerAddr, entry.makerAssetAddr, entry.makerSpecificData, entry.path, entry.deadline);
+    // }
 
     function _sendTakerAssetFromEntryPoint(address takerAssetAddr, uint256 takerAssetAmount) internal {
         vm.prank(entryPoint);
