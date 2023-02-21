@@ -1,0 +1,72 @@
+name: Report gas diff
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    paths:
+      - contracts/**
+      - test/**
+      - foundry.toml
+      - remappings.txt
+      - .github/workflows/gas-diff.yml
+
+jobs:
+  compare_gas_reports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: onbjerg/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run gas report on local and fork tests
+        env:
+          FOUNDRY_FUZZ_SEED: 0x123
+          MAINNET_NODE_RPC_URL: ${{ secrets.MAINNET_NODE_RPC_URL }}
+          FOUNDRY_PROFILE: CI
+        # the report file name, e.g. gasreport-local.ansi, should be unique in your repository!
+        run: |
+          yarn compile
+          yarn gas-report-local > gasreport-local.ansi
+          yarn gas-report-fork > gasreport-fork.ansi
+          echo "### Local tests gas report" >> $GITHUB_STEP_SUMMARY
+          cat gasreport-local.ansi >> $GITHUB_STEP_SUMMARY
+          echo "### Fork tests gas report" >> $GITHUB_STEP_SUMMARY
+          cat gasreport-fork.ansi >> $GITHUB_STEP_SUMMARY
+
+      - name: Compare gas reports of local tests
+        uses: Rubilmax/foundry-gas-diff@v3.13.3
+        with:
+          report: gasreport-local.ansi
+          ignore: test/**/*
+        id: gas_diff_local
+
+      - name: Compare gas reports of fork tests
+        uses: Rubilmax/foundry-gas-diff@v3.13.3
+        with:
+          report: gasreport-fork.ansi
+          ignore: test/**/*
+        id: gas_diff_fork
+
+      - name: Add gas diff local to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: gasrepost-local
+          # delete the comment in case changes no longer impact gas costs
+          delete: ${{ !steps.gas_diff_local.outputs.markdown }}
+          message: ${{ steps.gas_diff_local.outputs.markdown }}
+
+      - name: Add gas diff fork to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: gasrepost-fork
+          # delete the comment in case changes no longer impact gas costs
+          delete: ${{ !steps.gas_diff_fork.outputs.markdown }}
+          message: ${{ steps.gas_diff_fork.outputs.markdown }}
