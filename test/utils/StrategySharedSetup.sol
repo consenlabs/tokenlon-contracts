@@ -131,6 +131,6 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
             setERC20Balance(tokenAddresses[i], walletContract, amount);
         }
         vm.prank(owner);
-        MockERC1271Wallet(walletContract).setAllowance(tokenAddresses, address(allowanceTarget));
+        MockERC1271Wallet(payable(walletContract)).setAllowance(tokenAddresses, address(allowanceTarget));
     }
 }
