@@ -60,15 +60,19 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
     }
 
     /// @notice Only owner can call
-    /// @param _assetAddr The asset address
-    /// @param _ammAddr The approved amm address
-    /// @param _assetAmount The approved asset amount
-    function approveAsset(
-        address _assetAddr,
-        address _ammAddr,
-        uint256 _assetAmount
+    /// @param _assetAddrs The asset addresses
+    /// @param _ammAddrs The approved amm addresses
+    /// @param _assetAmounts The approved asset amounts
+    function approveAssets(
+        address[] _assetAddrs,
+        address[][] _ammAddrs,
+        uint256[] _assetAmounts
     ) external onlyOwner {
-        IERC20(_assetAddr).safeApprove(_ammAddr, _assetAmount);
+        for (uint256 i = 0; i < _assetAddrs.length; ++i) {
+            for (uint256 j = 0; j < _ammAddrs[i].length; ++j) {
+                IERC20(_assetAddrs[i]).safeApprove(_ammAddrs[i][j], _assetAmounts[i]);
+            }
+        }
     }
 
     /************************************************************
