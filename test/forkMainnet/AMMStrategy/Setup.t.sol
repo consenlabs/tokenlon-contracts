@@ -6,24 +6,33 @@ import "forge-std/Test.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "contracts/interfaces/IUniswapRouterV2.sol";
 import "contracts/AMMStrategy.sol";
+import "contracts/interfaces/IAMMStrategy.sol";
 import "test/utils/BalanceUtil.sol";
 import "test/utils/Tokens.sol";
 
 contract TestAMMStrategy is Tokens, BalanceUtil {
     using SafeERC20 for IERC20;
 
+    struct AMMStrategyEntry {
+        address takerAssetAddr;
+        uint256 takerAssetAmount;
+        address makerAddr;
+        address makerAssetAddr;
+        bytes makerSpecificData;
+        uint256 deadline;
+    }
+
     address entryPoint = makeAddr("entryPoint");
     address owner = makeAddr("owner");
     address[] wallets = [entryPoint, owner];
     address[] amms = [address(SUSHISWAP_ADDRESS), UNISWAP_V2_ADDRESS, UNISWAP_V3_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS];
     address[] assets = [address(WETH_ADDRESS), USDT_ADDRESS, USDC_ADDRESS, DAI_ADDRESS, WBTC_ADDRESS, LON_ADDRESS, ANKRETH_ADDRESS];
+    uint256 DEADLINE = block.timestamp + 1;
 
     AMMStrategy ammStrategy;
-
-    uint256 DEADLINE = block.timestamp + 1;
-    address[] DEFAULT_Single_HOP_PATH;
-    address[] DEFAULT_MULTI_HOP_PATH;
+    AMMStrategyEntry DEFAULT_ENTRY;
 
     // effectively a "beforeEach" block
     function setUp() public {
@@ -35,6 +44,15 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
         for (uint256 i = 0; i < tokens.length; ++i) {
             setERC20Balance(address(assets[i]), entryPoint, uint256(100));
         }
+
+        DEFAULT_ENTRY = AMMStrategyEntry(
+            address(dai), // takerAssetAddr
+            uint256(100 * 1e18), // takerAssetAmount
+            UNISWAP_V2_ADDRESS, // makerAddr
+            address(usdt), // makerAssetAddr
+            "", // makerSpecificData;
+            DEADLINE // deadline
+        );
 
         // Label addresses for easier debugging
         vm.label(owner, "Owner");
@@ -57,19 +75,31 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
         }
     }
 
-    // function _genTradePayload(AMMStrategyEntry memory entry)
-    //     internal
-    //     pure
-    //     returns (
-    //         address srcToken,
-    //         uint256 inputAmount,
-    //         bytes memory data
-    //     )
-    // {
-    //     srcToken = entry.takerAssetAddr;
-    //     inputAmount = entry.takerAssetAmount;
-    //     data = abi.encode(entry.makerAddr, entry.makerAssetAddr, entry.makerSpecificData, entry.path, entry.deadline);
-    // }
+    function _genUniswapV2TradePayload(AMMStrategyEntry memory entry, bool isDirectReceive)
+        internal
+        view
+        returns (
+            address srcToken,
+            uint256 inputAmount,
+            address targetToken,
+            bytes memory data
+        )
+    {
+        srcToken = entry.takerAssetAddr;
+        inputAmount = entry.takerAssetAmount;
+        targetToken = entry.makerAssetAddr;
+        address[] memory path = new address[](2);
+        path[0] = srcToken;
+        path[1] = targetToken;
+        bytes memory payload = abi.encodeCall(
+            IUniswapRouterV2.swapExactTokensForTokens,
+            (inputAmount, uint256(0), path, isDirectReceive ? entryPoint : address(ammStrategy), entry.deadline)
+        );
+        IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](1);
+        operations[0] = IAMMStrategy.Operation(entry.makerAddr, payload);
+
+        data = abi.encode(operations);
+    }
 
     function _sendTakerAssetFromEntryPoint(address takerAssetAddr, uint256 takerAssetAmount) internal {
         vm.prank(entryPoint);

@@ -5,20 +5,16 @@ pragma abicoder v2;
 import "test/forkMainnet/AMMStrategy/Setup.t.sol";
 import "test/utils/BalanceSnapshot.sol";
 
-contract TestAMMStrategyTradeSushiswap is TestAMMStrategy {
+contract TestAMMStrategyTradeWithSingleAMM is TestAMMStrategy {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     function testOnlyEntryPointCanExecuteStrategy() public {
-        AMMStrategyEntry memory entry = DEFAULT_ENTRY;
-        entry.makerAddr = SUSHISWAP_ADDRESS;
-        (address srcToken, uint256 inputAmount, bytes memory data) = _genTradePayload(entry);
         vm.expectRevert("only entry point");
-        ammStrategy.executeStrategy(srcToken, inputAmount, data);
+        ammStrategy.executeStrategy(assets[0], 100, assets[1], "");
     }
 
-    function testTradeWithSingleHop() public {
+    function testTradeWithUniswapV2() public {
         AMMStrategyEntry memory entry = DEFAULT_ENTRY;
-        entry.makerAddr = SUSHISWAP_ADDRESS;
         BalanceSnapshot.Snapshot memory entryPointTakerAsset = BalanceSnapshot.take(address(entryPoint), entry.takerAssetAddr);
         BalanceSnapshot.Snapshot memory ammStrategyTakerAsset = BalanceSnapshot.take(address(ammStrategy), entry.takerAssetAddr);
 
@@ -28,7 +24,7 @@ contract TestAMMStrategyTradeSushiswap is TestAMMStrategy {
         entryPointTakerAsset.assertChange(-int256(entry.takerAssetAmount));
         ammStrategyTakerAsset.assertChange(int256(entry.takerAssetAmount));
 
-        (address srcToken, uint256 inputAmount, bytes memory data) = _genTradePayload(entry);
+        (address srcToken, uint256 inputAmount, address targetToken, bytes memory data) = _genUniswapV2TradePayload(entry, true);
 
         entryPointTakerAsset = BalanceSnapshot.take(address(entryPoint), entry.takerAssetAddr);
         ammStrategyTakerAsset = BalanceSnapshot.take(address(ammStrategy), entry.takerAssetAddr);
@@ -37,14 +33,11 @@ contract TestAMMStrategyTradeSushiswap is TestAMMStrategy {
 
         vm.prank(entryPoint);
         // ammStrategy swaps taker asset to maker asset and sends maker asset to entry point
-        ammStrategy.executeStrategy(srcToken, inputAmount, data);
+        ammStrategy.executeStrategy(srcToken, inputAmount, targetToken, data);
         vm.stopPrank();
-
-        uint256 outAmount = entry.makerAssetAddr.balanceOf(entryPoint);
-
         entryPointTakerAsset.assertChange(0);
         ammStrategyTakerAsset.assertChange(-int256(entry.takerAssetAmount));
-        entryPointMakerAsset.assertChange(int256(outAmount));
+        entryPointMakerAsset.assertChangeGt(0);
         ammStrategyMakerAsset.assertChange(0);
     }
 }
