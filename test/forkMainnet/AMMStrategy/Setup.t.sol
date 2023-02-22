@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "contracts/interfaces/IUniswapV3SwapRouter.sol";
 import "contracts/interfaces/IUniswapRouterV2.sol";
 import "contracts/AMMStrategy.sol";
 import "contracts/interfaces/IAMMStrategy.sol";
@@ -22,6 +23,8 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
         address makerAssetAddr;
         bytes makerSpecificData;
         uint256 deadline;
+        bool isDirectToEntryPoint;
+        uint24 feeFactor;
     }
 
     address entryPoint = makeAddr("entryPoint");
@@ -30,6 +33,7 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
     address[] amms = [address(SUSHISWAP_ADDRESS), UNISWAP_V2_ADDRESS, UNISWAP_V3_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS];
     address[] assets = [address(WETH_ADDRESS), USDT_ADDRESS, USDC_ADDRESS, DAI_ADDRESS, WBTC_ADDRESS, LON_ADDRESS, ANKRETH_ADDRESS];
     uint256 DEADLINE = block.timestamp + 1;
+    uint16 DEFAULT_FEE_FACTOR = 500;
 
     AMMStrategy ammStrategy;
     AMMStrategyEntry DEFAULT_ENTRY;
@@ -51,7 +55,9 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
             UNISWAP_V2_ADDRESS, // makerAddr
             address(usdt), // makerAssetAddr
             "", // makerSpecificData;
-            DEADLINE // deadline
+            DEADLINE, // deadline
+            false, // isDirectToEntryPoint
+            DEFAULT_FEE_FACTOR // fee factor
         );
 
         // Label addresses for easier debugging
@@ -75,16 +81,18 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
         }
     }
 
-    function _genUniswapV2TradePayload(AMMStrategyEntry memory entry, bool isDirectReceive)
+    function _genUniswapV2TradePayload(AMMStrategyEntry memory entry)
         internal
         view
         returns (
             address srcToken,
             uint256 inputAmount,
             address targetToken,
-            bytes memory data
+            bytes memory data,
+            IAMMStrategy.Operation memory operation
         )
     {
+        require(entry.makerAddr == UNISWAP_V2_ADDRESS, "not a uniswap v2 operation");
         srcToken = entry.takerAssetAddr;
         inputAmount = entry.takerAssetAmount;
         targetToken = entry.makerAssetAddr;
@@ -93,10 +101,44 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
         path[1] = targetToken;
         bytes memory payload = abi.encodeCall(
             IUniswapRouterV2.swapExactTokensForTokens,
-            (inputAmount, uint256(0), path, isDirectReceive ? entryPoint : address(ammStrategy), entry.deadline)
+            (inputAmount, uint256(0), path, entry.isDirectToEntryPoint ? entryPoint : address(ammStrategy), entry.deadline)
         );
         IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](1);
-        operations[0] = IAMMStrategy.Operation(entry.makerAddr, payload);
+        operation = IAMMStrategy.Operation(entry.makerAddr, payload);
+        operations[0] = operation;
+
+        data = abi.encode(operations);
+    }
+
+    function _genUniswapV3TradePayload(AMMStrategyEntry memory entry)
+        internal
+        view
+        returns (
+            address srcToken,
+            uint256 inputAmount,
+            address targetToken,
+            bytes memory data,
+            IAMMStrategy.Operation memory operation
+        )
+    {
+        require(entry.makerAddr == UNISWAP_V3_ADDRESS, "not a uniswap v3 operation");
+        srcToken = entry.takerAssetAddr;
+        inputAmount = entry.takerAssetAmount;
+        targetToken = entry.makerAssetAddr;
+        IUniswapV3SwapRouter.ExactInputSingleParams memory params = IUniswapV3SwapRouter.ExactInputSingleParams({
+            tokenIn: srcToken,
+            tokenOut: targetToken,
+            fee: entry.feeFactor,
+            recipient: entry.isDirectToEntryPoint ? entryPoint : address(ammStrategy),
+            deadline: entry.deadline,
+            amountIn: inputAmount,
+            amountOutMinimum: 0,
+            sqrtPriceLimitX96: 0
+        });
+        bytes memory payload = abi.encodeCall(IUniswapV3SwapRouter.exactInputSingle, params);
+        IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](1);
+        operation = IAMMStrategy.Operation(entry.makerAddr, payload);
+        operations[0] = operation;
 
         data = abi.encode(operations);
     }
