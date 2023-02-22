@@ -30,10 +30,19 @@ interface IAMMStrategy is IStrategy {
         bytes data;
     }
 
+    /// @notice Only owner can call
+    /// @param _newEntryPoint The address allowed to call `executeStrategy`
     function setEntryPoint(address _newEntryPoint) external;
 
+    /// @notice Only owner can call
+    /// @param _ammAddrs The amm addresses allowed to use in `executeStrategy` if according `enable` equals `true`
+    /// @param _enables The status of accouring amm addresses
     function setAMMs(address[] calldata _ammAddrs, bool[] calldata _enables) external;
 
+    /// @notice Only owner can call
+    /// @param _assetAddrs The asset addresses
+    /// @param _ammAddrs The approved amm addresses
+    /// @param _assetAmount The approved asset amount
     function approveAssets(
         address[] calldata _assetAddrs,
         address[] calldata _ammAddrs,

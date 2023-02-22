@@ -42,16 +42,13 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
     /************************************************************
      *           Management functions for Owner               *
      *************************************************************/
-    /// @notice Only owner can call
-    /// @param _newEntryPoint The address allowed to call `executeStrategy`
+    /// @inheritdoc IAMMStrategy
     function setEntryPoint(address _newEntryPoint) external override onlyOwner {
         entryPoint = _newEntryPoint;
         emit SetEntryPoint(_newEntryPoint);
     }
 
-    /// @notice Only owner can call
-    /// @param _ammAddrs The amm addresses allowed to use in `executeStrategy` if according `enable` equals `true`
-    /// @param _enables The status of accouring amm addresses
+    /// @inheritdoc IAMMStrategy
     function setAMMs(address[] calldata _ammAddrs, bool[] calldata _enables) external override onlyOwner {
         for (uint256 i = 0; i < _ammAddrs.length; ++i) {
             ammMapping[_ammAddrs[i]] = _enables[i];
@@ -59,10 +56,7 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
         }
     }
 
-    /// @notice Only owner can call
-    /// @param _assetAddrs The asset addresses
-    /// @param _ammAddrs The approved amm addresses
-    /// @param _assetAmount The approved asset amount
+    /// @inheritdoc IAMMStrategy
     function approveAssets(
         address[] calldata _assetAddrs,
         address[] calldata _ammAddrs,
@@ -91,7 +85,7 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
         address[] memory opDests = new address[](ops.length);
         for (uint256 i = 0; i < ops.length; ++i) {
             Operation memory op = ops[i];
-            require(ammMapping[op.dest], "not a valid operation destination");
+            require(ammMapping[op.dest], "invalid op dest");
             opDests[i] = op.dest;
             _call(op.dest, 0, op.data);
         }
