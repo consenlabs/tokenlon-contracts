@@ -46,8 +46,13 @@ abstract contract TokenCollector {
         bytes memory data
     ) private {
         if (data.length > 0) {
-            (bool success, ) = token.call(abi.encodePacked(IERC20Permit.permit.selector, data));
-            require(success, "TokenCollector: token permit failed");
+            (bool success, bytes memory result) = token.call(abi.encodePacked(IERC20Permit.permit.selector, data));
+            if (!success) {
+                assembly {
+                    result := add(result, 0x04)
+                }
+                revert(abi.decode(result, (string)));
+            }
         }
         IERC20(token).safeTransferFrom(from, to, amount);
     }
@@ -61,8 +66,11 @@ abstract contract TokenCollector {
     ) private {
         require(amount < uint256(type(uint160).max), "TokenCollector: permit2 amount too large");
         if (data.length > 0) {
-            (bool success, ) = uniswapPermit2.call(abi.encodePacked(IUniswapPermit2.permit.selector, data));
-            require(success, "TokenCollector: permit2 permit failed");
+            (address owner, IUniswapPermit2.PermitSingle memory permit, bytes memory permitSig) = abi.decode(
+                data,
+                (address, IUniswapPermit2.PermitSingle, bytes)
+            );
+            IUniswapPermit2(uniswapPermit2).permit(owner, permit, permitSig);
         }
         IUniswapPermit2(uniswapPermit2).transferFrom(from, to, uint160(amount), token);
     }

@@ -2,6 +2,24 @@
 pragma solidity >=0.8.0;
 
 interface IUniswapPermit2 {
+    /// @notice Thrown when an allowance on a token has expired.
+    /// @param deadline The timestamp at which the allowed amount is no longer valid
+    error AllowanceExpired(uint256 deadline);
+
+    /// @notice Thrown when an allowance on a token has been depleted.
+    /// @param amount The maximum amount allowed
+    error InsufficientAllowance(uint256 amount);
+
+    /// @notice Thrown when validating that the inputted nonce has not been used
+    error InvalidNonce();
+
+    /// @notice Thrown when the recovered signer does not equal the claimedSigner
+    error InvalidSigner();
+
+    /// @notice Thrown when validating an inputted signature that is stale
+    /// @param signatureDeadline The timestamp at which a signature is no longer valid
+    error SignatureExpired(uint256 signatureDeadline);
+
     /// @notice The permit data for a token
     struct PermitDetails {
         // ERC20 token address

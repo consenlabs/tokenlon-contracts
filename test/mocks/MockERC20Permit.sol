@@ -8,8 +8,7 @@ import { MockERC20 } from "./MockERC20.sol";
 
 contract MockERC20Permit is ERC20Permit, MockERC20 {
     // solhint-disable-next-line var-name-mixedcase
-    bytes32 public constant _PERMIT_TYPEHASH =
-        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    bytes32 public constant _PERMIT_TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
     constructor(
         string memory _name,
