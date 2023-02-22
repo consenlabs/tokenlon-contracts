@@ -29,4 +29,14 @@ interface IAMMStrategy is IStrategy {
         address dest;
         bytes data;
     }
+
+    function setEntryPoint(address _newEntryPoint) external;
+
+    function setAMMs(address[] calldata _ammAddrs, bool[] calldata _enables) external;
+
+    function approveAssets(
+        address[] calldata _assetAddrs,
+        address[] calldata _ammAddrs,
+        uint256 _assetAmount
+    ) external;
 }

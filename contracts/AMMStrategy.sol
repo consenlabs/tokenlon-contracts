@@ -44,7 +44,7 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
      *************************************************************/
     /// @notice Only owner can call
     /// @param _newEntryPoint The address allowed to call `executeStrategy`
-    function setEntryPoint(address _newEntryPoint) external onlyOwner {
+    function setEntryPoint(address _newEntryPoint) external override onlyOwner {
         entryPoint = _newEntryPoint;
         emit SetEntryPoint(_newEntryPoint);
     }
@@ -52,7 +52,7 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
     /// @notice Only owner can call
     /// @param _ammAddrs The amm addresses allowed to use in `executeStrategy` if according `enable` equals `true`
     /// @param _enables The status of accouring amm addresses
-    function setAMMs(address[] calldata _ammAddrs, bool[] calldata _enables) external onlyOwner {
+    function setAMMs(address[] calldata _ammAddrs, bool[] calldata _enables) external override onlyOwner {
         for (uint256 i = 0; i < _ammAddrs.length; ++i) {
             ammMapping[_ammAddrs[i]] = _enables[i];
             emit SetAMM(_ammAddrs[i], true);
@@ -67,7 +67,7 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
         address[] calldata _assetAddrs,
         address[] calldata _ammAddrs,
         uint256 _assetAmount
-    ) external onlyOwner {
+    ) external override onlyOwner {
         for (uint256 i = 0; i < _assetAddrs.length; ++i) {
             for (uint256 j = 0; j < _ammAddrs.length; ++j) {
                 IERC20(_assetAddrs[i]).safeApprove(_ammAddrs[j], _assetAmount);
