@@ -10,7 +10,6 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./interfaces/IAMMStrategy.sol";
-import "./interfaces/IUniswapRouterV2.sol";
 
 contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
