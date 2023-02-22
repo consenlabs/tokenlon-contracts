@@ -7,7 +7,7 @@ import "contracts/interfaces/IAMMStrategy.sol";
 import "test/forkMainnet/AMMStrategy/Setup.t.sol";
 import "test/utils/BalanceSnapshot.sol";
 
-contract TestAMMStrategyTradeWithSingleAMM is TestAMMStrategy {
+contract TestAMMStrategyTradeWithMultiAMM is TestAMMStrategy {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     function testTradeWithUniswapV2AndUniswapV3() public {
