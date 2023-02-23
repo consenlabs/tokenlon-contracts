@@ -45,7 +45,7 @@ contract TestAMMStrategyTradeWithMultiAMM is TestAMMStrategy {
 
         vm.prank(entryPoint);
         // ammStrategy swaps taker asset to maker asset and sends maker asset to entry point
-        ammStrategy.executeStrategy(entry.takerAssetAddr, entry.takerAssetAmount, entry.makerAssetAddr, abi.encode(operations));
+        ammStrategy.executeStrategy(entry.takerAssetAddr, entry.makerAssetAddr, entry.takerAssetAmount, abi.encode(operations));
         vm.stopPrank();
         entryPointTakerAsset.assertChange(0);
         ammStrategyTakerAsset.assertChange(-int256(entry.takerAssetAmount));

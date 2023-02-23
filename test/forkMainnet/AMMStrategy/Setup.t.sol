@@ -85,20 +85,20 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
         internal
         view
         returns (
-            address srcToken,
+            address inputToken,
+            address outputToken,
             uint256 inputAmount,
-            address targetToken,
             bytes memory data,
             IAMMStrategy.Operation memory operation
         )
     {
         require(entry.makerAddr == UNISWAP_V2_ADDRESS, "not a uniswap v2 operation");
-        srcToken = entry.takerAssetAddr;
+        inputToken = entry.takerAssetAddr;
         inputAmount = entry.takerAssetAmount;
-        targetToken = entry.makerAssetAddr;
+        outputToken = entry.makerAssetAddr;
         address[] memory path = new address[](2);
-        path[0] = srcToken;
-        path[1] = targetToken;
+        path[0] = inputToken;
+        path[1] = outputToken;
         bytes memory payload = abi.encodeCall(
             IUniswapRouterV2.swapExactTokensForTokens,
             (inputAmount, uint256(0), path, entry.isDirectToEntryPoint ? entryPoint : address(ammStrategy), entry.deadline)
@@ -114,20 +114,20 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
         internal
         view
         returns (
-            address srcToken,
+            address inputToken,
+            address outputToken,
             uint256 inputAmount,
-            address targetToken,
             bytes memory data,
             IAMMStrategy.Operation memory operation
         )
     {
         require(entry.makerAddr == UNISWAP_V3_ADDRESS, "not a uniswap v3 operation");
-        srcToken = entry.takerAssetAddr;
+        inputToken = entry.takerAssetAddr;
         inputAmount = entry.takerAssetAmount;
-        targetToken = entry.makerAssetAddr;
+        outputToken = entry.makerAssetAddr;
         IUniswapV3SwapRouter.ExactInputSingleParams memory params = IUniswapV3SwapRouter.ExactInputSingleParams({
-            tokenIn: srcToken,
-            tokenOut: targetToken,
+            tokenIn: inputToken,
+            tokenOut: outputToken,
             fee: entry.feeFactor,
             recipient: entry.isDirectToEntryPoint ? entryPoint : address(ammStrategy),
             deadline: entry.deadline,

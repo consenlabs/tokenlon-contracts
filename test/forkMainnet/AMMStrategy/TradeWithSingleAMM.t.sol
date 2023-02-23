@@ -10,7 +10,7 @@ contract TestAMMStrategyTradeWithSingleAMM is TestAMMStrategy {
 
     function testOnlyEntryPointCanExecuteStrategy() public {
         vm.expectRevert("only entry point");
-        ammStrategy.executeStrategy(assets[0], 100, assets[1], "");
+        ammStrategy.executeStrategy(assets[0], assets[1], 100, "");
     }
 
     function testTradeWithUniswapV2() public {
@@ -24,7 +24,7 @@ contract TestAMMStrategyTradeWithSingleAMM is TestAMMStrategy {
         entryPointTakerAsset.assertChange(-int256(entry.takerAssetAmount));
         ammStrategyTakerAsset.assertChange(int256(entry.takerAssetAmount));
 
-        (address srcToken, uint256 inputAmount, address targetToken, bytes memory data, ) = _genUniswapV2TradePayload(entry);
+        (address inputToken, address outputToken, uint256 inputAmount, bytes memory data, ) = _genUniswapV2TradePayload(entry);
 
         entryPointTakerAsset = BalanceSnapshot.take(address(entryPoint), entry.takerAssetAddr);
         ammStrategyTakerAsset = BalanceSnapshot.take(address(ammStrategy), entry.takerAssetAddr);
@@ -33,7 +33,7 @@ contract TestAMMStrategyTradeWithSingleAMM is TestAMMStrategy {
 
         vm.prank(entryPoint);
         // ammStrategy swaps taker asset to maker asset and sends maker asset to entry point
-        ammStrategy.executeStrategy(srcToken, inputAmount, targetToken, data);
+        ammStrategy.executeStrategy(inputToken, outputToken, inputAmount, data);
         vm.stopPrank();
         entryPointTakerAsset.assertChange(0);
         ammStrategyTakerAsset.assertChange(-int256(entry.takerAssetAmount));
@@ -53,7 +53,7 @@ contract TestAMMStrategyTradeWithSingleAMM is TestAMMStrategy {
         entryPointTakerAsset.assertChange(-int256(entry.takerAssetAmount));
         ammStrategyTakerAsset.assertChange(int256(entry.takerAssetAmount));
 
-        (address srcToken, uint256 inputAmount, address targetToken, bytes memory data, ) = _genUniswapV3TradePayload(entry);
+        (address inputToken, address outputToken, uint256 inputAmount, bytes memory data, ) = _genUniswapV3TradePayload(entry);
 
         entryPointTakerAsset = BalanceSnapshot.take(address(entryPoint), entry.takerAssetAddr);
         ammStrategyTakerAsset = BalanceSnapshot.take(address(ammStrategy), entry.takerAssetAddr);
@@ -62,7 +62,7 @@ contract TestAMMStrategyTradeWithSingleAMM is TestAMMStrategy {
 
         vm.prank(entryPoint);
         // ammStrategy swaps taker asset to maker asset and sends maker asset to entry point
-        ammStrategy.executeStrategy(srcToken, inputAmount, targetToken, data);
+        ammStrategy.executeStrategy(inputToken, outputToken, inputAmount, data);
         vm.stopPrank();
         entryPointTakerAsset.assertChange(0);
         ammStrategyTakerAsset.assertChange(-int256(entry.takerAssetAmount));

@@ -73,14 +73,14 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
      *************************************************************/
     /// @inheritdoc IStrategy
     function executeStrategy(
-        address srcToken,
+        address inputToken,
+        address outputToken,
         uint256 inputAmount,
-        address targetToken,
         bytes calldata data
     ) external override nonReentrant onlyEntryPoint {
         Operation[] memory ops = abi.decode(data, (Operation[]));
         require(ops.length > 0, "empty operations");
-        uint256 balanceBefore = IERC20(targetToken).balanceOf(entryPoint);
+        uint256 balanceBefore = IERC20(outputToken).balanceOf(entryPoint);
         address[] memory opDests = new address[](ops.length);
         for (uint256 i = 0; i < ops.length; ++i) {
             Operation memory op = ops[i];
@@ -88,12 +88,12 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
             opDests[i] = op.dest;
             _call(op.dest, 0, op.data);
         }
-        uint256 receivedAmount = IERC20(targetToken).balanceOf(address(this));
+        uint256 receivedAmount = IERC20(outputToken).balanceOf(address(this));
         if (receivedAmount != 0) {
-            IERC20(targetToken).safeTransfer(entryPoint, receivedAmount);
+            IERC20(outputToken).safeTransfer(entryPoint, receivedAmount);
         }
-        uint256 balanceAfter = IERC20(targetToken).balanceOf(entryPoint);
-        emit Swapped(srcToken, inputAmount, opDests, targetToken, balanceAfter.sub(balanceBefore));
+        uint256 balanceAfter = IERC20(outputToken).balanceOf(entryPoint);
+        emit Swapped(inputToken, inputAmount, opDests, outputToken, balanceAfter.sub(balanceBefore));
     }
 
     /**
