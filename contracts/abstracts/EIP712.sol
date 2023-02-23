@@ -5,11 +5,11 @@ abstract contract EIP712 {
     // EIP-191 Header
     string public constant EIP191_HEADER = "\x19\x01";
 
-    // EIP712Domain
+    // EIP-712 Domain
     string public constant EIP712_DOMAIN_NAME = "Tokenlon";
     string public constant EIP712_DOMAIN_VERSION = "v6";
 
-    // EIP712Domain Separator
+    // EIP-712 Domain Separator
     bytes32 public immutable EIP712_DOMAIN_SEPARATOR =
         keccak256(
             abi.encode(
@@ -21,9 +21,7 @@ abstract contract EIP712 {
             )
         );
 
-    /**
-     * @dev Return `chainId`
-     */
+    /// @dev Return `chainId`
     function getChainID() internal view returns (uint256) {
         uint256 chainId;
         assembly {
