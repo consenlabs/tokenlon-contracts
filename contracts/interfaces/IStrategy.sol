@@ -5,9 +5,9 @@ pragma solidity >=0.8.0;
 /// @author imToken Labs
 interface IStrategy {
     function executeStrategy(
-        address srcToken,
+        address inputToken,
+        address outputToken,
         uint256 inputAmount,
-        address targetToken,
         bytes calldata data
     ) external;
 }
