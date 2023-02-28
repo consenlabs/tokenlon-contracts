@@ -47,16 +47,4 @@ contract BalanceUtil is Test {
         }
         vm.stopPrank();
     }
-
-    function setEOABalance(
-        address eoa,
-        IERC20[] memory tokens,
-        uint256 amount
-    ) internal {
-        vm.startPrank(eoa);
-        for (uint256 i = 0; i < tokens.length; i++) {
-            setERC20Balance(address(tokens[i]), eoa, amount);
-        }
-        vm.stopPrank();
-    }
 }
