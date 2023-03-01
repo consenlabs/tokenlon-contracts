@@ -212,7 +212,7 @@ contract TestTokenCollector is Addresses {
         return abi.encode(TokenCollector.Source.Permit2AllowanceTransfer, abi.encode(owner, permit, permitSig));
     }
 
-    function testCannotCollectByPermit2WhenPermitSigIsInvalid() public {
+    function testCannotCollectByPermit2AllowanceTransferWhenPermitSigIsInvalid() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
 
         bytes32 permitHash = getPermit2PermitHash(permit);
@@ -224,7 +224,7 @@ contract TestTokenCollector is Addresses {
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
     }
 
-    function testCannotCollectByPermit2WhenPermitSigIsExpired() public {
+    function testCannotCollectByPermit2AllowanceTransferWhenPermitSigIsExpired() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
         // Permit sig is expired
         permit.sigDeadline = block.timestamp - 1 days;
@@ -237,7 +237,7 @@ contract TestTokenCollector is Addresses {
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
     }
 
-    function testCannotCollectByPermit2WhenSpenderIsInvalid() public {
+    function testCannotCollectByPermit2AllowanceTransferWhenSpenderIsInvalid() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
         // Spender is not strategy
         permit.spender = address(this);
@@ -250,7 +250,7 @@ contract TestTokenCollector is Addresses {
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
     }
 
-    function testCannotCollectByPermit2WhenAmountIsMoreThanPermitted() public {
+    function testCannotCollectByPermit2AllowanceTransferWhenAmountIsMoreThanPermitted() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
         // Amount is more than permitted
         uint256 invalidAmount = permit.details.amount + 100;
@@ -263,7 +263,7 @@ contract TestTokenCollector is Addresses {
         strategy.collect(address(token), user, address(this), invalidAmount, data);
     }
 
-    function testCannotCollectByPermit2WhenNonceIsInvalid() public {
+    function testCannotCollectByPermit2AllowanceTransferWhenNonceIsInvalid() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
         // Nonce is invalid
         permit.details.nonce = 123;
@@ -276,7 +276,7 @@ contract TestTokenCollector is Addresses {
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
     }
 
-    function testCannotCollectByPermit2WhenDetailIsExpired() public {
+    function testCannotCollectByPermit2AllowanceTransferWhenDetailIsExpired() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
         // Detail is expired
         permit.details.expiration = uint48(block.timestamp - 1 days);
@@ -289,7 +289,7 @@ contract TestTokenCollector is Addresses {
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
     }
 
-    function testCannotCollectByPermit2WhenAllowanceIsNotEnough() public {
+    function testCannotCollectByPermit2AllowanceTransferWhenAllowanceIsNotEnough() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
 
         bytes32 permitHash = getPermit2PermitHash(permit);
@@ -301,7 +301,7 @@ contract TestTokenCollector is Addresses {
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
     }
 
-    function testCollectByPermit2() public {
+    function testCollectByPermit2AllowanceTransfer() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
 
         vm.prank(user);
