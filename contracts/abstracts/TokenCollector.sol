@@ -12,7 +12,8 @@ abstract contract TokenCollector {
 
     enum Source {
         Token,
-        Permit2AllowanceTransfer
+        Permit2AllowanceTransfer,
+        Permit2SignatureTransfer
     }
 
     address public immutable permit2;
@@ -58,6 +59,24 @@ abstract contract TokenCollector {
     }
 
     function _collectFromPermit2AllownaceTransfer(
+        address token,
+        address from,
+        address to,
+        uint256 amount,
+        bytes memory data
+    ) private {
+        require(amount < uint256(type(uint160).max), "TokenCollector: permit2 amount too large");
+        if (data.length > 0) {
+            (address owner, IUniswapPermit2.PermitSingle memory permit, bytes memory permitSig) = abi.decode(
+                data,
+                (address, IUniswapPermit2.PermitSingle, bytes)
+            );
+            IUniswapPermit2(permit2).permit(owner, permit, permitSig);
+        }
+        IUniswapPermit2(permit2).transferFrom(from, to, uint160(amount), token);
+    }
+
+    function _collectFromPermit2SignatureTransfer(
         address token,
         address from,
         address to,
