@@ -3,7 +3,6 @@ pragma solidity 0.8.17;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import { Ownable } from "./abstracts/Ownable.sol";
 import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
@@ -17,7 +16,6 @@ import { ICurveFiV2 } from "./interfaces/ICurveFiV2.sol";
 contract AMMStrategy is IAMMStrategy, Ownable {
     using SafeERC20 for IERC20;
     using Bytes for bytes;
-    using SafeMath for uint256;
 
     address public genericSwap;
     address public immutable sushiswapRouter;
@@ -88,8 +86,8 @@ contract AMMStrategy is IAMMStrategy, Ownable {
                 (inputAmountPerSwap, outputAmountPerSwap) = _tradeCurveTokenToToken(routerAddrList[i], outputToken, dataList[i]);
             }
             require(outputAmountPerSwap > 0, "empty output token in single swap");
-            actualInputAmount = actualInputAmount.add(inputAmountPerSwap);
-            actualOutputAmount = actualOutputAmount.add(outputAmountPerSwap);
+            actualInputAmount += inputAmountPerSwap;
+            actualOutputAmount += outputAmountPerSwap;
         }
         require(actualInputAmount == inputAmount, "inputAmount not match");
         IERC20(outputToken).safeTransfer(genericSwap, actualOutputAmount);
@@ -219,7 +217,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
             curve.exchange(uint128(inputTokenIndex), uint128(outputTokenIndex), inputAmount, 0, true);
         }
         uint256 balanceAfter = IERC20(_outputToken).balanceOf(address(this));
-        return (inputAmount, balanceAfter.sub(balanceBefore));
+        return (inputAmount, balanceAfter - balanceBefore);
     }
 
     function _validateAMMPath(
