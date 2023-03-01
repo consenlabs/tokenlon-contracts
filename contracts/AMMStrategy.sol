@@ -6,37 +6,38 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import { Ownable } from "./abstracts/Ownable.sol";
-import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
 import { UniswapV3 } from "./libraries/UniswapV3.sol";
-import { Bytes } from "./libraries/Bytes.sol";
+import { Commands } from "./libraries/UniswapCommands.sol";
+import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
 import { IUniswapRouterV2 } from "./interfaces/IUniswapRouterV2.sol";
+import { IUniversalRouter } from "./interfaces/IUniversalRouter.sol";
 import { IBalancerV2Vault } from "./interfaces/IBalancerV2Vault.sol";
+import { IUniswapPermit2 } from "./interfaces/IUniswapPermit2.sol";
 import { ICurveFi } from "./interfaces/ICurveFi.sol";
 import { ICurveFiV2 } from "./interfaces/ICurveFiV2.sol";
 
 contract AMMStrategy is IAMMStrategy, Ownable {
     using SafeERC20 for IERC20;
-    using Bytes for bytes;
     using SafeMath for uint256;
 
     address public genericSwap;
     address public immutable sushiswapRouter;
-    address public immutable uniswapV2Router;
-    address public immutable uniswapV3Router;
+    address public immutable uniswapPermit2;
+    address public immutable uniswapUniversalRouter;
     address public immutable balancerV2Vault;
 
     constructor(
         address _owner,
         address _genericSwap,
         address _sushiswapRouter,
-        address _uniswapV2Router,
-        address _uniswapV3Router,
+        address _uniswapPermit2,
+        address _uniswapUniversalRouter,
         address _balancerV2Vault
     ) Ownable(_owner) {
         genericSwap = _genericSwap;
         sushiswapRouter = _sushiswapRouter;
-        uniswapV2Router = _uniswapV2Router;
-        uniswapV3Router = _uniswapV3Router;
+        uniswapPermit2 = _uniswapPermit2;
+        uniswapUniversalRouter = _uniswapUniversalRouter;
         balancerV2Vault = _balancerV2Vault;
     }
 
@@ -59,7 +60,18 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     ) external override onlyOwner {
         for (uint256 i = 0; i < tokenList.length; ++i) {
             for (uint256 j = 0; j < spenderList.length; ++j) {
-                IERC20(tokenList[i]).safeApprove(spenderList[j], amount);
+                if (spenderList[j] == uniswapUniversalRouter) {
+                    // should approve uniswapUniversalRouter in permit2
+                    IERC20(tokenList[i]).safeApprove(uniswapPermit2, amount);
+                    IUniswapPermit2(uniswapPermit2).approve(
+                        tokenList[i],
+                        spenderList[j],
+                        amount > type(uint160).max ? type(uint160).max : uint160(amount),
+                        type(uint48).max
+                    );
+                } else {
+                    IERC20(tokenList[i]).safeApprove(spenderList[j], amount);
+                }
             }
         }
     }
@@ -77,10 +89,8 @@ contract AMMStrategy is IAMMStrategy, Ownable {
             (uint256 inputAmountPerSwap, uint256 outputAmountPerSwap) = (0, 0);
             if (routerAddrList[i] == sushiswapRouter) {
                 (inputAmountPerSwap, outputAmountPerSwap) = _tradeSushiwapTokenToToken(inputToken, outputToken, dataList[i]);
-            } else if (routerAddrList[i] == uniswapV2Router) {
-                (inputAmountPerSwap, outputAmountPerSwap) = _tradeUniswapV2TokenToToken(inputToken, outputToken, dataList[i]);
-            } else if (routerAddrList[i] == uniswapV3Router) {
-                (inputAmountPerSwap, outputAmountPerSwap) = _tradeUniswapV3TokenToToken(inputToken, outputToken, dataList[i]);
+            } else if (routerAddrList[i] == uniswapUniversalRouter) {
+                (inputAmountPerSwap, outputAmountPerSwap) = _tradeUniswapTokenToToken(inputToken, outputToken, dataList[i]);
             } else if (routerAddrList[i] == balancerV2Vault) {
                 (inputAmountPerSwap, outputAmountPerSwap) = _tradeBalancerV2TokenToToken(inputToken, outputToken, dataList[i]);
             } else {
@@ -107,65 +117,46 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         return (inputAmount, amounts[amounts.length - 1]);
     }
 
-    function _tradeUniswapV2TokenToToken(
+    function _tradeUniswapTokenToToken(
         address _inputToken,
         address _outputToken,
         bytes memory _data
     ) internal returns (uint256, uint256) {
-        (uint256 inputAmount, uint256 deadline, address[] memory path) = abi.decode(_data, (uint256, uint256, address[]));
-        _validateAMMPath(_inputToken, _outputToken, path);
-        uint256[] memory amounts = IUniswapRouterV2(uniswapV2Router).swapExactTokensForTokens(inputAmount, 0, path, address(this), deadline);
-        return (inputAmount, amounts[amounts.length - 1]);
+        (uint256 command, uint256 inputAmount, uint256 deadline, bytes memory encodedPath) = abi.decode(_data, (uint256, uint256, uint256, bytes));
+        bytes memory input = _genUniswapInput(_inputToken, _outputToken, command, inputAmount, encodedPath);
+        bytes memory commands = abi.encodePacked(bytes1(uint8(command)));
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = input;
+        uint256 balanceBefore = IERC20(_outputToken).balanceOf(address(this));
+        IUniversalRouter(uniswapUniversalRouter).execute(commands, inputs, deadline);
+        uint256 balanceAfter = IERC20(_outputToken).balanceOf(address(this));
+        return (inputAmount, balanceAfter.sub(balanceBefore));
     }
 
-    function _tradeUniswapV3TokenToToken(
+    function _genUniswapInput(
         address _inputToken,
         address _outputToken,
-        bytes memory _data
-    ) internal returns (uint256, uint256) {
-        UniswapV3.SwapType swapType = UniswapV3.SwapType(uint256(_data.readBytes32(0)));
-
-        // exactInputSingle
-        if (swapType == UniswapV3.SwapType.ExactInputSingle) {
-            (, uint256 inputAmount, uint24 poolFee, uint256 deadline) = abi.decode(_data, (uint256, uint256, uint24, uint256));
-            return (
-                inputAmount,
-                UniswapV3.exactInputSingle(
-                    uniswapV3Router,
-                    UniswapV3.ExactInputSingleParams({
-                        tokenIn: _inputToken,
-                        tokenOut: _outputToken,
-                        fee: poolFee,
-                        recipient: address(this),
-                        deadline: deadline,
-                        amountIn: inputAmount,
-                        amountOutMinimum: 0
-                    })
-                )
-            );
+        uint256 command,
+        uint256 inputAmount,
+        bytes memory encodedPath
+    ) internal view returns (bytes memory input) {
+        require(command == Commands.V3_SWAP_EXACT_IN || command == Commands.V2_SWAP_EXACT_IN, "unsupport uniswap command");
+        if (command == Commands.V2_SWAP_EXACT_IN) {
+            // uniswap v2
+            address[] memory path = abi.decode(encodedPath, (address[]));
+            if (path.length == 0) {
+                path = new address[](2);
+                path[0] = _inputToken;
+                path[1] = _outputToken;
+            } else {
+                _validateAMMPath(_inputToken, _outputToken, path);
+            }
+            input = abi.encode(address(this), inputAmount, 0, path, true);
+        } else {
+            // uniswap v3
+            UniswapV3._validatePath(encodedPath, _inputToken, _outputToken);
+            input = abi.encode(address(this), inputAmount, 0, encodedPath, true);
         }
-
-        // exactInput
-        if (swapType == UniswapV3.SwapType.ExactInput) {
-            (, uint256 inputAmount, uint256 deadline, bytes memory path) = abi.decode(_data, (uint256, uint256, uint256, bytes));
-            return (
-                inputAmount,
-                UniswapV3.exactInput(
-                    uniswapV3Router,
-                    UniswapV3.ExactInputParams({
-                        tokenIn: _inputToken,
-                        tokenOut: _outputToken,
-                        path: path,
-                        recipient: address(this),
-                        deadline: deadline,
-                        amountIn: inputAmount,
-                        amountOutMinimum: 0
-                    })
-                )
-            );
-        }
-
-        revert("AMMStrategy: unsupported UniswapV3 swap type");
     }
 
     function _tradeBalancerV2TokenToToken(
