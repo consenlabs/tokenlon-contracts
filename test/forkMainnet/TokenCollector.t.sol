@@ -209,7 +209,7 @@ contract TestTokenCollector is Addresses {
         IUniswapPermit2.PermitSingle memory permit,
         bytes memory permitSig
     ) private pure returns (bytes memory) {
-        return abi.encode(TokenCollector.Source.UniswapPermit2, abi.encode(owner, permit, permitSig));
+        return abi.encode(TokenCollector.Source.Permit2AllowanceTransfer, abi.encode(owner, permit, permitSig));
     }
 
     function testCannotCollectByPermit2WhenPermitSigIsInvalid() public {

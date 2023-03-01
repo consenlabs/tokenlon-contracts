@@ -12,13 +12,13 @@ abstract contract TokenCollector {
 
     enum Source {
         Token,
-        UniswapPermit2
+        Permit2AllowanceTransfer
     }
 
-    address public immutable uniswapPermit2;
+    address public immutable permit2;
 
-    constructor(address _uniswapPermit2) {
-        uniswapPermit2 = _uniswapPermit2;
+    constructor(address _permit2) {
+        permit2 = _permit2;
     }
 
     function _collect(
@@ -32,8 +32,8 @@ abstract contract TokenCollector {
         if (src == Source.Token) {
             return _collectFromToken(token, from, to, amount, srcData);
         }
-        if (src == Source.UniswapPermit2) {
-            return _collectFromUniswapPermit2(token, from, to, amount, srcData);
+        if (src == Source.Permit2AllowanceTransfer) {
+            return _collectFromPermit2AllownaceTransfer(token, from, to, amount, srcData);
         }
         revert("TokenCollector: unknown token source");
     }
@@ -57,7 +57,7 @@ abstract contract TokenCollector {
         IERC20(token).safeTransferFrom(from, to, amount);
     }
 
-    function _collectFromUniswapPermit2(
+    function _collectFromPermit2AllownaceTransfer(
         address token,
         address from,
         address to,
@@ -70,8 +70,8 @@ abstract contract TokenCollector {
                 data,
                 (address, IUniswapPermit2.PermitSingle, bytes)
             );
-            IUniswapPermit2(uniswapPermit2).permit(owner, permit, permitSig);
+            IUniswapPermit2(permit2).permit(owner, permit, permitSig);
         }
-        IUniswapPermit2(uniswapPermit2).transferFrom(from, to, uint160(amount), token);
+        IUniswapPermit2(permit2).transferFrom(from, to, uint160(amount), token);
     }
 }
