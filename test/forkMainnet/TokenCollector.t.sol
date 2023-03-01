@@ -26,8 +26,9 @@ contract TestTokenCollector is Addresses {
     address user = vm.addr(userPrivateKey);
 
     MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
+    IUniswapPermit2 permit2 = IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS);
 
-    Strategy strategy = new Strategy(UNISWAP_PERMIT2_ADDRESS);
+    Strategy strategy = new Strategy(address(permit2));
 
     function setUp() public {
         token.mint(user, 10000 * 1e18);
@@ -196,7 +197,7 @@ contract TestTokenCollector is Addresses {
     function getPermit2PermitHash(IUniswapPermit2.PermitSingle memory permit) private view returns (bytes32) {
         bytes32 structHashPermitDetails = keccak256(abi.encode(PERMIT_DETAILS_TYPEHASH, permit.details));
         bytes32 structHash = keccak256(abi.encode(PERMIT_SINGLE_TYPEHASH, structHashPermitDetails, permit.spender, permit.sigDeadline));
-        return keccak256(abi.encodePacked("\x19\x01", IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS).DOMAIN_SEPARATOR(), structHash));
+        return keccak256(abi.encodePacked("\x19\x01", permit2.DOMAIN_SEPARATOR(), structHash));
     }
 
     function signPermit2(uint256 privateKey, bytes32 hash) private pure returns (bytes memory) {
@@ -305,7 +306,7 @@ contract TestTokenCollector is Addresses {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
 
         vm.prank(user);
-        token.approve(UNISWAP_PERMIT2_ADDRESS, permit.details.amount);
+        token.approve(address(permit2), permit.details.amount);
 
         bytes32 permitHash = getPermit2PermitHash(permit);
         bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
@@ -315,5 +316,56 @@ contract TestTokenCollector is Addresses {
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, permit.details.amount);
+    }
+
+    /* Permit2 Signature Transfer */
+
+    bytes32 public constant TOKEN_PERMISSIONS_TYPEHASH = keccak256("TokenPermissions(address token,uint256 amount)");
+    bytes32 public constant PERMIT_TRANSFER_FROM_TYPEHASH =
+        keccak256(
+            "PermitTransferFrom(TokenPermissions permitted,address spender,uint256 nonce,uint256 deadline)TokenPermissions(address token,uint256 amount)"
+        );
+
+    IUniswapPermit2.PermitTransferFrom DEFAULT_PERMIT_TRANSFER =
+        IUniswapPermit2.PermitTransferFrom({
+            permitted: IUniswapPermit2.TokenPermissions({ token: address(token), amount: 100 * 1e18 }),
+            nonce: 0,
+            deadline: block.timestamp + 1 days
+        });
+
+    function getPermit2PermitHash(IUniswapPermit2.PermitTransferFrom memory permit, address spender) private view returns (bytes32) {
+        bytes32 structHashTokenPermissions = keccak256(abi.encode(TOKEN_PERMISSIONS_TYPEHASH, permit.permitted));
+        bytes32 structHash = keccak256(abi.encode(PERMIT_TRANSFER_FROM_TYPEHASH, structHashTokenPermissions, spender, permit.nonce, permit.deadline));
+        return keccak256(abi.encodePacked("\x19\x01", permit2.DOMAIN_SEPARATOR(), structHash));
+    }
+
+    function encodePermit2Data(
+        IUniswapPermit2.PermitTransferFrom memory permit,
+        address owner,
+        address to,
+        uint256 amount,
+        bytes memory permitSig
+    ) private pure returns (bytes memory) {
+        return
+            abi.encode(
+                TokenCollector.Source.Permit2SignatureTransfer,
+                abi.encode(permit, IUniswapPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount }), owner, permitSig)
+            );
+    }
+
+    function testCollectByPermit2SignatureTransfer() public {
+        IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
+
+        vm.prank(user);
+        token.approve(address(permit2), permit.permitted.amount);
+
+        bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(strategy) });
+        bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
+        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: permit.permitted.amount, permitSig: permitSig });
+
+        strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
+
+        uint256 balance = token.balanceOf(address(this));
+        assertEq(balance, permit.permitted.amount);
     }
 }

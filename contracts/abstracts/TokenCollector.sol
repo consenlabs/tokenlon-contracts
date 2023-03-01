@@ -36,6 +36,9 @@ abstract contract TokenCollector {
         if (src == Source.Permit2AllowanceTransfer) {
             return _collectFromPermit2AllownaceTransfer(token, from, to, amount, srcData);
         }
+        if (src == Source.Permit2SignatureTransfer) {
+            return _collectFromPermit2SignatureTransfer(token, from, to, amount, srcData);
+        }
         revert("TokenCollector: unknown token source");
     }
 
@@ -83,14 +86,9 @@ abstract contract TokenCollector {
         uint256 amount,
         bytes memory data
     ) private {
-        require(amount < uint256(type(uint160).max), "TokenCollector: permit2 amount too large");
-        if (data.length > 0) {
-            (address owner, IUniswapPermit2.PermitSingle memory permit, bytes memory permitSig) = abi.decode(
-                data,
-                (address, IUniswapPermit2.PermitSingle, bytes)
-            );
-            IUniswapPermit2(permit2).permit(owner, permit, permitSig);
-        }
-        IUniswapPermit2(permit2).transferFrom(from, to, uint160(amount), token);
+        require(data.length > 0, "TokenCollector: permit2 data cannot be empty");
+        (IUniswapPermit2.PermitTransferFrom memory permit, IUniswapPermit2.SignatureTransferDetails memory detail, address owner, bytes memory permitSig) = abi
+            .decode(data, (IUniswapPermit2.PermitTransferFrom, IUniswapPermit2.SignatureTransferDetails, address, bytes));
+        IUniswapPermit2(permit2).permitTransferFrom(permit, detail, owner, permitSig);
     }
 }
