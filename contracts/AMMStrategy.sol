@@ -7,7 +7,7 @@ import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import { Ownable } from "./abstracts/Ownable.sol";
 import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
-import { LibUniswapV3 } from "./utils/LibUniswapV3.sol";
+import { UniswapV3 } from "./libraries/UniswapV3.sol";
 import { LibBytes } from "./utils/LibBytes.sol";
 import { IUniswapRouterV2 } from "./interfaces/IUniswapRouterV2.sol";
 import { IBalancerV2Vault } from "./interfaces/IBalancerV2Vault.sol";
@@ -123,16 +123,16 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         address _outputToken,
         bytes memory _data
     ) internal returns (uint256, uint256) {
-        LibUniswapV3.SwapType swapType = LibUniswapV3.SwapType(uint256(_data.readBytes32(0)));
+        UniswapV3.SwapType swapType = UniswapV3.SwapType(uint256(_data.readBytes32(0)));
 
         // exactInputSingle
-        if (swapType == LibUniswapV3.SwapType.ExactInputSingle) {
+        if (swapType == UniswapV3.SwapType.ExactInputSingle) {
             (, uint256 inputAmount, uint24 poolFee, uint256 deadline) = abi.decode(_data, (uint256, uint256, uint24, uint256));
             return (
                 inputAmount,
-                LibUniswapV3.exactInputSingle(
+                UniswapV3.exactInputSingle(
                     uniswapV3Router,
-                    LibUniswapV3.ExactInputSingleParams({
+                    UniswapV3.ExactInputSingleParams({
                         tokenIn: _inputToken,
                         tokenOut: _outputToken,
                         fee: poolFee,
@@ -146,13 +146,13 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         }
 
         // exactInput
-        if (swapType == LibUniswapV3.SwapType.ExactInput) {
+        if (swapType == UniswapV3.SwapType.ExactInput) {
             (, uint256 inputAmount, uint256 deadline, bytes memory path) = abi.decode(_data, (uint256, uint256, uint256, bytes));
             return (
                 inputAmount,
-                LibUniswapV3.exactInput(
+                UniswapV3.exactInput(
                     uniswapV3Router,
-                    LibUniswapV3.ExactInputParams({
+                    UniswapV3.ExactInputParams({
                         tokenIn: _inputToken,
                         tokenOut: _outputToken,
                         path: path,
