@@ -15,8 +15,8 @@
 
 pragma solidity 0.8.17;
 
-library LibBytes {
-    using LibBytes for bytes;
+library Bytes {
+    using Bytes for bytes;
 
     /***********************************|
   |        Pop Bytes Functions        |

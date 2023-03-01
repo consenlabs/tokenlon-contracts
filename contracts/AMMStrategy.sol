@@ -8,7 +8,7 @@ import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
 import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
 import { UniswapV3 } from "./libraries/UniswapV3.sol";
-import { LibBytes } from "./libraries/LibBytes.sol";
+import { Bytes } from "./libraries/Bytes.sol";
 import { IUniswapRouterV2 } from "./interfaces/IUniswapRouterV2.sol";
 import { IBalancerV2Vault } from "./interfaces/IBalancerV2Vault.sol";
 import { ICurveFi } from "./interfaces/ICurveFi.sol";
@@ -16,7 +16,7 @@ import { ICurveFiV2 } from "./interfaces/ICurveFiV2.sol";
 
 contract AMMStrategy is IAMMStrategy, Ownable {
     using SafeERC20 for IERC20;
-    using LibBytes for bytes;
+    using Bytes for bytes;
     using SafeMath for uint256;
 
     address public genericSwap;
