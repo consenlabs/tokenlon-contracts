@@ -8,7 +8,7 @@ import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
 import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
 import { UniswapV3 } from "./libraries/UniswapV3.sol";
-import { LibBytes } from "./utils/LibBytes.sol";
+import { LibBytes } from "./libraries/LibBytes.sol";
 import { IUniswapRouterV2 } from "./interfaces/IUniswapRouterV2.sol";
 import { IBalancerV2Vault } from "./interfaces/IBalancerV2Vault.sol";
 import { ICurveFi } from "./interfaces/ICurveFi.sol";
