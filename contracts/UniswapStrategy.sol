@@ -41,7 +41,7 @@ contract UniswapStrategy is IStrategy, Ownable {
         address outputToken,
         uint256 inputAmount,
         bytes calldata data
-    ) external override onlyGenericSwap {
+    ) external payable override onlyGenericSwap {
         (address routerAddr, bytes memory makerSpecificData) = abi.decode(data, (address, bytes));
         require(routerAddr == address(uniswapV2Router), "non supported protocol");
 

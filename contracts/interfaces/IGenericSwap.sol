@@ -8,6 +8,7 @@ import { IStrategy } from "./IStrategy.sol";
 interface IGenericSwap {
     error InvalidMsgValue();
     error InsufficientOutput();
+    error InvalidSignature();
 
     event Swap(address indexed maker, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
 

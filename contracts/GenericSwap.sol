@@ -18,6 +18,8 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
 
     bytes32 public constant GS_DATA_TYPEHASH = 0x9a6d9096b182513baa520ad9d0766c6e70d0637fcf40521146c04435396a0fdf;
 
+    mapping(bytes32 => bool) private filledSwap;
+
     /*
         keccak256(
             abi.encodePacked(
@@ -55,7 +57,10 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         uint256 salt,
         bytes calldata takerSig
     ) external payable override returns (uint256 returnAmount) {
-        if (!SignatureValidator.isValidSignature(taker, getEIP712Hash(_getGSDataHash(swapData, salt)), takerSig)) revert();
+        bytes32 swapHash = getEIP712Hash(_getGSDataHash(swapData, salt));
+        require(!filledSwap[swapHash], "already filled");
+        if (!SignatureValidator.isValidSignature(taker, swapHash, takerSig)) revert InvalidSignature();
+        filledSwap[swapHash] = true;
         return _executeSwap(strategy, swapData, taker);
     }
 
@@ -67,13 +72,13 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         address _inputToken = swapData.inputToken;
         address _outputToken = swapData.outputToken;
 
-        if (_inputToken.isETH() && msg.value != swapData.inputAmount) {
-            revert InvalidMsgValue();
-        } else {
+        if (_inputToken.isETH() && msg.value != swapData.inputAmount) revert InvalidMsgValue();
+
+        if (!_inputToken.isETH()) {
             _collect(_inputToken, taker, address(strategy), swapData.inputAmount, swapData.inputData);
         }
 
-        strategy.executeStrategy(_inputToken, _outputToken, swapData.inputAmount, swapData.strategyData);
+        strategy.executeStrategy{ value: msg.value }(_inputToken, _outputToken, swapData.inputAmount, swapData.strategyData);
 
         returnAmount = _outputToken.generalBalanceOf(address(this));
         if (returnAmount < swapData.minOutputAmount) revert InsufficientOutput();
@@ -83,7 +88,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         emit Swap(taker, _inputToken, _outputToken, swapData.inputAmount, returnAmount);
     }
 
-    function _getGSDataHash(GenericSwapData memory _gsData, uint256 salt) private pure returns (bytes32) {
+    function _getGSDataHash(GenericSwapData memory _gsData, uint256 _salt) private pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
@@ -96,7 +101,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
                     _gsData.deadline,
                     _gsData.inputData,
                     _gsData.strategyData,
-                    salt
+                    _salt
                 )
             );
     }
