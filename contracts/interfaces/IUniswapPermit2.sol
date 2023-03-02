@@ -10,6 +10,10 @@ interface IUniswapPermit2 {
     /// @param amount The maximum amount allowed
     error InsufficientAllowance(uint256 amount);
 
+    /// @notice Thrown when the requested amount for a transfer is larger than the permissioned amount
+    /// @param maxAmount The maximum amount a spender can request to transfer
+    error InvalidAmount(uint256 maxAmount);
+
     /// @notice Thrown when validating that the inputted nonce has not been used
     error InvalidNonce();
 

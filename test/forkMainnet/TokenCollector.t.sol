@@ -353,6 +353,62 @@ contract TestTokenCollector is Addresses {
             );
     }
 
+    function testCannotCollectByPermit2SignatureTransferWhenSpenderIsInvalid() public {
+        IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
+        // Spender is not strategy
+        address spender = address(this);
+
+        bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: spender });
+        bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
+        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: permit.permitted.amount, permitSig: permitSig });
+
+        vm.expectRevert(IUniswapPermit2.InvalidSigner.selector);
+        strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
+    }
+
+    function testCannotCollectByPermit2SignatureTransferWhenAmountIsMoreThanPermitted() public {
+        IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
+        // Amount is more than permitted
+        uint256 invalidAmount = permit.permitted.amount + 100;
+
+        bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(this) });
+        bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
+        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: invalidAmount, permitSig: permitSig });
+
+        vm.expectRevert(abi.encodeWithSelector(IUniswapPermit2.InvalidAmount.selector, permit.permitted.amount));
+        strategy.collect(address(token), user, address(this), invalidAmount, data);
+    }
+
+    function testCannotCollectByPermit2SignatureTransferWhenNonceIsUsed() public {
+        IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
+
+        vm.prank(user);
+        token.approve(address(permit2), permit.permitted.amount);
+
+        bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(strategy) });
+        bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
+        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: permit.permitted.amount, permitSig: permitSig });
+
+        strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
+
+        // Reuse previous nonce
+        vm.expectRevert(IUniswapPermit2.InvalidNonce.selector);
+        strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
+    }
+
+    function testCannotCollectByPermit2SignatureTransferWhenDeadlineIsExpired() public {
+        IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
+        // Deadline is expired
+        permit.deadline = block.timestamp - 1 days;
+
+        bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(strategy) });
+        bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
+        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: permit.permitted.amount, permitSig: permitSig });
+
+        vm.expectRevert(abi.encodeWithSelector(IUniswapPermit2.SignatureExpired.selector, permit.deadline));
+        strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
+    }
+
     function testCollectByPermit2SignatureTransfer() public {
         IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
 
