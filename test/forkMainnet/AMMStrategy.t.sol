@@ -5,6 +5,8 @@ import { Test } from "forge-std/Test.sol";
 import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
+
+import { Constant } from "contracts/libraries/Constant.sol";
 import { AMMStrategy } from "contracts/AMMStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 
@@ -22,7 +24,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
     address strategyAdmin = makeAddr("strategyAdmin");
     address genericSwap = makeAddr("genericSwap");
     uint256 defaultDeadline = block.timestamp + 1;
-    address[] tokenList = [USDC_ADDRESS, cUSDC_ADDRESS];
+    address[] tokenList = [USDC_ADDRESS, cUSDC_ADDRESS, WETH_ADDRESS];
     address[] ammList = [SUSHISWAP_ADDRESS, UNISWAP_UNIVERSAL_ROUTER_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS];
     AMMStrategy ammStrategy;
 
@@ -39,12 +41,14 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         vm.prank(strategyAdmin);
         ammStrategy.approveTokenList(tokenList, ammList, Constant.MAX_UINT);
         setEOABalance(genericSwap, tokenList, 100000);
+        deal(genericSwap, 100 ether);
 
         vm.label(UNISWAP_UNIVERSAL_ROUTER_ADDRESS, "UniswapUniversalRouter");
         vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
         vm.label(CURVE_USDT_POOL_ADDRESS, "CurveUSDTPool");
         vm.label(BALANCER_V2_ADDRESS, "BalancerV2");
         vm.label(UNISWAP_PERMIT2_ADDRESS, "UniswapPermit2");
+        vm.label(WETH_ADDRESS, "WETH");
     }
 
     function testAMMStrategyTradeWithMultiAMM() public {
@@ -86,6 +90,40 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         address[] memory path = new address[](2);
         path[0] = inputToken;
         path[1] = outputToken;
+
+        address[] memory routerAddrList = new address[](1);
+        routerAddrList[0] = SUSHISWAP_ADDRESS;
+
+        bytes[] memory dataList = new bytes[](1);
+        dataList[0] = abi.encode(inputAmount, defaultDeadline, path);
+
+        _baseTest(inputToken, outputToken, inputAmount, routerAddrList, dataList);
+    }
+
+    function testAMMStrategyTradeSushiswapWithETHAsInput() public {
+        address inputToken = Constant.ETH_ADDRESS;
+        address outputToken = DAI_ADDRESS;
+        uint256 inputAmount = 1 ether;
+        address[] memory path = new address[](2);
+        path[0] = WETH_ADDRESS; // use weth when swap
+        path[1] = outputToken;
+
+        address[] memory routerAddrList = new address[](1);
+        routerAddrList[0] = SUSHISWAP_ADDRESS;
+
+        bytes[] memory dataList = new bytes[](1);
+        dataList[0] = abi.encode(inputAmount, defaultDeadline, path);
+
+        _baseTest(inputToken, outputToken, inputAmount, routerAddrList, dataList);
+    }
+
+    function testAMMStrategyTradeSushiswapWithETHAsOutput() public {
+        address inputToken = USDC_ADDRESS;
+        address outputToken = Constant.ETH_ADDRESS;
+        uint256 inputAmount = 10 * 1e6;
+        address[] memory path = new address[](2);
+        path[0] = inputToken;
+        path[1] = WETH_ADDRESS; // use weth when swap
 
         address[] memory routerAddrList = new address[](1);
         routerAddrList[0] = SUSHISWAP_ADDRESS;
@@ -253,8 +291,12 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         BalanceSnapshot.Snapshot memory outputTokenBalance = BalanceSnapshot.take(genericSwap, outputToken);
 
         vm.startPrank(genericSwap);
-        IERC20(inputToken).safeTransfer(address(ammStrategy), inputAmount);
-        IStrategy(ammStrategy).executeStrategy(inputToken, outputToken, inputAmount, data);
+        if (inputToken == Constant.ETH_ADDRESS) {
+            IStrategy(ammStrategy).executeStrategy{ value: inputAmount }(inputToken, outputToken, inputAmount, data);
+        } else {
+            IERC20(inputToken).safeTransfer(address(ammStrategy), inputAmount);
+            IStrategy(ammStrategy).executeStrategy(inputToken, outputToken, inputAmount, data);
+        }
         vm.stopPrank();
 
         inputTokenBalance.assertChange(-int256(inputAmount));

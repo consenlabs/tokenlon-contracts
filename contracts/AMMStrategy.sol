@@ -29,6 +29,8 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     address public immutable uniswapUniversalRouter;
     address public immutable balancerV2Vault;
 
+    receive() external payable {}
+
     constructor(
         address _owner,
         address payable _genericSwap,
@@ -97,6 +99,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         (erc20InputToken, erc20OutputToken) = (inputToken, outputToken);
         if (inputToken.isETH()) {
             // wrap ETH
+            require(msg.value > 0, "no input ETH");
             IWETH(weth).deposit{ value: msg.value }();
             erc20InputToken = weth;
         }
