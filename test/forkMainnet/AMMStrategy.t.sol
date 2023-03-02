@@ -7,6 +7,8 @@ import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
 import { AMMStrategy } from "contracts/AMMStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
+
+import { Commands } from "contracts/libraries/UniswapCommands.sol";
 import { IStrategy } from "contracts/interfaces/IStrategy.sol";
 import { IBalancerV2Vault } from "contracts/interfaces/IBalancerV2Vault.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -21,20 +23,27 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
     address genericSwap = makeAddr("genericSwap");
     uint256 defaultDeadline = block.timestamp + 1;
     address[] tokenList = [USDC_ADDRESS, cUSDC_ADDRESS];
-    address[] ammList = [SUSHISWAP_ADDRESS, UNISWAP_V2_ADDRESS, UNISWAP_V3_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS];
+    address[] ammList = [SUSHISWAP_ADDRESS, UNISWAP_UNIVERSAL_ROUTER_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS];
     AMMStrategy ammStrategy;
 
     function setUp() public {
-        ammStrategy = new AMMStrategy(strategyAdmin, genericSwap, SUSHISWAP_ADDRESS, UNISWAP_V2_ADDRESS, UNISWAP_V3_ADDRESS, BALANCER_V2_ADDRESS);
+        ammStrategy = new AMMStrategy(
+            strategyAdmin,
+            genericSwap,
+            SUSHISWAP_ADDRESS,
+            UNISWAP_PERMIT2_ADDRESS,
+            UNISWAP_UNIVERSAL_ROUTER_ADDRESS,
+            BALANCER_V2_ADDRESS
+        );
         vm.prank(strategyAdmin);
         ammStrategy.approveTokenList(tokenList, ammList, Constant.MAX_UINT);
         setEOABalance(genericSwap, tokenList, 100000);
 
-        vm.label(UNISWAP_V2_ADDRESS, "UniswapV2");
+        vm.label(UNISWAP_UNIVERSAL_ROUTER_ADDRESS, "UniswapUniversalRouter");
         vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
-        vm.label(UNISWAP_V3_ADDRESS, "UniswapV3");
         vm.label(CURVE_USDT_POOL_ADDRESS, "CurveUSDTPool");
         vm.label(BALANCER_V2_ADDRESS, "BalancerV2");
+        vm.label(UNISWAP_PERMIT2_ADDRESS, "UniswapPermit2");
     }
 
     function testAMMStrategyTradeWithMultiAMM() public {
@@ -69,23 +78,6 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         _baseTest(inputToken, outputToken, inputAmount, routerAddrList, dataList);
     }
 
-    function testAMMStrategyTradeUniswapV2() public {
-        address inputToken = USDC_ADDRESS;
-        address outputToken = DAI_ADDRESS;
-        uint256 inputAmount = 10 * 1e6;
-        address[] memory path = new address[](2);
-        path[0] = inputToken;
-        path[1] = outputToken;
-
-        address[] memory routerAddrList = new address[](1);
-        routerAddrList[0] = UNISWAP_V2_ADDRESS;
-
-        bytes[] memory dataList = new bytes[](1);
-        dataList[0] = abi.encode(inputAmount, defaultDeadline, path);
-
-        _baseTest(inputToken, outputToken, inputAmount, routerAddrList, dataList);
-    }
-
     function testAMMStrategyTradeSushiswap() public {
         address inputToken = USDC_ADDRESS;
         address outputToken = DAI_ADDRESS;
@@ -103,9 +95,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         _baseTest(inputToken, outputToken, inputAmount, routerAddrList, dataList);
     }
 
-    function testAMMStrategyTradeUniswapV3WithSingleHop() public {
-        uint16 DEFAULT_FEE_FACTOR = 500;
-        uint256 SINGLE_POOL_SWAP_TYPE = 1;
+    function testAMMStrategyTradeUniswapV2() public {
         address inputToken = USDC_ADDRESS;
         address outputToken = DAI_ADDRESS;
         uint256 inputAmount = 10 * 1e6;
@@ -114,17 +104,16 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         path[1] = outputToken;
 
         address[] memory routerAddrList = new address[](1);
-        routerAddrList[0] = UNISWAP_V3_ADDRESS;
+        routerAddrList[0] = UNISWAP_UNIVERSAL_ROUTER_ADDRESS;
 
         bytes[] memory dataList = new bytes[](1);
-        dataList[0] = abi.encode(SINGLE_POOL_SWAP_TYPE, inputAmount, DEFAULT_FEE_FACTOR, defaultDeadline);
+        dataList[0] = abi.encode(Commands.V2_SWAP_EXACT_IN, inputAmount, defaultDeadline, abi.encode(path));
 
         _baseTest(inputToken, outputToken, inputAmount, routerAddrList, dataList);
     }
 
     function testAMMStrategyTradeUniswapV3WithMultiHop() public {
         uint16 DEFAULT_FEE_FACTOR = 500;
-        uint256 MULTI_POOL_SWAP_TYPE = 2;
         address inputToken = USDC_ADDRESS;
         address outputToken = DAI_ADDRESS;
         uint256 inputAmount = 10 * 1e6;
@@ -139,7 +128,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         fees[1] = DEFAULT_FEE_FACTOR;
 
         address[] memory routerAddrList = new address[](1);
-        routerAddrList[0] = UNISWAP_V3_ADDRESS;
+        routerAddrList[0] = UNISWAP_UNIVERSAL_ROUTER_ADDRESS;
 
         bytes memory encodePath;
         for (uint256 i = 0; i < fees.length; i++) {
@@ -148,7 +137,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         encodePath = abi.encodePacked(encodePath, path[path.length - 1]);
 
         bytes[] memory dataList = new bytes[](1);
-        dataList[0] = abi.encode(MULTI_POOL_SWAP_TYPE, inputAmount, defaultDeadline, encodePath);
+        dataList[0] = abi.encode(Commands.V3_SWAP_EXACT_IN, inputAmount, defaultDeadline, encodePath);
 
         _baseTest(inputToken, outputToken, inputAmount, routerAddrList, dataList);
     }
