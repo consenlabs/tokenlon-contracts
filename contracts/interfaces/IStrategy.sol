@@ -9,5 +9,5 @@ interface IStrategy {
         address outputToken,
         uint256 inputAmount,
         bytes calldata data
-    ) external;
+    ) external payable;
 }
