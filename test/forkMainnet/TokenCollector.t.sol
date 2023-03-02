@@ -371,7 +371,7 @@ contract TestTokenCollector is Addresses {
         // Amount is more than permitted
         uint256 invalidAmount = permit.permitted.amount + 100;
 
-        bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(this) });
+        bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(strategy) });
         bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
         bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: invalidAmount, permitSig: permitSig });
 
