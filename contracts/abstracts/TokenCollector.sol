@@ -31,18 +31,18 @@ abstract contract TokenCollector {
     ) internal {
         (Source src, bytes memory srcData) = abi.decode(data, (Source, bytes));
         if (src == Source.Token) {
-            return _collectFromToken(token, from, to, amount, srcData);
+            return _collectByToken(token, from, to, amount, srcData);
         }
         if (src == Source.Permit2AllowanceTransfer) {
-            return _collectFromPermit2AllownaceTransfer(token, from, to, amount, srcData);
+            return _collectByPermit2AllownaceTransfer(token, from, to, amount, srcData);
         }
         if (src == Source.Permit2SignatureTransfer) {
-            return _collectFromPermit2SignatureTransfer(token, from, to, amount, srcData);
+            return _collectByPermit2SignatureTransfer(token, from, to, amount, srcData);
         }
         revert("TokenCollector: unknown token source");
     }
 
-    function _collectFromToken(
+    function _collectByToken(
         address token,
         address from,
         address to,
@@ -61,7 +61,7 @@ abstract contract TokenCollector {
         IERC20(token).safeTransferFrom(from, to, amount);
     }
 
-    function _collectFromPermit2AllownaceTransfer(
+    function _collectByPermit2AllownaceTransfer(
         address token,
         address from,
         address to,
@@ -79,7 +79,7 @@ abstract contract TokenCollector {
         IUniswapPermit2(permit2).transferFrom(from, to, uint160(amount), token);
     }
 
-    function _collectFromPermit2SignatureTransfer(
+    function _collectByPermit2SignatureTransfer(
         address token,
         address from,
         address to,
