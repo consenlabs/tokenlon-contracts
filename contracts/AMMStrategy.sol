@@ -7,6 +7,9 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Ownable } from "./abstracts/Ownable.sol";
 import { UniswapV3 } from "./libraries/UniswapV3.sol";
 import { Commands } from "./libraries/UniswapCommands.sol";
+
+import { GeneralAsset } from "./libraries/GeneralAsset.sol";
+import { IWETH } from "./interfaces/IWeth.sol";
 import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
 import { IUniswapRouterV2 } from "./interfaces/IUniswapRouterV2.sol";
 import { IUniversalRouter } from "./interfaces/IUniversalRouter.sol";
@@ -17,8 +20,10 @@ import { ICurveFiV2 } from "./interfaces/ICurveFiV2.sol";
 
 contract AMMStrategy is IAMMStrategy, Ownable {
     using SafeERC20 for IERC20;
+    using GeneralAsset for address;
 
-    address public genericSwap;
+    address payable public genericSwap;
+    address public immutable weth;
     address public immutable sushiswapRouter;
     address public immutable uniswapPermit2;
     address public immutable uniswapUniversalRouter;
@@ -26,13 +31,15 @@ contract AMMStrategy is IAMMStrategy, Ownable {
 
     constructor(
         address _owner,
-        address _genericSwap,
+        address payable _genericSwap,
+        address _weth,
         address _sushiswapRouter,
         address _uniswapPermit2,
         address _uniswapUniversalRouter,
         address _balancerV2Vault
     ) Ownable(_owner) {
         genericSwap = _genericSwap;
+        weth = _weth;
         sushiswapRouter = _sushiswapRouter;
         uniswapPermit2 = _uniswapPermit2;
         uniswapUniversalRouter = _uniswapUniversalRouter;
@@ -45,7 +52,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     }
 
     /// @inheritdoc IAMMStrategy
-    function setGenericSwap(address newGenericSwap) external override onlyOwner {
+    function setGenericSwap(address payable newGenericSwap) external override onlyOwner {
         genericSwap = newGenericSwap;
         emit SetGenericSwap(newGenericSwap);
     }
@@ -79,7 +86,39 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         address outputToken,
         uint256 inputAmount,
         bytes calldata data
-    ) external override onlyGenericSwap {
+    ) external payable override onlyGenericSwap {
+        (address erc20InputToken, address erc20OutputToken) = _getERC20Token(inputToken, outputToken);
+        (address[] memory routerAddrList, uint256 outputAmount) = _swapERC20(erc20InputToken, erc20OutputToken, inputAmount, data);
+        _transferOutputTokenToGenericSwap(outputToken, outputAmount);
+        emit Swapped(inputToken, inputAmount, routerAddrList, outputToken, outputAmount);
+    }
+
+    function _getERC20Token(address inputToken, address outputToken) internal returns (address erc20InputToken, address erc20OutputToken) {
+        (erc20InputToken, erc20OutputToken) = (inputToken, outputToken);
+        if (inputToken.isETH()) {
+            // wrap ETH
+            IWETH(weth).deposit{ value: msg.value }();
+            erc20InputToken = weth;
+        }
+        if (outputToken.isETH()) {
+            erc20OutputToken = weth;
+        }
+    }
+
+    function _transferOutputTokenToGenericSwap(address outputToken, uint256 outputAmount) internal {
+        if (outputToken.isETH()) {
+            // unwrap WETH
+            IWETH(weth).withdraw(outputAmount);
+        }
+        outputToken.generalTransfer(genericSwap, outputAmount);
+    }
+
+    function _swapERC20(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        bytes calldata data
+    ) internal returns (address[] memory, uint256) {
         (address[] memory routerAddrList, bytes[] memory dataList) = abi.decode(data, (address[], bytes[]));
         require(routerAddrList.length > 0 && routerAddrList.length == dataList.length, "wrong array lengths");
         (uint256 actualOutputAmount, uint256 actualInputAmount) = (0, 0);
@@ -100,8 +139,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
             actualOutputAmount += outputAmountPerSwap;
         }
         require(actualInputAmount == inputAmount, "inputAmount not match");
-        IERC20(outputToken).safeTransfer(genericSwap, actualOutputAmount);
-        emit Swapped(inputToken, inputAmount, routerAddrList, outputToken, actualOutputAmount);
+        return (routerAddrList, actualOutputAmount);
     }
 
     function _tradeSushiwapTokenToToken(

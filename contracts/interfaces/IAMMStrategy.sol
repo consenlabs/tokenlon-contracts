@@ -21,7 +21,7 @@ interface IAMMStrategy is IStrategy {
 
     /// @notice Only owner can call
     /// @param newGenericSwap The address allowed to call `executeStrategy`
-    function setGenericSwap(address newGenericSwap) external;
+    function setGenericSwap(address payable newGenericSwap) external;
 
     /// @notice Only owner can call
     /// @param tokenList The address list of assets

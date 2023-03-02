@@ -29,7 +29,8 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
     function setUp() public {
         ammStrategy = new AMMStrategy(
             strategyAdmin,
-            genericSwap,
+            payable(genericSwap),
+            WETH_ADDRESS,
             SUSHISWAP_ADDRESS,
             UNISWAP_PERMIT2_ADDRESS,
             UNISWAP_UNIVERSAL_ROUTER_ADDRESS,
