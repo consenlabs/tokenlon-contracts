@@ -9,12 +9,12 @@ import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
 import { IGenericSwap } from "./interfaces/IGenericSwap.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
-import { GeneralAsset } from "./libraries/GeneralAsset.sol";
+import { Asset } from "./libraries/GeneralAsset.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     using SafeERC20 for IERC20;
-    using GeneralAsset for address;
+    using Asset for address;
 
     bytes32 public constant GS_DATA_TYPEHASH = 0x9a6d9096b182513baa520ad9d0766c6e70d0637fcf40521146c04435396a0fdf;
 
@@ -80,10 +80,10 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
 
         strategy.executeStrategy{ value: msg.value }(_inputToken, _outputToken, swapData.inputAmount, swapData.strategyData);
 
-        returnAmount = _outputToken.generalBalanceOf(address(this));
+        returnAmount = _outputToken.getBalance(address(this));
         if (returnAmount < swapData.minOutputAmount) revert InsufficientOutput();
 
-        _outputToken.generalTransfer(swapData.receiver, returnAmount);
+        _outputToken.transferTo(swapData.receiver, returnAmount);
 
         emit Swap(taker, _inputToken, _outputToken, swapData.inputAmount, returnAmount);
     }
