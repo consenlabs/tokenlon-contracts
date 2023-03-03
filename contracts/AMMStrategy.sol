@@ -8,7 +8,7 @@ import { Ownable } from "./abstracts/Ownable.sol";
 import { UniswapV3 } from "./libraries/UniswapV3.sol";
 import { Commands } from "./libraries/UniswapCommands.sol";
 
-import { GeneralAsset } from "./libraries/GeneralAsset.sol";
+import { Asset } from "./libraries/GeneralAsset.sol";
 import { IWETH } from "./interfaces/IWeth.sol";
 import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
 import { IUniswapRouterV2 } from "./interfaces/IUniswapRouterV2.sol";
@@ -20,7 +20,7 @@ import { ICurveFiV2 } from "./interfaces/ICurveFiV2.sol";
 
 contract AMMStrategy is IAMMStrategy, Ownable {
     using SafeERC20 for IERC20;
-    using GeneralAsset for address;
+    using Asset for address;
 
     address payable public genericSwap;
     address public immutable weth;
@@ -113,7 +113,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
             // unwrap WETH
             IWETH(weth).withdraw(outputAmount);
         }
-        outputToken.generalTransfer(genericSwap, outputAmount);
+        outputToken.transferTo(genericSwap, outputAmount);
     }
 
     function _swapERC20(

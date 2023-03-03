@@ -7,14 +7,14 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { Constant } from "./Constant.sol";
 
-library Asset {
+library GeneralAsset {
     using SafeERC20 for IERC20;
 
     function isETH(address addr) internal pure returns (bool) {
         return (addr == Constant.ETH_ADDRESS || addr == Constant.ZERO_ADDRESS);
     }
 
-    function getBalance(address asset, address owner) internal view returns (uint256) {
+    function generalBalanceOf(address asset, address owner) internal view returns (uint256) {
         if (isETH(asset)) {
             return owner.balance;
         } else {
@@ -22,7 +22,7 @@ library Asset {
         }
     }
 
-    function transferTo(
+    function generalTransfer(
         address asset,
         address payable to,
         uint256 amount
