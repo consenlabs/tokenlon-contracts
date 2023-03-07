@@ -341,16 +341,9 @@ contract TestTokenCollector is Addresses {
 
     function encodePermit2Data(
         IUniswapPermit2.PermitTransferFrom memory permit,
-        address owner,
-        address to,
-        uint256 amount,
         bytes memory permitSig
     ) private pure returns (bytes memory) {
-        return
-            abi.encode(
-                TokenCollector.Source.Permit2SignatureTransfer,
-                abi.encode(permit, IUniswapPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount }), owner, permitSig)
-            );
+        return abi.encode(TokenCollector.Source.Permit2SignatureTransfer, abi.encode(permit.nonce, permit.deadline, permitSig));
     }
 
     function testCannotCollectByPermit2SignatureTransferWhenSpenderIsInvalid() public {
@@ -360,23 +353,10 @@ contract TestTokenCollector is Addresses {
 
         bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: spender });
         bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
-        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: permit.permitted.amount, permitSig: permitSig });
+        bytes memory data = encodePermit2Data(permit, permitSig);
 
         vm.expectRevert(IUniswapPermit2.InvalidSigner.selector);
         strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
-    }
-
-    function testCannotCollectByPermit2SignatureTransferWhenAmountIsMoreThanPermitted() public {
-        IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
-        // Amount is more than permitted
-        uint256 invalidAmount = permit.permitted.amount + 100;
-
-        bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(strategy) });
-        bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
-        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: invalidAmount, permitSig: permitSig });
-
-        vm.expectRevert(abi.encodeWithSelector(IUniswapPermit2.InvalidAmount.selector, permit.permitted.amount));
-        strategy.collect(address(token), user, address(this), invalidAmount, data);
     }
 
     function testCannotCollectByPermit2SignatureTransferWhenNonceIsUsed() public {
@@ -387,7 +367,7 @@ contract TestTokenCollector is Addresses {
 
         bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(strategy) });
         bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
-        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: permit.permitted.amount, permitSig: permitSig });
+        bytes memory data = encodePermit2Data(permit, permitSig);
 
         strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
 
@@ -403,7 +383,7 @@ contract TestTokenCollector is Addresses {
 
         bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(strategy) });
         bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
-        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: permit.permitted.amount, permitSig: permitSig });
+        bytes memory data = encodePermit2Data(permit, permitSig);
 
         vm.expectRevert(abi.encodeWithSelector(IUniswapPermit2.SignatureExpired.selector, permit.deadline));
         strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
@@ -417,7 +397,7 @@ contract TestTokenCollector is Addresses {
 
         bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(strategy) });
         bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
-        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: permit.permitted.amount, permitSig: permitSig });
+        bytes memory data = encodePermit2Data(permit, permitSig);
 
         strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
 

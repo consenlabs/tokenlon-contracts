@@ -87,12 +87,13 @@ abstract contract TokenCollector {
         bytes memory data
     ) private {
         require(data.length > 0, "TokenCollector: permit2 data cannot be empty");
-        (IUniswapPermit2.PermitTransferFrom memory permit, IUniswapPermit2.SignatureTransferDetails memory detail, address owner, bytes memory permitSig) = abi
-            .decode(data, (IUniswapPermit2.PermitTransferFrom, IUniswapPermit2.SignatureTransferDetails, address, bytes));
-        require(permit.permitted.token == token, "TokenCollector: token address doesn't match");
-        require(owner == from, "TokenCollector: from address doesn't match");
-        require(detail.to == to, "TokenCollector: to address doesn't match");
-        require(detail.requestedAmount == amount, "TokenCollector: amount doesn't match");
-        IUniswapPermit2(permit2).permitTransferFrom(permit, detail, owner, permitSig);
+        (uint256 nonce, uint256 deadline, bytes memory permitSig) = abi.decode(data, (uint256, uint256, bytes));
+        IUniswapPermit2.PermitTransferFrom memory permit = IUniswapPermit2.PermitTransferFrom({
+            permitted: IUniswapPermit2.TokenPermissions({ token: token, amount: amount }),
+            nonce: nonce,
+            deadline: deadline
+        });
+        IUniswapPermit2.SignatureTransferDetails memory detail = IUniswapPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount });
+        IUniswapPermit2(permit2).permitTransferFrom(permit, detail, from, permitSig);
     }
 }
