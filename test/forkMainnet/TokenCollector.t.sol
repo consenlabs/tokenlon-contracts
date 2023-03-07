@@ -417,7 +417,7 @@ contract TestTokenCollector is Addresses {
 
         bytes32 permitHash = getPermit2PermitHash({ permit: permit, spender: address(strategy) });
         bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
-        bytes memory data = encodePermit2Data({ permit: permit, owner: user, to: address(this), amount: permit.permitted.amount, permitSig: permitSig });
+        bytes memory data = abi.encode(TokenCollector.Source.Permit2SignatureTransfer, abi.encode(permit.nonce, permit.deadline, permitSig));
 
         strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
 
