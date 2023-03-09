@@ -71,7 +71,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
                 inputToken: USDT_ADDRESS,
                 inputTokenPermit: defaultInputPermit,
                 outputToken: CRV_ADDRESS,
-                ourputTokenPermit: bytes(""),
+                outputTokenPermit: bytes(""),
                 inputAmount: 10 * 1e6,
                 outputAmount: 0, // to be filled later
                 minOutputAmount: 0, // to be filled later
