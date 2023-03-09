@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-import "./IStrategy.sol";
+import { IStrategy } from "./IStrategy.sol";
 
 /// @title IAMMStrategy Interface
 /// @author imToken Labs
@@ -12,12 +12,11 @@ interface IAMMStrategy is IStrategy {
     event SetAMM(address ammAddr, bool enable);
 
     /// @notice Emitted after swap with AMM
-    /// @param takerAssetAddr The taker assest used to swap
-    /// @param takerAssetAmount The swap amount of taker asset
-    /// @param makerAddr The address of maker
-    /// @param makerAssetAddr The maker assest used to swap
-    /// @param makerAssetAmount The swap amount of maker asset
-    event Swapped(address takerAssetAddr, uint256 takerAssetAmount, address[] makerAddr, address makerAssetAddr, uint256 makerAssetAmount);
+    /// @param inputToken The taker assest used to swap
+    /// @param inputAmount The swap amount of taker asset
+    /// @param outputToken The maker assest used to swap
+    /// @param outputAmount The swap amount of maker asset
+    event Swapped(address inputToken, uint256 inputAmount, address outputToken, uint256 outputAmount);
 
     /** @dev The encoded operation list should be passed as `data` when calling `IStrategy.executeStrategy` */
     struct Operation {
@@ -31,12 +30,12 @@ interface IAMMStrategy is IStrategy {
     function setAMMs(address[] calldata _ammAddrs, bool[] calldata _enables) external;
 
     /// @notice Only owner can call
-    /// @param _assetAddrs The asset addresses
-    /// @param _ammAddrs The approved amm addresses
-    /// @param _assetAmount The approved asset amount
-    function approveAssets(
-        address[] calldata _assetAddrs,
-        address[] calldata _ammAddrs,
-        uint256 _assetAmount
+    /// @param tokens The address list of assets
+    /// @param spenders The address list of approved amms
+    /// @param amount The approved asset amount
+    function approveTokens(
+        address[] calldata tokens,
+        address[] calldata spenders,
+        uint256 amount
     ) external;
 }

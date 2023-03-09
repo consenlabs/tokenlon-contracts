@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
-
-import "./interfaces/IAMMStrategy.sol";
+import { Asset } from "./libraries/Asset.sol";
+import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
+import { IStrategy } from "./interfaces/IStrategy.sol";
 
 contract AMMStrategy is IAMMStrategy, Ownable {
     using SafeERC20 for IERC20;
@@ -52,14 +52,14 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     }
 
     /// @inheritdoc IAMMStrategy
-    function approveAssets(
-        address[] calldata _assetAddrs,
-        address[] calldata _ammAddrs,
-        uint256 _assetAmount
+    function approveTokens(
+        address[] calldata tokens,
+        address[] calldata spenders,
+        uint256 amount
     ) external override onlyOwner {
-        for (uint256 i = 0; i < _assetAddrs.length; ++i) {
-            for (uint256 j = 0; j < _ammAddrs.length; ++j) {
-                IERC20(_assetAddrs[i]).safeApprove(_ammAddrs[j], _assetAmount);
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            for (uint256 j = 0; j < spenders.length; ++j) {
+                IERC20(tokens[i]).safeApprove(spenders[j], amount);
             }
         }
     }
@@ -76,20 +76,19 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     ) external payable override onlyEntryPoint {
         Operation[] memory ops = abi.decode(data, (Operation[]));
         require(ops.length > 0, "empty operations");
-        uint256 balanceBefore = IERC20(outputToken).balanceOf(entryPoint);
-        address[] memory opDests = new address[](ops.length);
+        require(inputAmount > 0, "empty inputAmount");
+        uint256 balanceBefore = Asset.getBalance(outputToken, entryPoint);
         for (uint256 i = 0; i < ops.length; ++i) {
             Operation memory op = ops[i];
             require(ammMapping[op.dest], "invalid op dest");
-            opDests[i] = op.dest;
             _call(op.dest, 0, op.data);
         }
-        uint256 receivedAmount = IERC20(outputToken).balanceOf(address(this));
-        if (receivedAmount != 0) {
-            IERC20(outputToken).safeTransfer(entryPoint, receivedAmount);
+        uint256 selfBalance = Asset.getBalance(outputToken, address(this));
+        if (selfBalance > 0) {
+            Asset.transferTo(outputToken, payable(entryPoint), selfBalance);
         }
-        uint256 balanceAfter = IERC20(outputToken).balanceOf(entryPoint);
-        emit Swapped(inputToken, inputAmount, opDests, outputToken, balanceAfter - balanceBefore);
+        uint256 balanceAfter = Asset.getBalance(outputToken, entryPoint);
+        emit Swapped(inputToken, inputAmount, outputToken, balanceAfter - balanceBefore);
     }
 
     /**

@@ -43,7 +43,7 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
         dealWallets(100);
         ammStrategy = new AMMStrategy(owner, entryPoint, amms);
         vm.prank(owner);
-        ammStrategy.approveAssets(assets, amms, type(uint256).max);
+        ammStrategy.approveTokens(assets, amms, type(uint256).max);
         // Set token balance and approve
         for (uint256 i = 0; i < tokens.length; ++i) {
             setERC20Balance(address(assets[i]), entryPoint, uint256(100));
