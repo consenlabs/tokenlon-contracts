@@ -7,7 +7,7 @@ struct GeneralOrder {
     address inputToken;
     bytes inputTokenPermit;
     address outputToken;
-    bytes ourputTokenPermit;
+    bytes outputTokenPermit;
     uint256 inputAmount;
     uint256 outputAmount;
     uint256 minOutputAmount;
