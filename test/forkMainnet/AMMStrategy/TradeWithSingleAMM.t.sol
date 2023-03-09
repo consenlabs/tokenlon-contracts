@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
-pragma abicoder v2;
 
 import "test/forkMainnet/AMMStrategy/Setup.t.sol";
 import "test/utils/BalanceSnapshot.sol";

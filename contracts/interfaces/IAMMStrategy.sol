@@ -1,16 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
-pragma abicoder v2;
 
 import "./IStrategy.sol";
 
 /// @title IAMMStrategy Interface
 /// @author imToken Labs
 interface IAMMStrategy is IStrategy {
-    /// @notice Emitted when entry point address is updated
-    /// @param newEntryPoint The address of the new entry point
-    event SetEntryPoint(address newEntryPoint);
-
     /// @notice Emitted when allowed amm is updated
     /// @param ammAddr The address of the amm
     /// @param enable The status of amm
@@ -29,10 +24,6 @@ interface IAMMStrategy is IStrategy {
         address dest;
         bytes data;
     }
-
-    /// @notice Only owner can call
-    /// @param _newEntryPoint The address allowed to call `executeStrategy`
-    function setEntryPoint(address _newEntryPoint) external;
 
     /// @notice Only owner can call
     /// @param _ammAddrs The amm addresses allowed to use in `executeStrategy` if according `enable` equals `true`

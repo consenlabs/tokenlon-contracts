@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "contracts/interfaces/IUniswapV3SwapRouter.sol";
-import "contracts/interfaces/IUniswapRouterV2.sol";
-import "contracts/AMMStrategy.sol";
-import "contracts/interfaces/IAMMStrategy.sol";
-import "test/utils/BalanceUtil.sol";
-import "test/utils/Tokens.sol";
+import { IUniswapV3SwapRouter } from "contracts/interfaces/IUniswapV3SwapRouter.sol";
+import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
+import { AMMStrategy } from "contracts/AMMStrategy.sol";
+import { IAMMStrategy } from "contracts/interfaces/IAMMStrategy.sol";
+import { BalanceUtil } from "test/utils/BalanceUtil.sol";
+import { Tokens } from "test/utils/Tokens.sol";
 
 contract TestAMMStrategy is Tokens, BalanceUtil {
     using SafeERC20 for IERC20;
@@ -41,9 +41,9 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
     // effectively a "beforeEach" block
     function setUp() public {
         dealWallets(100);
-        ammStrategy = new AMMStrategy(entryPoint, amms);
+        ammStrategy = new AMMStrategy(owner, entryPoint, amms);
+        vm.prank(owner);
         ammStrategy.approveAssets(assets, amms, type(uint256).max);
-        ammStrategy.transferOwnership(owner);
         // Set token balance and approve
         for (uint256 i = 0; i < tokens.length; ++i) {
             setERC20Balance(address(assets[i]), entryPoint, uint256(100));

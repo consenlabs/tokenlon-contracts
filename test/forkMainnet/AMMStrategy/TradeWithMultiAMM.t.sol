@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
-pragma abicoder v2;
 
-import "contracts/interfaces/IAMMStrategy.sol";
+import { IAMMStrategy } from "contracts/interfaces/IAMMStrategy.sol";
 
-import "test/forkMainnet/AMMStrategy/Setup.t.sol";
-import "test/utils/BalanceSnapshot.sol";
+import { TestAMMStrategy } from "test/forkMainnet/AMMStrategy/Setup.t.sol";
+import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
 
 contract TestAMMStrategyTradeWithMultiAMM is TestAMMStrategy {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;

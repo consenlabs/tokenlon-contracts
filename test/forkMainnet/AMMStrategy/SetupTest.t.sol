@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "test/forkMainnet/AMMStrategy/Setup.t.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { TestAMMStrategy } from "test/forkMainnet/AMMStrategy/Setup.t.sol";
 
 contract TestAMMStrategySetup is TestAMMStrategy {
     function testTokensAllowanceAmountWhenSetup() public {

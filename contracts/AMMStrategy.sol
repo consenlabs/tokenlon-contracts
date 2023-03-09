@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
-// interface, abstract, contract 0.8.17
-pragma abicoder v2;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "./abstracts/Ownable.sol";
 
 import "./interfaces/IAMMStrategy.sol";
 
-contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
+contract AMMStrategy is IAMMStrategy, Ownable {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
 
     address public entryPoint;
     mapping(address => bool) public ammMapping;
@@ -22,7 +18,11 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
      *              Constructor and init functions               *
      *************************************************************/
 
-    constructor(address _entryPoint, address[] memory _ammAddrs) {
+    constructor(
+        address _owner,
+        address _entryPoint,
+        address[] memory _ammAddrs
+    ) Ownable(_owner) {
         entryPoint = _entryPoint;
         for (uint256 i = 0; i < _ammAddrs.length; ++i) {
             ammMapping[_ammAddrs[i]] = true;
@@ -41,12 +41,6 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
     /************************************************************
      *           Management functions for Owner               *
      *************************************************************/
-    /// @inheritdoc IAMMStrategy
-    function setEntryPoint(address _newEntryPoint) external override onlyOwner {
-        entryPoint = _newEntryPoint;
-        emit SetEntryPoint(_newEntryPoint);
-    }
-
     /// @inheritdoc IAMMStrategy
     function setAMMs(address[] calldata _ammAddrs, bool[] calldata _enables) external override onlyOwner {
         for (uint256 i = 0; i < _ammAddrs.length; ++i) {
@@ -77,7 +71,7 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
         address outputToken,
         uint256 inputAmount,
         bytes calldata data
-    ) external override nonReentrant onlyEntryPoint {
+    ) external override onlyEntryPoint {
         Operation[] memory ops = abi.decode(data, (Operation[]));
         require(ops.length > 0, "empty operations");
         uint256 balanceBefore = IERC20(outputToken).balanceOf(entryPoint);
@@ -93,7 +87,7 @@ contract AMMStrategy is IAMMStrategy, ReentrancyGuard, Ownable {
             IERC20(outputToken).safeTransfer(entryPoint, receivedAmount);
         }
         uint256 balanceAfter = IERC20(outputToken).balanceOf(entryPoint);
-        emit Swapped(inputToken, inputAmount, opDests, outputToken, balanceAfter.sub(balanceBefore));
+        emit Swapped(inputToken, inputAmount, opDests, outputToken, balanceAfter - balanceBefore);
     }
 
     /**
