@@ -22,6 +22,7 @@ contract Addresses is Test {
     address SUSHISWAP_ADDRESS = abi.decode(vm.parseJson(file, "$.SUSHISWAP_ADDRESS"), (address));
     address UNISWAP_V3_ADDRESS = abi.decode(vm.parseJson(file, "$.UNISWAP_V3_ADDRESS"), (address));
     address UNISWAP_V3_QUOTER_ADDRESS = abi.decode(vm.parseJson(file, "$.UNISWAP_V3_QUOTER_ADDRESS"), (address));
+    address UNISWAP_PERMIT2_ADDRESS = abi.decode(vm.parseJson(file, "$.UNISWAP_PERMIT2_ADDRESS"), (address));
     address CURVE_USDT_POOL_ADDRESS = abi.decode(vm.parseJson(file, "$.CURVE_USDT_POOL_ADDRESS"), (address));
     address CURVE_COMPOUND_POOL_ADDRESS = abi.decode(vm.parseJson(file, "$.CURVE_COMPOUND_POOL_ADDRESS"), (address));
     address CURVE_Y_POOL_ADDRESS = abi.decode(vm.parseJson(file, "$.CURVE_Y_POOL_ADDRESS"), (address));
