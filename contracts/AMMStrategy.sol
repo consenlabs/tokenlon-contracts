@@ -80,6 +80,16 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         }
     }
 
+    /// @inheritdoc IAMMStrategy
+    function withdrawLegacyTokensTo(address[] calldata tokens, address receiver) external override onlyOwner {
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            uint256 selfBalance = Asset.getBalance(tokens[i], address(this));
+            if (selfBalance > 0) {
+                Asset.transferTo(tokens[i], payable(receiver), selfBalance);
+            }
+        }
+    }
+
     /************************************************************
      *                   External functions                      *
      *************************************************************/

@@ -47,4 +47,10 @@ interface IAMMStrategy is IStrategy {
         bool[] calldata usePermit2InSpenders,
         uint256 amount
     ) external;
+
+    /// @notice Only owner can call
+    /// There may be some tokens left after swap while the order has been filled
+    /// @param tokens The address list of legacy tokens
+    /// @param receiver The receiver address
+    function withdrawLegacyTokensTo(address[] calldata tokens, address receiver) external;
 }
