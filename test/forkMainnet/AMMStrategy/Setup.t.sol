@@ -31,6 +31,7 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
     address owner = makeAddr("owner");
     address[] wallets = [entryPoint, owner];
     address[] amms = [address(SUSHISWAP_ADDRESS), UNISWAP_V2_ADDRESS, UNISWAP_V3_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS];
+    bool[] usePermit2InAMMs = [false, false, false, false, false];
     address[] assets = [address(WETH_ADDRESS), USDT_ADDRESS, USDC_ADDRESS, DAI_ADDRESS, WBTC_ADDRESS, LON_ADDRESS, ANKRETH_ADDRESS];
     uint256 DEADLINE = block.timestamp + 1;
     uint16 DEFAULT_FEE_FACTOR = 500;
@@ -41,9 +42,9 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
     // effectively a "beforeEach" block
     function setUp() public {
         dealWallets(100);
-        ammStrategy = new AMMStrategy(owner, entryPoint, amms);
+        ammStrategy = new AMMStrategy(owner, entryPoint, UNISWAP_PERMIT2_ADDRESS, amms);
         vm.prank(owner);
-        ammStrategy.approveTokens(assets, amms, type(uint256).max);
+        ammStrategy.approveTokens(assets, amms, usePermit2InAMMs, type(uint256).max);
         // Set token balance and approve
         for (uint256 i = 0; i < tokens.length; ++i) {
             setERC20Balance(address(assets[i]), entryPoint, uint256(100));
@@ -104,7 +105,7 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
             (inputAmount, uint256(0), path, entry.isDirectToEntryPoint ? entryPoint : address(ammStrategy), entry.deadline)
         );
         IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](1);
-        operation = IAMMStrategy.Operation(entry.makerAddr, payload);
+        operation = IAMMStrategy.Operation(entry.makerAddr, 0, payload);
         operations[0] = operation;
 
         data = abi.encode(operations);
@@ -137,7 +138,7 @@ contract TestAMMStrategy is Tokens, BalanceUtil {
         });
         bytes memory payload = abi.encodeCall(IUniswapV3SwapRouter.exactInputSingle, params);
         IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](1);
-        operation = IAMMStrategy.Operation(entry.makerAddr, payload);
+        operation = IAMMStrategy.Operation(entry.makerAddr, 0, payload);
         operations[0] = operation;
 
         data = abi.encode(operations);

@@ -5,12 +5,15 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
 import { Asset } from "./libraries/Asset.sol";
+
+import { IUniswapPermit2 } from "./interfaces/IUniswapPermit2.sol";
 import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
 
 contract AMMStrategy is IAMMStrategy, Ownable {
     using SafeERC20 for IERC20;
 
+    address public immutable permit2;
     address public entryPoint;
     mapping(address => bool) public ammMapping;
 
@@ -23,9 +26,11 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     constructor(
         address _owner,
         address _entryPoint,
+        address _permit2,
         address[] memory _ammAddrs
     ) Ownable(_owner) {
         entryPoint = _entryPoint;
+        permit2 = _permit2;
         for (uint256 i = 0; i < _ammAddrs.length; ++i) {
             ammMapping[_ammAddrs[i]] = true;
             emit SetAMM(_ammAddrs[i], true);
@@ -55,11 +60,18 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     function approveTokens(
         address[] calldata tokens,
         address[] calldata spenders,
+        bool[] calldata usePermit2InSpenders,
         uint256 amount
     ) external override onlyOwner {
+        require(spenders.length == usePermit2InSpenders.length, "length of spenders not match");
         for (uint256 i = 0; i < tokens.length; ++i) {
             for (uint256 j = 0; j < spenders.length; ++j) {
-                IERC20(tokens[i]).safeApprove(spenders[j], amount);
+                if (usePermit2InSpenders[j]) {
+                    // The UniversalRouter of Uniswap uses Permit2 to remove the need for token approvals being provided directly to the UniversalRouter.
+                    _permit2SafeApprove(tokens[i], tokens[j], amount);
+                } else {
+                    IERC20(tokens[i]).safeApprove(spenders[j], amount);
+                }
             }
         }
     }
@@ -92,8 +104,8 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     }
 
     /**
-     * @dev internal function of `executeStrategy`.
-     * Used to execute arbitrary calls.
+     * @dev internal function of `approveTokens`.
+     * Used to permit.
      */
     function _call(
         address _dest,
@@ -106,5 +118,21 @@ contract AMMStrategy is IAMMStrategy, Ownable {
                 revert(add(result, 32), mload(result))
             }
         }
+    }
+
+    /**
+     * @dev internal function of `executeStrategy`.
+     * Allow the spender to use Permit2 for the token.
+     */
+    function _permit2SafeApprove(
+        address _token,
+        address _spender,
+        uint256 _amount
+    ) internal {
+        if (IERC20(_token).allowance(address(this), permit2) == 0) {
+            IERC20(_token).safeApprove(permit2, type(uint256).max);
+        }
+        uint160 amount = _amount > type(uint160).max ? type(uint160).max : uint160(_amount);
+        IUniswapPermit2(permit2).approve(_token, _spender, amount, type(uint48).max);
     }
 }
