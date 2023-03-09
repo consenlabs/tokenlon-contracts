@@ -28,10 +28,19 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
     address strategyAdmin = makeAddr("strategyAdmin");
     address genericSwap = address(this);
     uint256 defaultDeadline = block.timestamp + 1;
-    address[] tokenList = [USDC_ADDRESS, cUSDC_ADDRESS, WETH_ADDRESS];
-    address[] ammList = [WETH_ADDRESS, UNISWAP_UNIVERSAL_ROUTER_ADDRESS, SUSHISWAP_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS];
-    bool[] usePermit2InAMMs = [false, true, false, false, false];
+    address[] tokenList = [USDT_ADDRESS, USDC_ADDRESS, cUSDC_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
+    address[] ammList = [
+        WETH_ADDRESS,
+        UNISWAP_UNIVERSAL_ROUTER_ADDRESS,
+        SUSHISWAP_ADDRESS,
+        BALANCER_V2_ADDRESS,
+        CURVE_USDT_POOL_ADDRESS,
+        CURVE_TRICRYPTO2_POOL_ADDRESS
+    ];
+    bool[] usePermit2InAMMs = [false, true, false, false, false, false];
     AMMStrategy ammStrategy;
+
+    receive() external payable {}
 
     function setUp() public {
         ammStrategy = new AMMStrategy(strategyAdmin, genericSwap, WETH_ADDRESS, UNISWAP_PERMIT2_ADDRESS, ammList);
@@ -46,6 +55,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         vm.label(BALANCER_V2_ADDRESS, "BalancerV2");
         vm.label(UNISWAP_PERMIT2_ADDRESS, "UniswapPermit2");
         vm.label(WETH_ADDRESS, "WETH");
+        vm.label(CURVE_TRICRYPTO2_POOL_ADDRESS, "CurveTriCryptoPool");
     }
 
     function testAMMStrategyTradeWithMultiAMM() public {
@@ -306,13 +316,13 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         _baseTest(inputToken, outputToken, inputAmount, data);
     }
 
-    function testTradeCurveV2() public {
-        address inputToken = cUSDC_ADDRESS;
-        address outputToken = cDAI_ADDRESS;
-        uint256 inputAmount = 10 * 1e6;
-        // address[] USDT_POOL_COINS = [cDAI_ADDRESS, cUSDC_ADDRESS, USDT_ADDRESS];
-        int128 inputTokenIndex = 1;
-        int128 outputTokenIndex = 0;
+    function testTradeCurveV2WithETH() public {
+        address inputToken = Constant.ETH_ADDRESS;
+        address outputToken = WBTC_ADDRESS;
+        uint256 inputAmount = 1 ether;
+        // address[] TRICRYPTO2POOL_COINS = [USDT_ADDRESS, WBTC_ADDRESS, WETH_ADDRESS];
+        int128 inputTokenIndex = 2; // WETH
+        int128 outputTokenIndex = 1; // WBTC
         IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](1);
         // ICurveFiV2
         bytes memory payload0 = abi.encodeWithSignature(
@@ -321,9 +331,32 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
             uint256(uint128(outputTokenIndex)),
             inputAmount,
             0,
-            true
+            true // use_eth = true
         );
-        operations[0] = IAMMStrategy.Operation(CURVE_USDT_POOL_ADDRESS, 0, payload0);
+        operations[0] = IAMMStrategy.Operation(CURVE_TRICRYPTO2_POOL_ADDRESS, inputAmount, payload0);
+
+        bytes memory data = abi.encode(operations);
+        _baseTest(inputToken, outputToken, inputAmount, data);
+    }
+
+    function testTradeCurveV2WithWETH() public {
+        address inputToken = WETH_ADDRESS;
+        address outputToken = WBTC_ADDRESS;
+        uint256 inputAmount = 10 * 1e18;
+        // address[] TRICRYPTO2POOL_COINS = [USDT_ADDRESS, WBTC_ADDRESS, WETH_ADDRESS];
+        int128 inputTokenIndex = 2; // WETH
+        int128 outputTokenIndex = 1; // WBTC
+        IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](1);
+        // ICurveFiV2
+        bytes memory payload0 = abi.encodeWithSignature(
+            "exchange(uint256,uint256,uint256,uint256,bool)",
+            uint256(uint128(inputTokenIndex)),
+            uint256(uint128(outputTokenIndex)),
+            inputAmount,
+            0,
+            false // use_eth = false
+        );
+        operations[0] = IAMMStrategy.Operation(CURVE_TRICRYPTO2_POOL_ADDRESS, 0, payload0);
 
         bytes memory data = abi.encode(operations);
         _baseTest(inputToken, outputToken, inputAmount, data);

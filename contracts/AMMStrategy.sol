@@ -72,7 +72,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
             for (uint256 j = 0; j < spenders.length; ++j) {
                 if (usePermit2InSpenders[j]) {
                     // The UniversalRouter of Uniswap uses Permit2 to remove the need for token approvals being provided directly to the UniversalRouter.
-                    _permit2SafeApprove(tokens[i], tokens[j], amount);
+                    _permit2Approve(tokens[i], spenders[j], amount);
                 } else {
                     IERC20(tokens[i]).safeApprove(spenders[j], amount);
                 }
@@ -139,7 +139,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
      * @dev internal function of `executeStrategy`.
      * Allow the spender to use Permit2 for the token.
      */
-    function _permit2SafeApprove(
+    function _permit2Approve(
         address _token,
         address _spender,
         uint256 _amount
