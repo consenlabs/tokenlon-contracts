@@ -70,11 +70,13 @@ abstract contract TokenCollector {
     ) private {
         require(amount < uint256(type(uint160).max), "TokenCollector: permit2 amount too large");
         if (data.length > 0) {
-            (address owner, IUniswapPermit2.PermitSingle memory permit, bytes memory permitSig) = abi.decode(
-                data,
-                (address, IUniswapPermit2.PermitSingle, bytes)
-            );
-            IUniswapPermit2(permit2).permit(owner, permit, permitSig);
+            (uint48 nonce, uint48 deadline, bytes memory permitSig) = abi.decode(data, (uint48, uint48, bytes));
+            IUniswapPermit2.PermitSingle memory permit = IUniswapPermit2.PermitSingle({
+                details: IUniswapPermit2.PermitDetails({ token: token, amount: uint160(amount), expiration: deadline, nonce: nonce }),
+                spender: address(this),
+                sigDeadline: uint256(deadline)
+            });
+            IUniswapPermit2(permit2).permit(from, permit, permitSig);
         }
         IUniswapPermit2(permit2).transferFrom(from, to, uint160(amount), token);
     }
