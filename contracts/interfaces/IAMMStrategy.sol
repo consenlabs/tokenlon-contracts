@@ -21,6 +21,7 @@ interface IAMMStrategy is IStrategy {
     /** @dev The encoded operation list should be passed as `data` when calling `IStrategy.executeStrategy` */
     struct Operation {
         address dest;
+        uint256 value;
         bytes data;
     }
 

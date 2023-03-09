@@ -81,7 +81,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         for (uint256 i = 0; i < ops.length; ++i) {
             Operation memory op = ops[i];
             require(ammMapping[op.dest], "invalid op dest");
-            _call(op.dest, 0, op.data);
+            _call(op.dest, op.value, op.data);
         }
         uint256 selfBalance = Asset.getBalance(outputToken, address(this));
         if (selfBalance > 0) {
