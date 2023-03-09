@@ -6,6 +6,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Ownable } from "./abstracts/Ownable.sol";
 import { Asset } from "./libraries/Asset.sol";
 
+import { IWETH } from "./interfaces/IWeth.sol";
 import { IUniswapPermit2 } from "./interfaces/IUniswapPermit2.sol";
 import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
@@ -13,6 +14,7 @@ import { IStrategy } from "./interfaces/IStrategy.sol";
 contract AMMStrategy is IAMMStrategy, Ownable {
     using SafeERC20 for IERC20;
 
+    address public immutable weth;
     address public immutable permit2;
     address public entryPoint;
     mapping(address => bool) public ammMapping;
@@ -26,10 +28,12 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     constructor(
         address _owner,
         address _entryPoint,
+        address _weth,
         address _permit2,
         address[] memory _ammAddrs
     ) Ownable(_owner) {
         entryPoint = _entryPoint;
+        weth = _weth;
         permit2 = _permit2;
         for (uint256 i = 0; i < _ammAddrs.length; ++i) {
             ammMapping[_ammAddrs[i]] = true;
@@ -96,10 +100,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
             bytes4 selector = _call(op.dest, op.value, op.data);
             emit Action(op.dest, op.value, selector);
         }
-        uint256 selfBalance = Asset.getBalance(outputToken, address(this));
-        if (selfBalance > 0) {
-            Asset.transferTo(outputToken, payable(entryPoint), selfBalance);
-        }
+        _transferToEntryPoint(outputToken);
         uint256 balanceAfter = Asset.getBalance(outputToken, entryPoint);
         emit Swapped(inputToken, inputAmount, outputToken, balanceAfter - balanceBefore);
     }
@@ -138,5 +139,24 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         }
         uint160 amount = _amount > type(uint160).max ? type(uint160).max : uint160(_amount);
         IUniswapPermit2(permit2).approve(_token, _spender, amount, type(uint48).max);
+    }
+
+    /**
+     * @dev internal function of `executeStrategy`.
+     * Transfer output token to entry point
+     * If outputToken is native ETH and there is WETH remain, unwrap WETH to ETH automatically
+     */
+    function _transferToEntryPoint(address _token) internal {
+        if (Asset.isETH(_token)) {
+            // unwrap existing WETH
+            uint256 wethBalance = IWETH(weth).balanceOf(address(this));
+            if (wethBalance > 0) {
+                IWETH(weth).withdraw(wethBalance);
+            }
+        }
+        uint256 selfBalance = Asset.getBalance(_token, address(this));
+        if (selfBalance > 0) {
+            Asset.transferTo(_token, payable(entryPoint), selfBalance);
+        }
     }
 }
