@@ -8,7 +8,7 @@ import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
 import { IGenericSwap } from "./interfaces/IGenericSwap.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
-import { GeneralOrder } from "./interfaces/IGeneralOrder.sol";
+import { Order, getOrderHash, ORDER_TYPESTRING } from "./libraries/Order.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
@@ -16,26 +16,8 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     using SafeERC20 for IERC20;
     using Asset for address;
 
-    // FIXME to confirm with ethers.js
-    bytes32 public constant GS_DATA_TYPEHASH = 0x9a6d9096b182513baa520ad9d0766c6e70d0637fcf40521146c04435396a0fdf;
-
-    /*
-        keccak256(
-            abi.encodePacked(
-                "GenericSwapData(",
-                "address inputToken,",
-                "address outputToken,",
-                "uint256 inputAmount,",
-                "uint256 minOutputAmount,",
-                "address receiver,",
-                "uint256 deadline,",
-                "bytes inputData,",
-                "bytes strategyData,",
-                "uint256 salt",
-                ")"
-            )
-        );
-        */
+    bytes32 public constant GS_DATA_TYPEHASH = 0x69ac20740f39d6edd7da9effce898564772d163bb2ef0d1803c0a5411a7f7e35;
+    // keccak256(abi.encodePacked("GenericSwapData(", "Order order,", "bytes strategyData", ")", ORDER_TYPESTRING));
 
     mapping(bytes32 => bool) private filledSwap;
 
@@ -64,7 +46,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     }
 
     function _executeSwap(GenericSwapData memory _swapData, address _authorizedUser) private returns (uint256 returnAmount) {
-        GeneralOrder memory _order = _swapData.order;
+        Order memory _order = _swapData.order;
 
         // check if _authorizedUser is allowed to fill the order
         if (_order.taker != _authorizedUser) revert InvalidTaker();
@@ -89,7 +71,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     }
 
     function _getGSDataHash(GenericSwapData memory _gsData) private pure returns (bytes32) {
-        // FIXME to confirm with ethers.js
-        return keccak256(abi.encode(GS_DATA_TYPEHASH, _gsData.order, _gsData.strategyData));
+        bytes32 orderHash = getOrderHash(_gsData.order);
+        return keccak256(abi.encode(GS_DATA_TYPEHASH, orderHash, _gsData.strategyData));
     }
 }

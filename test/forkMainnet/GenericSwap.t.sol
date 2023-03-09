@@ -9,10 +9,10 @@ import { GenericSwap } from "contracts/GenericSwap.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { UniswapStrategy } from "contracts/UniswapStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
+import { Order, getOrderHash } from "contracts/libraries/Order.sol";
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 import { IStrategy } from "contracts/interfaces/IStrategy.sol";
-import { GeneralOrder } from "contracts/interfaces/IGeneralOrder.sol";
 
 contract MockStrategy is IStrategy, Test {
     bool returnToken = true;
@@ -65,7 +65,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         setEOABalanceAndApprove(taker, address(genericSwap), tokens, 100000);
 
         gsData = IGenericSwap.GenericSwapData({
-            order: GeneralOrder({
+            order: Order({
                 maker: payable(address(uniswapStrategy)),
                 taker: taker,
                 inputToken: USDT_ADDRESS,
@@ -151,6 +151,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
 
     function _getGSDataHash(IGenericSwap.GenericSwapData memory _gsData) private view returns (bytes32) {
         // FIXME to confirm with ethers.js
-        return keccak256(abi.encode(genericSwap.GS_DATA_TYPEHASH(), _gsData.order, _gsData.strategyData));
+        bytes32 orderHash = getOrderHash(_gsData.order);
+        return keccak256(abi.encode(genericSwap.GS_DATA_TYPEHASH(), orderHash, _gsData.strategyData));
     }
 }
