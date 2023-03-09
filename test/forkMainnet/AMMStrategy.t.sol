@@ -28,7 +28,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
     address strategyAdmin = makeAddr("strategyAdmin");
     address genericSwap = address(this);
     uint256 defaultDeadline = block.timestamp + 1;
-    address[] tokenList = [USDT_ADDRESS, USDC_ADDRESS, cUSDC_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
+    address[] tokenList = [USDC_ADDRESS, cUSDC_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
     address[] ammList = [
         WETH_ADDRESS,
         UNISWAP_UNIVERSAL_ROUTER_ADDRESS,
