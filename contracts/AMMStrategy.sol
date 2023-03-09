@@ -14,6 +14,8 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     address public entryPoint;
     mapping(address => bool) public ammMapping;
 
+    receive() external payable {}
+
     /************************************************************
      *              Constructor and init functions               *
      *************************************************************/
@@ -71,7 +73,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         address outputToken,
         uint256 inputAmount,
         bytes calldata data
-    ) external override onlyEntryPoint {
+    ) external payable override onlyEntryPoint {
         Operation[] memory ops = abi.decode(data, (Operation[]));
         require(ops.length > 0, "empty operations");
         uint256 balanceBefore = IERC20(outputToken).balanceOf(entryPoint);
