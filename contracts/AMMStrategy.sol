@@ -93,7 +93,8 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         for (uint256 i = 0; i < ops.length; ++i) {
             Operation memory op = ops[i];
             require(ammMapping[op.dest], "invalid op dest");
-            _call(op.dest, op.value, op.data);
+            bytes4 selector = _call(op.dest, op.value, op.data);
+            emit Action(op.dest, op.value, selector);
         }
         uint256 selfBalance = Asset.getBalance(outputToken, address(this));
         if (selfBalance > 0) {
@@ -111,12 +112,15 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         address _dest,
         uint256 _value,
         bytes memory _data
-    ) internal {
+    ) internal returns (bytes4 selector) {
         (bool success, bytes memory result) = _dest.call{ value: _value }(_data);
         if (!success) {
             assembly {
                 revert(add(result, 32), mload(result))
             }
+        }
+        if (_data.length >= 4) {
+            selector = bytes4(_data);
         }
     }
 

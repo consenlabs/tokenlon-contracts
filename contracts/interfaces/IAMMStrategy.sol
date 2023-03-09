@@ -11,12 +11,18 @@ interface IAMMStrategy is IStrategy {
     /// @param enable The status of amm
     event SetAMM(address ammAddr, bool enable);
 
+    /// @notice Event emitted for each executed operation.
+    /// @param dest The target address of the operation
+    /// @param value The eth value carried when calling `dest`
+    /// @param selector The selector when calling `dest`
+    event Action(address indexed dest, uint256 value, bytes4 selector);
+
     /// @notice Emitted after swap with AMM
     /// @param inputToken The taker assest used to swap
     /// @param inputAmount The swap amount of taker asset
     /// @param outputToken The maker assest used to swap
     /// @param outputAmount The swap amount of maker asset
-    event Swapped(address inputToken, uint256 inputAmount, address outputToken, uint256 outputAmount);
+    event Swapped(address indexed inputToken, uint256 inputAmount, address indexed outputToken, uint256 outputAmount);
 
     /** @dev The encoded operation list should be passed as `data` when calling `IStrategy.executeStrategy` */
     struct Operation {
