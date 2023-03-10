@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
 import { Asset } from "./libraries/Asset.sol";
@@ -56,7 +57,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     function setAMMs(address[] calldata _ammAddrs, bool[] calldata _enables) external override onlyOwner {
         for (uint256 i = 0; i < _ammAddrs.length; ++i) {
             ammMapping[_ammAddrs[i]] = _enables[i];
-            emit SetAMM(_ammAddrs[i], true);
+            emit SetAMM(_ammAddrs[i], _enables[i]);
         }
     }
 
@@ -124,14 +125,15 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         uint256 _value,
         bytes memory _data
     ) internal returns (bytes4 selector) {
+        if (_data.length >= 4) {
+            selector = bytes4(_data);
+        }
+        _checkSelector(selector);
         (bool success, bytes memory result) = _dest.call{ value: _value }(_data);
         if (!success) {
             assembly {
                 revert(add(result, 32), mload(result))
             }
-        }
-        if (_data.length >= 4) {
-            selector = bytes4(_data);
         }
     }
 
@@ -168,5 +170,12 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         if (selfBalance > 0) {
             Asset.transferTo(_token, payable(entryPoint), selfBalance);
         }
+    }
+
+    function _checkSelector(bytes4 s) internal {
+        require(
+            s != IERC20.approve.selector && s != ERC20.increaseAllowance.select && s != ERC20.decreaseAllowance.select && IUniswapPermit2.approve.selector,
+            "banned selector"
+        );
     }
 }
