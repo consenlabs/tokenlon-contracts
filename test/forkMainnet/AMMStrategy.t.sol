@@ -58,6 +58,29 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         vm.label(CURVE_TRICRYPTO2_POOL_ADDRESS, "CurveTriCryptoPool");
     }
 
+    function testCannotChangeTokenAllowanceInSwap() public {
+        address inputToken = Constant.ETH_ADDRESS;
+        address outputToken = DAI_ADDRESS;
+        uint256 inputAmount = 1 ether;
+        address[] memory path = new address[](2);
+        path[0] = WETH_ADDRESS; // use weth when swap
+        path[1] = outputToken;
+        // ETH -> WETH -> DAI
+        IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](3);
+        bytes memory payload0 = abi.encodeCall(IWETH.deposit, ());
+        operations[0] = IAMMStrategy.Operation(WETH_ADDRESS, inputAmount, payload0);
+        bytes memory payload1 = abi.encodeCall(
+            IUniswapRouterV2.swapExactTokensForTokens,
+            (inputAmount, uint256(0), path, address(ammStrategy), defaultDeadline)
+        );
+        operations[1] = IAMMStrategy.Operation(SUSHISWAP_ADDRESS, 0, payload1);
+        bytes memory payload2 = abi.encodeCall(IERC20.approve, (SUSHISWAP_ADDRESS, 0));
+        operations[2] = IAMMStrategy.Operation(WETH_ADDRESS, 0, payload2);
+        bytes memory data = abi.encode(operations);
+        vm.expectRevert("banned selector");
+        IStrategy(ammStrategy).executeStrategy{ value: inputAmount }(inputToken, outputToken, inputAmount, data);
+    }
+
     function testAMMStrategyTradeWithMultiAMM() public {
         // sushiSwap and curveV1
         address inputToken = USDC_ADDRESS;

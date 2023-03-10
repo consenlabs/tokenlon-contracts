@@ -172,9 +172,16 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         }
     }
 
-    function _checkSelector(bytes4 s) internal {
+    /**
+     * @dev internal function of `_call`.
+     * Make sure operation cannot change token allowance
+     */
+    function _checkSelector(bytes4 s) internal pure {
         require(
-            s != IERC20.approve.selector && s != ERC20.increaseAllowance.select && s != ERC20.decreaseAllowance.select && IUniswapPermit2.approve.selector,
+            s != IERC20.approve.selector &&
+                s != ERC20.increaseAllowance.selector &&
+                s != ERC20.decreaseAllowance.selector &&
+                s != IUniswapPermit2.approve.selector,
             "banned selector"
         );
     }
