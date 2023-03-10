@@ -8,7 +8,7 @@ import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
 import { IGenericSwap } from "./interfaces/IGenericSwap.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
-import { Order, getOrderHash, ORDER_TYPESTRING } from "./libraries/Order.sol";
+import { Order, getOrderHash } from "./libraries/Order.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
