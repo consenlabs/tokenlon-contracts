@@ -17,7 +17,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
 
     address public immutable weth;
     address public immutable permit2;
-    address public entryPoint;
+    address public immutable entryPoint;
     mapping(address => bool) public ammMapping;
 
     receive() external payable {}
