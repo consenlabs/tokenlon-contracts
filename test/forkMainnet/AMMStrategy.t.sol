@@ -26,7 +26,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     address strategyAdmin = makeAddr("strategyAdmin");
-    address genericSwap = address(this);
+    address entryPoint = address(this);
     uint256 defaultDeadline = block.timestamp + 1;
     address[] tokenList = [USDC_ADDRESS, cUSDC_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
     address[] ammList = [UNISWAP_UNIVERSAL_ROUTER_ADDRESS, SUSHISWAP_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS, CURVE_TRICRYPTO2_POOL_ADDRESS];
@@ -36,11 +36,11 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
     receive() external payable {}
 
     function setUp() public {
-        ammStrategy = new AMMStrategy(strategyAdmin, genericSwap, WETH_ADDRESS, UNISWAP_PERMIT2_ADDRESS, ammList);
+        ammStrategy = new AMMStrategy(strategyAdmin, entryPoint, WETH_ADDRESS, UNISWAP_PERMIT2_ADDRESS, ammList);
         vm.prank(strategyAdmin);
         ammStrategy.approveTokens(tokenList, ammList, usePermit2InAMMs, Constant.MAX_UINT);
-        setBalance(genericSwap, tokenList, 100000);
-        deal(genericSwap, 100 ether);
+        setBalance(entryPoint, tokenList, 100000);
+        deal(entryPoint, 100 ether);
 
         vm.label(UNISWAP_UNIVERSAL_ROUTER_ADDRESS, "UniswapUniversalRouter");
         vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
@@ -359,8 +359,8 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         uint256 inputAmount,
         bytes memory data
     ) internal {
-        BalanceSnapshot.Snapshot memory inputTokenBalance = BalanceSnapshot.take(genericSwap, inputToken);
-        BalanceSnapshot.Snapshot memory outputTokenBalance = BalanceSnapshot.take(genericSwap, outputToken);
+        BalanceSnapshot.Snapshot memory inputTokenBalance = BalanceSnapshot.take(entryPoint, inputToken);
+        BalanceSnapshot.Snapshot memory outputTokenBalance = BalanceSnapshot.take(entryPoint, outputToken);
 
         if (inputToken == Constant.ETH_ADDRESS) {
             IStrategy(ammStrategy).executeStrategy{ value: inputAmount }(inputToken, outputToken, inputAmount, data);
