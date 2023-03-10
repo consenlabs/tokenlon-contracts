@@ -1,41 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-bytes32 constant ORDER_DATA_TYPEHASH = 0xc504a4b52a554e816ce9776f48b79578cb4662dfb598d100bffef2eea538c5a5;
+string constant ORDER_TYPESTRING = "Order(address taker,address maker,address takerToken,uint256 takerTokenAmount,address makerToken,uint256 makerTokenAmount,uint256 minMakerTokenAmount,address recipient,uint256 expiry,uint256 salt)";
 
-string constant ORDER_TYPESTRING = "Order(address maker,address taker,address inputToken,bytes inputTokenPermit,address outputToken,bytes outputTokenPermit,uint256 inputAmount,uint256 outputAmount,uint256 minOutputAmount,address recipient,uint256 expiry,uint256 salt)";
-
-/*
-    keccak256(
-        abi.encodePacked(
-            "Order(",
-            "address maker,",
-            "address taker,",
-            "address inputToken,",
-            "bytes inputTokenPermit,",
-            "address outputToken,",
-            "bytes outputTokenPermit,",
-            "uint256 inputAmount,",
-            "uint256 outputAmount,",
-            "uint256 minOutputAmount,",
-            "address recipient,",
-            "uint256 expiry,",
-            "uint256 salt",
-            ")"
-        )
-    );
-    */
+bytes32 constant ORDER_DATA_TYPEHASH = 0x1c5438cede24381f652038abfc93d5dc94f8ab47e14a8bb1cd7c1cd1d0c6fad2;
+// keccak256(ORDER_TYPESTRING);
 
 struct Order {
-    address payable maker;
     address taker;
-    address inputToken;
-    bytes inputTokenPermit;
-    address outputToken;
-    bytes outputTokenPermit;
-    uint256 inputAmount;
-    uint256 outputAmount;
-    uint256 minOutputAmount;
+    address payable maker;
+    address takerToken;
+    uint256 takerTokenAmount;
+    address makerToken;
+    uint256 makerTokenAmount;
+    uint256 minMakerTokenAmount;
     address payable recipient;
     uint256 expiry;
     uint256 salt;
@@ -47,15 +25,13 @@ function getOrderHash(Order memory order) pure returns (bytes32) {
         keccak256(
             abi.encode(
                 ORDER_DATA_TYPEHASH,
-                order.maker,
                 order.taker,
-                order.inputToken,
-                order.inputTokenPermit,
-                order.outputToken,
-                order.outputTokenPermit,
-                order.inputAmount,
-                order.outputAmount,
-                order.minOutputAmount,
+                order.maker,
+                order.takerToken,
+                order.takerTokenAmount,
+                order.makerToken,
+                order.makerTokenAmount,
+                order.minMakerTokenAmount,
                 order.recipient,
                 order.expiry,
                 order.salt
