@@ -105,6 +105,10 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         require(ops.length > 0, "empty operations");
         require(inputAmount > 0, "empty inputAmount");
         uint256 balanceBefore = Asset.getBalance(outputToken, entryPoint);
+        // wrap eth first
+        if (Asset.isETH(inputToken)) {
+            IWETH(weth).deposit{ value: inputAmount }();
+        }
         for (uint256 i = 0; i < ops.length; ++i) {
             Operation memory op = ops[i];
             require(ammMapping[op.dest], "invalid op dest");
@@ -128,7 +132,10 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         if (_data.length >= 4) {
             selector = bytes4(_data);
         }
-        _checkSelector(selector);
+        // withdraw needed native eth
+        if (_value > 0 && address(this).balance < _value) {
+            IWETH(weth).withdraw(_value - address(this).balance);
+        }
         (bool success, bytes memory result) = _dest.call{ value: _value }(_data);
         if (!success) {
             assembly {
@@ -170,19 +177,5 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         if (selfBalance > 0) {
             Asset.transferTo(_token, payable(entryPoint), selfBalance);
         }
-    }
-
-    /**
-     * @dev internal function of `_call`.
-     * Make sure operation cannot change token allowance
-     */
-    function _checkSelector(bytes4 s) internal pure {
-        require(
-            s != IERC20.approve.selector &&
-                s != ERC20.increaseAllowance.selector &&
-                s != ERC20.decreaseAllowance.selector &&
-                s != IUniswapPermit2.approve.selector,
-            "banned selector"
-        );
     }
 }

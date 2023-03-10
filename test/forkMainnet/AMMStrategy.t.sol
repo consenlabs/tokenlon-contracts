@@ -29,15 +29,8 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
     address genericSwap = address(this);
     uint256 defaultDeadline = block.timestamp + 1;
     address[] tokenList = [USDC_ADDRESS, cUSDC_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
-    address[] ammList = [
-        WETH_ADDRESS,
-        UNISWAP_UNIVERSAL_ROUTER_ADDRESS,
-        SUSHISWAP_ADDRESS,
-        BALANCER_V2_ADDRESS,
-        CURVE_USDT_POOL_ADDRESS,
-        CURVE_TRICRYPTO2_POOL_ADDRESS
-    ];
-    bool[] usePermit2InAMMs = [false, true, false, false, false, false];
+    address[] ammList = [UNISWAP_UNIVERSAL_ROUTER_ADDRESS, SUSHISWAP_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS, CURVE_TRICRYPTO2_POOL_ADDRESS];
+    bool[] usePermit2InAMMs = [true, false, false, false, false];
     AMMStrategy ammStrategy;
 
     receive() external payable {}
@@ -49,36 +42,13 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         setBalance(genericSwap, tokenList, 100000);
         deal(genericSwap, 100 ether);
 
-        //vm.label(UNISWAP_UNIVERSAL_ROUTER_ADDRESS, "UniswapUniversalRouter");
+        vm.label(UNISWAP_UNIVERSAL_ROUTER_ADDRESS, "UniswapUniversalRouter");
         vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
         vm.label(CURVE_USDT_POOL_ADDRESS, "CurveUSDTPool");
         vm.label(BALANCER_V2_ADDRESS, "BalancerV2");
         vm.label(UNISWAP_PERMIT2_ADDRESS, "UniswapPermit2");
         vm.label(WETH_ADDRESS, "WETH");
         vm.label(CURVE_TRICRYPTO2_POOL_ADDRESS, "CurveTriCryptoPool");
-    }
-
-    function testCannotChangeTokenAllowanceInSwap() public {
-        address inputToken = Constant.ETH_ADDRESS;
-        address outputToken = DAI_ADDRESS;
-        uint256 inputAmount = 1 ether;
-        address[] memory path = new address[](2);
-        path[0] = WETH_ADDRESS; // use weth when swap
-        path[1] = outputToken;
-        // ETH -> WETH -> DAI
-        IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](3);
-        bytes memory payload0 = abi.encodeCall(IWETH.deposit, ());
-        operations[0] = IAMMStrategy.Operation(WETH_ADDRESS, inputAmount, payload0);
-        bytes memory payload1 = abi.encodeCall(
-            IUniswapRouterV2.swapExactTokensForTokens,
-            (inputAmount, uint256(0), path, address(ammStrategy), defaultDeadline)
-        );
-        operations[1] = IAMMStrategy.Operation(SUSHISWAP_ADDRESS, 0, payload1);
-        bytes memory payload2 = abi.encodeCall(IERC20.approve, (SUSHISWAP_ADDRESS, 0));
-        operations[2] = IAMMStrategy.Operation(WETH_ADDRESS, 0, payload2);
-        bytes memory data = abi.encode(operations);
-        vm.expectRevert("banned selector");
-        IStrategy(ammStrategy).executeStrategy{ value: inputAmount }(inputToken, outputToken, inputAmount, data);
     }
 
     function testAMMStrategyTradeWithMultiAMM() public {
@@ -145,14 +115,12 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         path[0] = WETH_ADDRESS; // use weth when swap
         path[1] = outputToken;
         // ETH -> WETH -> DAI
-        IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](2);
-        bytes memory payload0 = abi.encodeCall(IWETH.deposit, ());
-        operations[0] = IAMMStrategy.Operation(WETH_ADDRESS, inputAmount, payload0);
+        IAMMStrategy.Operation[] memory operations = new IAMMStrategy.Operation[](1);
         bytes memory payload1 = abi.encodeCall(
             IUniswapRouterV2.swapExactTokensForTokens,
             (inputAmount, uint256(0), path, address(ammStrategy), defaultDeadline)
         );
-        operations[1] = IAMMStrategy.Operation(SUSHISWAP_ADDRESS, 0, payload1);
+        operations[0] = IAMMStrategy.Operation(SUSHISWAP_ADDRESS, 0, payload1);
 
         bytes memory data = abi.encode(operations);
         _baseTest(inputToken, outputToken, inputAmount, data);
