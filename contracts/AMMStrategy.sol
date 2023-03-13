@@ -104,31 +104,29 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         Operation[] memory ops = abi.decode(data, (Operation[]));
         require(ops.length > 0, "empty operations");
         require(inputAmount > 0, "empty inputAmount");
-        uint256 balanceBefore = Asset.getBalance(outputToken, entryPoint);
         // wrap eth first
         if (Asset.isETH(inputToken)) {
             IWETH(weth).deposit{ value: inputAmount }();
         }
         for (uint256 i = 0; i < ops.length; ++i) {
             Operation memory op = ops[i];
-            require(ammMapping[op.dest], "invalid op dest");
             bytes4 selector = _call(op.dest, op.value, op.data);
             emit Action(op.dest, op.value, selector);
         }
         _transferToEntryPoint(outputToken);
-        uint256 balanceAfter = Asset.getBalance(outputToken, entryPoint);
-        emit Swapped(inputToken, inputAmount, outputToken, balanceAfter - balanceBefore);
     }
 
     /**
-     * @dev internal function of `approveTokens`.
-     * Used to permit.
+     * @dev internal function of `executeStrategy`.
+     * Allow arbitrary call to allowed amms in swap
      */
     function _call(
         address _dest,
         uint256 _value,
         bytes memory _data
     ) internal returns (bytes4 selector) {
+        require(ammMapping[_dest], "invalid op dest");
+
         if (_data.length >= 4) {
             selector = bytes4(_data);
         }
