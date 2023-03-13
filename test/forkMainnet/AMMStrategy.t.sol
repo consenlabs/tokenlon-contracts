@@ -11,7 +11,7 @@ import { AMMStrategy } from "contracts/AMMStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 
 import { IUniversalRouter } from "contracts/interfaces/IUniswapUniversalRouter.sol";
-import { Commands } from "contracts/libraries/UniswapCommands.sol";
+import { UniswapCommands } from "test/libraries/UniswapCommands.sol";
 import { IWETH } from "contracts/interfaces/IWeth.sol";
 import { IAMMStrategy } from "contracts/interfaces/IAMMStrategy.sol";
 import { IStrategy } from "contracts/interfaces/IStrategy.sol";
@@ -39,9 +39,10 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         ammStrategy = new AMMStrategy(strategyAdmin, entryPoint, WETH_ADDRESS, UNISWAP_PERMIT2_ADDRESS, ammList);
         vm.prank(strategyAdmin);
         ammStrategy.approveTokens(tokenList, ammList, usePermit2InAMMs, Constant.MAX_UINT);
-        setBalance(entryPoint, tokenList, 100000);
         deal(entryPoint, 100 ether);
-
+        for (uint256 i = 0; i < tokenList.length; i++) {
+            setERC20Balance(tokenList[i], entryPoint, 100);
+        }
         vm.label(UNISWAP_UNIVERSAL_ROUTER_ADDRESS, "UniswapUniversalRouter");
         vm.label(SUSHISWAP_ADDRESS, "Sushiswap");
         vm.label(CURVE_USDT_POOL_ADDRESS, "CurveUSDTPool");
@@ -155,7 +156,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         path[0] = inputToken;
         path[1] = outputToken;
 
-        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V2_SWAP_EXACT_IN)));
+        bytes memory commands = abi.encodePacked(bytes1(uint8(UniswapCommands.V2_SWAP_EXACT_IN)));
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(ammStrategy), inputAmount, 0, path, true);
 
@@ -191,7 +192,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         }
         encodePath = abi.encodePacked(encodePath, path[path.length - 1]);
 
-        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V3_SWAP_EXACT_IN)));
+        bytes memory commands = abi.encodePacked(bytes1(uint8(UniswapCommands.V3_SWAP_EXACT_IN)));
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(ammStrategy), inputAmount, 0, encodePath, true);
 
@@ -371,18 +372,6 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
 
         inputTokenBalance.assertChange(-int256(inputAmount));
         outputTokenBalance.assertChangeGt(0);
-    }
-
-    function setBalance(
-        address account,
-        address[] memory tokens,
-        uint256 amount
-    ) internal {
-        vm.startPrank(account);
-        for (uint256 i = 0; i < tokens.length; i++) {
-            setERC20Balance(tokens[i], account, amount);
-        }
-        vm.stopPrank();
     }
 
     function _buildBalancerV2Limits(
