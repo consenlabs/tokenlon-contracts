@@ -4,7 +4,7 @@ pragma solidity >=0.8.0;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { IStrategy } from "./IStrategy.sol";
-import { GeneralOrder } from "./IGeneralOrder.sol";
+import { Order } from "../libraries/Order.sol";
 
 interface IGenericSwap {
     error AlreadyFilled();
@@ -16,7 +16,7 @@ interface IGenericSwap {
     event Swap(address indexed maker, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
 
     struct GenericSwapData {
-        GeneralOrder order;
+        Order order;
         bytes strategyData;
     }
 

@@ -12,13 +12,14 @@ abstract contract TokenCollector {
 
     enum Source {
         Token,
-        UniswapPermit2
+        Permit2AllowanceTransfer,
+        Permit2SignatureTransfer
     }
 
-    address public immutable uniswapPermit2;
+    address public immutable permit2;
 
-    constructor(address _uniswapPermit2) {
-        uniswapPermit2 = _uniswapPermit2;
+    constructor(address _permit2) {
+        permit2 = _permit2;
     }
 
     function _collect(
@@ -30,15 +31,18 @@ abstract contract TokenCollector {
     ) internal {
         (Source src, bytes memory srcData) = abi.decode(data, (Source, bytes));
         if (src == Source.Token) {
-            return _collectFromToken(token, from, to, amount, srcData);
+            return _collectByToken(token, from, to, amount, srcData);
         }
-        if (src == Source.UniswapPermit2) {
-            return _collectFromUniswapPermit2(token, from, to, amount, srcData);
+        if (src == Source.Permit2AllowanceTransfer) {
+            return _collectByPermit2AllownaceTransfer(token, from, to, amount, srcData);
+        }
+        if (src == Source.Permit2SignatureTransfer) {
+            return _collectByPermit2SignatureTransfer(token, from, to, amount, srcData);
         }
         revert("TokenCollector: unknown token source");
     }
 
-    function _collectFromToken(
+    function _collectByToken(
         address token,
         address from,
         address to,
@@ -57,7 +61,7 @@ abstract contract TokenCollector {
         IERC20(token).safeTransferFrom(from, to, amount);
     }
 
-    function _collectFromUniswapPermit2(
+    function _collectByPermit2AllownaceTransfer(
         address token,
         address from,
         address to,
@@ -66,12 +70,32 @@ abstract contract TokenCollector {
     ) private {
         require(amount < uint256(type(uint160).max), "TokenCollector: permit2 amount too large");
         if (data.length > 0) {
-            (address owner, IUniswapPermit2.PermitSingle memory permit, bytes memory permitSig) = abi.decode(
-                data,
-                (address, IUniswapPermit2.PermitSingle, bytes)
-            );
-            IUniswapPermit2(uniswapPermit2).permit(owner, permit, permitSig);
+            (uint48 nonce, uint48 deadline, bytes memory permitSig) = abi.decode(data, (uint48, uint48, bytes));
+            IUniswapPermit2.PermitSingle memory permit = IUniswapPermit2.PermitSingle({
+                details: IUniswapPermit2.PermitDetails({ token: token, amount: uint160(amount), expiration: deadline, nonce: nonce }),
+                spender: address(this),
+                sigDeadline: uint256(deadline)
+            });
+            IUniswapPermit2(permit2).permit(from, permit, permitSig);
         }
-        IUniswapPermit2(uniswapPermit2).transferFrom(from, to, uint160(amount), token);
+        IUniswapPermit2(permit2).transferFrom(from, to, uint160(amount), token);
+    }
+
+    function _collectByPermit2SignatureTransfer(
+        address token,
+        address from,
+        address to,
+        uint256 amount,
+        bytes memory data
+    ) private {
+        require(data.length > 0, "TokenCollector: permit2 data cannot be empty");
+        (uint256 nonce, uint256 deadline, bytes memory permitSig) = abi.decode(data, (uint256, uint256, bytes));
+        IUniswapPermit2.PermitTransferFrom memory permit = IUniswapPermit2.PermitTransferFrom({
+            permitted: IUniswapPermit2.TokenPermissions({ token: token, amount: amount }),
+            nonce: nonce,
+            deadline: deadline
+        });
+        IUniswapPermit2.SignatureTransferDetails memory detail = IUniswapPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount });
+        IUniswapPermit2(permit2).permitTransferFrom(permit, detail, from, permitSig);
     }
 }
