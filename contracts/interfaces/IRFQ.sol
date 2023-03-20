@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-import { Order } from "../libraries/Order.sol";
+import { Offer } from "../libraries/Offer.sol";
 
 /// @title IRFQ Interface
 /// @author imToken Labs
 interface IRFQ {
-    error ExpiredOrder();
-    error FilledOrder();
+    error ExpiredOffer();
+    error FilledOffer();
     error ZeroAddress();
     error InvalidFeeFactor();
-    error InvalidTaker();
     error InvalidMsgValue();
     error InvalidSignature();
 
     event FilledRFQ(
-        bytes32 indexed rfqOrderHash,
+        bytes32 indexed offerHash,
         address indexed user,
         address indexed maker,
         address takerToken,
@@ -28,15 +27,17 @@ interface IRFQ {
     );
 
     struct RFQOrder {
-        Order order;
+        Offer offer;
+        address payable recipient;
         uint256 feeFactor;
     }
 
     function fillRFQ(
-        RFQOrder calldata rfqOrder,
+        Offer calldata offer,
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
-        bytes calldata takerTokenPermit
+        bytes calldata takerTokenPermit,
+        address payable recipient
     ) external payable;
 
     function fillRFQ(
@@ -44,7 +45,6 @@ interface IRFQ {
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
         bytes calldata takerTokenPermit,
-        bytes calldata takerSignature,
-        address taker
+        bytes calldata takerSignature
     ) external;
 }
