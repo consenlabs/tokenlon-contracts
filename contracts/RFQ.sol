@@ -125,7 +125,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             makerToken.transferTo(feeCollector, fee);
         }
 
-        _emitEvent(offerHash, _rfqOrder, makerTokenToTaker);
+        _emitFilledRFQEvent(offerHash, _rfqOrder, makerTokenToTaker);
     }
 
     function _getRFQOrderHash(RFQOrder memory rfqOrder) private pure returns (bytes32 offerHash, bytes32 orderHash) {
@@ -133,7 +133,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         orderHash = keccak256(abi.encode(RFQ_ORDER_TYPEHASH, offerHash, rfqOrder.recipient, rfqOrder.feeFactor));
     }
 
-    function _emitEvent(
+    function _emitFilledRFQEvent(
         bytes32 _offerHash,
         RFQOrder memory _rfqOrder,
         uint256 _makerTokenToTaker
