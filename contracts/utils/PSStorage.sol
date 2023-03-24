@@ -11,6 +11,7 @@ library PSStorage {
         address rfqAddr;
         address limitOrderAddr;
         address l2DepositAddr;
+        address rfqv2Addr;
     }
 
     /// @dev Get the storage bucket for this contract.
@@ -65,6 +66,27 @@ library RFQStorage {
     /// @dev Get the storage bucket for this contract.
     function getStorage() internal pure returns (Storage storage stor) {
         assert(STORAGE_SLOT == bytes32(uint256(keccak256("permanent.rfq.storage")) - 1));
+        bytes32 slot = STORAGE_SLOT;
+
+        // Dip into assembly to change the slot pointed to by the local
+        // variable `stor`.
+        // See https://solidity.readthedocs.io/en/v0.6.8/assembly.html?highlight=slot#access-to-external-variables-functions-and-libraries
+        assembly {
+            stor.slot := slot
+        }
+    }
+}
+
+library RFQv2Storage {
+    bytes32 private constant STORAGE_SLOT = 0x080acc42eac0383f7fcd5637f944d2e6a75ec0034a43cf5966b3e1fbe75ceddf;
+
+    struct Storage {
+        mapping(bytes32 => bool) filledOffer;
+    }
+
+    /// @dev Get the storage bucket for this contract.
+    function getStorage() internal pure returns (Storage storage stor) {
+        assert(STORAGE_SLOT == bytes32(uint256(keccak256("permanent.rfqv2.storage")) - 1));
         bytes32 slot = STORAGE_SLOT;
 
         // Dip into assembly to change the slot pointed to by the local

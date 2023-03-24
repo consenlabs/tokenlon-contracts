@@ -19,6 +19,8 @@ contract UserProxy is Multicall {
     event UpgradeAMMWrapper(address newAMMWrapper);
     event SetRFQStatus(bool enable);
     event UpgradeRFQ(address newRFQ);
+    event SetRFQv2Status(bool enable);
+    event UpgradeRFQv2(address newRFQv2);
     event SetLimitOrderStatus(bool enable);
     event UpgradeLimitOrder(address newLimitOrder);
     event SetL2DepositStatus(bool enable);
@@ -71,6 +73,14 @@ contract UserProxy is Multicall {
 
     function isRFQEnabled() public view returns (bool) {
         return RFQStorage.getStorage().isEnabled;
+    }
+
+    function rfqv2Addr() public view returns (address) {
+        return RFQv2Storage.getStorage().rfqv2Addr;
+    }
+
+    function isRFQv2Enabled() public view returns (bool) {
+        return RFQv2Storage.getStorage().isEnabled;
     }
 
     function limitOrderAddr() public view returns (address) {
@@ -126,6 +136,20 @@ contract UserProxy is Multicall {
 
         emit UpgradeRFQ(_newRFQAddr);
         emit SetRFQStatus(_enable);
+    }
+
+    function setRFQv2Status(bool _enable) public onlyOperator {
+        RFQv2Storage.getStorage().isEnabled = _enable;
+
+        emit SetRFQv2Status(_enable);
+    }
+
+    function upgradeRFQv2(address _newRFQv2Addr, bool _enable) external onlyOperator {
+        RFQv2Storage.getStorage().rfqv2Addr = _newRFQv2Addr;
+        RFQv2Storage.getStorage().isEnabled = _enable;
+
+        emit UpgradeRFQv2(_newRFQv2Addr);
+        emit SetRFQv2Status(_enable);
     }
 
     function setLimitOrderStatus(bool _enable) public onlyOperator {
@@ -193,6 +217,24 @@ contract UserProxy is Multicall {
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
         (bool callSucceed, ) = rfqAddr().call{ value: msg.value }(_payload);
+        if (!callSucceed) {
+            // revert with data from last call
+            assembly {
+                let ptr := mload(0x40)
+                let size := returndatasize()
+                returndatacopy(ptr, 0, size)
+                revert(ptr, size)
+            }
+        }
+    }
+
+    /**
+     * @dev proxy the call to RFQv2
+     */
+    function toRFQv2(bytes calldata _payload) external payable {
+        require(isRFQv2Enabled(), "UserProxy: RFQv2 is disabled");
+
+        (bool callSucceed, ) = rfqv2Addr().call{ value: msg.value }(_payload);
         if (!callSucceed) {
             // revert with data from last call
             assembly {
