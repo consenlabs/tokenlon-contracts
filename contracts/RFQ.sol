@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
@@ -16,7 +15,6 @@ import { Constant } from "./libraries/Constant.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
-    using SafeERC20 for IERC20;
     using Asset for address;
 
     bytes32 public constant RFQ_ORDER_TYPEHASH = 0xd892ee1e66e64edbc9ab4ac1029fd3e47c192878f45b70167887effdd6011b5a;
