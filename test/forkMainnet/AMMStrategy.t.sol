@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import { Test } from "forge-std/Test.sol";
 import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
-import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
+import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 
 import { Constant } from "contracts/libraries/Constant.sol";
 import { AMMStrategy } from "contracts/AMMStrategy.sol";
@@ -23,7 +23,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 contract AMMStrategyTest is Test, Tokens, BalanceUtil {
     using SafeERC20 for IERC20;
 
-    using BalanceSnapshot for BalanceSnapshot.Snapshot;
+    using BalanceSnapshot for Snapshot;
 
     address strategyAdmin = makeAddr("strategyAdmin");
     address entryPoint = address(this);
@@ -360,8 +360,8 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         uint256 inputAmount,
         bytes memory data
     ) internal {
-        BalanceSnapshot.Snapshot memory inputTokenBalance = BalanceSnapshot.take(entryPoint, inputToken);
-        BalanceSnapshot.Snapshot memory outputTokenBalance = BalanceSnapshot.take(entryPoint, outputToken);
+        Snapshot memory inputTokenBalance = BalanceSnapshot.take(entryPoint, inputToken);
+        Snapshot memory outputTokenBalance = BalanceSnapshot.take(entryPoint, outputToken);
 
         if (inputToken == Constant.ETH_ADDRESS) {
             IStrategy(ammStrategy).executeStrategy{ value: inputAmount }(inputToken, outputToken, inputAmount, data);

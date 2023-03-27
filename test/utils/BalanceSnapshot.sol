@@ -4,13 +4,13 @@ pragma solidity ^0.8.0;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 
-library BalanceSnapshot {
-    struct Snapshot {
-        address owner;
-        IERC20 token;
-        int256 balanceBefore; // Assume max balance is type(int256).max
-    }
+struct Snapshot {
+    address owner;
+    IERC20 token;
+    int256 balanceBefore; // Assume max balance is type(int256).max
+}
 
+library BalanceSnapshot {
     function take(address owner, address token) internal view returns (Snapshot memory) {
         uint256 balanceBefore;
         if (token == Constant.ETH_ADDRESS) {

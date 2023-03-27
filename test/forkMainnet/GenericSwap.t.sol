@@ -9,7 +9,7 @@ import { GenericSwap } from "contracts/GenericSwap.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { UniswapStrategy } from "contracts/UniswapStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
-import { Order, getOrderHash } from "contracts/libraries/Order.sol";
+import { Offer, getOfferHash } from "contracts/libraries/Offer.sol";
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 import { IStrategy } from "contracts/interfaces/IStrategy.sol";
@@ -35,13 +35,21 @@ contract MockStrategy is IStrategy, Test {
 }
 
 contract GenericSwapTest is Test, Tokens, BalanceUtil {
-    event Swap(address indexed maker, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
+    event Swap(
+        address indexed maker,
+        address indexed taker,
+        address indexed recipient,
+        address inputToken,
+        uint256 inputAmount,
+        address outputToken,
+        uint256 outputAmount
+    );
 
     address strategyAdmin = makeAddr("strategyAdmin");
     uint256 takerPrivateKey = uint256(1);
     address taker = vm.addr(takerPrivateKey);
     uint256 defaultExpiry = block.timestamp + 1;
-    uint256 defaultSalt = 1234;
+    bytes defaultTakerPermit;
     UniswapStrategy uniswapStrategy;
     GenericSwap genericSwap;
     IGenericSwap.GenericSwapData gsData;
@@ -59,53 +67,59 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         defaultPath[1] = CRV_ADDRESS;
         bytes memory makerSpecificData = abi.encode(defaultExpiry, defaultPath);
         bytes memory swapData = abi.encode(UNISWAP_V2_ADDRESS, makerSpecificData);
-        bytes memory defaultInputPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
+        defaultTakerPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
 
         deal(taker, 100 ether);
         setEOABalanceAndApprove(taker, address(genericSwap), tokens, 100000);
 
         gsData = IGenericSwap.GenericSwapData({
-            order: Order({
-                maker: payable(address(uniswapStrategy)),
+            offer: Offer({
                 taker: taker,
-                inputToken: USDT_ADDRESS,
-                inputTokenPermit: defaultInputPermit,
-                outputToken: CRV_ADDRESS,
-                outputTokenPermit: bytes(""),
-                inputAmount: 10 * 1e6,
-                outputAmount: 0, // to be filled later
-                minOutputAmount: 0, // to be filled later
-                recipient: payable(taker),
-                expiry: defaultExpiry,
-                salt: defaultSalt
+                maker: payable(address(uniswapStrategy)),
+                takerToken: USDT_ADDRESS,
+                takerTokenAmount: 10 * 1e6,
+                makerToken: CRV_ADDRESS,
+                makerTokenAmount: 0, // to be filled later
+                minMakerTokenAmount: 0, // to be filled later
+                expiry: 0, // not used in GS
+                salt: 0 // not used in GS
             }),
+            recipient: payable(taker),
             strategyData: swapData
         });
 
         IUniswapRouterV2 router = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
-        uint256[] memory amounts = router.getAmountsOut(gsData.order.inputAmount, defaultPath);
+        uint256[] memory amounts = router.getAmountsOut(gsData.offer.takerTokenAmount, defaultPath);
         uint256 expectedOut = amounts[amounts.length - 1];
-        // update order of gsData
-        gsData.order.outputAmount = expectedOut;
-        gsData.order.minOutputAmount = (expectedOut * 95) / 100; // default 5% slippage tolerance
+        // update offer of gsData
+        gsData.offer.makerTokenAmount = expectedOut;
+        gsData.offer.minMakerTokenAmount = (expectedOut * 95) / 100; // default 5% slippage tolerance
     }
 
     function testGenericSwap() public {
         vm.expectEmit(true, true, true, true);
-        emit Swap(taker, gsData.order.inputToken, gsData.order.outputToken, gsData.order.inputAmount, gsData.order.outputAmount);
+        emit Swap(
+            gsData.offer.maker,
+            gsData.offer.taker,
+            gsData.offer.taker,
+            gsData.offer.takerToken,
+            gsData.offer.takerTokenAmount,
+            gsData.offer.makerToken,
+            gsData.offer.makerTokenAmount
+        );
 
         vm.prank(taker);
-        genericSwap.executeSwap(gsData);
+        genericSwap.executeSwap(gsData, defaultTakerPermit);
     }
 
     function testGenericSwapWithInvalidETHInput() public {
         // change input token as ETH and update amount
-        gsData.order.inputToken = Constant.ETH_ADDRESS;
-        gsData.order.inputAmount = 1 ether;
+        gsData.offer.takerToken = Constant.ETH_ADDRESS;
+        gsData.offer.takerTokenAmount = 1 ether;
 
         vm.prank(taker);
         vm.expectRevert(IGenericSwap.InvalidMsgValue.selector);
-        genericSwap.executeSwap{ value: 2 * gsData.order.inputAmount }(gsData);
+        genericSwap.executeSwap{ value: 2 * gsData.offer.takerTokenAmount }(gsData, defaultTakerPermit);
     }
 
     function testGenericSwapInsufficientOutput() public {
@@ -113,16 +127,16 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         mockStrategy.setReturnToken(false);
 
         // set mockStrategy as maker
-        gsData.order.maker = payable(address(mockStrategy));
+        gsData.offer.maker = payable(address(mockStrategy));
 
         vm.prank(taker);
         vm.expectRevert(IGenericSwap.InsufficientOutput.selector);
-        genericSwap.executeSwap(gsData);
+        genericSwap.executeSwap(gsData, defaultTakerPermit);
     }
 
     function testGenericSwapRelayed() public {
         bytes memory takerSig = _signGenericSwap(takerPrivateKey, gsData);
-        genericSwap.executeSwap(gsData, taker, takerSig);
+        genericSwap.executeSwap(gsData, defaultTakerPermit, taker, takerSig);
     }
 
     function testSwapRelayedWithInvalidSig() public {
@@ -131,15 +145,15 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
 
         vm.expectRevert(IGenericSwap.InvalidSignature.selector);
         // submit with user address as expected signer
-        genericSwap.executeSwap(gsData, taker, randomSig);
+        genericSwap.executeSwap(gsData, defaultTakerPermit, taker, randomSig);
     }
 
     function testCannotReplayGenericSwapSig() public {
         bytes memory takerSig = _signGenericSwap(takerPrivateKey, gsData);
-        genericSwap.executeSwap(gsData, taker, takerSig);
+        genericSwap.executeSwap(gsData, defaultTakerPermit, taker, takerSig);
 
         vm.expectRevert(IGenericSwap.AlreadyFilled.selector);
-        genericSwap.executeSwap(gsData, taker, takerSig);
+        genericSwap.executeSwap(gsData, defaultTakerPermit, taker, takerSig);
     }
 
     function _signGenericSwap(uint256 _privateKey, IGenericSwap.GenericSwapData memory _swapData) internal view returns (bytes memory sig) {
@@ -150,8 +164,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
     }
 
     function _getGSDataHash(IGenericSwap.GenericSwapData memory _gsData) private view returns (bytes32) {
-        // FIXME to confirm with ethers.js
-        bytes32 orderHash = getOrderHash(_gsData.order);
-        return keccak256(abi.encode(genericSwap.GS_DATA_TYPEHASH(), orderHash, _gsData.strategyData));
+        bytes32 offerHash = getOfferHash(_gsData.offer);
+        return keccak256(abi.encode(genericSwap.GS_DATA_TYPEHASH(), offerHash, _gsData.recipient, _gsData.strategyData));
     }
 }
