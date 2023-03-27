@@ -10,15 +10,13 @@ import { EIP712 } from "./abstracts/EIP712.sol";
 import { IWETH } from "./interfaces/IWeth.sol";
 import { IRFQ } from "./interfaces/IRFQ.sol";
 import { Asset } from "./libraries/Asset.sol";
-import { Offer, getOfferHash } from "./libraries/Offer.sol";
+import { Offer } from "./libraries/Offer.sol";
+import { RFQOrder, getRFQOrderHash } from "./libraries/RFQOrder.sol";
 import { Constant } from "./libraries/Constant.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     using Asset for address;
-
-    bytes32 public constant RFQ_ORDER_TYPEHASH = 0xd892ee1e66e64edbc9ab4ac1029fd3e47c192878f45b70167887effdd6011b5a;
-    // keccak256(abi.encodePacked("RFQOrder(Offer offer,address recipient,uint256 feeFactor)", OFFER_TYPESTRING));
 
     IWETH public immutable weth;
     address payable public feeCollector;
@@ -84,7 +82,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         if (_rfqOrder.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
 
         // check if the offer is available to be filled
-        (bytes32 offerHash, bytes32 rfqOrderHash) = _getRFQOrderHash(_rfqOrder);
+        (bytes32 offerHash, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
         if (filledOffer[offerHash]) revert FilledOffer();
         filledOffer[offerHash] = true;
 
@@ -124,11 +122,6 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         }
 
         _emitFilledRFQEvent(offerHash, _rfqOrder, makerTokenToTaker);
-    }
-
-    function _getRFQOrderHash(RFQOrder memory rfqOrder) private pure returns (bytes32 offerHash, bytes32 orderHash) {
-        offerHash = getOfferHash(rfqOrder.offer);
-        orderHash = keccak256(abi.encode(RFQ_ORDER_TYPEHASH, offerHash, rfqOrder.recipient, rfqOrder.feeFactor));
     }
 
     function _emitFilledRFQEvent(

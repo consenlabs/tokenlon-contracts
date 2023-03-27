@@ -11,6 +11,7 @@ import { IRFQ } from "contracts/interfaces/IRFQ.sol";
 import { IWETH } from "contracts/interfaces/IWeth.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { Offer, getOfferHash } from "contracts/libraries/Offer.sol";
+import { RFQOrder, getRFQOrderHash } from "contracts/libraries/RFQOrder.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 
 contract RFQTest is Test, Tokens, BalanceUtil {
@@ -129,7 +130,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.makerToken });
 
-        IRFQ.RFQOrder memory rfqOrder = IRFQ.RFQOrder({ offer: defaultOffer, recipient: payable(recipient), feeFactor: defaultFeeFactor });
+        RFQOrder memory rfqOrder = RFQOrder({ offer: defaultOffer, recipient: payable(recipient), feeFactor: defaultFeeFactor });
         bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder);
 
         uint256 fee = (defaultOffer.makerTokenAmount * rfqOrder.feeFactor) / Constant.BPS_MAX;
@@ -160,7 +161,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
     }
 
     function testCannotFillRFQByIncorrectTakerSig() public {
-        IRFQ.RFQOrder memory rfqOrder = IRFQ.RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: defaultFeeFactor });
+        RFQOrder memory rfqOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: defaultFeeFactor });
         uint256 randomPrivateKey = 5677;
         bytes memory randomSig = _signRFQOrder(randomPrivateKey, rfqOrder);
 
@@ -169,7 +170,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
     }
 
     function testCannotFillWithInvalidFeeFactor() public {
-        IRFQ.RFQOrder memory newRFQOrder = IRFQ.RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: Constant.BPS_MAX + 1 });
+        RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: Constant.BPS_MAX + 1 });
         bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder);
 
         vm.expectRevert(IRFQ.InvalidFeeFactor.selector);
@@ -183,15 +184,10 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         return abi.encodePacked(r, s, v);
     }
 
-    function _signRFQOrder(uint256 _privateKey, IRFQ.RFQOrder memory _rfqOrder) internal view returns (bytes memory sig) {
-        bytes32 rfqOrderHash = _getRFQOrderHash(_rfqOrder);
+    function _signRFQOrder(uint256 _privateKey, RFQOrder memory _rfqOrder) internal view returns (bytes memory sig) {
+        (, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOrderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
-    }
-
-    function _getRFQOrderHash(IRFQ.RFQOrder memory rfqOrder) private view returns (bytes32) {
-        bytes32 offerHash = getOfferHash(rfqOrder.offer);
-        return keccak256(abi.encode(rfq.RFQ_ORDER_TYPEHASH(), offerHash, rfqOrder.recipient, rfqOrder.feeFactor));
     }
 }
