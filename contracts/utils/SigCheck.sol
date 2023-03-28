@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.7.6;
 
 import { ECDSA } from "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";

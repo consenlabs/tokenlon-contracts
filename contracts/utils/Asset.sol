@@ -28,8 +28,10 @@ library Asset {
         uint256 amount
     ) internal {
         if (isETH(asset)) {
-            // FIXME replace with fixed gas to solve reentrancy issue
-            Address.sendValue(to, amount);
+            // @dev forward all available gas and may cause reentrancy
+            require(address(this).balance >= amount, "insufficient balance");
+            (bool success, ) = to.call{ value: amount }("");
+            require(success, "unable to send ETH");
         } else {
             IERC20(asset).safeTransfer(to, amount);
         }

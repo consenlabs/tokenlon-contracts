@@ -56,9 +56,9 @@ library RFQv2Storage {
 
     /// @dev Storage bucket for proxy contract.
     struct Storage {
-        // The address of the RFQ contract.
+        // The address of the RFQv2 contract.
         address rfqv2Addr;
-        // Is RFQ enabled
+        // Is RFQv2 enabled
         bool isEnabled;
     }
 
