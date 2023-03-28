@@ -5,6 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
+import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { GenericSwap } from "contracts/GenericSwap.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { UniswapStrategy } from "contracts/UniswapStrategy.sol";
@@ -35,6 +36,8 @@ contract MockStrategy is IStrategy, Test {
 }
 
 contract GenericSwapTest is Test, Tokens, BalanceUtil {
+    using BalanceSnapshot for Snapshot;
+
     event Swap(
         address indexed maker,
         address indexed taker,
@@ -97,6 +100,9 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
     }
 
     function testGenericSwap() public {
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: gsData.offer.taker, token: gsData.offer.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: gsData.offer.taker, token: gsData.offer.makerToken });
+
         vm.expectEmit(true, true, true, true);
         emit Swap(
             gsData.offer.maker,
@@ -110,6 +116,10 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
 
         vm.prank(taker);
         genericSwap.executeSwap(gsData, defaultTakerPermit);
+
+        takerTakerToken.assertChange(-int256(gsData.offer.takerTokenAmount));
+        // the makerTokenAmount in the offer is the exact quote from strategy
+        takerMakerToken.assertChange(int256(gsData.offer.makerTokenAmount));
     }
 
     function testGenericSwapWithInvalidETHInput() public {
