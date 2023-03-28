@@ -6,9 +6,9 @@ import { StrategySharedSetup } from "test/utils/StrategySharedSetup.sol";
 import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { RFQv2 } from "contracts/RFQv2.sol";
-import { IRFQv2 } from "contracts/interfaces/IRFQv2.sol";
 import { TokenCollector } from "contracts/utils/TokenCollector.sol";
 import { Offer, getOfferHash } from "contracts/utils/Offer.sol";
+import { RFQOrder, getRFQOrderHash } from "contracts/utils/RFQOrder.sol";
 import { LibConstant } from "contracts/utils/LibConstant.sol";
 
 contract RFQTest is StrategySharedSetup {
@@ -41,7 +41,7 @@ contract RFQTest is StrategySharedSetup {
     bytes defaultMakerSig;
     bytes defaulttakerSig;
     Offer defaultOffer;
-    IRFQv2.RFQOrder defaultOrder;
+    RFQOrder defaultOrder;
     RFQv2 rfq;
 
     function setUp() public {
@@ -68,7 +68,7 @@ contract RFQTest is StrategySharedSetup {
 
         defaultMakerSig = _signOffer(makerPrivateKey, defaultOffer);
 
-        defaultOrder = IRFQv2.RFQOrder({ offer: defaultOffer, recipient: payable(recipient), feeFactor: defaultFeeFactor });
+        defaultOrder = RFQOrder({ offer: defaultOffer, recipient: payable(recipient), feeFactor: defaultFeeFactor });
         defaulttakerSig = _signRFQOrder(takerPrivateKey, defaultOrder);
 
         vm.label(taker, "taker");
@@ -180,7 +180,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testCannotFillRFQByIncorrectTakerSig() public {
-        IRFQv2.RFQOrder memory rfqOrder = IRFQv2.RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: defaultFeeFactor });
+        RFQOrder memory rfqOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: defaultFeeFactor });
         uint256 randomPrivateKey = 5677;
         bytes memory randomSig = _signRFQOrder(randomPrivateKey, rfqOrder);
 
@@ -190,11 +190,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testCannotFillWithInvalidFeeFactor() public {
-        IRFQv2.RFQOrder memory newRFQOrder = IRFQv2.RFQOrder({
-            offer: defaultOffer,
-            recipient: payable(defaultOffer.taker),
-            feeFactor: LibConstant.BPS_MAX + 1
-        });
+        RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: LibConstant.BPS_MAX + 1 });
         bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder);
 
         vm.expectRevert("invalid fee factor");
@@ -209,20 +205,15 @@ contract RFQTest is StrategySharedSetup {
         return abi.encodePacked(r, s, v);
     }
 
-    function _signRFQOrder(uint256 _privateKey, IRFQv2.RFQOrder memory _rfqOrder) internal view returns (bytes memory sig) {
-        bytes32 rfqOrderHash = _getRFQOrderHash(_rfqOrder);
+    function _signRFQOrder(uint256 _privateKey, RFQOrder memory _rfqOrder) internal view returns (bytes memory sig) {
+        (, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOrderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function _getRFQOrderHash(IRFQv2.RFQOrder memory rfqOrder) private view returns (bytes32) {
-        bytes32 offerHash = getOfferHash(rfqOrder.offer);
-        return keccak256(abi.encode(rfq.RFQ_ORDER_TYPEHASH(), offerHash, rfqOrder.recipient, rfqOrder.feeFactor));
-    }
-
     function _genFillRFQPayload(
-        IRFQv2.RFQOrder memory _rfqOrder,
+        RFQOrder memory _rfqOrder,
         bytes memory _makerSignature,
         bytes memory _makerTokenPermit,
         bytes memory _takerTokenPermit,

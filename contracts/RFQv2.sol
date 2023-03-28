@@ -9,20 +9,17 @@ import { TokenCollector } from "./utils/TokenCollector.sol";
 import { BaseLibEIP712 } from "./utils/BaseLibEIP712.sol";
 import { Asset } from "./utils/Asset.sol";
 import { Offer, getOfferHash } from "./utils/Offer.sol";
+import { RFQOrder, getRFQOrderHash } from "./utils/RFQOrder.sol";
 import { LibConstant } from "./utils/LibConstant.sol";
 import { SigCheck } from "./utils/SigCheck.sol";
 import { StrategyBase } from "./utils/StrategyBase.sol";
-import { IWETH } from "./interfaces/IWeth.sol";
 import { IRFQv2 } from "./interfaces/IRFQv2.sol";
 
-/// @title RFQ Contract
+/// @title RFQv2 Contract
 /// @author imToken Labs
 contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, BaseLibEIP712 {
     using SafeMath for uint256;
     using Asset for address;
-
-    bytes32 public constant RFQ_ORDER_TYPEHASH = 0xd892ee1e66e64edbc9ab4ac1029fd3e47c192878f45b70167887effdd6011b5a;
-    // keccak256(abi.encodePacked("RFQOrder(Offer offer,address recipient,uint256 feeFactor)", OFFER_TYPESTRING));
 
     address payable public feeCollector;
 
@@ -77,7 +74,7 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, BaseLibEIP712 {
         require(_rfqOrder.feeFactor <= LibConstant.BPS_MAX, "invalid fee factor");
 
         // check if the offer is available to be filled
-        (bytes32 offerHash, bytes32 rfqOrderHash) = _getRFQOrderHash(_rfqOrder);
+        (bytes32 offerHash, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
 
         // check and set
         permStorage.setRFQOfferFilled(offerHash);
@@ -110,19 +107,15 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, BaseLibEIP712 {
             makerToken = LibConstant.ETH_ADDRESS;
         }
         uint256 makerTokenToTaker = _offer.makerTokenAmount.sub(fee);
-        makerToken.transferTo(_rfqOrder.recipient, makerTokenToTaker);
 
         // collect fee if present
         if (fee > 0) {
             makerToken.transferTo(feeCollector, fee);
         }
 
-        _emitFilledRFQEvent(offerHash, _rfqOrder, makerTokenToTaker);
-    }
+        makerToken.transferTo(_rfqOrder.recipient, makerTokenToTaker);
 
-    function _getRFQOrderHash(RFQOrder memory rfqOrder) private pure returns (bytes32 offerHash, bytes32 orderHash) {
-        offerHash = getOfferHash(rfqOrder.offer);
-        orderHash = keccak256(abi.encode(RFQ_ORDER_TYPEHASH, offerHash, rfqOrder.recipient, rfqOrder.feeFactor));
+        _emitFilledRFQEvent(offerHash, _rfqOrder, makerTokenToTaker);
     }
 
     function _emitFilledRFQEvent(
