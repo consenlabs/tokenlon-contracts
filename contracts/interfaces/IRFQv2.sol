@@ -2,9 +2,9 @@
 pragma solidity >=0.7.0;
 pragma abicoder v2;
 
-import { Offer } from "../utils/Offer.sol";
+import { RFQOrder } from "../utils/RFQOrder.sol";
 
-/// @title IRFQ Interface
+/// @title IRFQv2 Interface
 /// @author imToken Labs
 interface IRFQv2 {
     event FilledRFQ(
@@ -19,12 +19,6 @@ interface IRFQv2 {
         uint256 settleAmount,
         uint256 feeFactor
     );
-
-    struct RFQOrder {
-        Offer offer;
-        address payable recipient;
-        uint256 feeFactor;
-    }
 
     function fillRFQ(
         RFQOrder calldata rfqOrder,
