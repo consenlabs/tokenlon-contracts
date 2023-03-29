@@ -29,6 +29,10 @@ interface IUniswapPermit2 {
         uint256 sigDeadline;
     }
 
+    /// @notice Returns the domain separator for the current chain.
+    /// @dev Uses cached version if chainid and address are unchanged from construction.
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+
     /// @notice Permit a spender to a given amount of the owners token via the owner's EIP-712 signature
     /// @dev May fail if the owner's nonce was invalidated in-flight by invalidateNonce
     /// @param owner The owner of the tokens being approved
@@ -52,6 +56,20 @@ interface IUniswapPermit2 {
         address to,
         uint160 amount,
         address token
+    ) external;
+
+    /// @notice Approves the spender to use up to amount of the specified token up until the expiration
+    /// @param token The token to approve
+    /// @param spender The spender address to approve
+    /// @param amount The approved amount of the token
+    /// @param expiration The timestamp at which the approval is no longer valid
+    /// @dev The packed allowance also holds a nonce, which will stay unchanged in approve
+    /// @dev Setting amount to type(uint160).max sets an unlimited approval
+    function approve(
+        address token,
+        address spender,
+        uint160 amount,
+        uint48 expiration
     ) external;
 
     /*

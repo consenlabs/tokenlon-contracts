@@ -9,7 +9,6 @@ import "contracts/interfaces/IERC1271Wallet.sol";
 
 contract MockERC1271Wallet is IERC1271Wallet {
     using SafeERC20 for IERC20;
-    using LibBytes for bytes;
 
     // bytes4(keccak256("isValidSignature(bytes,bytes)"))
     bytes4 internal constant ERC1271_MAGICVALUE = 0x20c13b0b;
