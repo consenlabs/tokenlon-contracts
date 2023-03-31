@@ -5,11 +5,13 @@ pragma abicoder v2;
 import { StrategySharedSetup } from "test/utils/StrategySharedSetup.sol";
 import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
+import { getPermitTransferFromStructHash, encodePermitTransferFromData } from "test/utils/Permit2.sol";
 import { RFQv2 } from "contracts/RFQv2.sol";
 import { TokenCollector } from "contracts/utils/TokenCollector.sol";
 import { Offer, getOfferHash } from "contracts/utils/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "contracts/utils/RFQOrder.sol";
 import { LibConstant } from "contracts/utils/LibConstant.sol";
+import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 
 contract RFQTest is StrategySharedSetup {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
@@ -40,6 +42,7 @@ contract RFQTest is StrategySharedSetup {
     bytes defaultPermit;
     bytes defaultMakerSig;
     bytes defaulttakerSig;
+    IUniswapPermit2 permit2 = IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS);
     Offer defaultOffer;
     RFQOrder defaultOrder;
     RFQv2 rfq;
@@ -107,6 +110,7 @@ contract RFQTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.maker, token: defaultOffer.makerToken });
         BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.takerToken });
         BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.makerToken });
+        BalanceSnapshot.Snapshot memory feeCollectorMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOffer.makerToken });
 
         uint256 fee = (defaultOffer.makerTokenAmount * defaultOrder.feeFactor) / LibConstant.BPS_MAX;
         uint256 amountAfterFee = defaultOffer.makerTokenAmount - fee;
@@ -134,6 +138,7 @@ contract RFQTest is StrategySharedSetup {
         recTakerToken.assertChange(int256(0));
         // recipient gets less than original makerTokenAmount because of the fee for relayer
         recMakerToken.assertChange(int256(amountAfterFee));
+        feeCollectorMakerToken.assertChange(int256(fee));
     }
 
     function testFillRFQWithMakerDirectlyApprove() public {
@@ -151,6 +156,31 @@ contract RFQTest is StrategySharedSetup {
         bytes memory tokenPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
 
         bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, tokenPermit, defaulttakerSig);
+        userProxy.toRFQv2(payload);
+    }
+
+    function testFillRFQWithPermit2() public {
+        // maker and taker approve tokens to Permit2
+        approveERC20(tokens, taker, address(permit2));
+        approveERC20(tokens, maker, address(permit2));
+
+        IUniswapPermit2.PermitTransferFrom memory takerPermit = IUniswapPermit2.PermitTransferFrom({
+            permitted: IUniswapPermit2.TokenPermissions({ token: defaultOffer.takerToken, amount: defaultOffer.takerTokenAmount }),
+            nonce: 0,
+            deadline: block.timestamp + 1 days
+        });
+        bytes memory takerPermitSig = _signPermitTransferFrom(takerPrivateKey, takerPermit, address(rfq));
+        bytes memory takerPermitData = encodePermitTransferFromData(takerPermit, takerPermitSig);
+
+        IUniswapPermit2.PermitTransferFrom memory makerPermit = IUniswapPermit2.PermitTransferFrom({
+            permitted: IUniswapPermit2.TokenPermissions({ token: defaultOffer.makerToken, amount: defaultOffer.makerTokenAmount }),
+            nonce: 0,
+            deadline: block.timestamp + 1 days
+        });
+        bytes memory makerPermitSig = _signPermitTransferFrom(makerPrivateKey, makerPermit, address(rfq));
+        bytes memory makerPermitData = encodePermitTransferFromData(makerPermit, makerPermitSig);
+
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, makerPermitData, takerPermitData, defaulttakerSig);
         userProxy.toRFQv2(payload);
     }
 
@@ -198,14 +228,14 @@ contract RFQTest is StrategySharedSetup {
         userProxy.toRFQv2(payload);
     }
 
-    function _signOffer(uint256 _privateKey, Offer memory _offer) internal view returns (bytes memory sig) {
+    function _signOffer(uint256 _privateKey, Offer memory _offer) private view returns (bytes memory sig) {
         bytes32 offerHash = getOfferHash(_offer);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), offerHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function _signRFQOrder(uint256 _privateKey, RFQOrder memory _rfqOrder) internal view returns (bytes memory sig) {
+    function _signRFQOrder(uint256 _privateKey, RFQOrder memory _rfqOrder) private view returns (bytes memory sig) {
         (, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOrderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
@@ -218,7 +248,18 @@ contract RFQTest is StrategySharedSetup {
         bytes memory _makerTokenPermit,
         bytes memory _takerTokenPermit,
         bytes memory _takerSignature
-    ) internal view returns (bytes memory payload) {
+    ) private view returns (bytes memory payload) {
         return abi.encodeWithSelector(rfq.fillRFQ.selector, _rfqOrder, _makerSignature, _makerTokenPermit, _takerTokenPermit, _takerSignature);
+    }
+
+    function _signPermitTransferFrom(
+        uint256 privateKey,
+        IUniswapPermit2.PermitTransferFrom memory permit,
+        address spender
+    ) private view returns (bytes memory) {
+        bytes32 permitHash = getPermitTransferFromStructHash(permit, spender);
+        bytes32 EIP712SignDigest = getEIP712Hash(permit2.DOMAIN_SEPARATOR(), permitHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
+        return abi.encodePacked(r, s, v);
     }
 }
