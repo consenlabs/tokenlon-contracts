@@ -7,6 +7,7 @@ interface IPermanentStorage {
     event SetPermission(bytes32 storageId, address role, bool enabled);
     event UpgradeAMMWrapper(address newAMMWrapper);
     event UpgradeRFQ(address newRFQ);
+    event UpgradeRFQv2(address newRFQv2);
     event UpgradeLimitOrder(address newLimitOrder);
     event UpgradeL2Deposit(address newL2Deposit);
     event UpgradeWETH(address newWETH);
@@ -18,6 +19,8 @@ interface IPermanentStorage {
     function ammWrapperAddr() external view returns (address);
 
     function rfqAddr() external view returns (address);
+
+    function rfqv2Addr() external view returns (address);
 
     function limitOrderAddr() external view returns (address);
 
@@ -50,6 +53,8 @@ interface IPermanentStorage {
 
     function isRFQTransactionSeen(bytes32 _transactionHash) external view returns (bool);
 
+    function isRFQOfferFilled(bytes32 _offerHash) external view returns (bool);
+
     function isLimitOrderTransactionSeen(bytes32 _transactionHash) external view returns (bool);
 
     function isLimitOrderAllowFillSeen(bytes32 _allowFillHash) external view returns (bool);
@@ -61,6 +66,8 @@ interface IPermanentStorage {
     function setAMMTransactionSeen(bytes32 _transactionHash) external;
 
     function setRFQTransactionSeen(bytes32 _transactionHash) external;
+
+    function setRFQOfferFilled(bytes32 _offerHash) external;
 
     function setLimitOrderTransactionSeen(bytes32 _transactionHash) external;
 

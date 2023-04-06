@@ -51,6 +51,31 @@ library RFQStorage {
     }
 }
 
+library RFQv2Storage {
+    bytes32 private constant STORAGE_SLOT = 0xd5f1768ede616e352f32123fd6fe01064898ae4e55a2678c79b8ad79680ff744;
+
+    /// @dev Storage bucket for proxy contract.
+    struct Storage {
+        // The address of the RFQv2 contract.
+        address rfqv2Addr;
+        // Is RFQv2 enabled
+        bool isEnabled;
+    }
+
+    /// @dev Get the storage bucket for this contract.
+    function getStorage() internal pure returns (Storage storage stor) {
+        assert(STORAGE_SLOT == bytes32(uint256(keccak256("userproxy.rfqv2.storage")) - 1));
+        bytes32 slot = STORAGE_SLOT;
+
+        // Dip into assembly to change the slot pointed to by the local
+        // variable `stor`.
+        // See https://solidity.readthedocs.io/en/v0.6.8/assembly.html?highlight=slot#access-to-external-variables-functions-and-libraries
+        assembly {
+            stor.slot := slot
+        }
+    }
+}
+
 library LimitOrderStorage {
     bytes32 private constant STORAGE_SLOT = 0xf1a59a985b4002cdf0db464f05bed7182ee06372a999d820ea1883b8bf067ce5;
 

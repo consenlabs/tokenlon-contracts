@@ -59,7 +59,12 @@ contract PermanentStorage is IPermanentStorage {
     ) external onlyOperator {
         if (_enabled) {
             require(
-                (_role == operator) || (_role == ammWrapperAddr()) || (_role == rfqAddr()) || (_role == limitOrderAddr()) || (_role == l2DepositAddr()),
+                (_role == operator) ||
+                    (_role == ammWrapperAddr()) ||
+                    (_role == rfqAddr()) ||
+                    (_role == rfqv2Addr()) ||
+                    (_role == limitOrderAddr()) ||
+                    (_role == l2DepositAddr()),
                 "PermanentStorage: not a valid role"
             );
         }
@@ -94,6 +99,10 @@ contract PermanentStorage is IPermanentStorage {
 
     function rfqAddr() public view override returns (address) {
         return PSStorage.getStorage().rfqAddr;
+    }
+
+    function rfqv2Addr() public view override returns (address) {
+        return PSStorage.getStorage().rfqv2Addr;
     }
 
     function limitOrderAddr() public view override returns (address) {
@@ -159,6 +168,10 @@ contract PermanentStorage is IPermanentStorage {
         return RFQStorage.getStorage().transactionSeen[_transactionHash];
     }
 
+    function isRFQOfferFilled(bytes32 _offerHash) external view override returns (bool) {
+        return RFQv2Storage.getStorage().filledOffer[_offerHash];
+    }
+
     function isLimitOrderTransactionSeen(bytes32 _transactionHash) external view override returns (bool) {
         return LimitOrderStorage.getStorage().transactionSeen[_transactionHash];
     }
@@ -190,6 +203,12 @@ contract PermanentStorage is IPermanentStorage {
         PSStorage.getStorage().rfqAddr = _newRFQ;
 
         emit UpgradeRFQ(_newRFQ);
+    }
+
+    function upgradeRFQv2(address _newRFQv2) external onlyOperator {
+        PSStorage.getStorage().rfqv2Addr = _newRFQv2;
+
+        emit UpgradeRFQv2(_newRFQv2);
     }
 
     /// @dev Update Limit Order contract address.
@@ -248,6 +267,11 @@ contract PermanentStorage is IPermanentStorage {
     function setRFQTransactionSeen(bytes32 _transactionHash) external override isPermitted(transactionSeenStorageId, msg.sender) {
         require(!RFQStorage.getStorage().transactionSeen[_transactionHash], "PermanentStorage: transaction seen before");
         RFQStorage.getStorage().transactionSeen[_transactionHash] = true;
+    }
+
+    function setRFQOfferFilled(bytes32 _offerHash) external override isPermitted(transactionSeenStorageId, msg.sender) {
+        require(!RFQv2Storage.getStorage().filledOffer[_offerHash], "PermanentStorage: offer already filled");
+        RFQv2Storage.getStorage().filledOffer[_offerHash] = true;
     }
 
     function setLimitOrderTransactionSeen(bytes32 _transactionHash) external override isPermitted(transactionSeenStorageId, msg.sender) {
