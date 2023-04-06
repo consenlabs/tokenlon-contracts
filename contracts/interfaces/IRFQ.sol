@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0;
 
 import { Offer } from "../libraries/Offer.sol";
+import { RFQOrder } from "../libraries/RFQOrder.sol";
 
 /// @title IRFQ Interface
 /// @author imToken Labs
@@ -25,12 +26,6 @@ interface IRFQ {
         uint256 settleAmount,
         uint256 feeFactor
     );
-
-    struct RFQOrder {
-        Offer offer;
-        address payable recipient;
-        uint256 feeFactor;
-    }
 
     function fillRFQ(
         Offer calldata offer,

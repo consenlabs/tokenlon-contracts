@@ -10,7 +10,8 @@ import { GenericSwap } from "contracts/GenericSwap.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { UniswapStrategy } from "contracts/UniswapStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
-import { Offer, getOfferHash } from "contracts/libraries/Offer.sol";
+import { Offer } from "contracts/libraries/Offer.sol";
+import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 import { IStrategy } from "contracts/interfaces/IStrategy.sol";
@@ -55,7 +56,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
     bytes defaultTakerPermit;
     UniswapStrategy uniswapStrategy;
     GenericSwap genericSwap;
-    IGenericSwap.GenericSwapData gsData;
+    GenericSwapData gsData;
     MockStrategy mockStrategy;
 
     function setUp() public {
@@ -75,7 +76,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         deal(taker, 100 ether);
         setEOABalanceAndApprove(taker, address(genericSwap), tokens, 100000);
 
-        gsData = IGenericSwap.GenericSwapData({
+        gsData = GenericSwapData({
             offer: Offer({
                 taker: taker,
                 maker: payable(address(uniswapStrategy)),
@@ -166,15 +167,10 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         genericSwap.executeSwap(gsData, defaultTakerPermit, taker, takerSig);
     }
 
-    function _signGenericSwap(uint256 _privateKey, IGenericSwap.GenericSwapData memory _swapData) internal view returns (bytes memory sig) {
-        bytes32 swapHash = _getGSDataHash(_swapData);
+    function _signGenericSwap(uint256 _privateKey, GenericSwapData memory _swapData) internal view returns (bytes memory sig) {
+        bytes32 swapHash = getGSDataHash(_swapData);
         bytes32 EIP712SignDigest = getEIP712Hash(genericSwap.EIP712_DOMAIN_SEPARATOR(), swapHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
-    }
-
-    function _getGSDataHash(IGenericSwap.GenericSwapData memory _gsData) private view returns (bytes32) {
-        bytes32 offerHash = getOfferHash(_gsData.offer);
-        return keccak256(abi.encode(genericSwap.GS_DATA_TYPEHASH(), offerHash, _gsData.recipient, _gsData.strategyData));
     }
 }
