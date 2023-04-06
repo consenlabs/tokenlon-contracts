@@ -128,7 +128,7 @@ contract RFQTest is StrategySharedSetup {
             defaultOrder.feeFactor
         );
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultPermit, defaulttakerSig);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
         userProxy.toRFQv2(payload);
 
         takerTakerToken.assertChange(-int256(defaultOffer.takerTokenAmount));
@@ -146,7 +146,7 @@ contract RFQTest is StrategySharedSetup {
         approveERC20(tokens, maker, address(rfq));
         bytes memory tokenPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, tokenPermit, defaultPermit, defaulttakerSig);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, tokenPermit, defaulttakerSig, defaultPermit);
         userProxy.toRFQv2(payload);
     }
 
@@ -155,7 +155,7 @@ contract RFQTest is StrategySharedSetup {
         approveERC20(tokens, taker, address(rfq));
         bytes memory tokenPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, tokenPermit, defaulttakerSig);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, tokenPermit);
         userProxy.toRFQv2(payload);
     }
 
@@ -180,7 +180,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory makerPermitSig = _signPermitTransferFrom(makerPrivateKey, makerPermit, address(rfq));
         bytes memory makerPermitData = encodePermitTransferFromData(makerPermit, makerPermitSig);
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, makerPermitData, takerPermitData, defaulttakerSig);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, makerPermitData, defaulttakerSig, takerPermitData);
         userProxy.toRFQv2(payload);
     }
 
@@ -188,12 +188,12 @@ contract RFQTest is StrategySharedSetup {
         vm.warp(defaultOffer.expiry + 1);
 
         vm.expectRevert("offer expired");
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultPermit, defaulttakerSig);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
         userProxy.toRFQv2(payload);
     }
 
     function testCannotFillAlreadyFilledOffer() public {
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultPermit, defaulttakerSig);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
         userProxy.toRFQv2(payload);
 
         vm.expectRevert("PermanentStorage: offer already filled");
@@ -205,7 +205,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory randomMakerSig = _signOffer(randomPrivateKey, defaultOffer);
 
         vm.expectRevert("invalid signature");
-        bytes memory payload = _genFillRFQPayload(defaultOrder, randomMakerSig, defaultPermit, defaultPermit, defaulttakerSig);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, randomMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
         userProxy.toRFQv2(payload);
     }
 
@@ -215,7 +215,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory randomSig = _signRFQOrder(randomPrivateKey, rfqOrder);
 
         vm.expectRevert("invalid signature");
-        bytes memory payload = _genFillRFQPayload(rfqOrder, defaultMakerSig, defaultPermit, defaultPermit, randomSig);
+        bytes memory payload = _genFillRFQPayload(rfqOrder, defaultMakerSig, defaultPermit, randomSig, defaultPermit);
         userProxy.toRFQv2(payload);
     }
 
@@ -224,7 +224,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder);
 
         vm.expectRevert("invalid fee factor");
-        bytes memory payload = _genFillRFQPayload(newRFQOrder, defaultMakerSig, defaultPermit, defaultPermit, takerSig);
+        bytes memory payload = _genFillRFQPayload(newRFQOrder, defaultMakerSig, defaultPermit, takerSig, defaultPermit);
         userProxy.toRFQv2(payload);
     }
 
@@ -246,10 +246,10 @@ contract RFQTest is StrategySharedSetup {
         RFQOrder memory _rfqOrder,
         bytes memory _makerSignature,
         bytes memory _makerTokenPermit,
-        bytes memory _takerTokenPermit,
-        bytes memory _takerSignature
+        bytes memory _takerSignature,
+        bytes memory _takerTokenPermit
     ) private view returns (bytes memory payload) {
-        return abi.encodeWithSelector(rfq.fillRFQ.selector, _rfqOrder, _makerSignature, _makerTokenPermit, _takerTokenPermit, _takerSignature);
+        return abi.encodeWithSelector(rfq.fillRFQ.selector, _rfqOrder, _makerSignature, _makerTokenPermit, _takerSignature, _takerTokenPermit);
     }
 
     function _signPermitTransferFrom(

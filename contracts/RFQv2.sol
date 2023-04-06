@@ -55,18 +55,18 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, BaseLibEIP712 {
         RFQOrder calldata order,
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
-        bytes calldata takerTokenPermit,
-        bytes calldata takerSignature
+        bytes calldata takerSignature,
+        bytes calldata takerTokenPermit
     ) external payable override onlyUserProxy {
-        _fillRFQ(order, makerSignature, makerTokenPermit, takerTokenPermit, takerSignature);
+        _fillRFQ(order, makerSignature, makerTokenPermit, takerSignature, takerTokenPermit);
     }
 
     function _fillRFQ(
         RFQOrder memory _rfqOrder,
         bytes memory _makerSignature,
         bytes memory _makerTokenPermit,
-        bytes memory _takerTokenPermit,
-        bytes memory _takerSignature
+        bytes memory _takerSignature,
+        bytes memory _takerTokenPermit
     ) private {
         Offer memory _offer = _rfqOrder.offer;
         // check the offer deadline and fee factor

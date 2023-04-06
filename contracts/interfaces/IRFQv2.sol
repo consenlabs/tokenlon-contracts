@@ -24,7 +24,7 @@ interface IRFQv2 {
         RFQOrder calldata rfqOrder,
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
-        bytes calldata takerTokenPermit,
-        bytes calldata takerSignature
+        bytes calldata takerSignature,
+        bytes calldata takerTokenPermit
     ) external payable;
 }
