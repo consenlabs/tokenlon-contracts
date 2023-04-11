@@ -51,6 +51,7 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, BaseLibEIP712 {
         emit SetFeeCollector(_newFeeCollector);
     }
 
+    /// @inheritdoc IRFQv2
     function fillRFQ(
         RFQOrder calldata order,
         bytes calldata makerSignature,
