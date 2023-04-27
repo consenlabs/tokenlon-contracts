@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.6;
 
-string constant OFFER_TYPESTRING = "Offer(address taker,address maker,address takerToken,uint256 takerTokenAmount,address makerToken,uint256 makerTokenAmount,uint256 minMakerTokenAmount,uint256 expiry,uint256 salt)";
+string constant OFFER_TYPESTRING = "Offer(address taker,address maker,address takerToken,uint256 takerTokenAmount,address makerToken,uint256 makerTokenAmount,uint256 expiry,uint256 salt)";
 
-bytes32 constant OFFER_DATA_TYPEHASH = 0x08a878f9010ee633419804c459e9e6107b7679cf23b9efe0605475501bdb5d18;
+bytes32 constant OFFER_DATA_TYPEHASH = 0x8db5bc1860cbde6bde04997e545735e15cdf6116ceb84d3ca908396a40da3e59;
 // keccak256(OFFER_TYPESTRING);
 
 struct Offer {
@@ -13,7 +13,6 @@ struct Offer {
     uint256 takerTokenAmount;
     address makerToken;
     uint256 makerTokenAmount;
-    uint256 minMakerTokenAmount;
     uint256 expiry;
     uint256 salt;
 }
@@ -30,7 +29,6 @@ function getOfferHash(Offer memory offer) pure returns (bytes32) {
                 offer.takerTokenAmount,
                 offer.makerToken,
                 offer.makerTokenAmount,
-                offer.minMakerTokenAmount,
                 offer.expiry,
                 offer.salt
             )

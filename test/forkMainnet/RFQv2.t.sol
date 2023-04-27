@@ -64,7 +64,6 @@ contract RFQTest is StrategySharedSetup {
             takerTokenAmount: 10 * 1e6,
             makerToken: LON_ADDRESS,
             makerTokenAmount: 10,
-            minMakerTokenAmount: 10,
             expiry: defaultExpiry,
             salt: defaultSalt
         });
