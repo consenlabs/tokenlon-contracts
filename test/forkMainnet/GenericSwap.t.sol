@@ -40,9 +40,10 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
     using BalanceSnapshot for Snapshot;
 
     event Swap(
+        bytes32 indexed swapHash,
         address indexed maker,
         address indexed taker,
-        address indexed recipient,
+        address recipient,
         address inputToken,
         uint256 inputAmount,
         address outputToken,
@@ -106,6 +107,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
 
         vm.expectEmit(true, true, true, true);
         emit Swap(
+            getGSDataHash(gsData),
             gsData.offer.maker,
             gsData.offer.taker,
             gsData.offer.taker,

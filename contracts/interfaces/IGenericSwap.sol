@@ -11,9 +11,10 @@ interface IGenericSwap {
     error InvalidSignature();
 
     event Swap(
+        bytes32 indexed swapHash,
         address indexed maker,
         address indexed taker,
-        address indexed recipient,
+        address recipient,
         address inputToken,
         uint256 inputAmount,
         address outputToken,

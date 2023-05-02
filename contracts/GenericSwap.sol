@@ -24,7 +24,17 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     /// @param swapData Swap data
     /// @return returnAmount Output amount of the swap
     function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable override returns (uint256 returnAmount) {
-        return _executeSwap(swapData, msg.sender, takerTokenPermit);
+        returnAmount = _executeSwap(swapData, msg.sender, takerTokenPermit);
+        emit Swap(
+            getGSDataHash(swapData),
+            swapData.offer.maker,
+            swapData.offer.taker,
+            swapData.recipient,
+            swapData.offer.takerToken,
+            swapData.offer.takerTokenAmount,
+            swapData.offer.makerToken,
+            returnAmount
+        );
     }
 
     /// @param swapData Swap data
@@ -37,11 +47,22 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         address taker,
         bytes calldata takerSig
     ) external payable override returns (uint256 returnAmount) {
-        bytes32 swapHash = getEIP712Hash(getGSDataHash(swapData));
+        bytes32 swapHash = getGSDataHash(swapData);
+        bytes32 gs712Hash = getEIP712Hash(swapHash);
         if (filledSwap[swapHash]) revert AlreadyFilled();
-        if (!SignatureValidator.isValidSignature(taker, swapHash, takerSig)) revert InvalidSignature();
+        if (!SignatureValidator.isValidSignature(taker, gs712Hash, takerSig)) revert InvalidSignature();
         filledSwap[swapHash] = true;
-        return _executeSwap(swapData, taker, takerTokenPermit);
+        returnAmount = _executeSwap(swapData, taker, takerTokenPermit);
+        emit Swap(
+            swapHash,
+            swapData.offer.maker,
+            swapData.offer.taker,
+            swapData.recipient,
+            swapData.offer.takerToken,
+            swapData.offer.takerTokenAmount,
+            swapData.offer.makerToken,
+            returnAmount
+        );
     }
 
     function _executeSwap(
@@ -69,7 +90,5 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         if (returnAmount < _offer.minMakerTokenAmount) revert InsufficientOutput();
 
         _outputToken.transferTo(_swapData.recipient, returnAmount);
-
-        emit Swap(_offer.maker, _offer.taker, _swapData.recipient, _inputToken, _offer.takerTokenAmount, _outputToken, returnAmount);
     }
 }
