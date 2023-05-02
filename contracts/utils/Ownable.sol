@@ -34,6 +34,7 @@ abstract contract Ownable {
     /// @notice Only owner can call
     /// @notice Ownership cannot be recovered
     function renounceOwnership() external onlyOwner {
+        require(nominatedOwner == address(0), "pending nomination exists");
         emit OwnerChanged(owner, address(0));
         owner = address(0);
     }
