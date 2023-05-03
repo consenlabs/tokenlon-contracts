@@ -22,7 +22,7 @@ library SignatureValidator {
         address _signerAddress,
         bytes32 _hash,
         bytes memory _signature
-    ) public view returns (bool) {
+    ) internal view returns (bool) {
         if (_signerAddress.isContract()) {
             return ERC1271_MAGICVALUE == IERC1271Wallet(_signerAddress).isValidSignature(_hash, _signature);
         } else {

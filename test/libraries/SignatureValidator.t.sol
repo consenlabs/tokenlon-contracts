@@ -17,6 +17,17 @@ contract SignatureValidatorTest is Test {
         mockERC1271Wallet = new MockERC1271Wallet(vm.addr(walletAdminPrivateKey));
     }
 
+    // this is a workaround for library contract tesets
+    // assertion may not working for library internal functions
+    // https://github.com/foundry-rs/foundry/issues/4405
+    function _isValidSignatureWrap(
+        address _signerAddress,
+        bytes32 _hash,
+        bytes memory _signature
+    ) public view returns (bool) {
+        return SignatureValidator.isValidSignature(_signerAddress, _hash, _signature);
+    }
+
     function testEIP712Signature() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -74,7 +85,7 @@ contract SignatureValidatorTest is Test {
         // OZ ECDSA lib will handle the zero address case and throw error instead
         // so the zero address will never be matched
         vm.expectRevert("ECDSA: invalid signature");
-        SignatureValidator.isValidSignature(address(0), digest, signature);
+        this._isValidSignatureWrap(address(0), digest, signature);
     }
 
     function testEIP1271WithWrongReturnValue() public {
