@@ -108,10 +108,6 @@ contract UserProxy is Multicall {
         emit SetAMMStatus(_enable);
     }
 
-    /**
-     * @dev Update AMMWrapper contract address. Used only when ABI of AMMWrapeer remain unchanged.
-     * Otherwise, UserProxy contract should be upgraded altogether.
-     */
     function upgradeAMMWrapper(address _newAMMWrapperAddr, bool _enable) external onlyOperator {
         AMMWrapperStorage.getStorage().ammWrapperAddr = _newAMMWrapperAddr;
         AMMWrapperStorage.getStorage().isEnabled = _enable;
@@ -126,10 +122,6 @@ contract UserProxy is Multicall {
         emit SetRFQStatus(_enable);
     }
 
-    /**
-     * @dev Update RFQ contract address. Used only when ABI of RFQ remain unchanged.
-     * Otherwise, UserProxy contract should be upgraded altogether.
-     */
     function upgradeRFQ(address _newRFQAddr, bool _enable) external onlyOperator {
         RFQStorage.getStorage().rfqAddr = _newRFQAddr;
         RFQStorage.getStorage().isEnabled = _enable;
@@ -158,10 +150,6 @@ contract UserProxy is Multicall {
         emit SetLimitOrderStatus(_enable);
     }
 
-    /**
-     * @dev Update Limit Order contract address. Used only when ABI of Limit Order remain unchanged.
-     * Otherwise, UserProxy contract should be upgraded altogether.
-     */
     function upgradeLimitOrder(address _newLimitOrderAddr, bool _enable) external onlyOperator {
         LimitOrderStorage.getStorage().limitOrderAddr = _newLimitOrderAddr;
         LimitOrderStorage.getStorage().isEnabled = _enable;
@@ -176,10 +164,6 @@ contract UserProxy is Multicall {
         emit SetL2DepositStatus(_enable);
     }
 
-    /**
-     * @dev Update L2 Deposit contract address. Used only when ABI of L2 Deposit remain unchanged.
-     * Otherwise, UserProxy contract should be upgraded altogether.
-     */
     function upgradeL2Deposit(address _newL2DepositAddr, bool _enable) external onlyOperator {
         L2DepositStorage.getStorage().l2DepositAddr = _newL2DepositAddr;
         L2DepositStorage.getStorage().isEnabled = _enable;
@@ -233,6 +217,7 @@ contract UserProxy is Multicall {
      */
     function toRFQv2(bytes calldata _payload) external payable {
         require(isRFQv2Enabled(), "UserProxy: RFQv2 is disabled");
+        require(msg.sender == tx.origin, "UserProxy: only EOA");
 
         (bool callSucceed, ) = rfqv2Addr().call{ value: msg.value }(_payload);
         if (!callSucceed) {

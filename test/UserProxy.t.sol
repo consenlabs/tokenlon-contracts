@@ -265,6 +265,39 @@ contract UserProxyTest is Test {
     }
 
     /***************************************************
+     *              Test: call RFQv2                   *
+     ***************************************************/
+
+    function testCannotToRFQv2WhenDisabled() public {
+        userProxy.setRFQv2Status(false);
+        vm.expectRevert("UserProxy: RFQv2 is disabled");
+        userProxy.toRFQv2(abi.encode(MockStrategy.execute.selector));
+    }
+
+    function testCannotToRFQv2ByNotEOA() public {
+        userProxy.setRFQv2Status(true);
+        vm.expectRevert("UserProxy: only EOA");
+        userProxy.toRFQv2(abi.encode(MockStrategy.execute.selector));
+    }
+
+    function testToRFQv2() public {
+        userProxy.upgradeRFQv2(address(strategy), true);
+        vm.prank(relayer, relayer);
+        userProxy.toRFQv2(abi.encode(MockStrategy.execute.selector));
+    }
+
+    function testCannotToRFQv2WithWrongFunction() public {
+        userProxy.upgradeRFQv2(address(strategy), true);
+        vm.expectRevert();
+        vm.prank(relayer, relayer);
+        userProxy.toRFQv2("0x");
+
+        vm.expectRevert();
+        vm.prank(relayer, relayer);
+        userProxy.toRFQv2(abi.encode(userProxy.setAMMStatus.selector));
+    }
+
+    /***************************************************
      *              Test: call LimitOrder               *
      ***************************************************/
 
