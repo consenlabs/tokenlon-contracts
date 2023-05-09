@@ -142,6 +142,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testFillRFQWithRawETH() public {
+        // case : taker token is ETH
         Offer memory offer = defaultOffer;
         offer.takerToken = LibConstant.ZERO_ADDRESS;
         offer.takerTokenAmount = 1 ether;
@@ -170,6 +171,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testFillRFQTakerGetRawETH() public {
+        // case : maker token is WETH
         Offer memory offer = defaultOffer;
         offer.makerToken = WETH_ADDRESS;
         offer.makerTokenAmount = 1 ether;
@@ -185,6 +187,36 @@ contract RFQTest is StrategySharedSetup {
         // recipient should receive raw ETH
         BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
         BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: LibConstant.ETH_ADDRESS });
+
+        bytes memory payload = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
+        vm.prank(offer.taker, offer.taker);
+        userProxy.toRFQv2(payload);
+
+        takerTakerToken.assertChange(-int256(offer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(offer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(offer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(offer.makerTokenAmount));
+    }
+
+    function testFillRFQWithWETH() public {
+        // case : taker token is WETH
+        Offer memory offer = defaultOffer;
+        offer.takerToken = WETH_ADDRESS;
+        offer.takerTokenAmount = 1 ether;
+        RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient), feeFactor: 0 });
+
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder);
+
+        BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
+        // maker should receive raw ETH
+        BalanceSnapshot.Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: offer.maker, token: LibConstant.ETH_ADDRESS });
+        BalanceSnapshot.Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.makerToken });
+        BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.makerToken });
 
         bytes memory payload = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
         vm.prank(offer.taker, offer.taker);
