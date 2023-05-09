@@ -198,22 +198,19 @@ contract RFQTest is StrategySharedSetup {
         recMakerToken.assertChange(int256(offer.makerTokenAmount));
     }
 
-    function testFillRFQWithMakerDirectlyApprove() public {
-        // maker approve tokens to RFQ contract directly
+    function testFillRFQWithDirectlyApprove() public {
+        // spender deauthorize RFQv2 to disable other allowance
+        address[] memory authListAddress = new address[](1);
+        authListAddress[0] = address(rfq);
+        spender.deauthorize(authListAddress);
+
+        // maker approve tokens to RFQv2 contract directly
         approveERC20(tokens, maker, address(rfq));
-        bytes memory tokenPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
-
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, tokenPermit, defaulttakerSig, defaultPermit);
-        vm.prank(defaultOffer.taker, defaultOffer.taker);
-        userProxy.toRFQv2(payload);
-    }
-
-    function testFillRFQWithTakerDirectlyApprove() public {
-        // taker approve tokens to RFQ contract directly
+        // taker approve tokens to RFQv2 contract directly
         approveERC20(tokens, taker, address(rfq));
         bytes memory tokenPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, tokenPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, tokenPermit, defaulttakerSig, tokenPermit);
         vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
