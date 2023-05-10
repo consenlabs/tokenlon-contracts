@@ -205,6 +205,7 @@ contract PermanentStorage is IPermanentStorage {
         emit UpgradeRFQ(_newRFQ);
     }
 
+    /// @dev Update RFQv2 contract address.
     function upgradeRFQv2(address _newRFQv2) external onlyOperator {
         PSStorage.getStorage().rfqv2Addr = _newRFQv2;
 
