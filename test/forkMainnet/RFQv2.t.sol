@@ -46,7 +46,7 @@ contract RFQTest is StrategySharedSetup {
     uint256 defaultFeeFactor = 100;
     bytes defaultPermit;
     bytes defaultMakerSig;
-    bytes defaulttakerSig;
+    bytes defaultTakerSig;
     IUniswapPermit2 permit2 = IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS);
     Offer defaultOffer;
     RFQOrder defaultOrder;
@@ -81,7 +81,7 @@ contract RFQTest is StrategySharedSetup {
         defaultMakerSig = _signOffer(makerPrivateKey, defaultOffer, SignatureValidator.SignatureType.EIP712);
 
         defaultOrder = RFQOrder({ offer: defaultOffer, recipient: payable(recipient), feeFactor: defaultFeeFactor });
-        defaulttakerSig = _signRFQOrder(takerPrivateKey, defaultOrder, SignatureValidator.SignatureType.EIP712);
+        defaultTakerSig = _signRFQOrder(takerPrivateKey, defaultOrder, SignatureValidator.SignatureType.EIP712);
 
         vm.label(taker, "taker");
         vm.label(maker, "maker");
@@ -214,7 +214,7 @@ contract RFQTest is StrategySharedSetup {
             defaultOrder.feeFactor
         );
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
         vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
 
@@ -364,7 +364,7 @@ contract RFQTest is StrategySharedSetup {
         approveERC20(tokens, taker, address(rfq));
         bytes memory tokenPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, tokenPermit, defaulttakerSig, tokenPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, tokenPermit, defaultTakerSig, tokenPermit);
         vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
@@ -390,7 +390,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory makerPermitSig = _signPermitTransferFrom(makerPrivateKey, makerPermit, address(rfq));
         bytes memory makerPermitData = encodePermitTransferFromData(makerPermit, makerPermitSig);
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, makerPermitData, defaulttakerSig, takerPermitData);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, makerPermitData, defaultTakerSig, takerPermitData);
         vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
@@ -399,13 +399,13 @@ contract RFQTest is StrategySharedSetup {
         vm.warp(defaultOffer.expiry + 1);
 
         vm.expectRevert("offer expired");
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
         vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
 
     function testCannotFillAlreadyFilledOffer() public {
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
         vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
 
@@ -419,7 +419,7 @@ contract RFQTest is StrategySharedSetup {
         bytes memory randomMakerSig = _signOffer(randomPrivateKey, defaultOffer, SignatureValidator.SignatureType.EIP712);
 
         vm.expectRevert("invalid signature");
-        bytes memory payload = _genFillRFQPayload(defaultOrder, randomMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, randomMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
         vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
