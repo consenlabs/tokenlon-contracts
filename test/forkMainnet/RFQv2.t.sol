@@ -448,44 +448,38 @@ contract RFQTest is StrategySharedSetup {
     function _signOffer(
         uint256 _privateKey,
         Offer memory _offer,
-        SignatureValidator.SignatureType sigType
+        SignatureValidator.SignatureType _sigType
     ) private view returns (bytes memory sig) {
         bytes32 offerHash = getOfferHash(_offer);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), offerHash);
-
-        if (
-            sigType == SignatureValidator.SignatureType.EIP712 ||
-            sigType == SignatureValidator.SignatureType.WalletBytes ||
-            sigType == SignatureValidator.SignatureType.WalletBytes32
-        ) {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-            sig = abi.encodePacked(r, s, v, uint8(sigType));
-        } else if (sigType == SignatureValidator.SignatureType.Wallet) {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
-            sig = abi.encodePacked(r, s, v, uint8(sigType));
-        } else {
-            revert("Invalid signature type");
-        }
+        return _signEIP712Digest(_privateKey, EIP712SignDigest, _sigType);
     }
 
     function _signRFQOrder(
         uint256 _privateKey,
         RFQOrder memory _rfqOrder,
-        SignatureValidator.SignatureType sigType
+        SignatureValidator.SignatureType _sigType
     ) private view returns (bytes memory sig) {
         (, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOrderHash);
+        return _signEIP712Digest(_privateKey, EIP712SignDigest, _sigType);
+    }
 
+    function _signEIP712Digest(
+        uint256 _privateKey,
+        bytes32 _digest,
+        SignatureValidator.SignatureType _sigType
+    ) internal pure returns (bytes memory) {
         if (
-            sigType == SignatureValidator.SignatureType.EIP712 ||
-            sigType == SignatureValidator.SignatureType.WalletBytes ||
-            sigType == SignatureValidator.SignatureType.WalletBytes32
+            _sigType == SignatureValidator.SignatureType.EIP712 ||
+            _sigType == SignatureValidator.SignatureType.WalletBytes ||
+            _sigType == SignatureValidator.SignatureType.WalletBytes32
         ) {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-            sig = abi.encodePacked(r, s, v, uint8(sigType));
-        } else if (sigType == SignatureValidator.SignatureType.Wallet) {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
-            sig = abi.encodePacked(r, s, v, uint8(sigType));
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, _digest);
+            return abi.encodePacked(r, s, v, uint8(_sigType));
+        } else if (_sigType == SignatureValidator.SignatureType.Wallet) {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, ECDSA.toEthSignedMessageHash(_digest));
+            return abi.encodePacked(r, s, v, uint8(_sigType));
         } else {
             revert("Invalid signature type");
         }
