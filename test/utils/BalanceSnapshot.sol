@@ -13,7 +13,7 @@ struct Snapshot {
 library BalanceSnapshot {
     function take(address owner, address token) internal view returns (Snapshot memory) {
         uint256 balanceBefore;
-        if (token == Constant.ETH_ADDRESS) {
+        if (token == Constant.ETH_ADDRESS || token == Constant.ZERO_ADDRESS) {
             balanceBefore = owner.balance;
         } else {
             balanceBefore = IERC20(token).balanceOf(owner);
@@ -22,7 +22,7 @@ library BalanceSnapshot {
     }
 
     function _getBalanceAfter(Snapshot memory snapshot) internal view returns (int256) {
-        if (address(snapshot.token) == Constant.ETH_ADDRESS) {
+        if (address(snapshot.token) == Constant.ETH_ADDRESS || address(snapshot.token) == Constant.ZERO_ADDRESS) {
             return int256(snapshot.owner.balance);
         } else {
             return int256(snapshot.token.balanceOf(snapshot.owner));

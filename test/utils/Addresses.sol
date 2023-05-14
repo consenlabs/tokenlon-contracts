@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import { Test, Vm } from "forge-std/Test.sol";
 
-address constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
 contract Addresses is Test {
     string private file = readAddresses(vm);
 
