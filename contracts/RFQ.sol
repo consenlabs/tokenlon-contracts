@@ -98,6 +98,10 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         if (_offer.takerToken.isETH()) {
             if (msg.value != _offer.takerTokenAmount) revert InvalidMsgValue();
             Address.sendValue(_offer.maker, _offer.takerTokenAmount);
+        } else if (_offer.takerToken == address(weth)) {
+            _collect(_offer.takerToken, _offer.taker, address(this), _offer.takerTokenAmount, _takerTokenPermit);
+            weth.withdraw(_offer.takerTokenAmount);
+            Address.sendValue(_offer.maker, _offer.takerTokenAmount);
         } else {
             _collect(_offer.takerToken, _offer.taker, _offer.maker, _offer.takerTokenAmount, _takerTokenPermit);
         }
@@ -114,12 +118,13 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             makerToken = Constant.ETH_ADDRESS;
         }
         uint256 makerTokenToTaker = _offer.makerTokenAmount - fee;
-        makerToken.transferTo(_rfqOrder.recipient, makerTokenToTaker);
 
         // collect fee if present
         if (fee > 0) {
             makerToken.transferTo(feeCollector, fee);
         }
+
+        makerToken.transferTo(_rfqOrder.recipient, makerTokenToTaker);
 
         _emitFilledRFQEvent(offerHash, _rfqOrder, makerTokenToTaker);
     }
