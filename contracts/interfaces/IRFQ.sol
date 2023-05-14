@@ -13,6 +13,8 @@ interface IRFQ {
     error InvalidFeeFactor();
     error InvalidMsgValue();
     error InvalidSignature();
+    error ForbidContract();
+    error NotOfferMaker();
 
     event FilledRFQ(
         bytes32 indexed offerHash,
@@ -26,6 +28,8 @@ interface IRFQ {
         uint256 settleAmount,
         uint256 feeFactor
     );
+
+    event CancelRFQOffer(bytes32 indexed offerHash, address indexed maker);
 
     function fillRFQ(
         Offer calldata offer,
@@ -42,4 +46,6 @@ interface IRFQ {
         bytes calldata takerTokenPermit,
         bytes calldata takerSignature
     ) external;
+
+    function cancelRFQOffer(Offer calldata offer) external;
 }
