@@ -57,6 +57,7 @@ contract TestTokenCollector is StrategySharedSetup {
         strategy = new Strategy(address(permit2), address(spender));
         address[] memory authListAddress = new address[](1);
         authListAddress[0] = address(strategy);
+        vm.prank(tokenlonOperator, tokenlonOperator);
         spender.authorize(authListAddress);
 
         DEFAULT_TOKEN_PERMIT = TokenPermit({

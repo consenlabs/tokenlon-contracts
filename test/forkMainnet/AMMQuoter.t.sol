@@ -13,13 +13,13 @@ contract AMMQuoterTest is StrategySharedSetup {
     AMMQuoter ammQuoter;
 
     address DEFAULT_MAKER_ADDR = UNISWAP_V2_ADDRESS;
-    address DEFAULT_TAKER_ASSET_ADDR = DAI_ADDRESS;
-    address DEFAULT_MAKER_ASSET_ADDR = USDT_ADDRESS;
+    address DEFAULT_TAKER_ASSET_ADDR;
+    address DEFAULT_MAKER_ASSET_ADDR;
     uint256 DEFAULT_TAKER_ASSET_AMOUNT = 100 * 1e18;
     uint256 DEFAULT_MAKER_ASSET_AMOUNT = 100 * 1e6;
     address[] EMPTY_PATH = new address[](0);
-    address[] DEFAULT_SINGLE_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, DEFAULT_MAKER_ASSET_ADDR];
-    address[] DEFAULT_MULTI_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, WETH_ADDRESS, DEFAULT_MAKER_ASSET_ADDR];
+    address[] DEFAULT_SINGLE_HOP_PATH;
+    address[] DEFAULT_MULTI_HOP_PATH;
     uint24[] DEFAULT_MULTI_HOP_POOL_FEES = [FEE_MEDIUM, FEE_MEDIUM];
 
     // BalancerV2
@@ -38,8 +38,13 @@ contract AMMQuoterTest is StrategySharedSetup {
             SUSHISWAP_ADDRESS,
             BALANCER_V2_ADDRESS,
             IPermanentStorage(permanentStorage),
-            WETH_ADDRESS
+            address(weth)
         );
+
+        DEFAULT_TAKER_ASSET_ADDR = address(dai);
+        DEFAULT_MAKER_ASSET_ADDR = address(usdt);
+        DEFAULT_SINGLE_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, DEFAULT_MAKER_ASSET_ADDR];
+        DEFAULT_MULTI_HOP_PATH = [DEFAULT_TAKER_ASSET_ADDR, address(weth), DEFAULT_MAKER_ASSET_ADDR];
 
         // Label addresses for easier debugging
         vm.label(address(this), "TestingContract");
@@ -57,7 +62,7 @@ contract AMMQuoterTest is StrategySharedSetup {
 
     function testSetupAMMQuoter() public {
         assertEq(address(ammQuoter.permStorage()), address(permanentStorage));
-        assertEq(ammQuoter.weth(), WETH_ADDRESS);
+        assertEq(ammQuoter.weth(), address(weth));
     }
 
     /*************************************

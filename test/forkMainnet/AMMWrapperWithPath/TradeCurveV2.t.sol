@@ -55,7 +55,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         // taker asset is v1 underlying
         order = DEFAULT_ORDER;
         // USDC is underlying asset in CURVE_USDT_POOL
-        order.takerAssetAddr = USDC_ADDRESS;
+        order.takerAssetAddr = address(usdc);
         order.makerAddr = CURVE_USDT_POOL_ADDRESS;
         sig = _signTrade(userPrivateKey, order);
         payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(2), new address[](0));
@@ -68,7 +68,7 @@ contract TestAMMWrapperWithPathTradeCurveV2 is TestAMMWrapperWithPath {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = CURVE_TRICRYPTO2_POOL_ADDRESS;
         // give an unpsorted token to swap
-        order.takerAssetAddr = LON_ADDRESS;
+        order.takerAssetAddr = address(lon);
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, DEFAULT_FEE_FACTOR, sig, _encodeCurveData(2), new address[](0));
 

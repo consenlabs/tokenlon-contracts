@@ -2,14 +2,15 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "contracts/MarketMakerProxy.sol";
-import "test/utils/BalanceSnapshot.sol";
-import "test/utils/BalanceUtil.sol";
-import "test/utils/Tokens.sol";
-import "test/mocks/MockERC1271Wallet.sol";
+import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { MarketMakerProxy } from "contracts/MarketMakerProxy.sol";
+import { IWETH } from "contracts/interfaces/IWeth.sol";
+import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
+import { BalanceUtil } from "test/utils/BalanceUtil.sol";
+import { ETH_ADDRESS } from "test/utils/Addresses.sol";
+import { MockERC1271Wallet } from "test/mocks/MockERC1271Wallet.sol";
 
-contract MarketMakerProxyTest is BalanceUtil, Tokens {
+contract MarketMakerProxyTest is BalanceUtil {
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 

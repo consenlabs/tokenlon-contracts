@@ -19,8 +19,8 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
 
     string private constant filePath = "test/utils/config/deployedContracts.json";
 
+    address tokenlonOperator = makeAddr("tokenlonOperator");
     address upgradeAdmin = makeAddr("upgradeAdmin");
-    address psOperator = makeAddr("psOperator");
 
     AllowanceTarget allowanceTarget;
     Spender spender;
@@ -39,8 +39,8 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
             bytes("") // Skip initialization during deployment
         );
         userProxy = UserProxy(address(tokenlon));
-        // Set this contract as operator
-        userProxy.initialize(address(this));
+        // Set operator
+        userProxy.initialize(tokenlonOperator);
     }
 
     function _deployPermanentStorageAndProxy() internal {
@@ -52,11 +52,11 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
         );
         permanentStorage = PermanentStorage(address(permanentStorageProxy));
         // Set permanent storage operator
-        permanentStorage.initialize(psOperator);
-        vm.startPrank(psOperator, psOperator);
+        permanentStorage.initialize(tokenlonOperator);
+        vm.startPrank(tokenlonOperator, tokenlonOperator);
         permanentStorage.upgradeWETH(address(weth));
         // Set Curve indexes
-        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), psOperator, true);
+        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), tokenlonOperator, true);
         _registerCurveIndexes(permanentStorage);
         vm.stopPrank();
     }
@@ -70,25 +70,28 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
             userProxy = UserProxy(abi.decode(vm.parseJson(deployedAddr, "$.USERPROXY_ADDRESS"), (address)));
             permanentStorage = PermanentStorage(abi.decode(vm.parseJson(deployedAddr, "$.PERMANENTSTORAGE_ADDRESS"), (address)));
 
-            // overwrite psOperator
-            psOperator = permanentStorage.operator();
+            // overwrite tokenlonOperator
+            tokenlonOperator = userProxy.operator();
 
             _setupDeployedStrategy();
         } else {
             // Deploy
-            spender = new Spender(address(this), new address[](1));
+            spender = new Spender(tokenlonOperator, new address[](1));
             allowanceTarget = new AllowanceTarget(address(spender));
             _deployTokenlonAndUserProxy();
             _deployPermanentStorageAndProxy();
             address strategy = _deployStrategyAndUpgrade();
             // Setup
+            vm.startPrank(tokenlonOperator, tokenlonOperator);
             spender.setAllowanceTarget(address(allowanceTarget));
             address[] memory authListAddress = new address[](1);
             authListAddress[0] = strategy;
             spender.authorize(authListAddress);
+            vm.stopPrank();
         }
-        vm.startPrank(psOperator, psOperator);
-        permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), psOperator, true);
+        vm.startPrank(tokenlonOperator, tokenlonOperator);
+        permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), tokenlonOperator, true);
+        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), tokenlonOperator, true);
         vm.stopPrank();
 
         vm.label(address(spender), "SpenderContract");

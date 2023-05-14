@@ -35,11 +35,11 @@ contract SpenderTest is BalanceUtil {
 
     Spender spender;
     AllowanceTarget allowanceTarget;
-    MockERC20 lon = new MockERC20("TOKENLON", "LON", 18);
+    MockERC20 mockLON = new MockERC20("TOKENLON", "LON", 18);
     MockDeflationaryERC20 deflationaryERC20 = new MockDeflationaryERC20();
     MockNoReturnERC20 noReturnERC20 = new MockNoReturnERC20();
     MockNoRevertERC20 noRevertERC20 = new MockNoRevertERC20();
-    IERC20[] tokens = [IERC20(address(deflationaryERC20)), IERC20(address(noReturnERC20)), IERC20(address(noRevertERC20))];
+    IERC20[] tokenList = [IERC20(mockLON), IERC20(address(deflationaryERC20)), IERC20(address(noReturnERC20)), IERC20(address(noRevertERC20))];
 
     uint64 EXPIRY = uint64(block.timestamp + 1);
     SpendWithPermit DEFAULT_SPEND_WITH_PERMIT;
@@ -60,22 +60,17 @@ contract SpenderTest is BalanceUtil {
         for (uint256 i = 0; i < wallet.length; i++) {
             deal(wallet[i], 100 ether);
         }
-        // Mint 10k tokens to user
-        lon.mint(user, 10000 * 1e18);
-        // User approve AllowanceTarget
-        vm.startPrank(user);
-        lon.approve(address(allowanceTarget), type(uint256).max);
+
         // Set user's mock tokens balance and approve
-        for (uint256 j = 0; j < tokens.length; j++) {
-            setERC20Balance(address(tokens[j]), user, 100);
-            tokens[j].safeApprove(address(allowanceTarget), type(uint256).max);
+        for (uint256 j = 0; j < tokenList.length; j++) {
+            setERC20Balance(address(tokenList[j]), user, 10000 * 1e18);
         }
-        vm.stopPrank();
+        approveERC20(tokenList, user, address(allowanceTarget));
 
         // Default SpendWithPermit
         // prettier-ignore
         DEFAULT_SPEND_WITH_PERMIT = SpendWithPermit(
-            address(lon), // tokenAddr
+            address(mockLON), // tokenAddr
             user, // user
             recipient, // receipient
             100 * 1e18, // amount
@@ -90,7 +85,6 @@ contract SpenderTest is BalanceUtil {
         vm.label(address(this), "TestingContract");
         vm.label(address(spender), "SpenderContract");
         vm.label(address(allowanceTarget), "AllowanceTargetContract");
-        vm.label(address(lon), "LON");
     }
 
     /*********************************
@@ -206,18 +200,18 @@ contract SpenderTest is BalanceUtil {
     function testCannotSpendFromUserByNotAuthorized() public {
         vm.expectRevert("Spender: not authorized");
         vm.prank(unauthorized);
-        spender.spendFromUser(user, address(lon), 100);
+        spender.spendFromUser(user, address(mockLON), 100);
     }
 
     function testCannotSpendFromUserWithBlakclistedToken() public {
         address[] memory blacklistAddress = new address[](1);
-        blacklistAddress[0] = address(lon);
+        blacklistAddress[0] = address(mockLON);
         bool[] memory blacklistBool = new bool[](1);
         blacklistBool[0] = true;
         spender.blacklist(blacklistAddress, blacklistBool);
 
         vm.expectRevert("Spender: token is blacklisted");
-        spender.spendFromUser(user, address(lon), 100);
+        spender.spendFromUser(user, address(mockLON), 100);
     }
 
     function testCannotSpendFromUserInsufficientBalance_NoReturnValueToken() public {
@@ -238,11 +232,11 @@ contract SpenderTest is BalanceUtil {
     }
 
     function testSpendFromUser() public {
-        assertEq(lon.balanceOf(address(this)), 0);
+        assertEq(mockLON.balanceOf(address(this)), 0);
 
-        spender.spendFromUser(user, address(lon), 100);
+        spender.spendFromUser(user, address(mockLON), 100);
 
-        assertEq(lon.balanceOf(address(this)), 100);
+        assertEq(mockLON.balanceOf(address(this)), 100);
     }
 
     function testSpendFromUserWithNoReturnValueToken() public {
@@ -260,18 +254,18 @@ contract SpenderTest is BalanceUtil {
     function testCannotSpendFromUserToByNotAuthorized() public {
         vm.expectRevert("Spender: not authorized");
         vm.prank(unauthorized);
-        spender.spendFromUserTo(user, address(lon), unauthorized, 100);
+        spender.spendFromUserTo(user, address(mockLON), unauthorized, 100);
     }
 
     function testCannotSpendFromUserToWithBlakclistedToken() public {
         address[] memory blacklistAddress = new address[](1);
-        blacklistAddress[0] = address(lon);
+        blacklistAddress[0] = address(mockLON);
         bool[] memory blacklistBool = new bool[](1);
         blacklistBool[0] = true;
         spender.blacklist(blacklistAddress, blacklistBool);
 
         vm.expectRevert("Spender: token is blacklisted");
-        spender.spendFromUserTo(user, address(lon), recipient, 100);
+        spender.spendFromUserTo(user, address(mockLON), recipient, 100);
     }
 
     function testCannotSpendFromUserToInsufficientBalance_NoReturnValueToken() public {
@@ -292,11 +286,11 @@ contract SpenderTest is BalanceUtil {
     }
 
     function testSpendFromUserTo() public {
-        assertEq(lon.balanceOf(recipient), 0);
+        assertEq(mockLON.balanceOf(recipient), 0);
 
-        spender.spendFromUserTo(user, address(lon), recipient, 100);
+        spender.spendFromUserTo(user, address(mockLON), recipient, 100);
 
-        assertEq(lon.balanceOf(recipient), 100);
+        assertEq(mockLON.balanceOf(recipient), 100);
     }
 
     function testSpendFromUserToWithNoReturnValueToken() public {
