@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
+import { IUniswapRouterV2 } from "../interfaces/IUniswapRouterV2.sol";
 
 library UniswapV2 {
     struct SwapExactTokensForTokensParams {
