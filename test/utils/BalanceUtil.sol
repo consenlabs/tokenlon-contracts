@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "test/utils/Addresses.sol";
+import { stdStorage, StdStorage } from "forge-std/Test.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import { Addresses } from "test/utils/Addresses.sol";
 
 contract BalanceUtil is Addresses {
     using SafeERC20 for IERC20;
@@ -17,7 +18,11 @@ contract BalanceUtil is Addresses {
     ) internal {
         uint256 decimals = uint256(ERC20(tokenAddr).decimals());
         // Skip setting WETH's totalSupply because WETH does not store total supply in storage
-        bool updateTotalSupply = tokenAddr == WETH_ADDRESS ? false : true;
+        // Only update WETH's totalSupply in local env
+        bool updateTotalSupply = false;
+        if (tokenAddr == address(weth) && getChainId() == 31337) {
+            updateTotalSupply = true;
+        }
         deal(
             tokenAddr,
             userAddr,
