@@ -7,7 +7,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
-import { IWETH } from "./interfaces/IWeth.sol";
+import { IWETH } from "./interfaces/IWETH.sol";
 import { IRFQ } from "./interfaces/IRFQ.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { Offer } from "./libraries/Offer.sol";

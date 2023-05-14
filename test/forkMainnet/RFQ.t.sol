@@ -8,7 +8,7 @@ import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { RFQ } from "contracts/RFQ.sol";
 import { IRFQ } from "contracts/interfaces/IRFQ.sol";
-import { IWETH } from "contracts/interfaces/IWeth.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { Offer, getOfferHash } from "contracts/libraries/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "contracts/libraries/RFQOrder.sol";
