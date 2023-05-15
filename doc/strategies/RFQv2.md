@@ -15,30 +15,29 @@ The main difference between RFQv2 and previous RFQ is how token allownace is man
 
 ## Offer Format
 
-| Field               |  Type   | Description                                                                        |
-| ------------------- | :-----: | ---------------------------------------------------------------------------------- |
-| taker               | address | The address of the taker of an offer. An offer can be filled only by this address. |
-| maker               | address | The address of the maker of an offer.                                              |
-| takerToken          | address | The address of taker token.                                                        |
-| takerTokenAmount    | uint256 | The amount of taker token.                                                         |
-| makerToken          | address | The address of maker token.                                                        |
-| makerTokenAmount    | uint256 | The amount of maker token.                                                         |
-| minMakerTokenAmount | uint256 | The minimum amount of maker token. Should be identical to makerTokenAmount here.   |
-| expiry              | uint256 | The timestamp of the expiry.                                                       |
-| salt                | uint256 | A random number included in an offer to avoid replay attack.                       |
+| Field            |  Type   | Description                                                                        |
+| ---------------- | :-----: | ---------------------------------------------------------------------------------- |
+| taker            | address | The address of the taker of an offer. An offer can be filled only by this address. |
+| maker            | address | The address of the maker of an offer.                                              |
+| takerToken       | address | The address of taker token.                                                        |
+| takerTokenAmount | uint256 | The amount of taker token.                                                         |
+| makerToken       | address | The address of maker token.                                                        |
+| makerTokenAmount | uint256 | The amount of maker token.                                                         |
+| expiry           | uint256 | The timestamp of the expiry.                                                       |
+| salt             | uint256 | A random number included in an offer to avoid replay attack.                       |
 
-## Signature and Relayer
+## Signature
 
 The maker of an offer should provide signature of the `Offer` struct to authorize the maker side of the trade. While the taker should sign the `RFQOrder` struct which is the `Offer` struct plus `recipient` and `feeFactor`.
 
 ## Fee & Relayer
 
-Some portion of maker asset of an offer will be deducted as protocol fee. The fee will be transfered to `feeCollector` during the settlement. Each offer may have different fee factor which is provided by Tokenlon's quoting system. Only those trades with proper `feeFactor` will be accepted by Tokenlon's relayers. An user could submit the trade without relayer and therefore the `feeFactor` is zero in such case.
+Some portion of maker token of an offer will be deducted as protocol fee. The fee will be transfered to `feeCollector` during the settlement. Each offer may have different fee factor which is provided by Tokenlon's quoting system. Only those trades with proper `feeFactor` will be accepted by Tokenlon's relayers. A user could submit the trade without relayer and therefore the `feeFactor` is zero in such case.
 
 ## WETH
 
-If the `makerToken` of an order is WETH, then RFQv2 contract will unwrap it and send ETH to the `recipient`.
+If the `makerToken` or `takerToken` of an offer is WETH, then RFQv2 contract will unwrap it and send ETH instead.
 
 ## Avoid replay attack
 
-An order can only be filled once. Therefore, the hash of a filled order will be recorded on chain to prevent replay attack.
+An offer can only be filled once. Therefore, the hash of a filled offer will be recorded on chain to prevent replay attack.
