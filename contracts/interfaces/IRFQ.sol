@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-import { Offer } from "contracts/libraries/Offer.sol";
-import { RFQOrder } from "contracts/libraries/RFQOrder.sol";
+import { Offer } from "../libraries/Offer.sol";
+import { RFQOrder } from "../libraries/RFQOrder.sol";
 
 /// @title IRFQ Interface
 /// @author imToken Labs

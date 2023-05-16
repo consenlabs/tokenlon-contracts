@@ -4,16 +4,16 @@ pragma solidity 0.8.17;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
-import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
-import { Ownable } from "contracts/abstracts/Ownable.sol";
-import { EIP712 } from "contracts/abstracts/EIP712.sol";
-import { IWETH } from "contracts/interfaces/IWeth.sol";
-import { IRFQ } from "contracts/interfaces/IRFQ.sol";
-import { Asset } from "contracts/libraries/Asset.sol";
-import { Offer } from "contracts/libraries/Offer.sol";
-import { RFQOrder, getRFQOrderHash } from "contracts/libraries/RFQOrder.sol";
-import { Constant } from "contracts/libraries/Constant.sol";
-import { SignatureValidator } from "contracts/libraries/SignatureValidator.sol";
+import { TokenCollector } from "./abstracts/TokenCollector.sol";
+import { Ownable } from "./abstracts/Ownable.sol";
+import { EIP712 } from "./abstracts/EIP712.sol";
+import { IWETH } from "./interfaces/IWeth.sol";
+import { IRFQ } from "./interfaces/IRFQ.sol";
+import { Asset } from "./libraries/Asset.sol";
+import { Offer } from "./libraries/Offer.sol";
+import { RFQOrder, getRFQOrderHash } from "./libraries/RFQOrder.sol";
+import { Constant } from "./libraries/Constant.sol";
+import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     using Asset for address;

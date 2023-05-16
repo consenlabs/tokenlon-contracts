@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-import { GenericSwapData } from "contracts/libraries/GenericSwapData.sol";
+import { GenericSwapData } from "../libraries/GenericSwapData.sol";
 
 interface IGenericSwap {
     error AlreadyFilled();

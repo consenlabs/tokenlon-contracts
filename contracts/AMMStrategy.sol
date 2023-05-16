@@ -4,13 +4,13 @@ pragma solidity 0.8.17;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Ownable } from "./abstracts/Ownable.sol";
+import { Asset } from "./libraries/Asset.sol";
 
-import { Ownable } from "contracts/abstracts/Ownable.sol";
-import { IWETH } from "contracts/interfaces/IWeth.sol";
-import { IAMMStrategy } from "contracts/interfaces/IAMMStrategy.sol";
-import { IStrategy } from "contracts/interfaces/IStrategy.sol";
-import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
-import { Asset } from "contracts/libraries/Asset.sol";
+import { IWETH } from "./interfaces/IWeth.sol";
+import { IUniswapPermit2 } from "./interfaces/IUniswapPermit2.sol";
+import { IAMMStrategy } from "./interfaces/IAMMStrategy.sol";
+import { IStrategy } from "./interfaces/IStrategy.sol";
 
 contract AMMStrategy is IAMMStrategy, Ownable {
     using SafeERC20 for IERC20;

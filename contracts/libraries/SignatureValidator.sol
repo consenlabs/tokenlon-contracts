@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
-import { IERC1271Wallet } from "contracts/interfaces/IERC1271Wallet.sol";
+import { IERC1271Wallet } from "../interfaces/IERC1271Wallet.sol";
 
 library SignatureValidator {
     using Address for address;
