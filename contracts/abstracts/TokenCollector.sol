@@ -5,7 +5,7 @@ import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/dra
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { IUniswapPermit2 } from "../interfaces/IUniswapPermit2.sol";
+import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 
 abstract contract TokenCollector {
     using SafeERC20 for IERC20;

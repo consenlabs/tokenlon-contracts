@@ -4,14 +4,14 @@ pragma solidity 0.8.17;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { TokenCollector } from "./abstracts/TokenCollector.sol";
-import { EIP712 } from "./abstracts/EIP712.sol";
-import { IGenericSwap } from "./interfaces/IGenericSwap.sol";
-import { IStrategy } from "./interfaces/IStrategy.sol";
-import { Offer } from "./libraries/Offer.sol";
-import { GenericSwapData, getGSDataHash } from "./libraries/GenericSwapData.sol";
-import { Asset } from "./libraries/Asset.sol";
-import { SignatureValidator } from "./libraries/SignatureValidator.sol";
+import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
+import { EIP712 } from "contracts/abstracts/EIP712.sol";
+import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
+import { IStrategy } from "contracts/interfaces/IStrategy.sol";
+import { Offer } from "contracts/libraries/Offer.sol";
+import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
+import { Asset } from "contracts/libraries/Asset.sol";
+import { SignatureValidator } from "contracts/libraries/SignatureValidator.sol";
 
 contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     using SafeERC20 for IERC20;
