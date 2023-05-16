@@ -11,13 +11,13 @@ import { Asset } from "./utils/Asset.sol";
 import { Offer, getOfferHash } from "./utils/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "./utils/RFQOrder.sol";
 import { LibConstant } from "./utils/LibConstant.sol";
-import { SigCheck } from "./utils/SigCheck.sol";
+import { SignatureValidator } from "./utils/SignatureValidator.sol";
 import { StrategyBase } from "./utils/StrategyBase.sol";
 import { IRFQv2 } from "./interfaces/IRFQv2.sol";
 
 /// @title RFQv2 Contract
 /// @author imToken Labs
-contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, BaseLibEIP712 {
+contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, BaseLibEIP712 {
     using SafeMath for uint256;
     using Asset for address;
 
@@ -51,6 +51,7 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, BaseLibEIP712 {
         emit SetFeeCollector(_newFeeCollector);
     }
 
+    /// @inheritdoc IRFQv2
     function fillRFQ(
         RFQOrder calldata order,
         bytes calldata makerSignature,
@@ -80,16 +81,20 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, BaseLibEIP712 {
         permStorage.setRFQOfferFilled(offerHash);
 
         // check maker signature
-        require(SigCheck.isValidSignature(_offer.maker, getEIP712Hash(offerHash), _makerSignature), "invalid signature");
+        require(isValidSignature(_offer.maker, getEIP712Hash(offerHash), bytes(""), _makerSignature), "invalid signature");
 
         // check taker signature if needed
         if (_offer.taker != msg.sender) {
-            require(SigCheck.isValidSignature(_offer.taker, getEIP712Hash(rfqOrderHash), _takerSignature), "invalid signature");
+            require(isValidSignature(_offer.taker, getEIP712Hash(rfqOrderHash), bytes(""), _takerSignature), "invalid signature");
         }
 
         // transfer takerToken to maker
         if (_offer.takerToken.isETH()) {
             require(msg.value == _offer.takerTokenAmount, "invalid msg value");
+            Address.sendValue(_offer.maker, _offer.takerTokenAmount);
+        } else if (_offer.takerToken == address(weth)) {
+            _collect(_offer.takerToken, _offer.taker, address(this), _offer.takerTokenAmount, _takerTokenPermit);
+            weth.withdraw(_offer.takerTokenAmount);
             Address.sendValue(_offer.maker, _offer.takerTokenAmount);
         } else {
             _collect(_offer.takerToken, _offer.taker, _offer.maker, _offer.takerTokenAmount, _takerTokenPermit);

@@ -2,16 +2,21 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
+import { ECDSA } from "@openzeppelin/contracts/cryptography/ECDSA.sol";
+
 import { StrategySharedSetup } from "test/utils/StrategySharedSetup.sol";
 import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { getPermitTransferFromStructHash, encodePermitTransferFromData } from "test/utils/Permit2.sol";
 import { RFQv2 } from "contracts/RFQv2.sol";
+import { MarketMakerProxy } from "contracts/MarketMakerProxy.sol";
+import { SignatureValidator } from "contracts/utils/SignatureValidator.sol";
 import { TokenCollector } from "contracts/utils/TokenCollector.sol";
 import { Offer, getOfferHash } from "contracts/utils/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "contracts/utils/RFQOrder.sol";
 import { LibConstant } from "contracts/utils/LibConstant.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
+import { IWETH } from "contracts/interfaces/IWeth.sol";
 
 contract RFQTest is StrategySharedSetup {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
@@ -41,18 +46,23 @@ contract RFQTest is StrategySharedSetup {
     uint256 defaultFeeFactor = 100;
     bytes defaultPermit;
     bytes defaultMakerSig;
-    bytes defaulttakerSig;
+    bytes defaultTakerSig;
     IUniswapPermit2 permit2 = IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS);
     Offer defaultOffer;
     RFQOrder defaultOrder;
+    MarketMakerProxy marketMakerProxy;
     RFQv2 rfq;
 
     function setUp() public {
         // Setup
         setUpSystemContracts();
 
+        marketMakerProxy = new MarketMakerProxy(maker, maker, IWETH(address(weth)));
+
         deal(maker, 100 ether);
         setEOABalanceAndApprove(maker, tokens, 100000);
+        deal(address(marketMakerProxy), 100 ether);
+        setWalletContractBalanceAndApprove({ owner: maker, walletContract: address(marketMakerProxy), tokens: tokens, amount: 100000 });
         deal(taker, 100 ether);
         setEOABalanceAndApprove(taker, tokens, 100000);
         defaultPermit = abi.encode(TokenCollector.Source.TokenlonSpender, bytes(""));
@@ -64,15 +74,14 @@ contract RFQTest is StrategySharedSetup {
             takerTokenAmount: 10 * 1e6,
             makerToken: LON_ADDRESS,
             makerTokenAmount: 10,
-            minMakerTokenAmount: 10,
             expiry: defaultExpiry,
             salt: defaultSalt
         });
 
-        defaultMakerSig = _signOffer(makerPrivateKey, defaultOffer);
+        defaultMakerSig = _signOffer(makerPrivateKey, defaultOffer, SignatureValidator.SignatureType.EIP712);
 
         defaultOrder = RFQOrder({ offer: defaultOffer, recipient: payable(recipient), feeFactor: defaultFeeFactor });
-        defaulttakerSig = _signRFQOrder(takerPrivateKey, defaultOrder);
+        defaultTakerSig = _signRFQOrder(takerPrivateKey, defaultOrder, SignatureValidator.SignatureType.EIP712);
 
         vm.label(taker, "taker");
         vm.label(maker, "maker");
@@ -103,6 +112,83 @@ contract RFQTest is StrategySharedSetup {
         feeCollector = rfq.feeCollector();
     }
 
+    function testCannotUpgradeSpenderByNotOwner() public {
+        address newOwner = makeAddr("newOwner");
+        vm.expectRevert("not owner");
+        vm.prank(newOwner);
+        rfq.upgradeSpender(newOwner);
+    }
+
+    function testCannotUpgradeSpenderToZeroAddress() public {
+        vm.expectRevert("Strategy: spender can not be zero address");
+        vm.prank(rfqOwner, rfqOwner);
+        rfq.upgradeSpender(address(0));
+    }
+
+    function testUpgradeSpender() public {
+        address newOwner = makeAddr("newOwner");
+        vm.prank(rfqOwner, rfqOwner);
+        rfq.upgradeSpender(newOwner);
+        assertEq(address(rfq.spender()), newOwner);
+    }
+
+    function testCannotSetAllowanceCloseAllowanceByNotOwner() public {
+        address[] memory allowanceTokenList = new address[](1);
+        allowanceTokenList[0] = address(usdt);
+
+        vm.startPrank(makeAddr("random"));
+        vm.expectRevert("not owner");
+        rfq.setAllowance(allowanceTokenList, address(this));
+        vm.expectRevert("not owner");
+        rfq.closeAllowance(allowanceTokenList, address(this));
+        vm.stopPrank();
+    }
+
+    function testSetAllowanceCloseAllowance() public {
+        address[] memory allowanceTokenList = new address[](1);
+        allowanceTokenList[0] = address(usdt);
+
+        vm.prank(rfqOwner, rfqOwner);
+        assertEq(usdt.allowance(address(rfq), address(this)), uint256(0));
+
+        vm.prank(rfqOwner, rfqOwner);
+        rfq.setAllowance(allowanceTokenList, address(this));
+        assertEq(usdt.allowance(address(rfq), address(this)), type(uint256).max);
+
+        vm.prank(rfqOwner, rfqOwner);
+        rfq.closeAllowance(allowanceTokenList, address(this));
+        assertEq(usdt.allowance(address(rfq), address(this)), uint256(0));
+    }
+
+    function testCannotDepositETHByNotOwner() public {
+        vm.expectRevert("not owner");
+        vm.prank(makeAddr("random"));
+        rfq.depositETH();
+    }
+
+    function testDepositETH() public {
+        deal(address(rfq), 1 ether);
+        assertEq(address(rfq).balance, 1 ether);
+        vm.prank(rfqOwner, rfqOwner);
+        rfq.depositETH();
+        assertEq(address(rfq).balance, uint256(0));
+        assertEq(weth.balanceOf(address(rfq)), 1 ether);
+    }
+
+    function testCannotSetFeeCollectorByNotOwner() public {
+        address newFeeCollector = makeAddr("newFeeCollector");
+        vm.prank(newFeeCollector);
+        vm.expectRevert("not owner");
+        rfq.setFeeCollector(payable(newFeeCollector));
+    }
+
+    function testSetFeeCollector() public {
+        address newFeeCollector = makeAddr("newFeeCollector");
+        vm.prank(rfqOwner, rfqOwner);
+        rfq.setFeeCollector(payable(newFeeCollector));
+        assertEq(rfq.feeCollector(), newFeeCollector);
+    }
+
     function testFillRFQ() public {
         BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.takerToken });
         BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.makerToken });
@@ -128,7 +214,8 @@ contract RFQTest is StrategySharedSetup {
             defaultOrder.feeFactor
         );
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
 
         takerTakerToken.assertChange(-int256(defaultOffer.takerTokenAmount));
@@ -141,21 +228,144 @@ contract RFQTest is StrategySharedSetup {
         feeCollectorMakerToken.assertChange(int256(fee));
     }
 
-    function testFillRFQWithMakerDirectlyApprove() public {
-        // maker approve tokens to RFQ contract directly
-        approveERC20(tokens, maker, address(rfq));
-        bytes memory tokenPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
+    function testFillRFQWithContractMakerAndDirectApprove() public {
+        Offer memory offer = defaultOffer;
+        offer.maker = address(marketMakerProxy);
+        RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient), feeFactor: 0 });
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, tokenPermit, defaulttakerSig, defaultPermit);
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.WalletBytes32);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+
+        address[] memory tokenAddresses = new address[](1);
+        tokenAddresses[0] = offer.makerToken;
+        vm.startPrank(maker);
+        marketMakerProxy.setAllowance(tokenAddresses, address(rfq));
+        marketMakerProxy.closeAllowance(tokenAddresses, address(allowanceTarget));
+        vm.stopPrank();
+        bytes memory makerPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
+
+        BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
+        BalanceSnapshot.Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.makerToken });
+        BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.makerToken });
+
+        bytes memory payload = _genFillRFQPayload(rfqOrder, makerSig, makerPermit, takerSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
+
+        takerTakerToken.assertChange(-int256(offer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(offer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(offer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(offer.makerTokenAmount));
     }
 
-    function testFillRFQWithTakerDirectlyApprove() public {
-        // taker approve tokens to RFQ contract directly
+    function testFillRFQWithRawETH() public {
+        // case : taker token is ETH
+        Offer memory offer = defaultOffer;
+        offer.takerToken = LibConstant.ZERO_ADDRESS;
+        offer.takerTokenAmount = 1 ether;
+        RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient), feeFactor: 0 });
+
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+
+        BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
+        BalanceSnapshot.Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.makerToken });
+        BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.makerToken });
+
+        bytes memory payload = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
+        vm.prank(offer.taker, offer.taker);
+        userProxy.toRFQv2{ value: offer.takerTokenAmount }(payload);
+
+        takerTakerToken.assertChange(-int256(offer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(offer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(offer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(offer.makerTokenAmount));
+    }
+
+    function testFillRFQTakerGetRawETH() public {
+        // case : maker token is WETH
+        Offer memory offer = defaultOffer;
+        offer.makerToken = WETH_ADDRESS;
+        offer.makerTokenAmount = 1 ether;
+        RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient), feeFactor: 0 });
+
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+
+        BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
+        BalanceSnapshot.Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.makerToken });
+        // recipient should receive raw ETH
+        BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: LibConstant.ETH_ADDRESS });
+
+        bytes memory payload = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
+        vm.prank(offer.taker, offer.taker);
+        userProxy.toRFQv2(payload);
+
+        takerTakerToken.assertChange(-int256(offer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(offer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(offer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(offer.makerTokenAmount));
+    }
+
+    function testFillRFQWithWETH() public {
+        // case : taker token is WETH
+        Offer memory offer = defaultOffer;
+        offer.takerToken = WETH_ADDRESS;
+        offer.takerTokenAmount = 1 ether;
+        RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient), feeFactor: 0 });
+
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+
+        BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
+        // maker should receive raw ETH
+        BalanceSnapshot.Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: offer.maker, token: LibConstant.ETH_ADDRESS });
+        BalanceSnapshot.Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.makerToken });
+        BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.makerToken });
+
+        bytes memory payload = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
+        vm.prank(offer.taker, offer.taker);
+        userProxy.toRFQv2(payload);
+
+        takerTakerToken.assertChange(-int256(offer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(offer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(offer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(offer.makerTokenAmount));
+    }
+
+    function testFillRFQWithDirectlyApprove() public {
+        // spender deauthorize RFQv2 to disable other allowance
+        address[] memory authListAddress = new address[](1);
+        authListAddress[0] = address(rfq);
+        spender.deauthorize(authListAddress);
+
+        // maker approve tokens to RFQv2 contract directly
+        approveERC20(tokens, maker, address(rfq));
+        // taker approve tokens to RFQv2 contract directly
         approveERC20(tokens, taker, address(rfq));
         bytes memory tokenPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, tokenPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, tokenPermit, defaultTakerSig, tokenPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
 
@@ -180,7 +390,8 @@ contract RFQTest is StrategySharedSetup {
         bytes memory makerPermitSig = _signPermitTransferFrom(makerPrivateKey, makerPermit, address(rfq));
         bytes memory makerPermitData = encodePermitTransferFromData(makerPermit, makerPermitSig);
 
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, makerPermitData, defaulttakerSig, takerPermitData);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, makerPermitData, defaultTakerSig, takerPermitData);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
 
@@ -188,58 +399,90 @@ contract RFQTest is StrategySharedSetup {
         vm.warp(defaultOffer.expiry + 1);
 
         vm.expectRevert("offer expired");
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
 
     function testCannotFillAlreadyFilledOffer() public {
-        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
 
         vm.expectRevert("PermanentStorage: offer already filled");
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
 
     function testCannotFillRFQByIncorrectMakerSig() public {
         uint256 randomPrivateKey = 5677;
-        bytes memory randomMakerSig = _signOffer(randomPrivateKey, defaultOffer);
+        bytes memory randomMakerSig = _signOffer(randomPrivateKey, defaultOffer, SignatureValidator.SignatureType.EIP712);
 
         vm.expectRevert("invalid signature");
-        bytes memory payload = _genFillRFQPayload(defaultOrder, randomMakerSig, defaultPermit, defaulttakerSig, defaultPermit);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, randomMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
 
     function testCannotFillRFQByIncorrectTakerSig() public {
         RFQOrder memory rfqOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: defaultFeeFactor });
         uint256 randomPrivateKey = 5677;
-        bytes memory randomSig = _signRFQOrder(randomPrivateKey, rfqOrder);
+        bytes memory randomSig = _signRFQOrder(randomPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
 
         vm.expectRevert("invalid signature");
         bytes memory payload = _genFillRFQPayload(rfqOrder, defaultMakerSig, defaultPermit, randomSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
 
     function testCannotFillWithInvalidFeeFactor() public {
         RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: LibConstant.BPS_MAX + 1 });
-        bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder, SignatureValidator.SignatureType.EIP712);
 
         vm.expectRevert("invalid fee factor");
         bytes memory payload = _genFillRFQPayload(newRFQOrder, defaultMakerSig, defaultPermit, takerSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
     }
 
-    function _signOffer(uint256 _privateKey, Offer memory _offer) private view returns (bytes memory sig) {
+    function _signOffer(
+        uint256 _privateKey,
+        Offer memory _offer,
+        SignatureValidator.SignatureType _sigType
+    ) private view returns (bytes memory sig) {
         bytes32 offerHash = getOfferHash(_offer);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), offerHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
+        return _signEIP712Digest(_privateKey, EIP712SignDigest, _sigType);
     }
 
-    function _signRFQOrder(uint256 _privateKey, RFQOrder memory _rfqOrder) private view returns (bytes memory sig) {
+    function _signRFQOrder(
+        uint256 _privateKey,
+        RFQOrder memory _rfqOrder,
+        SignatureValidator.SignatureType _sigType
+    ) private view returns (bytes memory sig) {
         (, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOrderHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
+        return _signEIP712Digest(_privateKey, EIP712SignDigest, _sigType);
+    }
+
+    function _signEIP712Digest(
+        uint256 _privateKey,
+        bytes32 _digest,
+        SignatureValidator.SignatureType _sigType
+    ) internal pure returns (bytes memory) {
+        if (
+            _sigType == SignatureValidator.SignatureType.EIP712 ||
+            _sigType == SignatureValidator.SignatureType.WalletBytes ||
+            _sigType == SignatureValidator.SignatureType.WalletBytes32
+        ) {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, _digest);
+            return abi.encodePacked(r, s, v, uint8(_sigType));
+        } else if (_sigType == SignatureValidator.SignatureType.Wallet) {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, ECDSA.toEthSignedMessageHash(_digest));
+            return abi.encodePacked(r, s, v, uint8(_sigType));
+        } else {
+            revert("Invalid signature type");
+        }
     }
 
     function _genFillRFQPayload(
