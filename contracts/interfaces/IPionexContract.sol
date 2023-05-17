@@ -5,7 +5,7 @@ pragma abicoder v2;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./IStrategyBase.sol";
-import "../utils/LimitOrderLibEIP712.sol";
+import "../utils/PionexContractLibEIP712.sol";
 
 /// @title IPionexContract Interface
 /// @author imToken Labs
@@ -100,7 +100,7 @@ interface IPionexContract is IStrategyBase {
     /// @param _params Trader specific filling parameters
     /// @param _crdParams Contains details of the fill permit
     function fillLimitOrderByTrader(
-        LimitOrderLibEIP712.Order calldata _order,
+        PionexContractLibEIP712.Order calldata _order,
         bytes calldata _orderMakerSig,
         TraderParams calldata _params,
         CoordinatorParams calldata _crdParams
@@ -127,7 +127,7 @@ interface IPionexContract is IStrategyBase {
     /// @param _params Protocol specific filling parameters
     /// @param _crdParams Contains details of the fill permit
     function fillLimitOrderByProtocol(
-        LimitOrderLibEIP712.Order calldata _order,
+        PionexContractLibEIP712.Order calldata _order,
         bytes calldata _orderMakerSig,
         ProtocolParams calldata _params,
         CoordinatorParams calldata _crdParams
@@ -137,5 +137,5 @@ interface IPionexContract is IStrategyBase {
     /// @notice Only user proxy can call
     /// @param _order The order that is going to be cancelled
     /// @param _cancelMakerSig The cancelling signature signed by maker
-    function cancelLimitOrder(LimitOrderLibEIP712.Order calldata _order, bytes calldata _cancelMakerSig) external;
+    function cancelLimitOrder(PionexContractLibEIP712.Order calldata _order, bytes calldata _cancelMakerSig) external;
 }
