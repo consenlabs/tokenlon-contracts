@@ -21,7 +21,9 @@ import "./utils/LibOrderStorage.sol";
 import "./utils/PionexContractLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
-/// @title PionexContract Contract
+/// @title Pionex Contract
+/// @notice Modified from LimitOrder contract. Maker is user, taker is Pionex agent.
+/// @notice Order can be filled as long as the provided takerToken/makerToken ratio is better than or equal to maker's specfied takerToken/makerToken ratio.
 /// @author imToken Labs
 contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, SignatureValidator, ReentrancyGuard {
     using SafeMath for uint256;
@@ -133,11 +135,16 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         bytes32 allowFillHash = _validateFillPermission(orderHash, _params.takerTokenAmount, _params.taker, _crdParams);
         _validateOrderTaker(_order, _params.taker);
 
+        // Check provided takerToken/makerToken ratio is better than or equal to maker's specfied takerToken/makerToken ratio
+        // -> _params.takerTokenAmount/_params.makerTokenAmount >= _order.takerTokenAmount/_order.makerTokenAmount
+        require(_params.takerTokenAmount.mul(_order.makerTokenAmount) >= _order.takerTokenAmount.mul(_params.makerTokenAmount), "LimitOrder: taker/maker token ratio not good enough");
+
         {
             PionexContractLibEIP712.Fill memory fill = PionexContractLibEIP712.Fill({
                 orderHash: orderHash,
                 taker: _params.taker,
                 recipient: _params.recipient,
+                makerTokenAmount: _params.makerTokenAmount,
                 takerTokenAmount: _params.takerTokenAmount,
                 takerSalt: _params.salt,
                 expiry: _params.expiry
@@ -146,6 +153,8 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         }
 
         (uint256 makerTokenAmount, uint256 takerTokenAmount, uint256 remainingAmount) = _quoteOrder(_order, orderHash, _params.takerTokenAmount);
+        // Adjust makerTokenAmount according to the provided takerToken/makerToken ratio
+        makerTokenAmount = takerTokenAmount.mul(_params.makerTokenAmount).div(_params.takerTokenAmount);
 
         uint256 makerTokenOut = _settleForTrader(
             TraderSettlement({
