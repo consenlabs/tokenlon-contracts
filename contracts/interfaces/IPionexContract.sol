@@ -86,6 +86,7 @@ interface IPionexContract is IStrategyBase {
     struct TraderParams {
         address taker;
         address recipient;
+        uint256 makerTokenAmount;
         uint256 takerTokenAmount;
         uint256 salt;
         uint64 expiry;
