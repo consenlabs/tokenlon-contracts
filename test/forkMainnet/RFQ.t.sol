@@ -65,7 +65,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
             makerToken: LON_ADDRESS,
             makerTokenAmount: 10,
             minMakerTokenAmount: 10,
-            allowContractCall: true,
+            allowContractSender: true,
             expiry: defaultExpiry,
             salt: defaultSalt
         });
@@ -294,7 +294,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
     function testCannotFillWithContractIfNotAllowed() public {
         Offer memory offer = defaultOffer;
-        offer.allowContractCall = false;
+        offer.allowContractSender = false;
         RFQOrder memory newRFQOrder = RFQOrder({ offer: offer, recipient: payable(defaultOffer.taker), feeFactor: defaultFeeFactor });
         bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder);
 

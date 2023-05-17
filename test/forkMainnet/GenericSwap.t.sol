@@ -86,7 +86,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
                 makerToken: CRV_ADDRESS,
                 makerTokenAmount: 0, // to be filled later
                 minMakerTokenAmount: 0, // to be filled later
-                allowContractCall: true,
+                allowContractSender: true,
                 expiry: 0, // not used in GS
                 salt: 0 // not used in GS
             }),

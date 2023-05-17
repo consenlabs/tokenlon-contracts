@@ -87,7 +87,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         Offer memory _offer = _rfqOrder.offer;
         // check the offer deadline and fee factor
         if (_offer.expiry < block.timestamp) revert ExpiredOffer();
-        if ((!_offer.allowContractCall) && (msg.sender != tx.origin)) revert ForbidContract();
+        if ((!_offer.allowContractSender) && (msg.sender != tx.origin)) revert ForbidContract();
         if (_rfqOrder.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
 
         // check if the offer is available to be filled
