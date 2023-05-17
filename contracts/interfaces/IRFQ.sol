@@ -36,7 +36,8 @@ interface IRFQ {
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
         bytes calldata takerTokenPermit,
-        address payable recipient
+        address payable recipient,
+        uint256 feeFactor
     ) external payable;
 
     function fillRFQ(

@@ -63,8 +63,8 @@ contract RFQTest is Test, Tokens, BalanceUtil {
             takerToken: USDT_ADDRESS,
             takerTokenAmount: 10 * 1e6,
             makerToken: LON_ADDRESS,
-            makerTokenAmount: 10,
-            minMakerTokenAmount: 10,
+            makerTokenAmount: 1000 ether,
+            minMakerTokenAmount: 999 ether,
             allowContractSender: true,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -105,7 +105,10 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.maker, token: defaultOffer.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOffer.makerToken });
 
+        uint256 fee = (defaultOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+        uint256 amountAfterFee = defaultOffer.makerTokenAmount - fee;
         vm.expectEmit(true, true, true, true);
         emit FilledRFQ(
             getOfferHash(defaultOffer),
@@ -116,19 +119,20 @@ contract RFQTest is Test, Tokens, BalanceUtil {
             defaultOffer.makerToken,
             defaultOffer.makerTokenAmount,
             recipient,
-            defaultOffer.makerTokenAmount,
-            0
+            amountAfterFee,
+            defaultFeeFactor
         );
 
         vm.prank(defaultOffer.taker);
-        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient);
-
+        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
         takerTakerToken.assertChange(-int256(defaultOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
         makerTakerToken.assertChange(int256(defaultOffer.takerTokenAmount));
         makerMakerToken.assertChange(-int256(defaultOffer.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
-        recMakerToken.assertChange(int256(defaultOffer.makerTokenAmount));
+        // recipient gets less than original makerTokenAmount because of the fee
+        recMakerToken.assertChange(int256(amountAfterFee));
+        feeCollectorBal.assertChange(int256(fee));
     }
 
     function testFillRFQWithRawETH() public {
@@ -145,16 +149,22 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: offer.makerToken });
 
-        vm.prank(defaultOffer.taker);
-        rfq.fillRFQ{ value: offer.takerTokenAmount }(offer, makerSig, defaultPermit, defaultPermit, recipient);
+        uint256 fee = (offer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+        uint256 amountAfterFee = offer.makerTokenAmount - fee;
+
+        vm.prank(offer.taker);
+        rfq.fillRFQ{ value: offer.takerTokenAmount }(offer, makerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
 
         takerTakerToken.assertChange(-int256(offer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
         makerTakerToken.assertChange(int256(offer.takerTokenAmount));
         makerMakerToken.assertChange(-int256(offer.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
-        recMakerToken.assertChange(int256(offer.makerTokenAmount));
+        // recipient gets less than original makerTokenAmount because of the fee
+        recMakerToken.assertChange(int256(amountAfterFee));
+        feeCollectorBal.assertChange(int256(fee));
     }
 
     function testFillRFQTakerGetRawETH() public {
@@ -172,16 +182,22 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         // recipient should receive raw ETH
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: Constant.ZERO_ADDRESS });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: Constant.ZERO_ADDRESS });
 
-        vm.prank(defaultOffer.taker);
-        rfq.fillRFQ(offer, makerSig, defaultPermit, defaultPermit, recipient);
+        uint256 fee = (offer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+        uint256 amountAfterFee = offer.makerTokenAmount - fee;
+
+        vm.prank(offer.taker);
+        rfq.fillRFQ(offer, makerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
 
         takerTakerToken.assertChange(-int256(offer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
         makerTakerToken.assertChange(int256(offer.takerTokenAmount));
         makerMakerToken.assertChange(-int256(offer.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
-        recMakerToken.assertChange(int256(offer.makerTokenAmount));
+        // recipient gets less than original makerTokenAmount because of the fee
+        recMakerToken.assertChange(int256(amountAfterFee));
+        feeCollectorBal.assertChange(int256(fee));
     }
 
     function testFillRFQWithWETH() public {
@@ -199,16 +215,21 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: offer.makerToken });
 
-        vm.prank(defaultOffer.taker);
-        rfq.fillRFQ(offer, makerSig, defaultPermit, defaultPermit, recipient);
+        uint256 fee = (offer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+        uint256 amountAfterFee = offer.makerTokenAmount - fee;
+
+        vm.prank(offer.taker);
+        rfq.fillRFQ(offer, makerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
 
         takerTakerToken.assertChange(-int256(offer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
         makerTakerToken.assertChange(int256(offer.takerTokenAmount));
         makerMakerToken.assertChange(-int256(offer.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
-        recMakerToken.assertChange(int256(offer.makerTokenAmount));
+        recMakerToken.assertChange(int256(amountAfterFee));
+        feeCollectorBal.assertChange(int256(fee));
     }
 
     function testCannotFillExpiredRFQOrder() public {
@@ -216,16 +237,16 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         vm.expectRevert(IRFQ.ExpiredOffer.selector);
         vm.prank(defaultOffer.taker);
-        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient);
+        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
     }
 
     function testCannotFillAlreadyFillRFQOrder() public {
         vm.prank(defaultOffer.taker);
-        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient);
+        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
 
         vm.expectRevert(IRFQ.FilledOffer.selector);
         vm.prank(defaultOffer.taker);
-        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient);
+        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
     }
 
     function testCannotFillRFQByIncorrectMakerSig() public {
@@ -234,7 +255,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         vm.expectRevert(IRFQ.InvalidSignature.selector);
         vm.prank(defaultOffer.taker);
-        rfq.fillRFQ(defaultOffer, randomMakerSig, defaultPermit, defaultPermit, recipient);
+        rfq.fillRFQ(defaultOffer, randomMakerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
     }
 
     function testFillRFQByTakerSig() public {
@@ -244,6 +265,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.maker, token: defaultOffer.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOffer.makerToken });
 
         RFQOrder memory rfqOrder = RFQOrder({ offer: defaultOffer, recipient: payable(recipient), feeFactor: defaultFeeFactor });
         bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder);
@@ -271,8 +293,9 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         makerTakerToken.assertChange(int256(defaultOffer.takerTokenAmount));
         makerMakerToken.assertChange(-int256(defaultOffer.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
-        // recipient gets less than original makerTokenAmount because of the fee for relayer
+        // recipient gets less than original makerTokenAmount because of the fee
         recMakerToken.assertChange(int256(amountAfterFee));
+        feeCollectorBal.assertChange(int256(fee));
     }
 
     function testCannotFillRFQByIncorrectTakerSig() public {
