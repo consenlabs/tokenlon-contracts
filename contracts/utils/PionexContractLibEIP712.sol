@@ -80,7 +80,19 @@ library PionexContractLibEIP712 {
     bytes32 private constant FILL_TYPEHASH = 0x205396fa1b68e5a32114505757ea3414ca863515127de397dd50fc79342ce917;
 
     function _getFillStructHash(Fill memory _fill) internal pure returns (bytes32) {
-        return keccak256(abi.encode(FILL_TYPEHASH, _fill.orderHash, _fill.taker, _fill.recipient, _fill.makerTokenAmount, _fill.takerTokenAmount, _fill.takerSalt, _fill.expiry));
+        return
+            keccak256(
+                abi.encode(
+                    FILL_TYPEHASH,
+                    _fill.orderHash,
+                    _fill.taker,
+                    _fill.recipient,
+                    _fill.makerTokenAmount,
+                    _fill.takerTokenAmount,
+                    _fill.takerSalt,
+                    _fill.expiry
+                )
+            );
     }
 
     struct AllowFill {

@@ -92,7 +92,15 @@ contract PionexContractTest is StrategySharedSetup {
         );
         DEFAULT_ORDER_HASH = getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(DEFAULT_ORDER));
         DEFAULT_ORDER_MAKER_SIG = _signOrder(makerPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
-        DEFAULT_FILL = PionexContractLibEIP712.Fill(DEFAULT_ORDER_HASH, user, receiver, DEFAULT_ORDER.makerTokenAmount, DEFAULT_ORDER.takerTokenAmount, uint256(1002), DEADLINE);
+        DEFAULT_FILL = PionexContractLibEIP712.Fill(
+            DEFAULT_ORDER_HASH,
+            user,
+            receiver,
+            DEFAULT_ORDER.makerTokenAmount,
+            DEFAULT_ORDER.takerTokenAmount,
+            uint256(1002),
+            DEADLINE
+        );
         DEFAULT_TRADER_PARAMS = IPionexContract.TraderParams(
             user, // taker
             receiver, // recipient
@@ -872,9 +880,9 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload);
 
         // Balance change should be bound by order amount (not affected by 2x fill amount)
-        userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.mul(11).div(10)));  // 10% more
+        userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.mul(11).div(10))); // 10% more
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount));
-        makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(11).div(10)));  // 10% more
+        makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(11).div(10))); // 10% more
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
     }
 

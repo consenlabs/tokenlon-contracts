@@ -137,7 +137,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
         // Check provided takerToken/makerToken ratio is better than or equal to maker's specfied takerToken/makerToken ratio
         // -> _params.takerTokenAmount/_params.makerTokenAmount >= _order.takerTokenAmount/_order.makerTokenAmount
-        require(_params.takerTokenAmount.mul(_order.makerTokenAmount) >= _order.takerTokenAmount.mul(_params.makerTokenAmount), "LimitOrder: taker/maker token ratio not good enough");
+        require(
+            _params.takerTokenAmount.mul(_order.makerTokenAmount) >= _order.takerTokenAmount.mul(_params.makerTokenAmount),
+            "LimitOrder: taker/maker token ratio not good enough"
+        );
 
         {
             PionexContractLibEIP712.Fill memory fill = PionexContractLibEIP712.Fill({
