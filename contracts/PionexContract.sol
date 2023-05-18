@@ -152,9 +152,9 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
             _validateTraderFill(fill, _params.takerSig);
         }
 
-        (uint256 makerTokenAmount, uint256 takerTokenAmount, uint256 remainingAmount) = _quoteOrder(_order, orderHash, _params.takerTokenAmount);
-        // Adjust makerTokenAmount according to the provided takerToken/makerToken ratio
-        makerTokenAmount = takerTokenAmount.mul(_params.makerTokenAmount).div(_params.takerTokenAmount);
+        (uint256 makerTokenAmount, uint256 takerTokenAmount, uint256 remainingAmount) = _quoteOrderFromMakerToken(_order, orderHash, _params.makerTokenAmount);
+        // Adjust takerTokenAmount according to the provided takerToken/makerToken ratio
+        takerTokenAmount = makerTokenAmount.mul(_params.takerTokenAmount).div(_params.makerTokenAmount);
 
         uint256 makerTokenOut = _settleForTrader(
             TraderSettlement({
@@ -172,7 +172,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
             })
         );
 
-        _recordOrderFilled(orderHash, takerTokenAmount);
+        _recordMakerTokenFilled(orderHash, makerTokenAmount);
 
         return (takerTokenAmount, makerTokenOut);
     }
@@ -295,7 +295,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         address protocolAddress = _getProtocolAddress(_params.protocol);
         _validateOrderTaker(_order, protocolAddress);
 
-        (uint256 makerTokenAmount, uint256 takerTokenAmount, uint256 remainingAmount) = _quoteOrder(_order, orderHash, _params.takerTokenAmount);
+        (uint256 makerTokenAmount, uint256 takerTokenAmount, uint256 remainingAmount) = _quoteOrderFromTakerToken(_order, orderHash, _params.takerTokenAmount);
 
         uint256 relayerTakerTokenProfit = _settleForProtocol(
             ProtocolSettlement({
@@ -318,7 +318,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
             })
         );
 
-        _recordOrderFilled(orderHash, takerTokenAmount);
+        _recordTakerTokenFilled(orderHash, takerTokenAmount);
 
         return relayerTakerTokenProfit;
     }
@@ -481,7 +481,33 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         }
     }
 
-    function _quoteOrder(
+    function _quoteOrderFromMakerToken(
+        PionexContractLibEIP712.Order memory _order,
+        bytes32 _orderHash,
+        uint256 _makerTokenAmount
+    )
+        internal
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        uint256 makerTokenFilledAmount = LibOrderStorage.getStorage().orderHashToMakerTokenFilledAmount[_orderHash];
+
+        require(makerTokenFilledAmount < _order.makerTokenAmount, "LimitOrder: Order is filled");
+
+        uint256 makerTokenFillableAmount = _order.makerTokenAmount.sub(makerTokenFilledAmount);
+        uint256 makerTokenQuota = Math.min(_makerTokenAmount, makerTokenFillableAmount);
+        uint256 takerTokenQuota = makerTokenQuota.mul(_order.takerTokenAmount).div(_order.makerTokenAmount);
+        uint256 remainingAfterFill = makerTokenFillableAmount.sub(makerTokenQuota);
+
+        require(makerTokenQuota != 0 && takerTokenQuota != 0, "LimitOrder: zero token amount");
+        return (makerTokenQuota, takerTokenQuota, remainingAfterFill);
+    }
+
+    function _quoteOrderFromTakerToken(
         PionexContractLibEIP712.Order memory _order,
         bytes32 _orderHash,
         uint256 _takerTokenAmount
@@ -507,7 +533,13 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         return (makerTokenQuota, takerTokenQuota, remainingAfterFill);
     }
 
-    function _recordOrderFilled(bytes32 _orderHash, uint256 _takerTokenAmount) internal {
+    function _recordMakerTokenFilled(bytes32 _orderHash, uint256 _makerTokenAmount) internal {
+        LibOrderStorage.Storage storage stor = LibOrderStorage.getStorage();
+        uint256 makerTokenFilledAmount = stor.orderHashToMakerTokenFilledAmount[_orderHash];
+        stor.orderHashToMakerTokenFilledAmount[_orderHash] = makerTokenFilledAmount.add(_makerTokenAmount);
+    }
+
+    function _recordTakerTokenFilled(bytes32 _orderHash, uint256 _takerTokenAmount) internal {
         LibOrderStorage.Storage storage stor = LibOrderStorage.getStorage();
         uint256 takerTokenFilledAmount = stor.orderHashToTakerTokenFilledAmount[_orderHash];
         stor.orderHashToTakerTokenFilledAmount[_orderHash] = takerTokenFilledAmount.add(_takerTokenAmount);

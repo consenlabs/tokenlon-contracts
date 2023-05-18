@@ -9,6 +9,8 @@ library LibOrderStorage {
         mapping(bytes32 => uint256) orderHashToTakerTokenFilledAmount;
         // Whether order is cancelled or not.
         mapping(bytes32 => bool) orderHashToCancelled;
+        // How much maker token has been filled in order.
+        mapping(bytes32 => uint256) orderHashToMakerTokenFilledAmount;
     }
 
     /// @dev Get the storage bucket for this contract.
