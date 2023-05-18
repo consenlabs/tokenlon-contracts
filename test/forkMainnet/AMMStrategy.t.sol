@@ -12,7 +12,7 @@ import { Constant } from "contracts/libraries/Constant.sol";
 
 import { IUniversalRouter } from "contracts/interfaces/IUniswapUniversalRouter.sol";
 import { UniswapCommands } from "test/libraries/UniswapCommands.sol";
-import { IWETH } from "contracts/interfaces/IWeth.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { IAMMStrategy } from "contracts/interfaces/IAMMStrategy.sol";
 import { IStrategy } from "contracts/interfaces/IStrategy.sol";
 import { IUniswapRouterV2 } from "contracts//interfaces/IUniswapRouterV2.sol";
