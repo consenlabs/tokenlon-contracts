@@ -15,9 +15,7 @@ import "./interfaces/IWeth.sol";
 import "./utils/StrategyBase.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
-import "./utils/LibUniswapV2.sol";
-import "./utils/LibUniswapV3.sol";
-import "./utils/LibOrderStorage.sol";
+import "./utils/LibPionexContractOrderStorage.sol";
 import "./utils/PionexContractLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
@@ -30,10 +28,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     using SafeERC20 for IERC20;
 
     uint256 public immutable factorActivateDelay;
-
-    // AMM
-    address public immutable uniswapV3RouterAddress;
-    address public immutable sushiswapRouterAddress;
 
     // Below are the variables which consume storage slots.
     address public coordinator;
@@ -56,14 +50,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         address _spender,
         address _coordinator,
         uint256 _factorActivateDelay,
-        address _uniswapV3RouterAddress,
-        address _sushiswapRouterAddress,
         address _feeCollector
     ) StrategyBase(_owner, _userProxy, _weth, _permStorage, _spender) {
         coordinator = _coordinator;
         factorActivateDelay = _factorActivateDelay;
-        uniswapV3RouterAddress = _uniswapV3RouterAddress;
-        sushiswapRouterAddress = _sushiswapRouterAddress;
         feeCollector = _feeCollector;
     }
 
@@ -284,172 +274,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     }
 
     /// @inheritdoc IPionexContract
-    function fillLimitOrderByProtocol(
-        PionexContractLibEIP712.Order calldata _order,
-        bytes calldata _orderMakerSig,
-        ProtocolParams calldata _params,
-        CoordinatorParams calldata _crdParams
-    ) external override onlyUserProxy nonReentrant returns (uint256) {
-        bytes32 orderHash = getEIP712Hash(PionexContractLibEIP712._getOrderStructHash(_order));
-
-        _validateOrder(_order, orderHash, _orderMakerSig);
-        bytes32 allowFillHash = _validateFillPermission(orderHash, _params.takerTokenAmount, tx.origin, _crdParams);
-
-        address protocolAddress = _getProtocolAddress(_params.protocol);
-        _validateOrderTaker(_order, protocolAddress);
-
-        (uint256 makerTokenAmount, uint256 takerTokenAmount, uint256 remainingAmount) = _quoteOrderFromTakerToken(_order, orderHash, _params.takerTokenAmount);
-
-        uint256 relayerTakerTokenProfit = _settleForProtocol(
-            ProtocolSettlement({
-                orderHash: orderHash,
-                allowFillHash: allowFillHash,
-                protocolAddress: protocolAddress,
-                protocol: _params.protocol,
-                data: _params.data,
-                relayer: tx.origin,
-                profitRecipient: _params.profitRecipient,
-                maker: _order.maker,
-                taker: _order.taker,
-                makerToken: _order.makerToken,
-                takerToken: _order.takerToken,
-                makerTokenAmount: makerTokenAmount,
-                takerTokenAmount: takerTokenAmount,
-                remainingAmount: remainingAmount,
-                protocolOutMinimum: _params.protocolOutMinimum,
-                expiry: _params.expiry
-            })
-        );
-
-        _recordTakerTokenFilled(orderHash, takerTokenAmount);
-
-        return relayerTakerTokenProfit;
-    }
-
-    function _getProtocolAddress(Protocol protocol) internal view returns (address) {
-        if (protocol == Protocol.UniswapV3) {
-            return uniswapV3RouterAddress;
-        }
-        if (protocol == Protocol.Sushiswap) {
-            return sushiswapRouterAddress;
-        }
-        revert("LimitOrder: Unknown protocol");
-    }
-
-    struct ProtocolSettlement {
-        bytes32 orderHash;
-        bytes32 allowFillHash;
-        address protocolAddress;
-        Protocol protocol;
-        bytes data;
-        address relayer;
-        address profitRecipient;
-        address maker;
-        address taker;
-        IERC20 makerToken;
-        IERC20 takerToken;
-        uint256 makerTokenAmount;
-        uint256 takerTokenAmount;
-        uint256 remainingAmount;
-        uint256 protocolOutMinimum;
-        uint64 expiry;
-    }
-
-    function _settleForProtocol(ProtocolSettlement memory _settlement) internal returns (uint256) {
-        require(_settlement.profitRecipient != address(0), "LimitOrder: profitRecipient can not be zero address");
-
-        // Collect maker token from maker in order to swap through protocol
-        spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), address(this), _settlement.makerTokenAmount);
-
-        uint256 takerTokenOut = _swapByProtocol(_settlement);
-
-        require(takerTokenOut >= _settlement.takerTokenAmount, "LimitOrder: Insufficient token amount out from protocol");
-
-        uint256 ammOutputExtra = takerTokenOut.sub(_settlement.takerTokenAmount);
-        uint256 relayerTakerTokenProfitFee = _mulFactor(ammOutputExtra, profitFeeFactor);
-        uint256 relayerTakerTokenProfit = ammOutputExtra.sub(relayerTakerTokenProfitFee);
-        // Distribute taker token profit to profit recipient assigned by relayer
-        _settlement.takerToken.safeTransfer(_settlement.profitRecipient, relayerTakerTokenProfit);
-
-        // Calculate maker fee (maker receives taker token so fee is charged in taker token)
-        uint256 takerTokenFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
-        uint256 takerTokenForMaker = _settlement.takerTokenAmount.sub(takerTokenFee);
-
-        // Distribute taker token to maker
-        _settlement.takerToken.safeTransfer(_settlement.maker, takerTokenForMaker);
-
-        // Collect fee in taker token if any
-        uint256 feeTotal = takerTokenFee.add(relayerTakerTokenProfitFee);
-        if (feeTotal > 0) {
-            _settlement.takerToken.safeTransfer(feeCollector, feeTotal);
-        }
-
-        // Bypass stack too deep error
-        _emitLimitOrderFilledByProtocol(
-            LimitOrderFilledByProtocolParams({
-                orderHash: _settlement.orderHash,
-                maker: _settlement.maker,
-                taker: _settlement.protocolAddress,
-                allowFillHash: _settlement.allowFillHash,
-                relayer: _settlement.relayer,
-                profitRecipient: _settlement.profitRecipient,
-                makerToken: address(_settlement.makerToken),
-                takerToken: address(_settlement.takerToken),
-                makerTokenFilledAmount: _settlement.makerTokenAmount,
-                takerTokenFilledAmount: _settlement.takerTokenAmount,
-                remainingAmount: _settlement.remainingAmount,
-                makerTokenFee: 0,
-                takerTokenFee: takerTokenFee,
-                relayerTakerTokenProfit: relayerTakerTokenProfit,
-                relayerTakerTokenProfitFee: relayerTakerTokenProfitFee
-            })
-        );
-
-        return relayerTakerTokenProfit;
-    }
-
-    function _swapByProtocol(ProtocolSettlement memory _settlement) internal returns (uint256 amountOut) {
-        _settlement.makerToken.safeApprove(_settlement.protocolAddress, _settlement.makerTokenAmount);
-
-        // UniswapV3
-        if (_settlement.protocol == Protocol.UniswapV3) {
-            amountOut = LibUniswapV3.exactInput(
-                _settlement.protocolAddress,
-                LibUniswapV3.ExactInputParams({
-                    tokenIn: address(_settlement.makerToken),
-                    tokenOut: address(_settlement.takerToken),
-                    path: _settlement.data,
-                    recipient: address(this),
-                    deadline: _settlement.expiry,
-                    amountIn: _settlement.makerTokenAmount,
-                    amountOutMinimum: _settlement.protocolOutMinimum
-                })
-            );
-        } else {
-            // Sushiswap
-            address[] memory path = abi.decode(_settlement.data, (address[]));
-            amountOut = LibUniswapV2.swapExactTokensForTokens(
-                _settlement.protocolAddress,
-                LibUniswapV2.SwapExactTokensForTokensParams({
-                    tokenIn: address(_settlement.makerToken),
-                    tokenInAmount: _settlement.makerTokenAmount,
-                    tokenOut: address(_settlement.takerToken),
-                    tokenOutAmountMin: _settlement.protocolOutMinimum,
-                    path: path,
-                    to: address(this),
-                    deadline: _settlement.expiry
-                })
-            );
-        }
-
-        _settlement.makerToken.safeApprove(_settlement.protocolAddress, 0);
-    }
-
-    /// @inheritdoc IPionexContract
     function cancelLimitOrder(PionexContractLibEIP712.Order calldata _order, bytes calldata _cancelOrderMakerSig) external override onlyUserProxy nonReentrant {
         require(_order.expiry > uint64(block.timestamp), "LimitOrder: Order is expired");
         bytes32 orderHash = getEIP712Hash(PionexContractLibEIP712._getOrderStructHash(_order));
-        bool isCancelled = LibOrderStorage.getStorage().orderHashToCancelled[orderHash];
+        bool isCancelled = LibPionexContractOrderStorage.getStorage().orderHashToCancelled[orderHash];
         require(!isCancelled, "LimitOrder: Order is cancelled already");
         {
             PionexContractLibEIP712.Order memory cancelledOrder = _order;
@@ -460,7 +288,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         }
 
         // Set cancelled state to storage
-        LibOrderStorage.getStorage().orderHashToCancelled[orderHash] = true;
+        LibPionexContractOrderStorage.getStorage().orderHashToCancelled[orderHash] = true;
         emit OrderCancelled(orderHash, _order.maker);
     }
 
@@ -472,7 +300,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         bytes memory _orderMakerSig
     ) internal view {
         require(_order.expiry > uint64(block.timestamp), "LimitOrder: Order is expired");
-        bool isCancelled = LibOrderStorage.getStorage().orderHashToCancelled[_orderHash];
+        bool isCancelled = LibPionexContractOrderStorage.getStorage().orderHashToCancelled[_orderHash];
         require(!isCancelled, "LimitOrder: Order is cancelled");
 
         require(isValidSignature(_order.maker, _orderHash, bytes(""), _orderMakerSig), "LimitOrder: Order is not signed by maker");
@@ -488,15 +316,8 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         PionexContractLibEIP712.Order memory _order,
         bytes32 _orderHash,
         uint256 _makerTokenAmount
-    )
-        internal
-        view
-        returns (
-            uint256,
-            uint256
-        )
-    {
-        uint256 makerTokenFilledAmount = LibOrderStorage.getStorage().orderHashToMakerTokenFilledAmount[_orderHash];
+    ) internal view returns (uint256, uint256) {
+        uint256 makerTokenFilledAmount = LibPionexContractOrderStorage.getStorage().orderHashToMakerTokenFilledAmount[_orderHash];
 
         require(makerTokenFilledAmount < _order.makerTokenAmount, "LimitOrder: Order is filled");
 
@@ -508,42 +329,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         return (makerTokenQuota, remainingAfterFill);
     }
 
-    function _quoteOrderFromTakerToken(
-        PionexContractLibEIP712.Order memory _order,
-        bytes32 _orderHash,
-        uint256 _takerTokenAmount
-    )
-        internal
-        view
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        uint256 takerTokenFilledAmount = LibOrderStorage.getStorage().orderHashToTakerTokenFilledAmount[_orderHash];
-
-        require(takerTokenFilledAmount < _order.takerTokenAmount, "LimitOrder: Order is filled");
-
-        uint256 takerTokenFillableAmount = _order.takerTokenAmount.sub(takerTokenFilledAmount);
-        uint256 takerTokenQuota = Math.min(_takerTokenAmount, takerTokenFillableAmount);
-        uint256 makerTokenQuota = takerTokenQuota.mul(_order.makerTokenAmount).div(_order.takerTokenAmount);
-        uint256 remainingAfterFill = takerTokenFillableAmount.sub(takerTokenQuota);
-
-        require(makerTokenQuota != 0 && takerTokenQuota != 0, "LimitOrder: zero token amount");
-        return (makerTokenQuota, takerTokenQuota, remainingAfterFill);
-    }
-
     function _recordMakerTokenFilled(bytes32 _orderHash, uint256 _makerTokenAmount) internal {
-        LibOrderStorage.Storage storage stor = LibOrderStorage.getStorage();
+        LibPionexContractOrderStorage.Storage storage stor = LibPionexContractOrderStorage.getStorage();
         uint256 makerTokenFilledAmount = stor.orderHashToMakerTokenFilledAmount[_orderHash];
         stor.orderHashToMakerTokenFilledAmount[_orderHash] = makerTokenFilledAmount.add(_makerTokenAmount);
-    }
-
-    function _recordTakerTokenFilled(bytes32 _orderHash, uint256 _takerTokenAmount) internal {
-        LibOrderStorage.Storage storage stor = LibOrderStorage.getStorage();
-        uint256 takerTokenFilledAmount = stor.orderHashToTakerTokenFilledAmount[_orderHash];
-        stor.orderHashToTakerTokenFilledAmount[_orderHash] = takerTokenFilledAmount.add(_takerTokenAmount);
     }
 
     /* math utils */
@@ -585,46 +374,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 makerTokenFee: _params.makerTokenFee,
                 takerTokenFee: _params.takerTokenFee
             })
-        );
-    }
-
-    struct LimitOrderFilledByProtocolParams {
-        bytes32 orderHash;
-        address maker;
-        address taker;
-        bytes32 allowFillHash;
-        address relayer;
-        address profitRecipient;
-        address makerToken;
-        address takerToken;
-        uint256 makerTokenFilledAmount;
-        uint256 takerTokenFilledAmount;
-        uint256 remainingAmount;
-        uint256 makerTokenFee;
-        uint256 takerTokenFee;
-        uint256 relayerTakerTokenProfit;
-        uint256 relayerTakerTokenProfitFee;
-    }
-
-    function _emitLimitOrderFilledByProtocol(LimitOrderFilledByProtocolParams memory _params) internal {
-        emit LimitOrderFilledByProtocol(
-            _params.orderHash,
-            _params.maker,
-            _params.taker,
-            _params.allowFillHash,
-            _params.relayer,
-            _params.profitRecipient,
-            FillReceipt({
-                makerToken: _params.makerToken,
-                takerToken: _params.takerToken,
-                makerTokenFilledAmount: _params.makerTokenFilledAmount,
-                takerTokenFilledAmount: _params.takerTokenFilledAmount,
-                remainingAmount: _params.remainingAmount,
-                makerTokenFee: _params.makerTokenFee,
-                takerTokenFee: _params.takerTokenFee
-            }),
-            _params.relayerTakerTokenProfit,
-            _params.relayerTakerTokenProfitFee
         );
     }
 }

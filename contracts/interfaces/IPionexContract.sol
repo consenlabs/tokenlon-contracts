@@ -40,28 +40,6 @@ interface IPionexContract is IStrategyBase {
         FillReceipt fillReceipt
     );
 
-    /// @notice Emitted when an order is filled by interacting with an external protocol
-    /// @param orderHash The EIP-712 hash of the target order
-    /// @param maker The address of the maker
-    /// @param taker The address of the taker (trader)
-    /// @param allowFillHash The EIP-712 hash of the fill permit granted by coordinator
-    /// @param relayer The address of the relayer
-    /// @param profitRecipient The address of the recipient which receives relaying profit
-    /// @param fillReceipt Contains details of this single fill
-    /// @param relayerTakerTokenProfit Profit that relayer makes from this fill
-    /// @param relayerTakerTokenProfitFee Protocol fee charged on the relaying profit
-    event LimitOrderFilledByProtocol(
-        bytes32 indexed orderHash,
-        address indexed maker,
-        address indexed taker,
-        bytes32 allowFillHash,
-        address relayer,
-        address profitRecipient,
-        FillReceipt fillReceipt,
-        uint256 relayerTakerTokenProfit,
-        uint256 relayerTakerTokenProfitFee
-    );
-
     /// @notice Emitted when order is cancelled
     /// @param orderHash The EIP-712 hash of the target order
     /// @param maker The address of the maker
@@ -105,33 +83,6 @@ interface IPionexContract is IStrategyBase {
         TraderParams calldata _params,
         CoordinatorParams calldata _crdParams
     ) external returns (uint256, uint256);
-
-    enum Protocol {
-        UniswapV3,
-        Sushiswap
-    }
-
-    struct ProtocolParams {
-        Protocol protocol;
-        bytes data;
-        address profitRecipient;
-        uint256 takerTokenAmount;
-        uint256 protocolOutMinimum;
-        uint64 expiry;
-    }
-
-    /// @notice Fill an order by interacting with an external protocol
-    /// @notice Only user proxy can call
-    /// @param _order The order that is going to be filled
-    /// @param _orderMakerSig The signature of the order from maker
-    /// @param _params Protocol specific filling parameters
-    /// @param _crdParams Contains details of the fill permit
-    function fillLimitOrderByProtocol(
-        PionexContractLibEIP712.Order calldata _order,
-        bytes calldata _orderMakerSig,
-        ProtocolParams calldata _params,
-        CoordinatorParams calldata _crdParams
-    ) external returns (uint256);
 
     /// @notice Cancel an order
     /// @notice Only user proxy can call

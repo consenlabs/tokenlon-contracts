@@ -15,8 +15,6 @@ import "contracts/utils/LibConstant.sol";
 import "test/mocks/MockERC1271Wallet.sol";
 import "test/utils/BalanceSnapshot.sol";
 import "test/utils/StrategySharedSetup.sol";
-import "test/utils/UniswapV3Util.sol";
-import "test/utils/SushiswapUtil.sol";
 import { computeMainnetEIP712DomainSeparator, getEIP712Hash } from "test/utils/Sig.sol";
 
 contract PionexContractTest is StrategySharedSetup {
@@ -30,17 +28,6 @@ contract PionexContractTest is StrategySharedSetup {
         bytes32 allowFillHash,
         address recipient,
         IPionexContract.FillReceipt fillReceipt
-    );
-    event LimitOrderFilledByProtocol(
-        bytes32 indexed orderHash,
-        address indexed maker,
-        address indexed taker,
-        bytes32 allowFillHash,
-        address relayer,
-        address profitRecipient,
-        IPionexContract.FillReceipt fillReceipt,
-        uint256 relayerTakerTokenProfit,
-        uint256 relayerTakerTokenProfitFee
     );
 
     uint256 userPrivateKey = uint256(1);
@@ -64,7 +51,6 @@ contract PionexContractTest is StrategySharedSetup {
     PionexContractLibEIP712.Fill DEFAULT_FILL;
     PionexContractLibEIP712.AllowFill DEFAULT_ALLOW_FILL;
     IPionexContract.TraderParams DEFAULT_TRADER_PARAMS;
-    IPionexContract.ProtocolParams DEFAULT_PROTOCOL_PARAMS;
     IPionexContract.CoordinatorParams DEFAULT_CRD_PARAMS;
 
     PionexContract pionexContract;
@@ -110,14 +96,6 @@ contract PionexContractTest is StrategySharedSetup {
             DEADLINE, // expiry
             _signFill(userPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712) // takerSig
         );
-        DEFAULT_PROTOCOL_PARAMS = IPionexContract.ProtocolParams(
-            IPionexContract.Protocol.UniswapV3, // protocol
-            hex"6b175474e89094c44da98b954eedeac495271d0f0001f4dac17f958d2ee523a2206206994597c13d831ec7", // Uniswap v3 protocol data
-            receiver, // profitRecipient
-            DEFAULT_FILL.takerTokenAmount, // takerTokenAmount
-            0, // protocolOutMinimum
-            DEADLINE // expiry
-        );
         DEFAULT_ALLOW_FILL = PionexContractLibEIP712.AllowFill(
             DEFAULT_ORDER_HASH, // orderHash
             user, // executor
@@ -159,8 +137,6 @@ contract PionexContractTest is StrategySharedSetup {
             address(spender),
             coordinator,
             FACTORSDEALY,
-            UNISWAP_V3_ADDRESS,
-            SUSHISWAP_ADDRESS,
             feeCollector
         );
         // Setup
@@ -195,8 +171,6 @@ contract PionexContractTest is StrategySharedSetup {
         assertEq(address(pionexContract.spender()), address(spender));
         assertEq(address(pionexContract.permStorage()), address(permanentStorage));
         assertEq(address(pionexContract.weth()), address(weth));
-        assertEq(pionexContract.uniswapV3RouterAddress(), UNISWAP_V3_ADDRESS);
-        assertEq(pionexContract.sushiswapRouterAddress(), SUSHISWAP_ADDRESS);
 
         assertEq(uint256(pionexContract.makerFeeFactor()), 0);
         assertEq(uint256(pionexContract.takerFeeFactor()), 0);
@@ -991,417 +965,6 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     /*********************************
-     *Test: fillLimitOrderByProtocol *
-     *********************************/
-
-    function testCannotFillByUniswapV3LessThanProtocolOutMinimum() public {
-        // get quote from AMM
-        uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(UNISWAP_V3_QUOTER_ADDRESS, DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);
-
-        IPionexContract.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
-        protocolParams.protocolOutMinimum = ammTakerTokenOut.mul(2); // require 2x output from AMM
-
-        // Allow fill is bound by tx.origin in protocol case.
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, protocolParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("Too little received");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillBySushiSwapLessThanProtocolOutMinimum() public {
-        // get quote from AMM
-        uint256[] memory amountOuts = getSushiAmountsOut(SUSHISWAP_ADDRESS, DEFAULT_ORDER.makerTokenAmount, DEFAULT_AMM_PATH);
-
-        address[] memory path = DEFAULT_AMM_PATH;
-        IPionexContract.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
-        protocolParams.protocol = IPionexContract.Protocol.Sushiswap;
-        protocolParams.protocolOutMinimum = amountOuts[1].mul(2); // require 2x output from AMM
-        protocolParams.data = abi.encode(path);
-
-        // Allow fill is bound by tx.origin in protocol case.
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, protocolParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillByProtocolIfNotFromUserProxy() public {
-        vm.expectRevert("Strategy: not from UserProxy contract");
-        // Call limit order contract directly will get reverted since msg.sender is not from UserProxy
-        pionexContract.fillLimitOrderByProtocol(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
-    }
-
-    function testCannotFillFilledOrderByProtocol() public {
-        // Fullly fill the default order first
-        vm.startPrank(user, user);
-        bytes memory payload1 = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
-        userProxy.toLimitOrder(payload1);
-        vm.stopPrank();
-
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.salt = uint256(8002);
-
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
-        crdParams.salt = allowFill.salt;
-
-        vm.startPrank(user, user);
-        bytes memory payload2 = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: Order is filled");
-        userProxy.toLimitOrder(payload2);
-        vm.stopPrank();
-    }
-
-    function testCannotFillExpiredOrderByProtocol() public {
-        PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.expiry = uint64(block.timestamp - 1);
-
-        bytes32 orderHash = getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
-        fill.orderHash = orderHash;
-
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.orderHash = orderHash;
-
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
-
-        bytes memory payload = _genFillByProtocolPayload(order, orderMakerSig, DEFAULT_PROTOCOL_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: Order is expired");
-        vm.prank(user, user); // Only EOA
-        userProxy.toLimitOrder(payload);
-    }
-
-    function testCannotFillByProtocolWithWrongMakerSig() public {
-        bytes memory wrongMakerSig = _signOrder(userPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
-
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, wrongMakerSig, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("LimitOrder: Order is not signed by maker");
-        vm.prank(user, user); // Only EOA
-        userProxy.toLimitOrder(payload);
-    }
-
-    function testCannotFillByProtocolWithTakerOtherThanOrderSpecified() public {
-        PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
-        // order specify taker address
-        order.taker = SUSHISWAP_ADDRESS;
-        bytes32 orderHash = getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.orderHash = orderHash;
-
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
-
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(order, orderMakerSig, DEFAULT_PROTOCOL_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: Order cannot be filled by this taker");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillByProtocolWithExpiredFill() public {
-        IPionexContract.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
-        protocolParams.expiry = uint64(block.timestamp - 1);
-
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, protocolParams, DEFAULT_CRD_PARAMS);
-        // Revert caused by Uniswap V3
-        vm.expectRevert("Transaction too old");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillByProtocolIfPriceNotMatch() public {
-        // Order with unreasonable price
-        PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.takerTokenAmount = 9000 * 1e6;
-
-        bytes32 orderHash = getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.orderHash = orderHash;
-
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
-
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(order, orderMakerSig, DEFAULT_PROTOCOL_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: Insufficient token amount out from protocol");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillByProtocolWithWrongAllowFill() public {
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        // Set the executor to maker (not user)
-        allowFill.executor = maker;
-
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
-
-        // Fill order using user (not executor)
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillByProtocoWithAlteredOrderHash() public {
-        // Replace orderHash in allowFill
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.orderHash = bytes32(0);
-
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
-
-        // Allow fill is bound by tx.origin in protocol case.
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillByProtocoWithAlteredExecutor() public {
-        // Set the executor to maker (not user)
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.executor = maker;
-
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
-
-        // Fill order using user (not executor)
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillByProtocoWithAlteredFillAmount() public {
-        // Change fill amount in allow fill
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.fillAmount = DEFAULT_ALLOW_FILL.fillAmount.div(2);
-
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
-
-        // Allow fill is bound by tx.origin in protocol case.
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillByProtocolWithAllowFillNotSignedByCoordinator() public {
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        // Sign allow fill using user's private key
-        crdParams.sig = _signAllowFill(userPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712);
-
-        vm.startPrank(user, user);
-
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillByProtocolWithReplayedAllowFill() public {
-        // Fill with default allow fill
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
-        userProxy.toLimitOrder(payload);
-
-        vm.expectRevert("PermanentStorage: allow fill seen before");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testCannotFillByProtocolWithZeroProfitRecipient() public {
-        IPionexContract.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
-        protocolParams.profitRecipient = address(0);
-
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, protocolParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("LimitOrder: profitRecipient can not be zero address");
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-    }
-
-    function testFullyFillByUniswapV3WithEvent() public {
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
-        BalanceSnapshot.Snapshot memory receiverTakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.takerToken));
-        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
-        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
-        BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.takerToken));
-
-        // makerFeeFactor/takerFeeFactor : 10%
-        // profitFeeFactor : 20%
-        vm.startPrank(owner, owner);
-        pionexContract.setFactors(1000, 1000, 2000);
-        vm.warp(block.timestamp + pionexContract.factorActivateDelay());
-        pionexContract.activateFactors();
-        vm.stopPrank();
-
-        // get quote from AMM
-        uint256 ammTakerTokenOut = quoteUniswapV3ExactInput(UNISWAP_V3_QUOTER_ADDRESS, DEFAULT_PROTOCOL_PARAMS.data, DEFAULT_ORDER.makerTokenAmount);
-        uint256 ammOutputExtra = ammTakerTokenOut.sub(DEFAULT_ORDER.takerTokenAmount);
-        uint256 relayerTakerTokenProfitFee = ammOutputExtra.mul(20).div(100);
-
-        // Allow fill is bound by tx.origin in protocol case.
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.expectEmit(true, true, true, true);
-        emit LimitOrderFilledByProtocol(
-            DEFAULT_ORDER_HASH,
-            DEFAULT_ORDER.maker,
-            UNISWAP_V3_ADDRESS,
-            getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
-            user,
-            receiver,
-            IPionexContract.FillReceipt(
-                address(DEFAULT_ORDER.makerToken),
-                address(DEFAULT_ORDER.takerToken),
-                DEFAULT_ORDER.makerTokenAmount,
-                DEFAULT_ORDER.takerTokenAmount,
-                0, // remainingAmount should be zero after order fully filled
-                0, // makerTokenFee should be zero in protocol case
-                DEFAULT_ORDER.takerTokenAmount.mul(10).div(100) // takerTokenFee = 10% takerTokenAmount
-            ),
-            ammOutputExtra.sub(relayerTakerTokenProfitFee), // relayerTakerTokenProfit
-            relayerTakerTokenProfitFee // relayerTakerTokenProfitFee
-        );
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-
-        userTakerAsset.assertChange(0);
-        // To avoid precision issue, use great than instead
-        receiverTakerAsset.assertChangeGt(int256(ammOutputExtra.mul(80).div(100)));
-        makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(90).div(100)));
-        makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
-
-        // fee = taker fee + relayer profit fee
-        uint256 fee = DEFAULT_ORDER.takerTokenAmount.mul(10).div(100);
-        fee = fee.add(relayerTakerTokenProfitFee);
-        fcTakerAsset.assertChangeGt(int256(fee));
-    }
-
-    function testFillByProtocolRelayerProfit() public {
-        address relayer = 0x52D82cD20F092DB55fb1e006a2C2773AB17F6Ff2;
-        BalanceSnapshot.Snapshot memory relayerTakerAsset = BalanceSnapshot.take(relayer, address(DEFAULT_ORDER.takerToken));
-
-        // set order with extreme low price leaving huge profit for relayer
-        PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.takerTokenAmount = 1 * 1e6;
-        bytes32 orderHash = getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-
-        // update protocolParams
-        IPionexContract.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
-        protocolParams.takerTokenAmount = order.takerTokenAmount;
-        protocolParams.profitRecipient = relayer;
-
-        // update allowFill
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.orderHash = orderHash;
-        allowFill.executor = relayer;
-        allowFill.fillAmount = order.takerTokenAmount;
-
-        // update crdParams
-        IPionexContract.CoordinatorParams memory crdParams = IPionexContract.CoordinatorParams(
-            _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712),
-            allowFill.salt,
-            allowFill.expiry
-        );
-
-        // get expected profit for relayer
-        uint256 ammOutputExtra = quoteUniswapV3ExactInput(UNISWAP_V3_QUOTER_ADDRESS, protocolParams.data, order.makerTokenAmount).sub(order.takerTokenAmount);
-
-        vm.startPrank(relayer, relayer);
-        vm.expectEmit(true, true, true, true);
-        IPionexContract.FillReceipt memory fillReceipt = IPionexContract.FillReceipt(
-            address(order.makerToken),
-            address(order.takerToken),
-            order.makerTokenAmount,
-            order.takerTokenAmount,
-            0, // remainingAmount should be zero after order fully filled
-            0, // makerTokenFee should be zero in protocol case
-            0 // takerTokenFee = 0 since feeFactor = 0
-        );
-        emit LimitOrderFilledByProtocol(
-            orderHash,
-            order.maker,
-            UNISWAP_V3_ADDRESS,
-            getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(allowFill)),
-            relayer, // relayer
-            relayer, // profitRecipient
-            fillReceipt,
-            ammOutputExtra, // relayerTakerTokenProfit
-            0 // profit fee = 0
-        );
-        userProxy.toLimitOrder(_genFillByProtocolPayload(order, makerSig, protocolParams, crdParams));
-        vm.stopPrank();
-
-        // whole profit should be given to relayer
-        relayerTakerAsset.assertChange(int256(ammOutputExtra));
-        // no token should left in pionexContract
-        assertEq(order.makerToken.balanceOf(address(pionexContract)), 0);
-        assertEq(order.takerToken.balanceOf(address(pionexContract)), 0);
-    }
-
-    function testFullyFillBySushiSwap() public {
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
-        BalanceSnapshot.Snapshot memory receiverTakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.takerToken));
-        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
-        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
-
-        PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
-        order.makerTokenAmount = 10 * 1e18;
-        order.takerTokenAmount = 8 * 1e6;
-
-        // get quote from AMM
-        address[] memory path = DEFAULT_AMM_PATH;
-        uint256[] memory amountOuts = getSushiAmountsOut(SUSHISWAP_ADDRESS, order.makerTokenAmount, path);
-        // Since profitFeeFactor is zero, so the extra token from AMM is the profit for relayer.
-        uint256 profit = amountOuts[amountOuts.length - 1].sub(order.takerTokenAmount);
-
-        bytes32 orderHash = getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerHash = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
-
-        IPionexContract.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
-        protocolParams.protocol = IPionexContract.Protocol.Sushiswap;
-        protocolParams.takerTokenAmount = order.takerTokenAmount;
-        protocolParams.data = abi.encode(path);
-
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.orderHash = orderHash;
-        allowFill.fillAmount = protocolParams.takerTokenAmount;
-
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
-
-        // Allow fill is bound by tx.origin in protocol case.
-        vm.startPrank(user, user);
-        bytes memory payload = _genFillByProtocolPayload(order, orderMakerHash, protocolParams, crdParams);
-        userProxy.toLimitOrder(payload);
-        vm.stopPrank();
-
-        userTakerAsset.assertChange(0);
-        receiverTakerAsset.assertChange(int256(profit));
-        makerTakerAsset.assertChange(int256(order.takerTokenAmount));
-        makerMakerAsset.assertChange(-int256(order.makerTokenAmount));
-    }
-
-    /*********************************
      *        cancelLimitOrder       *
      *********************************/
 
@@ -1575,15 +1138,6 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.CoordinatorParams memory crdParams
     ) internal view returns (bytes memory payload) {
         return abi.encodeWithSelector(pionexContract.fillLimitOrderByTrader.selector, order, orderMakerSig, params, crdParams);
-    }
-
-    function _genFillByProtocolPayload(
-        PionexContractLibEIP712.Order memory order,
-        bytes memory orderMakerSig,
-        IPionexContract.ProtocolParams memory params,
-        IPionexContract.CoordinatorParams memory crdParams
-    ) internal view returns (bytes memory payload) {
-        return abi.encodeWithSelector(pionexContract.fillLimitOrderByProtocol.selector, order, orderMakerSig, params, crdParams);
     }
 
     function _genCancelLimitOrderPayload(PionexContractLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
