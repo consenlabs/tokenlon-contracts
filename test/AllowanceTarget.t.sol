@@ -34,7 +34,7 @@ contract AllowanceTargetTest is BalanceUtil {
         allowanceTarget = new AllowanceTarget(trusted);
 
         // Set user's mock tokens balance and approve
-        setEOABalanceAndApprove(user, address(allowanceTarget), tokens, 100);
+        setTokenBalanceAndApprove(user, address(allowanceTarget), tokens, 100);
 
         // Label addresses for easier debugging
         vm.label(user, "User");
