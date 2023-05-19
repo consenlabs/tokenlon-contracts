@@ -135,6 +135,39 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         feeCollectorBal.assertChange(int256(fee));
     }
 
+    function testFillRFQWithZeroFee() public {
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.makerToken });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOffer.maker, token: defaultOffer.takerToken });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.maker, token: defaultOffer.makerToken });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.takerToken });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.makerToken });
+
+        vm.expectEmit(true, true, true, true);
+        emit FilledRFQ(
+            getOfferHash(defaultOffer),
+            defaultOffer.taker,
+            defaultOffer.maker,
+            defaultOffer.takerToken,
+            defaultOffer.takerTokenAmount,
+            defaultOffer.makerToken,
+            defaultOffer.makerTokenAmount,
+            recipient,
+            defaultOffer.makerTokenAmount,
+            0
+        );
+
+        vm.prank(defaultOffer.taker);
+        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient, 0);
+
+        takerTakerToken.assertChange(-int256(defaultOffer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(defaultOffer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(defaultOffer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(defaultOffer.makerTokenAmount));
+    }
+
     function testFillRFQWithRawETH() public {
         // case : taker token is ETH
         Offer memory offer = defaultOffer;
