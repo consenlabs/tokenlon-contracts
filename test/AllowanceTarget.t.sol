@@ -52,14 +52,14 @@ contract AllowanceTargetTest is BalanceUtil {
         allowanceTarget.spendFromUserTo(user, address(mockERC20), recipient, 100);
     }
 
-    function testCannotSpendFromUserInsufficientBalance_NoReturnValueToken() public {
+    function testCannotSpendFromUserInsufficientBalanceWithNoReturnValueToken() public {
         uint256 userBalance = noReturnERC20.balanceOf(user);
         vm.expectRevert("ERC20: transfer amount exceeds balance");
         vm.prank(authorized);
         allowanceTarget.spendFromUserTo(user, address(noReturnERC20), recipient, userBalance + 1);
     }
 
-    function testCannotSpendFromUserInsufficientBalance_ReturnFalseToken() public {
+    function testCannotSpendFromUserInsufficientBalanceWithReturnFalseToken() public {
         uint256 userBalance = noRevertERC20.balanceOf(user);
         vm.expectRevert("SafeERC20: ERC20 operation did not succeed");
         vm.prank(authorized);
