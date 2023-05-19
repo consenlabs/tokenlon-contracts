@@ -1454,58 +1454,6 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload);
     }
 
-    /*********************************
-     *        Test: signing          *
-     *********************************/
-
-    // function testLimitOrderEIP712Sig() public {
-    //     string memory limitOrderPayloadJson = vm.readFile("test/signing/payload/limitOrder.json");
-
-    //     PionexContractLibEIP712.Order memory order = PionexContractLibEIP712.Order(
-    //         IERC20(abi.decode(vm.parseJson(limitOrderPayloadJson, "$.makerToken"), (address))),
-    //         IERC20(abi.decode(vm.parseJson(limitOrderPayloadJson, "$.takerToken"), (address))),
-    //         abi.decode(vm.parseJson(limitOrderPayloadJson, "$.makerTokenAmount"), (uint256)),
-    //         abi.decode(vm.parseJson(limitOrderPayloadJson, "$.takerTokenAmount"), (uint256)),
-    //         abi.decode(vm.parseJson(limitOrderPayloadJson, "$.maker"), (address)),
-    //         abi.decode(vm.parseJson(limitOrderPayloadJson, "$.taker"), (address)),
-    //         abi.decode(vm.parseJson(limitOrderPayloadJson, "$.salt"), (uint256)),
-    //         abi.decode(vm.parseJson(limitOrderPayloadJson, "$.expiry"), (uint64))
-    //     );
-
-    //     address limitOrderAddr = abi.decode(vm.parseJson(limitOrderPayloadJson, "$.LimitOrder"), (address));
-    //     uint256 signingKey = abi.decode(vm.parseJson(limitOrderPayloadJson, "$.signingKey"), (uint256));
-
-    //     bytes memory orderSig = _signOrderEIP712(limitOrderAddr, signingKey, order);
-    //     bytes memory expectedOrderSig = abi.decode(vm.parseJson(limitOrderPayloadJson, "$.expectedOrderSig"), (bytes));
-    //     require(keccak256(orderSig) == keccak256(expectedOrderSig), "Not expected LimitOrder order sig");
-
-    //     PionexContractLibEIP712.Fill memory fill = PionexContractLibEIP712.Fill(
-    //         getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), PionexContractLibEIP712._getOrderStructHash(order)),
-    //         order.taker,
-    //         abi.decode(vm.parseJson(limitOrderPayloadJson, "$.recipient"), (address)),
-    //         order.makerTokenAmount,
-    //         order.takerTokenAmount,
-    //         order.salt,
-    //         order.expiry
-    //     );
-
-    //     bytes memory fillSig = _signFillEIP712(limitOrderAddr, signingKey, fill);
-    //     bytes memory expectedFillSig = abi.decode(vm.parseJson(limitOrderPayloadJson, "$.expectedFillSig"), (bytes));
-    //     require(keccak256(fillSig) == keccak256(expectedFillSig), "Not expected LimitOrder fill sig");
-
-    //     PionexContractLibEIP712.AllowFill memory allowFill = PionexContractLibEIP712.AllowFill(
-    //         getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), PionexContractLibEIP712._getOrderStructHash(order)),
-    //         abi.decode(vm.parseJson(limitOrderPayloadJson, "$.executor"), (address)),
-    //         order.takerTokenAmount,
-    //         order.salt,
-    //         order.expiry
-    //     );
-
-    //     bytes memory allowFillSig = _signAllowFillEIP712(limitOrderAddr, signingKey, allowFill);
-    //     bytes memory expectedAllowFillSig = abi.decode(vm.parseJson(limitOrderPayloadJson, "$.expectedAllowFillSig"), (bytes));
-    //     require(keccak256(allowFillSig) == keccak256(expectedAllowFillSig), "Not expected LimitOrder allow fill sig");
-    // }
-
     function _signOrderEIP712(
         address limitOrderAddr,
         uint256 privateKey,
