@@ -155,9 +155,9 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
             _validateTraderFill(fill, _params.takerSig);
         }
 
-        (uint256 makerTokenAmount, uint256 takerTokenAmount, uint256 remainingAmount) = _quoteOrderFromMakerToken(_order, orderHash, _params.makerTokenAmount);
-        // Adjust takerTokenAmount according to the provided takerToken/makerToken ratio
-        takerTokenAmount = makerTokenAmount.mul(_params.takerTokenAmount).div(_params.makerTokenAmount);
+        (uint256 makerTokenAmount, uint256 remainingAmount) = _quoteOrderFromMakerToken(_order, orderHash, _params.makerTokenAmount);
+        // Calculate takerTokenAmount according to the provided takerToken/makerToken ratio
+        uint256 takerTokenAmount = makerTokenAmount.mul(_params.takerTokenAmount).div(_params.makerTokenAmount);
 
         uint256 makerTokenOut = _settleForTrader(
             TraderSettlement({
@@ -493,7 +493,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         view
         returns (
             uint256,
-            uint256,
             uint256
         )
     {
@@ -503,11 +502,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
         uint256 makerTokenFillableAmount = _order.makerTokenAmount.sub(makerTokenFilledAmount);
         uint256 makerTokenQuota = Math.min(_makerTokenAmount, makerTokenFillableAmount);
-        uint256 takerTokenQuota = makerTokenQuota.mul(_order.takerTokenAmount).div(_order.makerTokenAmount);
         uint256 remainingAfterFill = makerTokenFillableAmount.sub(makerTokenQuota);
 
-        require(makerTokenQuota != 0 && takerTokenQuota != 0, "LimitOrder: zero token amount");
-        return (makerTokenQuota, takerTokenQuota, remainingAfterFill);
+        require(makerTokenQuota != 0, "LimitOrder: zero token amount");
+        return (makerTokenQuota, remainingAfterFill);
     }
 
     function _quoteOrderFromTakerToken(
