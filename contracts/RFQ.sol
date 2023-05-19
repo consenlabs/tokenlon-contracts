@@ -7,10 +7,10 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
-import { IWETH } from "./interfaces/IWeth.sol";
+import { IWETH } from "./interfaces/IWETH.sol";
 import { IRFQ } from "./interfaces/IRFQ.sol";
 import { Asset } from "./libraries/Asset.sol";
-import { Offer } from "./libraries/Offer.sol";
+import { Offer, getOfferHash } from "./libraries/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "./libraries/RFQOrder.sol";
 import { Constant } from "./libraries/Constant.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
@@ -69,6 +69,14 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         _fillRFQ(order, makerSignature, makerTokenPermit, takerTokenPermit, takerSignature);
     }
 
+    function cancelRFQOffer(Offer calldata offer) external override {
+        if (msg.sender != offer.maker) revert NotOfferMaker();
+        bytes32 offerHash = getOfferHash(offer);
+        filledOffer[offerHash] = true;
+
+        emit CancelRFQOffer(offerHash, offer.maker);
+    }
+
     function _fillRFQ(
         RFQOrder memory _rfqOrder,
         bytes memory _makerSignature,
@@ -79,6 +87,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         Offer memory _offer = _rfqOrder.offer;
         // check the offer deadline and fee factor
         if (_offer.expiry < block.timestamp) revert ExpiredOffer();
+        if ((!_offer.allowContractSender) && (msg.sender != tx.origin)) revert ForbidContract();
         if (_rfqOrder.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
 
         // check if the offer is available to be filled
@@ -98,6 +107,10 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         if (_offer.takerToken.isETH()) {
             if (msg.value != _offer.takerTokenAmount) revert InvalidMsgValue();
             Address.sendValue(_offer.maker, _offer.takerTokenAmount);
+        } else if (_offer.takerToken == address(weth)) {
+            _collect(_offer.takerToken, _offer.taker, address(this), _offer.takerTokenAmount, _takerTokenPermit);
+            weth.withdraw(_offer.takerTokenAmount);
+            Address.sendValue(_offer.maker, _offer.takerTokenAmount);
         } else {
             _collect(_offer.takerToken, _offer.taker, _offer.maker, _offer.takerTokenAmount, _takerTokenPermit);
         }
@@ -114,12 +127,13 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             makerToken = Constant.ETH_ADDRESS;
         }
         uint256 makerTokenToTaker = _offer.makerTokenAmount - fee;
-        makerToken.transferTo(_rfqOrder.recipient, makerTokenToTaker);
 
         // collect fee if present
         if (fee > 0) {
             makerToken.transferTo(feeCollector, fee);
         }
+
+        makerToken.transferTo(_rfqOrder.recipient, makerTokenToTaker);
 
         _emitFilledRFQEvent(offerHash, _rfqOrder, makerTokenToTaker);
     }

@@ -75,7 +75,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         defaultTakerPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
 
         deal(taker, 100 ether);
-        setEOABalanceAndApprove(taker, address(genericSwap), tokens, 100000);
+        setTokenBalanceAndApprove(taker, address(genericSwap), tokens, 100000);
 
         gsData = GenericSwapData({
             offer: Offer({
@@ -86,6 +86,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
                 makerToken: CRV_ADDRESS,
                 makerTokenAmount: 0, // to be filled later
                 minMakerTokenAmount: 0, // to be filled later
+                allowContractSender: true,
                 expiry: 0, // not used in GS
                 salt: 0 // not used in GS
             }),
