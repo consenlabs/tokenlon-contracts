@@ -54,9 +54,10 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
         bytes calldata takerTokenPermit,
-        address payable recipient
+        address payable recipient,
+        uint256 feeFactor
     ) external payable override {
-        _fillRFQ(RFQOrder({ offer: offer, recipient: recipient, feeFactor: 0 }), makerSignature, makerTokenPermit, takerTokenPermit, bytes(""));
+        _fillRFQ(RFQOrder({ offer: offer, recipient: recipient, feeFactor: feeFactor }), makerSignature, makerTokenPermit, takerTokenPermit, bytes(""));
     }
 
     function fillRFQ(
