@@ -6,20 +6,24 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { IUniswapPermit2 } from "../interfaces/IUniswapPermit2.sol";
+import { IAllowanceTarget } from "../interfaces/IAllowanceTarget.sol";
 
 abstract contract TokenCollector {
     using SafeERC20 for IERC20;
 
     enum Source {
         Token,
+        TokenlonAllowanceTarget,
         Permit2AllowanceTransfer,
         Permit2SignatureTransfer
     }
 
     address public immutable permit2;
+    address public immutable allowanceTarget;
 
-    constructor(address _permit2) {
+    constructor(address _permit2, address _allowanceTarget) {
         permit2 = _permit2;
+        allowanceTarget = _allowanceTarget;
     }
 
     function _collect(
@@ -32,6 +36,9 @@ abstract contract TokenCollector {
         (Source src, bytes memory srcData) = abi.decode(data, (Source, bytes));
         if (src == Source.Token) {
             return _collectByToken(token, from, to, amount, srcData);
+        }
+        if (src == Source.TokenlonAllowanceTarget) {
+            return _collectByAllowanceTarget(token, from, to, amount);
         }
         if (src == Source.Permit2AllowanceTransfer) {
             return _collectByPermit2AllowanceTransfer(token, from, to, amount, srcData);
@@ -59,6 +66,15 @@ abstract contract TokenCollector {
             }
         }
         IERC20(token).safeTransferFrom(from, to, amount);
+    }
+
+    function _collectByAllowanceTarget(
+        address token,
+        address from,
+        address to,
+        uint256 amount
+    ) private {
+        IAllowanceTarget(allowanceTarget).spendFromUserTo(from, token, to, amount);
     }
 
     function _collectByPermit2AllowanceTransfer(

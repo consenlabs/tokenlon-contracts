@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { MockERC20Permit } from "test/mocks/MockERC20Permit.sol";
 import { Addresses } from "test/utils/Addresses.sol";
 
 contract Strategy is TokenCollector {
-    constructor(address _uniswapPermit2) TokenCollector(_uniswapPermit2) {}
+    constructor(address _uniswapPermit2, address _allowanceTarget) TokenCollector(_uniswapPermit2, _allowanceTarget) {}
 
     function collect(
         address token,
@@ -28,7 +29,12 @@ contract TestTokenCollector is Addresses {
     MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
     IUniswapPermit2 permit2 = IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS);
 
-    Strategy strategy = new Strategy(address(permit2));
+    address expected =
+        address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), address(this), bytes1(uint8(vm.getNonce(address(this)) + 1)))))));
+    address[] trusted = [expected];
+    AllowanceTarget allowanceTarget = new AllowanceTarget(trusted);
+
+    Strategy strategy = new Strategy(address(permit2), address(allowanceTarget));
 
     function setUp() public {
         token.mint(user, 10000 * 1e18);
@@ -53,6 +59,26 @@ contract TestTokenCollector is Addresses {
         token.approve(address(strategy), amount);
 
         bytes memory data = abi.encode(TokenCollector.Source.Token, bytes(""));
+        strategy.collect(address(token), user, address(this), amount, data);
+
+        uint256 balance = token.balanceOf(address(this));
+        assertEq(balance, amount);
+    }
+
+    function testCannotCollectByAllowanceTargetIfNoPriorApprove() public {
+        bytes memory data = abi.encode(TokenCollector.Source.TokenlonAllowanceTarget, bytes(""));
+
+        vm.expectRevert("ERC20: insufficient allowance");
+        strategy.collect(address(token), user, address(this), 1, data);
+    }
+
+    function testCollectByAllowanceTarget() public {
+        uint256 amount = 100 * 1e18;
+
+        vm.prank(user);
+        token.approve(address(allowanceTarget), amount);
+
+        bytes memory data = abi.encode(TokenCollector.Source.TokenlonAllowanceTarget, bytes(""));
         strategy.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
