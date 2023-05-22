@@ -32,9 +32,10 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     constructor(
         address _owner,
         address _uniswapPermit2,
+        address _allowanceTarget,
         IWETH _weth,
         address payable _feeCollector
-    ) Ownable(_owner) TokenCollector(_uniswapPermit2) {
+    ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
         weth = _weth;
         feeCollector = _feeCollector;
     }

@@ -73,3 +73,9 @@ function readAddresses(Vm vm) view returns (string memory data) {
 
     return vm.readFile(fileName);
 }
+
+function computeContractAddress(address deployer, uint8 nonce) pure returns (address) {
+    // TODO support nonce larger than uint8 max
+    bytes memory rlpEncoded = abi.encodePacked(bytes1(0xd6), bytes1(0x94), deployer, bytes1(uint8(nonce)));
+    return address(uint160(uint256(keccak256(rlpEncoded))));
+}

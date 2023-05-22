@@ -6,7 +6,9 @@ import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
+import { computeContractAddress } from "test/utils/Addresses.sol";
 import { GenericSwap } from "contracts/GenericSwap.sol";
+import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { UniswapStrategy } from "contracts/UniswapStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
@@ -59,9 +61,15 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
     GenericSwap genericSwap;
     GenericSwapData gsData;
     MockStrategy mockStrategy;
+    AllowanceTarget allowanceTarget;
 
     function setUp() public {
-        genericSwap = new GenericSwap(UNISWAP_PERMIT2_ADDRESS);
+        // deploy allowance target
+        address[] memory trusted = new address[](1);
+        trusted[0] = computeContractAddress(address(this), uint8(vm.getNonce(address(this)) + 1));
+        allowanceTarget = new AllowanceTarget(trusted);
+
+        genericSwap = new GenericSwap(UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget));
         uniswapStrategy = new UniswapStrategy(strategyAdmin, address(genericSwap), UNISWAP_V2_ADDRESS);
         mockStrategy = new MockStrategy();
         vm.prank(strategyAdmin);

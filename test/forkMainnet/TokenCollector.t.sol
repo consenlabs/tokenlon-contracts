@@ -5,7 +5,7 @@ import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { MockERC20Permit } from "test/mocks/MockERC20Permit.sol";
-import { Addresses } from "test/utils/Addresses.sol";
+import { Addresses, computeContractAddress } from "test/utils/Addresses.sol";
 
 contract Strategy is TokenCollector {
     constructor(address _uniswapPermit2, address _allowanceTarget) TokenCollector(_uniswapPermit2, _allowanceTarget) {}
@@ -29,9 +29,7 @@ contract TestTokenCollector is Addresses {
     MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
     IUniswapPermit2 permit2 = IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS);
 
-    address expected =
-        address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), address(this), bytes1(uint8(vm.getNonce(address(this)) + 1)))))));
-    address[] trusted = [expected];
+    address[] trusted = [computeContractAddress(address(this), uint8(vm.getNonce(address(this)) + 1))];
     AllowanceTarget allowanceTarget = new AllowanceTarget(trusted);
 
     Strategy strategy = new Strategy(address(permit2), address(allowanceTarget));
