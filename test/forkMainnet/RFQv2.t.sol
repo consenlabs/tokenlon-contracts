@@ -436,7 +436,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testCannotFillWithInvalidFeeFactor() public {
-        RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: LibConstant.BPS_MAX + 1 });
+        RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: LibConstant.BPS_MAX });
         bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder, SignatureValidator.SignatureType.EIP712);
 
         vm.expectRevert("invalid fee factor");
