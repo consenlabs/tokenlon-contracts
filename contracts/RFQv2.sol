@@ -8,7 +8,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { TokenCollector } from "./utils/TokenCollector.sol";
 import { BaseLibEIP712 } from "./utils/BaseLibEIP712.sol";
 import { Asset } from "./utils/Asset.sol";
-import { Offer, getOfferHash } from "./utils/Offer.sol";
+import { Offer } from "./utils/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "./utils/RFQOrder.sol";
 import { LibConstant } from "./utils/LibConstant.sol";
 import { SignatureValidator } from "./utils/SignatureValidator.sol";
