@@ -661,9 +661,9 @@ contract PionexContractTest is StrategySharedSetup {
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
 
-        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.mul(97).div(100))); // 3% fee is deducted from takerTokenAmount directly
+        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.mul(97).div(100))); // 3% fee for Pionex is deducted from takerTokenAmount directly
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount));
-        makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(87).div(100)));
+        makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(87).div(100))); // 10% fee for Tokenlon and 3% fee for Pionex
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
         fcMakerAsset.assertChange(0);
         fcTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(10).div(100)));
