@@ -14,14 +14,6 @@ library Asset {
         return (addr == LibConstant.ETH_ADDRESS || addr == LibConstant.ZERO_ADDRESS);
     }
 
-    function getBalance(address asset, address owner) internal view returns (uint256) {
-        if (isETH(asset)) {
-            return owner.balance;
-        } else {
-            return IERC20(asset).balanceOf(owner);
-        }
-    }
-
     function transferTo(
         address asset,
         address payable to,
