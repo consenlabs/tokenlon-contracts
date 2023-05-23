@@ -445,6 +445,16 @@ contract RFQTest is StrategySharedSetup {
         userProxy.toRFQv2(payload);
     }
 
+    function testCannotFillWithZeroRecipient() public {
+        RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: address(0), feeFactor: defaultFeeFactor });
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder, SignatureValidator.SignatureType.EIP712);
+
+        vm.expectRevert("zero recipient");
+        bytes memory payload = _genFillRFQPayload(newRFQOrder, defaultMakerSig, defaultPermit, takerSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
+        userProxy.toRFQv2(payload);
+    }
+
     function _signOffer(
         uint256 _privateKey,
         Offer memory _offer,
