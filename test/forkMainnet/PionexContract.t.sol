@@ -30,18 +30,18 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.FillReceipt fillReceipt
     );
 
-    uint256 userPrivateKey = uint256(1);
+    uint256 pionexPrivateKey = uint256(1);
     uint256 makerPrivateKey = uint256(2);
     uint256 coordinatorPrivateKey = uint256(3);
 
-    address user = vm.addr(userPrivateKey);
+    address pionex = vm.addr(pionexPrivateKey);
     address maker = vm.addr(makerPrivateKey);
     address coordinator = vm.addr(coordinatorPrivateKey);
     address owner = makeAddr("owner");
     address feeCollector = makeAddr("feeCollector");
     address receiver = makeAddr("receiver");
-    MockERC1271Wallet mockERC1271Wallet = new MockERC1271Wallet(user);
-    address[] wallet = [user, maker, coordinator, address(mockERC1271Wallet)];
+    MockERC1271Wallet mockERC1271Wallet = new MockERC1271Wallet(pionex);
+    address[] wallet = [pionex, maker, coordinator, address(mockERC1271Wallet)];
     address[] allowanceAddrs;
 
     address[] DEFAULT_AMM_PATH;
@@ -82,7 +82,7 @@ contract PionexContractTest is StrategySharedSetup {
         DEFAULT_ORDER_MAKER_SIG = _signOrder(makerPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
         DEFAULT_FILL = PionexContractLibEIP712.Fill(
             DEFAULT_ORDER_HASH,
-            user,
+            pionex,
             receiver,
             DEFAULT_ORDER.makerTokenAmount,
             DEFAULT_ORDER.takerTokenAmount,
@@ -90,7 +90,7 @@ contract PionexContractTest is StrategySharedSetup {
             DEADLINE
         );
         DEFAULT_TRADER_PARAMS = IPionexContract.TraderParams(
-            user, // taker
+            pionex, // taker
             receiver, // recipient
             DEFAULT_FILL.makerTokenAmount, // makerTokenAmount
             DEFAULT_FILL.takerTokenAmount, // takerTokenAmount
@@ -98,11 +98,11 @@ contract PionexContractTest is StrategySharedSetup {
             DEFAULT_PIONEX_STRATEGY_FEE_FACTOR, // pionex strategy fee factor
             DEFAULT_FILL.takerSalt, // salt
             DEADLINE, // expiry
-            _signFill(userPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712) // takerSig
+            _signFill(pionexPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712) // takerSig
         );
         DEFAULT_ALLOW_FILL = PionexContractLibEIP712.AllowFill(
             DEFAULT_ORDER_HASH, // orderHash
-            user, // executor
+            pionex, // executor
             DEFAULT_FILL.takerTokenAmount, // fillAmount
             uint256(1003), // salt
             DEADLINE // expiry
@@ -117,12 +117,12 @@ contract PionexContractTest is StrategySharedSetup {
         dealWallet(wallet, 100 ether);
         // Set token balance and approve
         tokens = [weth, usdt, dai];
-        setEOABalanceAndApprove(user, tokens, 10000);
+        setEOABalanceAndApprove(pionex, tokens, 10000);
         setEOABalanceAndApprove(maker, tokens, 10000);
         setEOABalanceAndApprove(address(mockERC1271Wallet), tokens, 10000);
 
         // Label addresses for easier debugging
-        vm.label(user, "User");
+        vm.label(pionex, "Pionex");
         vm.label(maker, "Maker");
         vm.label(coordinator, "Coordinator");
         vm.label(receiver, "Receiver");
@@ -185,22 +185,22 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testCannotTransferOwnershipByNotOwner() public {
         vm.expectRevert("not owner");
-        vm.prank(user);
-        pionexContract.nominateNewOwner(user);
+        vm.prank(pionex);
+        pionexContract.nominateNewOwner(pionex);
     }
 
     function testCannotAcceptOwnershipIfNotNominated() public {
         vm.expectRevert("not nominated");
-        vm.prank(user);
+        vm.prank(pionex);
         pionexContract.acceptOwnership();
     }
 
     function testTransferOwnership() public {
         vm.prank(owner, owner);
-        pionexContract.nominateNewOwner(user);
-        vm.prank(user);
+        pionexContract.nominateNewOwner(pionex);
+        vm.prank(pionex);
         pionexContract.acceptOwnership();
-        assertEq(pionexContract.owner(), user);
+        assertEq(pionexContract.owner(), pionex);
     }
 
     /*********************************
@@ -209,8 +209,8 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testCannotUpgradeSpenderByNotOwner() public {
         vm.expectRevert("not owner");
-        vm.prank(user);
-        pionexContract.upgradeSpender(user);
+        vm.prank(pionex);
+        pionexContract.upgradeSpender(pionex);
     }
 
     function testCannotUpgradeSpenderToZeroAddr() public {
@@ -221,8 +221,8 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testUpgradeSpender() public {
         vm.prank(owner, owner);
-        pionexContract.upgradeSpender(user);
-        assertEq(address(pionexContract.spender()), user);
+        pionexContract.upgradeSpender(pionex);
+        assertEq(address(pionexContract.spender()), pionex);
     }
 
     /*********************************
@@ -231,8 +231,8 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testCannotUpgradeCoordinatorByNotOwner() public {
         vm.expectRevert("not owner");
-        vm.prank(user);
-        pionexContract.upgradeCoordinator(user);
+        vm.prank(pionex);
+        pionexContract.upgradeCoordinator(pionex);
     }
 
     function testCannotUpgradeCoordinatorToZeroAddr() public {
@@ -243,8 +243,8 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testUpgradeCoordinator() public {
         vm.prank(owner, owner);
-        pionexContract.upgradeCoordinator(user);
-        assertEq(address(pionexContract.coordinator()), user);
+        pionexContract.upgradeCoordinator(pionex);
+        assertEq(address(pionexContract.coordinator()), pionex);
     }
 
     /*********************************
@@ -253,13 +253,13 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testCannotSetAllowanceByNotOwner() public {
         vm.expectRevert("not owner");
-        vm.prank(user);
+        vm.prank(pionex);
         pionexContract.setAllowance(allowanceAddrs, address(allowanceTarget));
     }
 
     function testCannotCloseAllowanceByNotOwner() public {
         vm.expectRevert("not owner");
-        vm.prank(user);
+        vm.prank(pionex);
         pionexContract.closeAllowance(allowanceAddrs, address(allowanceTarget));
     }
 
@@ -283,7 +283,7 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testCannotDepositETHByNotOwner() public {
         vm.expectRevert("not owner");
-        vm.prank(user);
+        vm.prank(pionex);
         pionexContract.depositETH();
     }
 
@@ -325,7 +325,7 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testCannotSetFeeCollectorByNotOwner() public {
         vm.expectRevert("not owner");
-        vm.prank(user);
+        vm.prank(pionex);
         pionexContract.setFeeCollector(feeCollector);
     }
 
@@ -337,8 +337,8 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testSetFeeCollector() public {
         vm.prank(owner, owner);
-        pionexContract.setFeeCollector(user);
-        assertEq(address(pionexContract.feeCollector()), user);
+        pionexContract.setFeeCollector(pionex);
+        assertEq(address(pionexContract.feeCollector()), pionex);
     }
 
     /*********************************
@@ -354,7 +354,7 @@ contract PionexContractTest is StrategySharedSetup {
     function testCannotFillFilledOrderByTrader() public {
         // Fullly fill the default order first
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload1);
 
         // Try to fill the default order, should fail
@@ -362,7 +362,7 @@ contract PionexContractTest is StrategySharedSetup {
         fill.takerSalt = uint256(8001);
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
         traderParams.salt = fill.takerSalt;
 
         PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
@@ -374,7 +374,7 @@ contract PionexContractTest is StrategySharedSetup {
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Order is filled");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload2);
     }
 
@@ -389,7 +389,7 @@ contract PionexContractTest is StrategySharedSetup {
         fill.orderHash = orderHash;
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
@@ -399,16 +399,16 @@ contract PionexContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Order is expired");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithWrongMakerSig() public {
-        bytes memory wrongMakerSig = _signOrder(userPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
+        bytes memory wrongMakerSig = _signOrder(pionexPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, wrongMakerSig, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Order is not signed by maker");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
@@ -418,7 +418,7 @@ contract PionexContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, wrongTraderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Fill is not signed by taker");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
@@ -433,8 +433,8 @@ contract PionexContractTest is StrategySharedSetup {
         fill.orderHash = orderHash;
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        // user try to fill this order
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        // pionex try to fill this order
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
@@ -444,7 +444,7 @@ contract PionexContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Order cannot be filled by this taker");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
@@ -453,19 +453,19 @@ contract PionexContractTest is StrategySharedSetup {
         fill.expiry = uint64(block.timestamp - 1);
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
         traderParams.expiry = fill.expiry;
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Fill request is expired");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotReplayFill() public {
         // Fill with DEFAULT_FILL
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload1);
 
         // Try to fill with same fill request with differnt allowFill (otherwise will revert by dup allowFill)
@@ -478,7 +478,7 @@ contract PionexContractTest is StrategySharedSetup {
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("PermanentStorage: transaction seen before");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload2);
     }
 
@@ -495,7 +495,7 @@ contract PionexContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Fill is not signed by taker");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
@@ -505,7 +505,7 @@ contract PionexContractTest is StrategySharedSetup {
         traderParams.recipient = coordinator;
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Fill is not signed by taker");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
@@ -519,7 +519,7 @@ contract PionexContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: Fill permission is expired");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
@@ -533,22 +533,22 @@ contract PionexContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAlteredExecutor() public {
-        // Set the executor to maker (not user)
+        // Set the executor to maker (not pionex)
         PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.executor = maker;
 
         IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        // Fill order using user (not executor)
+        // Fill order using pionex (not executor)
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
@@ -562,36 +562,36 @@ contract PionexContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAllowFillNotSignedByCoordinator() public {
         IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        // Sign allow fill using user's private key
-        crdParams.sig = _signAllowFill(userPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712);
+        // Sign allow fill using pionex's private key
+        crdParams.sig = _signAllowFill(pionexPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithReplayedAllowFill() public {
         // Fill with default allow fill
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload1);
 
         PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.takerSalt = uint256(8001);
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("PermanentStorage: allow fill seen before");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload2);
     }
 
@@ -601,7 +601,7 @@ contract PionexContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: recipient can not be zero address");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
@@ -612,16 +612,16 @@ contract PionexContractTest is StrategySharedSetup {
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.makerTokenAmount = fill.makerTokenAmount;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: taker/maker token ratio not good enough");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testFullyFillByTrader() public {
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
+        BalanceSnapshot.Snapshot memory pionexTakerAsset = BalanceSnapshot.take(pionex, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
@@ -638,14 +638,14 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.gasFeeFactor = 50; // gasFeeFactor: 0.5%
         traderParams.pionexStrategyFeeFactor = 250; // pionexStrategyFeeFactor: 2.5%
-        traderParams.takerSig = _signFill(userPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(pionexPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectEmit(true, true, true, true);
         emit LimitOrderFilledByTrader(
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.maker,
-            user,
+            pionex,
             getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
             DEFAULT_TRADER_PARAMS.recipient,
             IPionexContract.FillReceipt(
@@ -658,10 +658,10 @@ contract PionexContractTest is StrategySharedSetup {
                 DEFAULT_ORDER.takerTokenAmount.mul(3).div(100) // pionexStrategyFee = 0.5% + 2.5% = 3% takerTokenAmount
             )
         );
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
 
-        userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.mul(97).div(100))); // 3% fee is deducted from takerTokenAmount directly
+        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.mul(97).div(100))); // 3% fee is deducted from takerTokenAmount directly
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount));
         makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(87).div(100)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
@@ -670,7 +670,7 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function testFullyFillByTraderWithBetterTakerMakerTokenRatio() public {
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
+        BalanceSnapshot.Snapshot memory pionexTakerAsset = BalanceSnapshot.take(pionex, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
@@ -683,7 +683,7 @@ contract PionexContractTest is StrategySharedSetup {
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.takerTokenAmount = fill.takerTokenAmount;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = traderParams.takerTokenAmount;
@@ -696,7 +696,7 @@ contract PionexContractTest is StrategySharedSetup {
         emit LimitOrderFilledByTrader(
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.maker,
-            user,
+            pionex,
             getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(allowFill)),
             traderParams.recipient,
             IPionexContract.FillReceipt(
@@ -709,10 +709,10 @@ contract PionexContractTest is StrategySharedSetup {
                 0
             )
         );
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
 
-        userTakerAsset.assertChange(-int256(fill.takerTokenAmount));
+        pionexTakerAsset.assertChange(-int256(fill.takerTokenAmount));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount));
         makerTakerAsset.assertChange(int256(fill.takerTokenAmount)); // 10% more
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
@@ -727,7 +727,7 @@ contract PionexContractTest is StrategySharedSetup {
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.taker = address(mockERC1271Wallet);
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.WalletBytes32);
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.WalletBytes32);
 
         PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.executor = address(mockERC1271Wallet);
@@ -736,14 +736,14 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testFillBySpecificTaker() public {
         PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
-        order.taker = user;
+        order.taker = pionex;
         bytes32 orderHash = getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
@@ -751,7 +751,7 @@ contract PionexContractTest is StrategySharedSetup {
         fill.orderHash = orderHash;
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
@@ -760,14 +760,14 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testFillBySpecificTakerWithOldEIP712Method() public {
         PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify taker address
-        order.taker = user;
+        order.taker = pionex;
         bytes32 orderHash = getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrderWithOldEIP712Method(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
@@ -775,7 +775,7 @@ contract PionexContractTest is StrategySharedSetup {
         fill.orderHash = orderHash;
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFillWithOldEIP712Method(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFillWithOldEIP712Method(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
@@ -784,12 +784,12 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFillWithOldEIP712Method(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testOverFillByTrader() public {
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
+        BalanceSnapshot.Snapshot memory pionexTakerAsset = BalanceSnapshot.take(pionex, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
@@ -802,7 +802,7 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.makerTokenAmount = fill.makerTokenAmount;
         traderParams.takerTokenAmount = fill.takerTokenAmount;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = fill.takerTokenAmount;
@@ -811,18 +811,18 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
 
         // Balance change should be bound by order amount (not affected by 2x fill amount)
-        userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount));
+        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount));
         makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
     }
 
     function testOverFillByTraderWithBetterTakerMakerTokenRatio() public {
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
+        BalanceSnapshot.Snapshot memory pionexTakerAsset = BalanceSnapshot.take(pionex, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
@@ -835,7 +835,7 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.makerTokenAmount = fill.makerTokenAmount;
         traderParams.takerTokenAmount = fill.takerTokenAmount;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = fill.takerTokenAmount;
@@ -844,18 +844,18 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
 
         // Balance change should be bound by order amount (not affected by 2x fill amount)
-        userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.mul(11).div(10))); // 10% more
+        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.mul(11).div(10))); // 10% more
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount));
         makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(11).div(10))); // 10% more
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
     }
 
     function testFillByTraderMultipleTimes() public {
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
+        BalanceSnapshot.Snapshot memory pionexTakerAsset = BalanceSnapshot.take(pionex, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
@@ -867,7 +867,7 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.TraderParams memory traderParams1 = DEFAULT_TRADER_PARAMS;
         traderParams1.makerTokenAmount = fill1.makerTokenAmount;
         traderParams1.takerTokenAmount = fill1.takerTokenAmount;
-        traderParams1.takerSig = _signFill(userPrivateKey, fill1, SignatureValidator.SignatureType.EIP712);
+        traderParams1.takerSig = _signFill(pionexPrivateKey, fill1, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
         allowFill1.fillAmount = fill1.takerTokenAmount;
@@ -876,7 +876,7 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams1.sig = _signAllowFill(coordinatorPrivateKey, allowFill1, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload1);
 
         // Second fill amount : 36 USDT
@@ -887,7 +887,7 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.TraderParams memory traderParams2 = DEFAULT_TRADER_PARAMS;
         traderParams2.makerTokenAmount = fill2.makerTokenAmount;
         traderParams2.takerTokenAmount = fill2.takerTokenAmount;
-        traderParams2.takerSig = _signFill(userPrivateKey, fill2, SignatureValidator.SignatureType.EIP712);
+        traderParams2.takerSig = _signFill(pionexPrivateKey, fill2, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
         allowFill2.fillAmount = fill2.takerTokenAmount;
@@ -896,18 +896,18 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams2.sig = _signAllowFill(coordinatorPrivateKey, allowFill2, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload2);
 
         // Half of the order filled after 2 txs
-        userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.div(2)));
+        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.div(2)));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount.div(2)));
         makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.div(2)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount.div(2)));
     }
 
     function testFillByTraderMultipleTimesWithBetterTakerMakerTokenRatio() public {
-        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.takerToken));
+        BalanceSnapshot.Snapshot memory pionexTakerAsset = BalanceSnapshot.take(pionex, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.makerToken));
         BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.takerToken));
         BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take(maker, address(DEFAULT_ORDER.makerToken));
@@ -919,7 +919,7 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.TraderParams memory traderParams1 = DEFAULT_TRADER_PARAMS;
         traderParams1.makerTokenAmount = fill1.makerTokenAmount;
         traderParams1.takerTokenAmount = fill1.takerTokenAmount;
-        traderParams1.takerSig = _signFill(userPrivateKey, fill1, SignatureValidator.SignatureType.EIP712);
+        traderParams1.takerSig = _signFill(pionexPrivateKey, fill1, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
         allowFill1.fillAmount = fill1.takerTokenAmount;
@@ -928,7 +928,7 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams1.sig = _signAllowFill(coordinatorPrivateKey, allowFill1, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload1);
 
         // Second fill amount : 36 USDT and better takerToken/makerToken ratio
@@ -939,7 +939,7 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.TraderParams memory traderParams2 = DEFAULT_TRADER_PARAMS;
         traderParams2.makerTokenAmount = fill2.makerTokenAmount;
         traderParams2.takerTokenAmount = fill2.takerTokenAmount;
-        traderParams2.takerSig = _signFill(userPrivateKey, fill2, SignatureValidator.SignatureType.EIP712);
+        traderParams2.takerSig = _signFill(pionexPrivateKey, fill2, SignatureValidator.SignatureType.EIP712);
 
         PionexContractLibEIP712.AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
         allowFill2.fillAmount = fill2.takerTokenAmount;
@@ -948,11 +948,11 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams2.sig = _signAllowFill(coordinatorPrivateKey, allowFill2, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload2);
 
         // Half of the order filled after 2 txs
-        userTakerAsset.assertChange(-int256(fill1.takerTokenAmount.add(fill2.takerTokenAmount)));
+        pionexTakerAsset.assertChange(-int256(fill1.takerTokenAmount.add(fill2.takerTokenAmount)));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount.div(2)));
         makerTakerAsset.assertChange(int256(fill1.takerTokenAmount.add(fill2.takerTokenAmount)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount.div(2)));
@@ -970,12 +970,12 @@ contract PionexContractTest is StrategySharedSetup {
             DEFAULT_ORDER,
             _signOrder(makerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712)
         );
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(cancelPayload);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Order is cancelled");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
@@ -983,9 +983,12 @@ contract PionexContractTest is StrategySharedSetup {
         PionexContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.takerTokenAmount = 0;
 
-        bytes memory cancelPayload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
+        bytes memory cancelPayload = _genCancelLimitOrderPayload(
+            DEFAULT_ORDER,
+            _signOrder(pionexPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712)
+        );
         vm.expectRevert("LimitOrder: Cancel request is not signed by maker");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(cancelPayload);
     }
 
@@ -993,9 +996,9 @@ contract PionexContractTest is StrategySharedSetup {
         PionexContractLibEIP712.Order memory expiredOrder = DEFAULT_ORDER;
         expiredOrder.expiry = 0;
 
-        bytes memory payload = _genCancelLimitOrderPayload(expiredOrder, _signOrder(userPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712));
+        bytes memory payload = _genCancelLimitOrderPayload(expiredOrder, _signOrder(pionexPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712));
         vm.expectRevert("LimitOrder: Order is expired");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
@@ -1004,10 +1007,10 @@ contract PionexContractTest is StrategySharedSetup {
         zeroOrder.takerTokenAmount = 0;
 
         bytes memory payload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(makerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
         vm.expectRevert("LimitOrder: Order is cancelled already");
-        vm.prank(user, user); // Only EOA
+        vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
