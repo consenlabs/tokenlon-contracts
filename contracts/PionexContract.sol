@@ -37,8 +37,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     uint256 public factorsTimeLock;
     uint16 public makerFeeFactor = 0;
     uint16 public pendingMakerFeeFactor;
-    uint16 public profitFeeFactor = 0;
-    uint16 public pendingProfitFeeFactor;
 
     constructor(
         address _owner,
@@ -68,13 +66,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
     /// @notice Only owner can call
     /// @param _makerFeeFactor The new fee factor for maker
-    /// @param _profitFeeFactor The new fee factor for relayer profit
-    function setFactors(uint16 _makerFeeFactor, uint16 _profitFeeFactor) external onlyOwner {
+    function setFactors(uint16 _makerFeeFactor) external onlyOwner {
         require(_makerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid maker fee factor");
-        require(_profitFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid profit fee factor");
 
         pendingMakerFeeFactor = _makerFeeFactor;
-        pendingProfitFeeFactor = _profitFeeFactor;
 
         factorsTimeLock = block.timestamp + factorActivateDelay;
     }
@@ -85,11 +80,9 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         require(block.timestamp >= factorsTimeLock, "LimitOrder: fee factors timelocked");
         factorsTimeLock = 0;
         makerFeeFactor = pendingMakerFeeFactor;
-        profitFeeFactor = pendingProfitFeeFactor;
         pendingMakerFeeFactor = 0;
-        pendingProfitFeeFactor = 0;
 
-        emit FactorsUpdated(makerFeeFactor, profitFeeFactor);
+        emit FactorsUpdated(makerFeeFactor);
     }
 
     /// @notice Only owner can call

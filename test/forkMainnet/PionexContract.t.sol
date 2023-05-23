@@ -173,7 +173,6 @@ contract PionexContractTest is StrategySharedSetup {
         assertEq(address(pionexContract.weth()), address(weth));
 
         assertEq(uint256(pionexContract.makerFeeFactor()), 0);
-        assertEq(uint256(pionexContract.profitFeeFactor()), 0);
     }
 
     /*********************************
@@ -300,26 +299,20 @@ contract PionexContractTest is StrategySharedSetup {
     function testCannotSetFactorsIfLargerThanBpsMax() public {
         vm.expectRevert("LimitOrder: Invalid maker fee factor");
         vm.prank(owner, owner);
-        pionexContract.setFactors(LibConstant.BPS_MAX + 1, 1);
-
-        vm.expectRevert("LimitOrder: Invalid profit fee factor");
-        vm.prank(owner, owner);
-        pionexContract.setFactors(1, LibConstant.BPS_MAX + 1);
+        pionexContract.setFactors(LibConstant.BPS_MAX + 1);
     }
 
     function testSetFactors() public {
         vm.startPrank(owner, owner);
-        pionexContract.setFactors(1, 2);
+        pionexContract.setFactors(1);
         // fee factors should stay same before new ones activate
         assertEq(uint256(pionexContract.makerFeeFactor()), 0);
-        assertEq(uint256(pionexContract.profitFeeFactor()), 0);
         vm.warp(block.timestamp + pionexContract.factorActivateDelay());
 
         // fee factors should be updated now
         pionexContract.activateFactors();
         vm.stopPrank();
         assertEq(uint256(pionexContract.makerFeeFactor()), 1);
-        assertEq(uint256(pionexContract.profitFeeFactor()), 2);
     }
 
     /*********************************
@@ -632,9 +625,8 @@ contract PionexContractTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.takerToken));
 
         // makerFeeFactor : 10%
-        // profitFeeFactor : 20%
         vm.startPrank(owner, owner);
-        pionexContract.setFactors(1000, 2000);
+        pionexContract.setFactors(1000);
         vm.warp(block.timestamp + pionexContract.factorActivateDelay());
         pionexContract.activateFactors();
         vm.stopPrank();
