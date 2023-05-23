@@ -113,6 +113,13 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
             _params.takerTokenAmount.mul(_order.makerTokenAmount) >= _order.takerTokenAmount.mul(_params.makerTokenAmount),
             "LimitOrder: taker/maker token ratio not good enough"
         );
+        // Check gas fee factor and pionex strategy fee factor do not exceed limit
+        require(
+            (_params.gasFeeFactor <= LibConstant.BPS_MAX) &&
+                (_params.pionexStrategyFeeFactor <= LibConstant.BPS_MAX) &&
+                (_params.gasFeeFactor + _params.pionexStrategyFeeFactor <= LibConstant.BPS_MAX - makerFeeFactor),
+            "LimitOrder: Invalid pionex fee factor"
+        );
 
         {
             PionexContractLibEIP712.Fill memory fill = PionexContractLibEIP712.Fill({
@@ -143,7 +150,9 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 takerToken: _order.takerToken,
                 makerTokenAmount: makerTokenAmount,
                 takerTokenAmount: takerTokenAmount,
-                remainingAmount: remainingAmount
+                remainingAmount: remainingAmount,
+                gasFeeFactor: _params.gasFeeFactor,
+                pionexStrategyFeeFactor: _params.pionexStrategyFeeFactor
             })
         );
 
@@ -204,6 +213,8 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         uint256 makerTokenAmount;
         uint256 takerTokenAmount;
         uint256 remainingAmount;
+        uint16 gasFeeFactor;
+        uint16 pionexStrategyFeeFactor;
     }
 
     function _settleForTrader(TraderSettlement memory _settlement) internal returns (uint256) {
@@ -212,8 +223,11 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         address _feeCollector = feeCollector;
 
         // Calculate maker fee (maker receives taker token so fee is charged in taker token)
-        uint256 takerTokenFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
-        uint256 takerTokenForMaker = _settlement.takerTokenAmount.sub(takerTokenFee);
+        // 1. Fee for Tokenlon
+        uint256 tokenlonFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
+        // 2. Fee for Pionex, including gas fee and strategy fee
+        uint256 pionexFee = _mulFactor(_settlement.takerTokenAmount, _settlement.gasFeeFactor + _settlement.pionexStrategyFeeFactor);
+        uint256 takerTokenForMaker = _settlement.takerTokenAmount.sub(tokenlonFee).sub(pionexFee);
 
         // trader -> maker
         _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _settlement.maker, takerTokenForMaker);
@@ -222,8 +236,8 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _settlement.recipient, _settlement.makerTokenAmount);
 
         // Collect maker fee (charged in taker token)
-        if (takerTokenFee > 0) {
-            _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _feeCollector, takerTokenFee);
+        if (tokenlonFee > 0) {
+            _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _feeCollector, tokenlonFee);
         }
 
         // bypass stack too deep error
@@ -239,7 +253,8 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 makerTokenFilledAmount: _settlement.makerTokenAmount,
                 takerTokenFilledAmount: _settlement.takerTokenAmount,
                 remainingAmount: _settlement.remainingAmount,
-                takerTokenFee: takerTokenFee
+                tokenlonFee: tokenlonFee,
+                pionexFee: pionexFee
             })
         );
 
@@ -327,7 +342,8 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         uint256 makerTokenFilledAmount;
         uint256 takerTokenFilledAmount;
         uint256 remainingAmount;
-        uint256 takerTokenFee;
+        uint256 tokenlonFee;
+        uint256 pionexFee;
     }
 
     function _emitLimitOrderFilledByTrader(LimitOrderFilledByTraderParams memory _params) internal {
@@ -343,7 +359,8 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 makerTokenFilledAmount: _params.makerTokenFilledAmount,
                 takerTokenFilledAmount: _params.takerTokenFilledAmount,
                 remainingAmount: _params.remainingAmount,
-                takerTokenFee: _params.takerTokenFee
+                tokenlonFee: _params.tokenlonFee,
+                pionexFee: _params.pionexFee
             })
         );
     }

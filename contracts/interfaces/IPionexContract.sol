@@ -49,7 +49,8 @@ interface IPionexContract is IStrategyBase {
         uint256 makerTokenFilledAmount;
         uint256 takerTokenFilledAmount;
         uint256 remainingAmount;
-        uint256 takerTokenFee;
+        uint256 tokenlonFee;
+        uint256 pionexFee;
     }
 
     struct CoordinatorParams {
@@ -63,6 +64,8 @@ interface IPionexContract is IStrategyBase {
         address recipient;
         uint256 makerTokenAmount;
         uint256 takerTokenAmount;
+        uint16 gasFeeFactor;
+        uint16 pionexStrategyFeeFactor;
         uint256 salt;
         uint64 expiry;
         bytes takerSig;

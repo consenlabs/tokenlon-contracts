@@ -50,6 +50,8 @@ contract PionexContractTest is StrategySharedSetup {
     bytes DEFAULT_ORDER_MAKER_SIG;
     PionexContractLibEIP712.Fill DEFAULT_FILL;
     PionexContractLibEIP712.AllowFill DEFAULT_ALLOW_FILL;
+    uint16 DEFAULT_GAS_FEE_FACTOR = 0;
+    uint16 DEFAULT_PIONEX_STRATEGY_FEE_FACTOR = 0;
     IPionexContract.TraderParams DEFAULT_TRADER_PARAMS;
     IPionexContract.CoordinatorParams DEFAULT_CRD_PARAMS;
 
@@ -92,6 +94,8 @@ contract PionexContractTest is StrategySharedSetup {
             receiver, // recipient
             DEFAULT_FILL.makerTokenAmount, // makerTokenAmount
             DEFAULT_FILL.takerTokenAmount, // takerTokenAmount
+            DEFAULT_GAS_FEE_FACTOR, // gas fee factor
+            DEFAULT_PIONEX_STRATEGY_FEE_FACTOR, // pionex strategy fee factor
             DEFAULT_FILL.takerSalt, // salt
             DEADLINE, // expiry
             _signFill(userPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712) // takerSig
@@ -631,7 +635,12 @@ contract PionexContractTest is StrategySharedSetup {
         pionexContract.activateFactors();
         vm.stopPrank();
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
+        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.gasFeeFactor = 50; // gasFeeFactor: 0.5%
+        traderParams.pionexStrategyFeeFactor = 250; // pionexStrategyFeeFactor: 2.5%
+        traderParams.takerSig = _signFill(userPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectEmit(true, true, true, true);
         emit LimitOrderFilledByTrader(
             DEFAULT_ORDER_HASH,
@@ -645,15 +654,16 @@ contract PionexContractTest is StrategySharedSetup {
                 DEFAULT_ORDER.makerTokenAmount,
                 DEFAULT_ORDER.takerTokenAmount,
                 0, // remainingAmount should be zero after order fully filled
-                DEFAULT_ORDER.takerTokenAmount.mul(10).div(100) // takerTokenFee = 10% takerTokenAmount
+                DEFAULT_ORDER.takerTokenAmount.mul(10).div(100), // tokenlonFee = 10% takerTokenAmount
+                DEFAULT_ORDER.takerTokenAmount.mul(3).div(100) // pionexStrategyFee = 0.5% + 2.5% = 3% takerTokenAmount
             )
         );
         vm.prank(user, user); // Only EOA
         userProxy.toLimitOrder(payload);
 
-        userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount));
+        userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount.mul(97).div(100))); // 3% fee is deducted from takerTokenAmount directly
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount));
-        makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(90).div(100)));
+        makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(87).div(100)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
         fcMakerAsset.assertChange(0);
         fcTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(10).div(100)));
@@ -695,6 +705,7 @@ contract PionexContractTest is StrategySharedSetup {
                 DEFAULT_ORDER.makerTokenAmount,
                 fill.takerTokenAmount,
                 0, // remainingAmount should be zero after order fully filled
+                0,
                 0
             )
         );
