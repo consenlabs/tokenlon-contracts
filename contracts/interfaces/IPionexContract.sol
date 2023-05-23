@@ -16,9 +16,8 @@ interface IPionexContract is IStrategyBase {
 
     /// @notice Emitted when fee factors are updated
     /// @param makerFeeFactor The new fee factor for maker
-    /// @param takerFeeFactor The new fee factor for taker
     /// @param profitFeeFactor The new fee factor for relayer profit
-    event FactorsUpdated(uint16 makerFeeFactor, uint16 takerFeeFactor, uint16 profitFeeFactor);
+    event FactorsUpdated(uint16 makerFeeFactor, uint16 profitFeeFactor);
 
     /// @notice Emitted when fee collector address is updated
     /// @param newFeeCollector The address of the new fee collector
@@ -51,7 +50,6 @@ interface IPionexContract is IStrategyBase {
         uint256 makerTokenFilledAmount;
         uint256 takerTokenFilledAmount;
         uint256 remainingAmount;
-        uint256 makerTokenFee;
         uint256 takerTokenFee;
     }
 

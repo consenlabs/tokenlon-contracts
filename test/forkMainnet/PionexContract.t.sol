@@ -173,7 +173,6 @@ contract PionexContractTest is StrategySharedSetup {
         assertEq(address(pionexContract.weth()), address(weth));
 
         assertEq(uint256(pionexContract.makerFeeFactor()), 0);
-        assertEq(uint256(pionexContract.takerFeeFactor()), 0);
         assertEq(uint256(pionexContract.profitFeeFactor()), 0);
     }
 
@@ -301,23 +300,18 @@ contract PionexContractTest is StrategySharedSetup {
     function testCannotSetFactorsIfLargerThanBpsMax() public {
         vm.expectRevert("LimitOrder: Invalid maker fee factor");
         vm.prank(owner, owner);
-        pionexContract.setFactors(LibConstant.BPS_MAX + 1, 1, 1);
-
-        vm.expectRevert("LimitOrder: Invalid taker fee factor");
-        vm.prank(owner, owner);
-        pionexContract.setFactors(1, LibConstant.BPS_MAX + 1, 1);
+        pionexContract.setFactors(LibConstant.BPS_MAX + 1, 1);
 
         vm.expectRevert("LimitOrder: Invalid profit fee factor");
         vm.prank(owner, owner);
-        pionexContract.setFactors(1, 1, LibConstant.BPS_MAX + 1);
+        pionexContract.setFactors(1, LibConstant.BPS_MAX + 1);
     }
 
     function testSetFactors() public {
         vm.startPrank(owner, owner);
-        pionexContract.setFactors(1, 2, 3);
+        pionexContract.setFactors(1, 2);
         // fee factors should stay same before new ones activate
         assertEq(uint256(pionexContract.makerFeeFactor()), 0);
-        assertEq(uint256(pionexContract.takerFeeFactor()), 0);
         assertEq(uint256(pionexContract.profitFeeFactor()), 0);
         vm.warp(block.timestamp + pionexContract.factorActivateDelay());
 
@@ -325,8 +319,7 @@ contract PionexContractTest is StrategySharedSetup {
         pionexContract.activateFactors();
         vm.stopPrank();
         assertEq(uint256(pionexContract.makerFeeFactor()), 1);
-        assertEq(uint256(pionexContract.takerFeeFactor()), 2);
-        assertEq(uint256(pionexContract.profitFeeFactor()), 3);
+        assertEq(uint256(pionexContract.profitFeeFactor()), 2);
     }
 
     /*********************************
@@ -638,10 +631,10 @@ contract PionexContractTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory fcMakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.makerToken));
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.takerToken));
 
-        // makerFeeFactor/takerFeeFactor : 10%
+        // makerFeeFactor : 10%
         // profitFeeFactor : 20%
         vm.startPrank(owner, owner);
-        pionexContract.setFactors(1000, 1000, 2000);
+        pionexContract.setFactors(1000, 2000);
         vm.warp(block.timestamp + pionexContract.factorActivateDelay());
         pionexContract.activateFactors();
         vm.stopPrank();
@@ -660,7 +653,6 @@ contract PionexContractTest is StrategySharedSetup {
                 DEFAULT_ORDER.makerTokenAmount,
                 DEFAULT_ORDER.takerTokenAmount,
                 0, // remainingAmount should be zero after order fully filled
-                DEFAULT_ORDER.makerTokenAmount.mul(10).div(100), // makerTokenFee = 10% makerTokenAmount
                 DEFAULT_ORDER.takerTokenAmount.mul(10).div(100) // takerTokenFee = 10% takerTokenAmount
             )
         );
@@ -668,10 +660,10 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload);
 
         userTakerAsset.assertChange(-int256(DEFAULT_ORDER.takerTokenAmount));
-        receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount.mul(90).div(100)));
+        receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount));
         makerTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(90).div(100)));
         makerMakerAsset.assertChange(-int256(DEFAULT_ORDER.makerTokenAmount));
-        fcMakerAsset.assertChange(int256(DEFAULT_ORDER.makerTokenAmount.mul(10).div(100)));
+        fcMakerAsset.assertChange(0);
         fcTakerAsset.assertChange(int256(DEFAULT_ORDER.takerTokenAmount.mul(10).div(100)));
     }
 
@@ -711,7 +703,6 @@ contract PionexContractTest is StrategySharedSetup {
                 DEFAULT_ORDER.makerTokenAmount,
                 fill.takerTokenAmount,
                 0, // remainingAmount should be zero after order fully filled
-                0,
                 0
             )
         );

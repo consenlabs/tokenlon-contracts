@@ -37,8 +37,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     uint256 public factorsTimeLock;
     uint16 public makerFeeFactor = 0;
     uint16 public pendingMakerFeeFactor;
-    uint16 public takerFeeFactor = 0;
-    uint16 public pendingTakerFeeFactor;
     uint16 public profitFeeFactor = 0;
     uint16 public pendingProfitFeeFactor;
 
@@ -70,19 +68,12 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
     /// @notice Only owner can call
     /// @param _makerFeeFactor The new fee factor for maker
-    /// @param _takerFeeFactor The new fee factor for taker
     /// @param _profitFeeFactor The new fee factor for relayer profit
-    function setFactors(
-        uint16 _makerFeeFactor,
-        uint16 _takerFeeFactor,
-        uint16 _profitFeeFactor
-    ) external onlyOwner {
+    function setFactors(uint16 _makerFeeFactor, uint16 _profitFeeFactor) external onlyOwner {
         require(_makerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid maker fee factor");
-        require(_takerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid taker fee factor");
         require(_profitFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid profit fee factor");
 
         pendingMakerFeeFactor = _makerFeeFactor;
-        pendingTakerFeeFactor = _takerFeeFactor;
         pendingProfitFeeFactor = _profitFeeFactor;
 
         factorsTimeLock = block.timestamp + factorActivateDelay;
@@ -94,13 +85,11 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         require(block.timestamp >= factorsTimeLock, "LimitOrder: fee factors timelocked");
         factorsTimeLock = 0;
         makerFeeFactor = pendingMakerFeeFactor;
-        takerFeeFactor = pendingTakerFeeFactor;
         profitFeeFactor = pendingProfitFeeFactor;
         pendingMakerFeeFactor = 0;
-        pendingTakerFeeFactor = 0;
         pendingProfitFeeFactor = 0;
 
-        emit FactorsUpdated(makerFeeFactor, takerFeeFactor, profitFeeFactor);
+        emit FactorsUpdated(makerFeeFactor, profitFeeFactor);
     }
 
     /// @notice Only owner can call
@@ -233,23 +222,15 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         uint256 takerTokenFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
         uint256 takerTokenForMaker = _settlement.takerTokenAmount.sub(takerTokenFee);
 
-        // Calculate taker fee (taker receives maker token so fee is charged in maker token)
-        uint256 makerTokenFee = _mulFactor(_settlement.makerTokenAmount, takerFeeFactor);
-        uint256 makerTokenForTrader = _settlement.makerTokenAmount.sub(makerTokenFee);
-
         // trader -> maker
         _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _settlement.maker, takerTokenForMaker);
 
         // maker -> recipient
-        _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _settlement.recipient, makerTokenForTrader);
+        _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _settlement.recipient, _settlement.makerTokenAmount);
 
         // Collect maker fee (charged in taker token)
         if (takerTokenFee > 0) {
             _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _feeCollector, takerTokenFee);
-        }
-        // Collect taker fee (charged in maker token)
-        if (makerTokenFee > 0) {
-            _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _feeCollector, makerTokenFee);
         }
 
         // bypass stack too deep error
@@ -265,12 +246,11 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 makerTokenFilledAmount: _settlement.makerTokenAmount,
                 takerTokenFilledAmount: _settlement.takerTokenAmount,
                 remainingAmount: _settlement.remainingAmount,
-                makerTokenFee: makerTokenFee,
                 takerTokenFee: takerTokenFee
             })
         );
 
-        return makerTokenForTrader;
+        return _settlement.makerTokenAmount;
     }
 
     /// @inheritdoc IPionexContract
@@ -354,7 +334,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         uint256 makerTokenFilledAmount;
         uint256 takerTokenFilledAmount;
         uint256 remainingAmount;
-        uint256 makerTokenFee;
         uint256 takerTokenFee;
     }
 
@@ -371,7 +350,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 makerTokenFilledAmount: _params.makerTokenFilledAmount,
                 takerTokenFilledAmount: _params.takerTokenFilledAmount,
                 remainingAmount: _params.remainingAmount,
-                makerTokenFee: _params.makerTokenFee,
                 takerTokenFee: _params.takerTokenFee
             })
         );
