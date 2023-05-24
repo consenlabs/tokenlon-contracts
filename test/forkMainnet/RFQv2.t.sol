@@ -395,6 +395,28 @@ contract RFQTest is StrategySharedSetup {
         userProxy.toRFQv2(payload);
     }
 
+    function testCannotFillWithNonZeroMsgValueIfNoNeed() public {
+        // case : takerToken is normal ERC20
+        bytes memory payload0 = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
+        vm.expectRevert("invalid msg value");
+        userProxy.toRFQv2{ value: 1 ether }(payload0);
+
+        // case : takerToken is WETH
+        Offer memory offer = defaultOffer;
+        offer.takerToken = WETH_ADDRESS;
+        offer.takerTokenAmount = 1 ether;
+        RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient), feeFactor: 0 });
+
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload1 = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
+        vm.prank(offer.taker, offer.taker);
+        vm.expectRevert("invalid msg value");
+        userProxy.toRFQv2{ value: 1 ether }(payload1);
+    }
+
     function testCannotFillExpiredOffer() public {
         vm.warp(defaultOffer.expiry + 1);
 
