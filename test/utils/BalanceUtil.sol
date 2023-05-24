@@ -19,10 +19,7 @@ contract BalanceUtil is Addresses {
         uint256 decimals = uint256(ERC20(tokenAddr).decimals());
         // Skip setting WETH's totalSupply because WETH does not store total supply in storage
         // Only update WETH's totalSupply in local env
-        bool updateTotalSupply = false;
-        if (tokenAddr == address(weth) && getChainId() == 31337) {
-            updateTotalSupply = true;
-        }
+        bool updateTotalSupply = getChainId() == 31337 && tokenAddr == address(weth);
         deal(
             tokenAddr,
             userAddr,
