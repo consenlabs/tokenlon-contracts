@@ -418,7 +418,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testCannotFillExpiredOffer() public {
-        vm.warp(defaultOffer.expiry + 1);
+        vm.warp(defaultOffer.expiry);
 
         vm.expectRevert("offer expired");
         bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
