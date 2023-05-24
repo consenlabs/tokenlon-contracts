@@ -8,7 +8,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { TokenCollector } from "./utils/TokenCollector.sol";
 import { BaseLibEIP712 } from "./utils/BaseLibEIP712.sol";
 import { Asset } from "./utils/Asset.sol";
-import { Offer, getOfferHash } from "./utils/Offer.sol";
+import { Offer } from "./utils/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "./utils/RFQOrder.sol";
 import { LibConstant } from "./utils/LibConstant.sol";
 import { SignatureValidator } from "./utils/SignatureValidator.sol";
@@ -73,6 +73,7 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
         // check the offer deadline and fee factor
         require(_offer.expiry > block.timestamp, "offer expired");
         require(_rfqOrder.feeFactor < LibConstant.BPS_MAX, "invalid fee factor");
+        require(_rfqOrder.recipient != address(0), "zero recipient");
 
         // check if the offer is available to be filled
         (bytes32 offerHash, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
@@ -93,10 +94,12 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
             require(msg.value == _offer.takerTokenAmount, "invalid msg value");
             Address.sendValue(_offer.maker, _offer.takerTokenAmount);
         } else if (_offer.takerToken == address(weth)) {
+            require(msg.value == 0, "invalid msg value");
             _collect(_offer.takerToken, _offer.taker, address(this), _offer.takerTokenAmount, _takerTokenPermit);
             weth.withdraw(_offer.takerTokenAmount);
             Address.sendValue(_offer.maker, _offer.takerTokenAmount);
         } else {
+            require(msg.value == 0, "invalid msg value");
             _collect(_offer.takerToken, _offer.taker, _offer.maker, _offer.takerTokenAmount, _takerTokenPermit);
         }
 
