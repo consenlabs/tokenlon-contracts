@@ -71,8 +71,8 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
     ) private {
         Offer memory _offer = _rfqOrder.offer;
         // check the offer deadline and fee factor
-        require(_offer.expiry >= block.timestamp, "offer expired");
-        require(_rfqOrder.feeFactor <= LibConstant.BPS_MAX, "invalid fee factor");
+        require(_offer.expiry > block.timestamp, "offer expired");
+        require(_rfqOrder.feeFactor < LibConstant.BPS_MAX, "invalid fee factor");
         require(_rfqOrder.recipient != address(0), "zero recipient");
 
         // check if the offer is available to be filled

@@ -418,7 +418,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testCannotFillExpiredOffer() public {
-        vm.warp(defaultOffer.expiry + 1);
+        vm.warp(defaultOffer.expiry);
 
         vm.expectRevert("offer expired");
         bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
@@ -458,7 +458,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testCannotFillWithInvalidFeeFactor() public {
-        RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: LibConstant.BPS_MAX + 1 });
+        RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: LibConstant.BPS_MAX });
         bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder, SignatureValidator.SignatureType.EIP712);
 
         vm.expectRevert("invalid fee factor");
