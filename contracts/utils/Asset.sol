@@ -18,6 +18,9 @@ library Asset {
         address payable to,
         uint256 amount
     ) internal {
+        if (to == address(this)) {
+            return;
+        }
         if (isETH(asset)) {
             // @dev forward all available gas and may cause reentrancy
             require(address(this).balance >= amount, "insufficient balance");

@@ -39,7 +39,7 @@ contract RFQTest is StrategySharedSetup {
     address payable maker = payable(vm.addr(makerPrivateKey));
     uint256 takerPrivateKey = uint256(1);
     address taker = vm.addr(takerPrivateKey);
-    address payable recipient = payable(makeAddr("recipient"));
+    address payable recipient;
     address payable feeCollector = payable(makeAddr("feeCollector"));
     uint256 defaultExpiry = block.timestamp + 1;
     uint256 defaultSalt = 1234;
@@ -56,6 +56,8 @@ contract RFQTest is StrategySharedSetup {
     function setUp() public {
         // Setup
         setUpSystemContracts();
+
+        recipient = payable(address(rfq));
 
         marketMakerProxy = new MarketMakerProxy(maker, maker, IWETH(address(weth)));
 
