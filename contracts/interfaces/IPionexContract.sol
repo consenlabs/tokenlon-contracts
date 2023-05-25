@@ -15,24 +15,24 @@ interface IPionexContract is IStrategyBase {
     event UpgradeCoordinator(address newCoordinator);
 
     /// @notice Emitted when fee factors are updated
-    /// @param makerFeeFactor The new fee factor for maker
-    event FactorsUpdated(uint16 makerFeeFactor);
+    /// @param userFeeFactor The new fee factor for user
+    event FactorsUpdated(uint16 userFeeFactor);
 
     /// @notice Emitted when fee collector address is updated
     /// @param newFeeCollector The address of the new fee collector
     event SetFeeCollector(address newFeeCollector);
 
-    /// @notice Emitted when an order is filled by a trader
+    /// @notice Emitted when an order is filled by Pionex agent
     /// @param orderHash The EIP-712 hash of the target order
-    /// @param maker The address of the maker
-    /// @param taker The address of the taker (trader)
+    /// @param user The address of the user
+    /// @param pionex The address of the pionex (trader)
     /// @param allowFillHash The EIP-712 hash of the fill permit granted by coordinator
-    /// @param recipient The address of the recipient which will receive tokens from maker
+    /// @param recipient The address of the recipient which will receive tokens from user
     /// @param fillReceipt Contains details of this single fill
     event LimitOrderFilledByTrader(
         bytes32 indexed orderHash,
-        address indexed maker,
-        address indexed taker,
+        address indexed user,
+        address indexed pionex,
         bytes32 allowFillHash,
         address recipient,
         FillReceipt fillReceipt
@@ -40,14 +40,14 @@ interface IPionexContract is IStrategyBase {
 
     /// @notice Emitted when order is cancelled
     /// @param orderHash The EIP-712 hash of the target order
-    /// @param maker The address of the maker
-    event OrderCancelled(bytes32 orderHash, address maker);
+    /// @param user The address of the user
+    event OrderCancelled(bytes32 orderHash, address user);
 
     struct FillReceipt {
-        address makerToken;
-        address takerToken;
-        uint256 makerTokenFilledAmount;
-        uint256 takerTokenFilledAmount;
+        address userToken;
+        address pionexToken;
+        uint256 userTokenFilledAmount;
+        uint256 pionexTokenFilledAmount;
         uint256 remainingAmount;
         uint256 tokenlonFee;
         uint256 pionexFee;
@@ -60,21 +60,21 @@ interface IPionexContract is IStrategyBase {
     }
 
     struct TraderParams {
-        address taker;
+        address pionex;
         address recipient;
-        uint256 makerTokenAmount;
-        uint256 takerTokenAmount;
+        uint256 userTokenAmount;
+        uint256 pionexTokenAmount;
         uint16 gasFeeFactor;
         uint16 pionexStrategyFeeFactor;
         uint256 salt;
         uint64 expiry;
-        bytes takerSig;
+        bytes pionexSig;
     }
 
     /// @notice Fill an order by a trader
     /// @notice Only user proxy can call
     /// @param _order The order that is going to be filled
-    /// @param _orderMakerSig The signature of the order from maker
+    /// @param _orderMakerSig The signature of the order from user
     /// @param _params Trader specific filling parameters
     /// @param _crdParams Contains details of the fill permit
     function fillLimitOrderByTrader(
@@ -87,6 +87,6 @@ interface IPionexContract is IStrategyBase {
     /// @notice Cancel an order
     /// @notice Only user proxy can call
     /// @param _order The order that is going to be cancelled
-    /// @param _cancelMakerSig The cancelling signature signed by maker
+    /// @param _cancelMakerSig The cancelling signature signed by user
     function cancelLimitOrder(PionexContractLibEIP712.Order calldata _order, bytes calldata _cancelMakerSig) external;
 }

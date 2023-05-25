@@ -20,8 +20,8 @@ import "./utils/PionexContractLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
 /// @title Pionex Contract
-/// @notice Modified from LimitOrder contract. Maker is user, taker is Pionex agent.
-/// @notice Order can be filled as long as the provided takerToken/makerToken ratio is better than or equal to maker's specfied takerToken/makerToken ratio.
+/// @notice Modified from LimitOrder contract. Maker is user, pionex is Pionex agent.
+/// @notice Order can be filled as long as the provided pionexToken/userToken ratio is better than or equal to user's specfied pionexToken/userToken ratio.
 /// @author imToken Labs
 contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, SignatureValidator, ReentrancyGuard {
     using SafeMath for uint256;
@@ -35,7 +35,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
     // Factors
     uint256 public factorsTimeLock;
-    uint16 public makerFeeFactor = 0;
+    uint16 public userFeeFactor = 0;
     uint16 public pendingMakerFeeFactor;
 
     constructor(
@@ -65,11 +65,11 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     }
 
     /// @notice Only owner can call
-    /// @param _makerFeeFactor The new fee factor for maker
-    function setFactors(uint16 _makerFeeFactor) external onlyOwner {
-        require(_makerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid maker fee factor");
+    /// @param _userFeeFactor The new fee factor for user
+    function setFactors(uint16 _userFeeFactor) external onlyOwner {
+        require(_userFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid user fee factor");
 
-        pendingMakerFeeFactor = _makerFeeFactor;
+        pendingMakerFeeFactor = _userFeeFactor;
 
         factorsTimeLock = block.timestamp + factorActivateDelay;
     }
@@ -79,10 +79,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         require(factorsTimeLock != 0, "LimitOrder: no pending fee factors");
         require(block.timestamp >= factorsTimeLock, "LimitOrder: fee factors timelocked");
         factorsTimeLock = 0;
-        makerFeeFactor = pendingMakerFeeFactor;
+        userFeeFactor = pendingMakerFeeFactor;
         pendingMakerFeeFactor = 0;
 
-        emit FactorsUpdated(makerFeeFactor);
+        emit FactorsUpdated(userFeeFactor);
     }
 
     /// @notice Only owner can call
@@ -104,61 +104,61 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         bytes32 orderHash = getEIP712Hash(PionexContractLibEIP712._getOrderStructHash(_order));
 
         _validateOrder(_order, orderHash, _orderMakerSig);
-        bytes32 allowFillHash = _validateFillPermission(orderHash, _params.takerTokenAmount, _params.taker, _crdParams);
-        _validateOrderTaker(_order, _params.taker);
+        bytes32 allowFillHash = _validateFillPermission(orderHash, _params.pionexTokenAmount, _params.pionex, _crdParams);
+        _validateOrderTaker(_order, _params.pionex);
 
-        // Check provided takerToken/makerToken ratio is better than or equal to maker's specfied takerToken/makerToken ratio
-        // -> _params.takerTokenAmount/_params.makerTokenAmount >= _order.takerTokenAmount/_order.makerTokenAmount
+        // Check provided pionexToken/userToken ratio is better than or equal to user's specfied pionexToken/userToken ratio
+        // -> _params.pionexTokenAmount/_params.userTokenAmount >= _order.pionexTokenAmount/_order.userTokenAmount
         require(
-            _params.takerTokenAmount.mul(_order.makerTokenAmount) >= _order.takerTokenAmount.mul(_params.makerTokenAmount),
-            "LimitOrder: taker/maker token ratio not good enough"
+            _params.pionexTokenAmount.mul(_order.userTokenAmount) >= _order.pionexTokenAmount.mul(_params.userTokenAmount),
+            "LimitOrder: pionex/user token ratio not good enough"
         );
         // Check gas fee factor and pionex strategy fee factor do not exceed limit
         require(
             (_params.gasFeeFactor <= LibConstant.BPS_MAX) &&
                 (_params.pionexStrategyFeeFactor <= LibConstant.BPS_MAX) &&
-                (_params.gasFeeFactor + _params.pionexStrategyFeeFactor <= LibConstant.BPS_MAX - makerFeeFactor),
+                (_params.gasFeeFactor + _params.pionexStrategyFeeFactor <= LibConstant.BPS_MAX - userFeeFactor),
             "LimitOrder: Invalid pionex fee factor"
         );
 
         {
             PionexContractLibEIP712.Fill memory fill = PionexContractLibEIP712.Fill({
                 orderHash: orderHash,
-                taker: _params.taker,
+                pionex: _params.pionex,
                 recipient: _params.recipient,
-                makerTokenAmount: _params.makerTokenAmount,
-                takerTokenAmount: _params.takerTokenAmount,
-                takerSalt: _params.salt,
+                userTokenAmount: _params.userTokenAmount,
+                pionexTokenAmount: _params.pionexTokenAmount,
+                pionexSalt: _params.salt,
                 expiry: _params.expiry
             });
-            _validateTraderFill(fill, _params.takerSig);
+            _validateTraderFill(fill, _params.pionexSig);
         }
 
-        (uint256 makerTokenAmount, uint256 remainingAmount) = _quoteOrderFromMakerToken(_order, orderHash, _params.makerTokenAmount);
-        // Calculate takerTokenAmount according to the provided takerToken/makerToken ratio
-        uint256 takerTokenAmount = makerTokenAmount.mul(_params.takerTokenAmount).div(_params.makerTokenAmount);
+        (uint256 userTokenAmount, uint256 remainingAmount) = _quoteOrderFromMakerToken(_order, orderHash, _params.userTokenAmount);
+        // Calculate pionexTokenAmount according to the provided pionexToken/userToken ratio
+        uint256 pionexTokenAmount = userTokenAmount.mul(_params.pionexTokenAmount).div(_params.userTokenAmount);
 
-        uint256 makerTokenOut = _settleForTrader(
+        uint256 userTokenOut = _settleForTrader(
             TraderSettlement({
                 orderHash: orderHash,
                 allowFillHash: allowFillHash,
-                trader: _params.taker,
+                trader: _params.pionex,
                 recipient: _params.recipient,
-                maker: _order.maker,
-                taker: _order.taker,
-                makerToken: _order.makerToken,
-                takerToken: _order.takerToken,
-                makerTokenAmount: makerTokenAmount,
-                takerTokenAmount: takerTokenAmount,
+                user: _order.user,
+                pionex: _order.pionex,
+                userToken: _order.userToken,
+                pionexToken: _order.pionexToken,
+                userTokenAmount: userTokenAmount,
+                pionexTokenAmount: pionexTokenAmount,
                 remainingAmount: remainingAmount,
                 gasFeeFactor: _params.gasFeeFactor,
                 pionexStrategyFeeFactor: _params.pionexStrategyFeeFactor
             })
         );
 
-        _recordMakerTokenFilled(orderHash, makerTokenAmount);
+        _recordMakerTokenFilled(orderHash, userTokenAmount);
 
-        return (takerTokenAmount, makerTokenOut);
+        return (pionexTokenAmount, userTokenOut);
     }
 
     function _validateTraderFill(PionexContractLibEIP712.Fill memory _fill, bytes memory _fillTakerSig) internal {
@@ -166,7 +166,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         require(_fill.recipient != address(0), "LimitOrder: recipient can not be zero address");
 
         bytes32 fillHash = getEIP712Hash(PionexContractLibEIP712._getFillStructHash(_fill));
-        require(isValidSignature(_fill.taker, fillHash, bytes(""), _fillTakerSig), "LimitOrder: Fill is not signed by taker");
+        require(isValidSignature(_fill.pionex, fillHash, bytes(""), _fillTakerSig), "LimitOrder: Fill is not signed by pionex");
 
         // Set fill seen to avoid replay attack.
         // PermanentStorage would throw error if fill is already seen.
@@ -206,12 +206,12 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         bytes32 allowFillHash;
         address trader;
         address recipient;
-        address maker;
-        address taker;
-        IERC20 makerToken;
-        IERC20 takerToken;
-        uint256 makerTokenAmount;
-        uint256 takerTokenAmount;
+        address user;
+        address pionex;
+        IERC20 userToken;
+        IERC20 pionexToken;
+        uint256 userTokenAmount;
+        uint256 pionexTokenAmount;
         uint256 remainingAmount;
         uint16 gasFeeFactor;
         uint16 pionexStrategyFeeFactor;
@@ -222,43 +222,43 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         ISpender _spender = spender;
         address _feeCollector = feeCollector;
 
-        // Calculate maker fee (maker receives taker token so fee is charged in taker token)
+        // Calculate user fee (user receives pionex token so fee is charged in pionex token)
         // 1. Fee for Tokenlon
-        uint256 tokenlonFee = _mulFactor(_settlement.takerTokenAmount, makerFeeFactor);
+        uint256 tokenlonFee = _mulFactor(_settlement.pionexTokenAmount, userFeeFactor);
         // 2. Fee for Pionex, including gas fee and strategy fee
-        uint256 pionexFee = _mulFactor(_settlement.takerTokenAmount, _settlement.gasFeeFactor + _settlement.pionexStrategyFeeFactor);
-        uint256 takerTokenForMaker = _settlement.takerTokenAmount.sub(tokenlonFee).sub(pionexFee);
+        uint256 pionexFee = _mulFactor(_settlement.pionexTokenAmount, _settlement.gasFeeFactor + _settlement.pionexStrategyFeeFactor);
+        uint256 pionexTokenForMaker = _settlement.pionexTokenAmount.sub(tokenlonFee).sub(pionexFee);
 
-        // trader -> maker
-        _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _settlement.maker, takerTokenForMaker);
+        // trader -> user
+        _spender.spendFromUserTo(_settlement.trader, address(_settlement.pionexToken), _settlement.user, pionexTokenForMaker);
 
-        // maker -> recipient
-        _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _settlement.recipient, _settlement.makerTokenAmount);
+        // user -> recipient
+        _spender.spendFromUserTo(_settlement.user, address(_settlement.userToken), _settlement.recipient, _settlement.userTokenAmount);
 
-        // Collect maker fee (charged in taker token)
+        // Collect user fee (charged in pionex token)
         if (tokenlonFee > 0) {
-            _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _feeCollector, tokenlonFee);
+            _spender.spendFromUserTo(_settlement.trader, address(_settlement.pionexToken), _feeCollector, tokenlonFee);
         }
 
         // bypass stack too deep error
         _emitLimitOrderFilledByTrader(
             LimitOrderFilledByTraderParams({
                 orderHash: _settlement.orderHash,
-                maker: _settlement.maker,
-                taker: _settlement.trader,
+                user: _settlement.user,
+                pionex: _settlement.trader,
                 allowFillHash: _settlement.allowFillHash,
                 recipient: _settlement.recipient,
-                makerToken: address(_settlement.makerToken),
-                takerToken: address(_settlement.takerToken),
-                makerTokenFilledAmount: _settlement.makerTokenAmount,
-                takerTokenFilledAmount: _settlement.takerTokenAmount,
+                userToken: address(_settlement.userToken),
+                pionexToken: address(_settlement.pionexToken),
+                userTokenFilledAmount: _settlement.userTokenAmount,
+                pionexTokenFilledAmount: _settlement.pionexTokenAmount,
                 remainingAmount: _settlement.remainingAmount,
                 tokenlonFee: tokenlonFee,
                 pionexFee: pionexFee
             })
         );
 
-        return _settlement.makerTokenAmount;
+        return _settlement.userTokenAmount;
     }
 
     /// @inheritdoc IPionexContract
@@ -269,15 +269,15 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         require(!isCancelled, "LimitOrder: Order is cancelled already");
         {
             PionexContractLibEIP712.Order memory cancelledOrder = _order;
-            cancelledOrder.takerTokenAmount = 0;
+            cancelledOrder.pionexTokenAmount = 0;
 
             bytes32 cancelledOrderHash = getEIP712Hash(PionexContractLibEIP712._getOrderStructHash(cancelledOrder));
-            require(isValidSignature(_order.maker, cancelledOrderHash, bytes(""), _cancelOrderMakerSig), "LimitOrder: Cancel request is not signed by maker");
+            require(isValidSignature(_order.user, cancelledOrderHash, bytes(""), _cancelOrderMakerSig), "LimitOrder: Cancel request is not signed by user");
         }
 
         // Set cancelled state to storage
         LibPionexContractOrderStorage.getStorage().orderHashToCancelled[orderHash] = true;
-        emit OrderCancelled(orderHash, _order.maker);
+        emit OrderCancelled(orderHash, _order.user);
     }
 
     /* order utils */
@@ -291,36 +291,36 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         bool isCancelled = LibPionexContractOrderStorage.getStorage().orderHashToCancelled[_orderHash];
         require(!isCancelled, "LimitOrder: Order is cancelled");
 
-        require(isValidSignature(_order.maker, _orderHash, bytes(""), _orderMakerSig), "LimitOrder: Order is not signed by maker");
+        require(isValidSignature(_order.user, _orderHash, bytes(""), _orderMakerSig), "LimitOrder: Order is not signed by user");
     }
 
-    function _validateOrderTaker(PionexContractLibEIP712.Order memory _order, address _taker) internal pure {
-        if (_order.taker != address(0)) {
-            require(_order.taker == _taker, "LimitOrder: Order cannot be filled by this taker");
+    function _validateOrderTaker(PionexContractLibEIP712.Order memory _order, address _pionex) internal pure {
+        if (_order.pionex != address(0)) {
+            require(_order.pionex == _pionex, "LimitOrder: Order cannot be filled by this pionex");
         }
     }
 
     function _quoteOrderFromMakerToken(
         PionexContractLibEIP712.Order memory _order,
         bytes32 _orderHash,
-        uint256 _makerTokenAmount
+        uint256 _userTokenAmount
     ) internal view returns (uint256, uint256) {
-        uint256 makerTokenFilledAmount = LibPionexContractOrderStorage.getStorage().orderHashToMakerTokenFilledAmount[_orderHash];
+        uint256 userTokenFilledAmount = LibPionexContractOrderStorage.getStorage().orderHashToMakerTokenFilledAmount[_orderHash];
 
-        require(makerTokenFilledAmount < _order.makerTokenAmount, "LimitOrder: Order is filled");
+        require(userTokenFilledAmount < _order.userTokenAmount, "LimitOrder: Order is filled");
 
-        uint256 makerTokenFillableAmount = _order.makerTokenAmount.sub(makerTokenFilledAmount);
-        uint256 makerTokenQuota = Math.min(_makerTokenAmount, makerTokenFillableAmount);
-        uint256 remainingAfterFill = makerTokenFillableAmount.sub(makerTokenQuota);
+        uint256 userTokenFillableAmount = _order.userTokenAmount.sub(userTokenFilledAmount);
+        uint256 userTokenQuota = Math.min(_userTokenAmount, userTokenFillableAmount);
+        uint256 remainingAfterFill = userTokenFillableAmount.sub(userTokenQuota);
 
-        require(makerTokenQuota != 0, "LimitOrder: zero token amount");
-        return (makerTokenQuota, remainingAfterFill);
+        require(userTokenQuota != 0, "LimitOrder: zero token amount");
+        return (userTokenQuota, remainingAfterFill);
     }
 
-    function _recordMakerTokenFilled(bytes32 _orderHash, uint256 _makerTokenAmount) internal {
+    function _recordMakerTokenFilled(bytes32 _orderHash, uint256 _userTokenAmount) internal {
         LibPionexContractOrderStorage.Storage storage stor = LibPionexContractOrderStorage.getStorage();
-        uint256 makerTokenFilledAmount = stor.orderHashToMakerTokenFilledAmount[_orderHash];
-        stor.orderHashToMakerTokenFilledAmount[_orderHash] = makerTokenFilledAmount.add(_makerTokenAmount);
+        uint256 userTokenFilledAmount = stor.orderHashToMakerTokenFilledAmount[_orderHash];
+        stor.orderHashToMakerTokenFilledAmount[_orderHash] = userTokenFilledAmount.add(_userTokenAmount);
     }
 
     /* math utils */
@@ -333,14 +333,14 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
     struct LimitOrderFilledByTraderParams {
         bytes32 orderHash;
-        address maker;
-        address taker;
+        address user;
+        address pionex;
         bytes32 allowFillHash;
         address recipient;
-        address makerToken;
-        address takerToken;
-        uint256 makerTokenFilledAmount;
-        uint256 takerTokenFilledAmount;
+        address userToken;
+        address pionexToken;
+        uint256 userTokenFilledAmount;
+        uint256 pionexTokenFilledAmount;
         uint256 remainingAmount;
         uint256 tokenlonFee;
         uint256 pionexFee;
@@ -349,15 +349,15 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     function _emitLimitOrderFilledByTrader(LimitOrderFilledByTraderParams memory _params) internal {
         emit LimitOrderFilledByTrader(
             _params.orderHash,
-            _params.maker,
-            _params.taker,
+            _params.user,
+            _params.pionex,
             _params.allowFillHash,
             _params.recipient,
             FillReceipt({
-                makerToken: _params.makerToken,
-                takerToken: _params.takerToken,
-                makerTokenFilledAmount: _params.makerTokenFilledAmount,
-                takerTokenFilledAmount: _params.takerTokenFilledAmount,
+                userToken: _params.userToken,
+                pionexToken: _params.pionexToken,
+                userTokenFilledAmount: _params.userTokenFilledAmount,
+                pionexTokenFilledAmount: _params.pionexTokenFilledAmount,
                 remainingAmount: _params.remainingAmount,
                 tokenlonFee: _params.tokenlonFee,
                 pionexFee: _params.pionexFee

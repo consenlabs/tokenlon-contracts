@@ -7,12 +7,12 @@ import "../interfaces/IPionexContract.sol";
 
 library PionexContractLibEIP712 {
     struct Order {
-        IERC20 makerToken;
-        IERC20 takerToken;
-        uint256 makerTokenAmount;
-        uint256 takerTokenAmount;
-        address maker;
-        address taker;
+        IERC20 userToken;
+        IERC20 pionexToken;
+        uint256 userTokenAmount;
+        uint256 pionexTokenAmount;
+        address user;
+        address pionex;
         uint256 salt;
         uint64 expiry;
     }
@@ -21,31 +21,31 @@ library PionexContractLibEIP712 {
         keccak256(
             abi.encodePacked(
                 "Order(",
-                "address makerToken,",
-                "address takerToken,",
-                "uint256 makerTokenAmount,",
-                "uint256 takerTokenAmount,",
-                "address maker,",
-                "address taker,",
+                "address userToken,",
+                "address pionexToken,",
+                "uint256 userTokenAmount,",
+                "uint256 pionexTokenAmount,",
+                "address user,",
+                "address pionex,",
                 "uint256 salt,",
                 "uint64 expiry",
                 ")"
             )
         );
     */
-    bytes32 private constant ORDER_TYPEHASH = 0x025174f0ee45736f4e018e96c368bd4baf3dce8d278860936559209f568c8ecb;
+    bytes32 private constant ORDER_TYPEHASH = 0x97aec2eaa3064135fc2be6548ccc65711bf2143e0a4ad193212bfdee8913eb9d;
 
     function _getOrderStructHash(Order memory _order) internal pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
                     ORDER_TYPEHASH,
-                    address(_order.makerToken),
-                    address(_order.takerToken),
-                    _order.makerTokenAmount,
-                    _order.takerTokenAmount,
-                    _order.maker,
-                    _order.taker,
+                    address(_order.userToken),
+                    address(_order.pionexToken),
+                    _order.userTokenAmount,
+                    _order.pionexTokenAmount,
+                    _order.user,
+                    _order.pionex,
                     _order.salt,
                     _order.expiry
                 )
@@ -54,11 +54,11 @@ library PionexContractLibEIP712 {
 
     struct Fill {
         bytes32 orderHash; // EIP712 hash
-        address taker;
+        address pionex;
         address recipient;
-        uint256 makerTokenAmount;
-        uint256 takerTokenAmount;
-        uint256 takerSalt;
+        uint256 userTokenAmount;
+        uint256 pionexTokenAmount;
+        uint256 pionexSalt;
         uint64 expiry;
     }
 
@@ -67,17 +67,17 @@ library PionexContractLibEIP712 {
             abi.encodePacked(
                 "Fill(",
                 "bytes32 orderHash,",
-                "address taker,",
+                "address pionex,",
                 "address recipient,",
-                "uint256 makerTokenAmount,",
-                "uint256 takerTokenAmount,",
-                "uint256 takerSalt,",
+                "uint256 userTokenAmount,",
+                "uint256 pionexTokenAmount,",
+                "uint256 pionexSalt,",
                 "uint64 expiry",
                 ")"
             )
         );
     */
-    bytes32 private constant FILL_TYPEHASH = 0x205396fa1b68e5a32114505757ea3414ca863515127de397dd50fc79342ce917;
+    bytes32 private constant FILL_TYPEHASH = 0x8df856cadbad83b5dc946bdac2a541b74332d7444f83e9794203304034f44166;
 
     function _getFillStructHash(Fill memory _fill) internal pure returns (bytes32) {
         return
@@ -85,11 +85,11 @@ library PionexContractLibEIP712 {
                 abi.encode(
                     FILL_TYPEHASH,
                     _fill.orderHash,
-                    _fill.taker,
+                    _fill.pionex,
                     _fill.recipient,
-                    _fill.makerTokenAmount,
-                    _fill.takerTokenAmount,
-                    _fill.takerSalt,
+                    _fill.userTokenAmount,
+                    _fill.pionexTokenAmount,
+                    _fill.pionexSalt,
                     _fill.expiry
                 )
             );
