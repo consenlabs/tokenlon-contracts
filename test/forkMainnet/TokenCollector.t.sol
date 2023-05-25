@@ -29,7 +29,8 @@ contract TestTokenCollector is Addresses {
     MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
     IUniswapPermit2 permit2 = IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS);
 
-    // pre-compute contract address since the whitelist of allowance target is immutable
+    // pre-compute Strategy address since the whitelist of allowance target is immutable
+    // NOTE: this assumes Strategy is deployed right next to Allowance Target
     address[] trusted = [computeContractAddress(address(this), uint8(vm.getNonce(address(this)) + 1))];
     AllowanceTarget allowanceTarget = new AllowanceTarget(trusted);
 
