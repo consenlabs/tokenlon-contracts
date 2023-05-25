@@ -301,13 +301,20 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
     }
 
-    function testCannotFillRFQByIncorrectMakerSig() public {
+    function testCannotFillRFQWithIncorrectMakerSig() public {
         uint256 randomPrivateKey = 5677;
         bytes memory randomMakerSig = _signOffer(randomPrivateKey, defaultOffer);
 
         vm.expectRevert(IRFQ.InvalidSignature.selector);
         vm.prank(defaultOffer.taker);
         rfq.fillRFQ(defaultOffer, randomMakerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
+    }
+
+    function testCannotFillWithZeroRecipient() public {
+        vm.expectRevert(IRFQ.ZeroAddress.selector);
+
+        vm.prank(defaultOffer.taker);
+        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, payable(address(0)), defaultFeeFactor);
     }
 
     function testFillRFQByTakerSig() public {

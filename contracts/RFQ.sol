@@ -91,6 +91,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         if (_offer.expiry < block.timestamp) revert ExpiredOffer();
         if ((!_offer.allowContractSender) && (msg.sender != tx.origin)) revert ForbidContract();
         if (_rfqOrder.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
+        if (_rfqOrder.recipient == address(0)) revert ZeroAddress();
 
         // check if the offer is available to be filled
         (bytes32 offerHash, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
