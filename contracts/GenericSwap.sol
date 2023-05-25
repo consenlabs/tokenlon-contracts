@@ -19,7 +19,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
 
     mapping(bytes32 => bool) private filledSwap;
 
-    constructor(address _uniswapPermit2) TokenCollector(_uniswapPermit2) {}
+    constructor(address _uniswapPermit2, address _allowanceTarget) TokenCollector(_uniswapPermit2, _allowanceTarget) {}
 
     /// @param swapData Swap data
     /// @return returnAmount Output amount of the swap

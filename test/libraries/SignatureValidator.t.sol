@@ -74,8 +74,7 @@ contract SignatureValidatorTest is Test {
     function testEIP1271WithDifferentSigner() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
-        vm.expectRevert("MockERC1271Wallet: invalid signature");
-        SignatureValidator.isValidSignature(address(mockERC1271Wallet), digest, signature);
+        assertFalse(SignatureValidator.isValidSignature(address(mockERC1271Wallet), digest, signature));
     }
 
     function testEIP1271WithZeroAddressSigner() public {

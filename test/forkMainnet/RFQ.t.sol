@@ -7,7 +7,9 @@ import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { MockERC1271Wallet } from "test/mocks/MockERC1271Wallet.sol";
+import { computeContractAddress } from "test/utils/Addresses.sol";
 import { RFQ } from "contracts/RFQ.sol";
+import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { IRFQ } from "contracts/interfaces/IRFQ.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
@@ -15,7 +17,6 @@ import { Offer, getOfferHash } from "contracts/libraries/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "contracts/libraries/RFQOrder.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 
-// FIXME add taker = eoa + spender & maker = contract + directly approval
 contract RFQTest is Test, Tokens, BalanceUtil {
     using BalanceSnapshot for Snapshot;
 
@@ -34,8 +35,9 @@ contract RFQTest is Test, Tokens, BalanceUtil {
     event SetFeeCollector(address newFeeCollector);
 
     address rfqOwner = makeAddr("rfqOwner");
-    uint256 makerPrivateKey = uint256(2);
-    address payable maker = payable(vm.addr(makerPrivateKey));
+    uint256 makerSignerPrivateKey = uint256(2);
+    address makerSigner = vm.addr(makerSignerPrivateKey);
+    address payable maker = payable(address(new MockERC1271Wallet(makerSigner)));
     uint256 takerPrivateKey = uint256(1);
     address taker = vm.addr(takerPrivateKey);
     address payable recipient = payable(makeAddr("recipient"));
@@ -47,9 +49,17 @@ contract RFQTest is Test, Tokens, BalanceUtil {
     bytes defaultMakerSig;
     Offer defaultOffer;
     RFQ rfq;
+    AllowanceTarget allowanceTarget;
 
     function setUp() public {
-        rfq = new RFQ(rfqOwner, UNISWAP_PERMIT2_ADDRESS, IWETH(WETH_ADDRESS), feeCollector);
+        // deploy allowance target
+        address[] memory trusted = new address[](1);
+        // pre-compute RFQ address since the whitelist of allowance target is immutable
+        // NOTE: this assumes RFQ is deployed right next to Allowance Target
+        trusted[0] = computeContractAddress(address(this), uint8(vm.getNonce(address(this)) + 1));
+        allowanceTarget = new AllowanceTarget(trusted);
+
+        rfq = new RFQ(rfqOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS), feeCollector);
 
         deal(maker, 100 ether);
         setTokenBalanceAndApprove(maker, address(rfq), tokens, 100000);
@@ -70,7 +80,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
             salt: defaultSalt
         });
 
-        defaultMakerSig = _signOffer(makerPrivateKey, defaultOffer);
+        defaultMakerSig = _signOffer(makerSignerPrivateKey, defaultOffer);
 
         vm.label(taker, "taker");
         vm.label(maker, "maker");
@@ -135,6 +145,15 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         feeCollectorBal.assertChange(int256(fee));
     }
 
+    function testFillRFQWithTakerApproveAllowanceTarget() public {
+        setTokenBalanceAndApprove(taker, address(allowanceTarget), tokens, 100000);
+
+        bytes memory takerPermit = abi.encode(TokenCollector.Source.TokenlonAllowanceTarget, bytes(""));
+
+        vm.prank(defaultOffer.taker);
+        rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, takerPermit, recipient, 0);
+    }
+
     function testFillRFQWithZeroFee() public {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.makerToken });
@@ -174,7 +193,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         offer.takerToken = Constant.ZERO_ADDRESS;
         offer.takerTokenAmount = 1 ether;
 
-        bytes memory makerSig = _signOffer(makerPrivateKey, offer);
+        bytes memory makerSig = _signOffer(makerSignerPrivateKey, offer);
 
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
@@ -206,7 +225,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         offer.makerToken = WETH_ADDRESS;
         offer.makerTokenAmount = 1 ether;
 
-        bytes memory makerSig = _signOffer(makerPrivateKey, offer);
+        bytes memory makerSig = _signOffer(makerSignerPrivateKey, offer);
 
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
@@ -239,7 +258,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         offer.takerToken = WETH_ADDRESS;
         offer.takerTokenAmount = 1 ether;
 
-        bytes memory makerSig = _signOffer(makerPrivateKey, offer);
+        bytes memory makerSig = _signOffer(makerSignerPrivateKey, offer);
 
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
