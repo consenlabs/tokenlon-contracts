@@ -111,10 +111,12 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             if (msg.value != _offer.takerTokenAmount) revert InvalidMsgValue();
             Address.sendValue(_offer.maker, _offer.takerTokenAmount);
         } else if (_offer.takerToken == address(weth)) {
+            if (msg.value != 0) revert InvalidMsgValue();
             _collect(_offer.takerToken, _offer.taker, address(this), _offer.takerTokenAmount, _takerTokenPermit);
             weth.withdraw(_offer.takerTokenAmount);
             Address.sendValue(_offer.maker, _offer.takerTokenAmount);
         } else {
+            if (msg.value != 0) revert InvalidMsgValue();
             _collect(_offer.takerToken, _offer.taker, _offer.maker, _offer.takerTokenAmount, _takerTokenPermit);
         }
 

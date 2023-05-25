@@ -317,6 +317,33 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         rfq.fillRFQ(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, payable(address(0)), defaultFeeFactor);
     }
 
+    function testCannotFillWithIncorrectMsgValue() public {
+        // case : takerToken is normal ERC20
+        vm.prank(defaultOffer.taker);
+        vm.expectRevert(IRFQ.InvalidMsgValue.selector);
+        rfq.fillRFQ{ value: 1 ether }(defaultOffer, defaultMakerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
+
+        // case : takerToken is WETH
+        Offer memory offer = defaultOffer;
+        offer.takerToken = WETH_ADDRESS;
+        offer.takerTokenAmount = 1 ether;
+        bytes memory makerSig = _signOffer(makerSignerPrivateKey, offer);
+
+        vm.prank(defaultOffer.taker);
+        vm.expectRevert(IRFQ.InvalidMsgValue.selector);
+        rfq.fillRFQ{ value: 2 ether }(offer, makerSig, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
+
+        // case : takerToken is raw ETH
+        Offer memory offer1 = defaultOffer;
+        offer1.takerToken = Constant.ZERO_ADDRESS;
+        offer1.takerTokenAmount = 1 ether;
+        bytes memory makerSig1 = _signOffer(makerSignerPrivateKey, offer1);
+
+        vm.prank(defaultOffer.taker);
+        vm.expectRevert(IRFQ.InvalidMsgValue.selector);
+        rfq.fillRFQ{ value: 2 ether }(offer1, makerSig1, defaultPermit, defaultPermit, recipient, defaultFeeFactor);
+    }
+
     function testFillRFQByTakerSig() public {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.makerToken });
