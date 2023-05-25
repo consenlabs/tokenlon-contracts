@@ -178,7 +178,7 @@ contract TestAMMWrapperWithPathTradeUniswapV3 is TestAMMWrapperWithPath {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, order.takerAssetAddr);
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, order.makerAssetAddr);
         // Collect fee in WETH directly
-        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, WETH_ADDRESS);
+        BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, address(weth));
 
         userProxy.toAMM(payload);
 
