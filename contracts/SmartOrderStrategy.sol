@@ -76,8 +76,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, Ownable {
 
         for (uint256 i = 0; i < ops.length; ++i) {
             Operation memory op = ops[i];
-            bytes4 selector = _call(op.dest, op.inputToken, op.inputRatio, op.dataOffset, op.value, op.data);
-            emit Action(op.dest, op.value, selector);
+            _call(op.dest, op.inputToken, op.inputRatio, op.dataOffset, op.value, op.data);
         }
 
         // transfer output token back to GenericSwap
@@ -100,8 +99,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, Ownable {
         uint128 _dataOffset,
         uint256 _value,
         bytes memory _data
-    ) internal returns (bytes4 selector) {
-        selector = bytes4(_data);
+    ) internal {
         require(_inputRatio <= Constant.BPS_MAX, "invalid BPS");
 
         // replace amount if ratio != 0

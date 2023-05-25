@@ -11,12 +11,6 @@ interface ISmartOrderStrategy is IStrategy {
     error InvalidMsgValue();
     error NotFromGS();
 
-    /// @notice Event emitted for each executed operation.
-    /// @param dest The target address of the operation
-    /// @param value The eth value carried when calling `dest`
-    /// @param selector The selector when calling `dest`
-    event Action(address indexed dest, uint256 value, bytes4 selector);
-
     /// @dev The encoded operation list should be passed as `data` when calling `IStrategy.executeStrategy`
     struct Operation {
         address dest;
