@@ -34,8 +34,8 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
     // Factors
     uint256 public factorsTimeLock;
-    uint16 public userFeeFactor = 0;
-    uint16 public pendingMakerFeeFactor;
+    uint16 public tokenlonFeeFactor = 0;
+    uint16 public pendingTokenlonFeeFactor;
 
     constructor(
         address _owner,
@@ -64,11 +64,11 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     }
 
     /// @notice Only owner can call
-    /// @param _userFeeFactor The new fee factor for user
-    function setFactors(uint16 _userFeeFactor) external onlyOwner {
-        require(_userFeeFactor <= LibConstant.BPS_MAX, "PionexContract: Invalid user fee factor");
+    /// @param _tokenlonFeeFactor The new fee factor for user
+    function setFactors(uint16 _tokenlonFeeFactor) external onlyOwner {
+        require(_tokenlonFeeFactor <= LibConstant.BPS_MAX, "PionexContract: Invalid user fee factor");
 
-        pendingMakerFeeFactor = _userFeeFactor;
+        pendingTokenlonFeeFactor = _tokenlonFeeFactor;
 
         factorsTimeLock = block.timestamp + factorActivateDelay;
     }
@@ -78,10 +78,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         require(factorsTimeLock != 0, "PionexContract: no pending fee factors");
         require(block.timestamp >= factorsTimeLock, "PionexContract: fee factors timelocked");
         factorsTimeLock = 0;
-        userFeeFactor = pendingMakerFeeFactor;
-        pendingMakerFeeFactor = 0;
+        tokenlonFeeFactor = pendingTokenlonFeeFactor;
+        pendingTokenlonFeeFactor = 0;
 
-        emit FactorsUpdated(userFeeFactor);
+        emit FactorsUpdated(tokenlonFeeFactor);
     }
 
     /// @notice Only owner can call
@@ -116,7 +116,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         require(
             (_params.gasFeeFactor <= LibConstant.BPS_MAX) &&
                 (_params.pionexStrategyFeeFactor <= LibConstant.BPS_MAX) &&
-                (_params.gasFeeFactor + _params.pionexStrategyFeeFactor <= LibConstant.BPS_MAX - userFeeFactor),
+                (_params.gasFeeFactor + _params.pionexStrategyFeeFactor <= LibConstant.BPS_MAX - tokenlonFeeFactor),
             "PionexContract: Invalid pionex fee factor"
         );
 
@@ -223,7 +223,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
         // Calculate user fee (user receives pionex token so fee is charged in pionex token)
         // 1. Fee for Tokenlon
-        uint256 tokenlonFee = _mulFactor(_settlement.pionexTokenAmount, userFeeFactor);
+        uint256 tokenlonFee = _mulFactor(_settlement.pionexTokenAmount, tokenlonFeeFactor);
         // 2. Fee for Pionex, including gas fee and strategy fee
         uint256 pionexFee = _mulFactor(_settlement.pionexTokenAmount, _settlement.gasFeeFactor + _settlement.pionexStrategyFeeFactor);
         uint256 pionexTokenForMaker = _settlement.pionexTokenAmount.sub(tokenlonFee).sub(pionexFee);

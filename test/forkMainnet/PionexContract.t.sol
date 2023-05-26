@@ -176,7 +176,7 @@ contract PionexContractTest is StrategySharedSetup {
         assertEq(address(pionexContract.permStorage()), address(permanentStorage));
         assertEq(address(pionexContract.weth()), address(weth));
 
-        assertEq(uint256(pionexContract.userFeeFactor()), 0);
+        assertEq(uint256(pionexContract.tokenlonFeeFactor()), 0);
     }
 
     /*********************************
@@ -310,13 +310,13 @@ contract PionexContractTest is StrategySharedSetup {
         vm.startPrank(owner, owner);
         pionexContract.setFactors(1);
         // fee factors should stay same before new ones activate
-        assertEq(uint256(pionexContract.userFeeFactor()), 0);
+        assertEq(uint256(pionexContract.tokenlonFeeFactor()), 0);
         vm.warp(block.timestamp + pionexContract.factorActivateDelay());
 
         // fee factors should be updated now
         pionexContract.activateFactors();
         vm.stopPrank();
-        assertEq(uint256(pionexContract.userFeeFactor()), 1);
+        assertEq(uint256(pionexContract.tokenlonFeeFactor()), 1);
     }
 
     /*********************************
@@ -628,7 +628,7 @@ contract PionexContractTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory fcMakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.userToken));
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.pionexToken));
 
-        // userFeeFactor : 10%
+        // tokenlonFeeFactor : 10%
         vm.startPrank(owner, owner);
         pionexContract.setFactors(1000);
         vm.warp(block.timestamp + pionexContract.factorActivateDelay());
