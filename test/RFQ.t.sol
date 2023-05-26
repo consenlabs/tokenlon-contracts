@@ -54,9 +54,7 @@ contract RFQTest is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
-        if (!vm.envBool("DEPLOYED")) {
-            tokens = [weth, usdt, dai];
-        }
+        tokens = [weth, usdt, dai];
         setUpSystemContracts();
 
         marketMakerProxy = new MarketMakerProxy(maker, maker, IWETH(address(weth)));
@@ -102,8 +100,8 @@ contract RFQTest is StrategySharedSetup {
     function _deployStrategyAndUpgrade() internal override returns (address) {
         rfq = new RFQ(owner, address(userProxy), address(weth), address(permanentStorage), address(spender), feeCollector);
         // Setup
+        vm.startPrank(tokenlonOperator, tokenlonOperator);
         userProxy.upgradeRFQ(address(rfq), true);
-        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeRFQ(address(rfq));
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(rfq), true);
         vm.stopPrank();
@@ -111,7 +109,7 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function _setupDeployedStrategy() internal override {
-        rfq = RFQ(payable(vm.envAddress("RFQ_ADDRESS")));
+        rfq = RFQ(payable(_readDeployedAddr("$.RFQ_ADDRESS")));
         owner = rfq.owner();
         feeCollector = rfq.feeCollector();
     }

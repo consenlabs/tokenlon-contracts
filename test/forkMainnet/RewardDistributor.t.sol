@@ -42,8 +42,6 @@ contract RewardDistributorTest is Addresses {
     IUniswapRouterV3 uniswapV3 = IUniswapRouterV3(UNISWAP_V3_ADDRESS);
     IUniswapV3Quoter uniswapV3Quoter = IUniswapV3Quoter(UNISWAP_V3_QUOTER_ADDRESS);
 
-    Lon lon = Lon(LON_ADDRESS);
-    IERC20 usdt = IERC20(USDT_ADDRESS);
     IERC20 crv = IERC20(CRV_ADDRESS);
 
     MockStrategy[] strategies = [new MockStrategy(), new MockStrategy()];
@@ -66,44 +64,14 @@ contract RewardDistributorTest is Addresses {
     uint256[] EXCHANGE_INDEXES = [uint256(SUSHISWAP_EXCHANGE_INDEX), uint256(UNISWAPV2_EXCHANGE_INDEX)];
     address[] EXCHANGE_ADDRESSES = [SUSHISWAP_ADDRESS, UNISWAP_V2_ADDRESS];
 
-    address[] LON_FEE_TOKEN_PATH = [address(lon), address(lon)];
-    SetFeeTokenParams LON_FEE_TOKEN =
-        SetFeeTokenParams({
-            feeTokenAddr: address(lon),
-            exchangeIndex: UNISWAPV2_EXCHANGE_INDEX,
-            path: LON_FEE_TOKEN_PATH,
-            LFactor: 0,
-            RFactor: 40,
-            enable: true,
-            minBuy: 10,
-            maxBuy: 100
-        });
+    address[] LON_FEE_TOKEN_PATH;
+    SetFeeTokenParams LON_FEE_TOKEN;
 
-    address[] USDT_FEE_TOKEN_PATH = [address(usdt), WETH_ADDRESS, address(lon)];
-    SetFeeTokenParams USDT_FEE_TOKEN =
-        SetFeeTokenParams({
-            feeTokenAddr: address(usdt),
-            exchangeIndex: UNISWAPV2_EXCHANGE_INDEX,
-            path: USDT_FEE_TOKEN_PATH,
-            LFactor: 20,
-            RFactor: 40,
-            enable: true,
-            minBuy: 10,
-            maxBuy: 100 * 1e6
-        });
+    address[] USDT_FEE_TOKEN_PATH;
+    SetFeeTokenParams USDT_FEE_TOKEN;
 
-    address[] CRV_FEE_TOKEN_PATH = [address(crv), WETH_ADDRESS, address(lon)];
-    SetFeeTokenParams CRV_FEE_TOKEN =
-        SetFeeTokenParams({
-            feeTokenAddr: address(crv),
-            exchangeIndex: SUSHISWAP_EXCHANGE_INDEX,
-            path: CRV_FEE_TOKEN_PATH,
-            LFactor: 20,
-            RFactor: 40,
-            enable: true,
-            minBuy: 10,
-            maxBuy: 10 * 1e18
-        });
+    address[] CRV_FEE_TOKEN_PATH;
+    SetFeeTokenParams CRV_FEE_TOKEN;
 
     function setUp() public {
         rewardDistributor = new RewardDistributor(
@@ -118,6 +86,40 @@ contract RewardDistributorTest is Addresses {
             miningTreasury,
             feeTokenRecipient
         );
+        LON_FEE_TOKEN_PATH = [address(lon), address(lon)];
+        LON_FEE_TOKEN = SetFeeTokenParams({
+            feeTokenAddr: address(lon),
+            exchangeIndex: UNISWAPV2_EXCHANGE_INDEX,
+            path: LON_FEE_TOKEN_PATH,
+            LFactor: 0,
+            RFactor: 40,
+            enable: true,
+            minBuy: 10,
+            maxBuy: 100
+        });
+        USDT_FEE_TOKEN_PATH = [address(usdt), address(weth), address(lon)];
+        USDT_FEE_TOKEN = SetFeeTokenParams({
+            feeTokenAddr: address(usdt),
+            exchangeIndex: UNISWAPV2_EXCHANGE_INDEX,
+            path: USDT_FEE_TOKEN_PATH,
+            LFactor: 20,
+            RFactor: 40,
+            enable: true,
+            minBuy: 10,
+            maxBuy: 100 * 1e6
+        });
+        CRV_FEE_TOKEN_PATH = [address(crv), address(weth), address(lon)];
+        CRV_FEE_TOKEN = SetFeeTokenParams({
+            feeTokenAddr: address(crv),
+            exchangeIndex: SUSHISWAP_EXCHANGE_INDEX,
+            path: CRV_FEE_TOKEN_PATH,
+            LFactor: 20,
+            RFactor: 40,
+            enable: true,
+            minBuy: 10,
+            maxBuy: 10 * 1e18
+        });
+
         // Set exchanges
         rewardDistributor.setExchangeAddrs(EXCHANGE_INDEXES, EXCHANGE_ADDRESSES);
         address[] memory strategyAddrs = new address[](strategies.length);
@@ -139,8 +141,9 @@ contract RewardDistributorTest is Addresses {
         }
         _setStrategyAddrs(strategyAddrs);
 
-        vm.prank(lon.owner());
-        lon.setMinter(address(rewardDistributor));
+        Lon lonContract = Lon(address(lon));
+        vm.prank(lonContract.owner());
+        lonContract.setMinter(address(rewardDistributor));
 
         // Deal 100 ETH to user
         deal(user, 100 ether);
@@ -156,15 +159,6 @@ contract RewardDistributorTest is Addresses {
         vm.label(address(uniswapV3Quoter), "UniswapV3Quoter");
         vm.label(address(lonStaking), "LONStaking");
         vm.label(address(rewardDistributor), "RewardDistributor");
-    }
-
-    /*********************************
-     *          Test: setup          *
-     *********************************/
-
-    function testSetup() public {
-        address minter = lon.minter();
-        assertEq(minter, address(rewardDistributor));
     }
 
     /***************************************

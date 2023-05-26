@@ -155,8 +155,8 @@ contract LimitOrderTest is StrategySharedSetup {
             feeCollector
         );
         // Setup
+        vm.startPrank(tokenlonOperator, tokenlonOperator);
         userProxy.upgradeLimitOrder(address(limitOrder), true);
-        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeLimitOrder(address(limitOrder));
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(limitOrder), true);
         permanentStorage.setPermission(permanentStorage.allowFillSeenStorageId(), address(limitOrder), true);
@@ -165,7 +165,7 @@ contract LimitOrderTest is StrategySharedSetup {
     }
 
     function _setupDeployedStrategy() internal override {
-        limitOrder = LimitOrder(payable(vm.envAddress("LIMITORDER_ADDRESS")));
+        limitOrder = LimitOrder(payable(_readDeployedAddr("$.LIMITORDER_ADDRESS")));
 
         // prank owner and update coordinator address
         owner = limitOrder.owner();

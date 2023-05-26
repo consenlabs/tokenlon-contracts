@@ -197,7 +197,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         // give an unsurpoted MakerAsset
         // use LON address to test
-        order.makerAssetAddr = LON_ADDRESS;
+        order.makerAssetAddr = address(lon);
         order.makerAddr = BALANCER_V2_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
         address[] memory path = new address[](2);
@@ -222,7 +222,7 @@ contract TestAMMWrapperWithPathTradeBalancerV2 is TestAMMWrapperWithPath {
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         // give an unsurpoted TakerAsset
         // use LON address to test
-        order.takerAssetAddr = LON_ADDRESS;
+        order.takerAssetAddr = address(lon);
         order.makerAddr = BALANCER_V2_ADDRESS;
         bytes memory sig = _signTrade(userPrivateKey, order);
         address[] memory path = new address[](2);

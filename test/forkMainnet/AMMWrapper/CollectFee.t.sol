@@ -56,7 +56,7 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         bytes memory sig = _signTrade(userPrivateKey, order);
         bytes memory payload = _genTradePayload(order, feeFactor, sig);
 
-        address feeTokenAddress = WETH_ADDRESS; // AMM other than Curve returns WETH instead of ETH
+        address feeTokenAddress = address(weth); // AMM other than Curve returns WETH instead of ETH
         BalanceSnapshot.Snapshot memory feeCollectorMakerAsset = BalanceSnapshot.take(feeCollector, feeTokenAddress);
 
         vm.prank(relayer, relayer);
@@ -69,7 +69,7 @@ contract TestAMMWrapperCollectFee is TestAMMWrapper {
         uint256 feeFactor = 100;
         AMMLibEIP712.Order memory order = DEFAULT_ORDER;
         order.makerAddr = CURVE_ANKRETH_POOL_ADDRESS;
-        order.takerAssetAddr = ANKRETH_ADDRESS;
+        order.takerAssetAddr = address(ankreth);
         order.takerAssetAmount = 1 ether;
         order.makerAssetAddr = ETH_ADDRESS;
         uint256 expectedOutAmount = ammQuoter.getMakerOutAmount(order.makerAddr, order.takerAssetAddr, order.makerAssetAddr, order.takerAssetAmount);

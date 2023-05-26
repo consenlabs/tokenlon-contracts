@@ -62,7 +62,7 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
         relayerListAddress[0] = relayer;
         bool[] memory relayerListBool = new bool[](1);
         relayerListBool[0] = true;
-        vm.prank(psOperator, psOperator);
+        vm.prank(tokenlonOperator, tokenlonOperator);
         permanentStorage.setRelayersValid(relayerListAddress, relayerListBool);
 
         // Deal 100 ETH to each account
@@ -132,8 +132,8 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
             feeCollector
         );
         // Setup
+        vm.startPrank(tokenlonOperator, tokenlonOperator);
         userProxy.upgradeAMMWrapper(address(ammWrapperWithPath), true);
-        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeAMMWrapper(address(ammWrapperWithPath));
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(ammWrapperWithPath), true);
         vm.stopPrank();
@@ -141,11 +141,10 @@ contract TestAMMWrapperWithPath is StrategySharedSetup {
     }
 
     function _setupDeployedStrategy() internal override {
-        ammQuoter = AMMQuoter(vm.envAddress("AMMQUOTER_ADDRESS"));
-        ammWrapperWithPath = AMMWrapperWithPath(payable(vm.envAddress("AMMWRAPPER_ADDRESS")));
+        ammQuoter = AMMQuoter(_readDeployedAddr("$.AMMQUOTER_ADDRESS"));
+        ammWrapperWithPath = AMMWrapperWithPath(payable(_readDeployedAddr("$.AMMWRAPPER_ADDRESS")));
         owner = ammWrapperWithPath.owner();
         feeCollector = ammWrapperWithPath.feeCollector();
-        psOperator = permanentStorage.operator();
     }
 
     /*********************************
