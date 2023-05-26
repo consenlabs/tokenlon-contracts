@@ -20,7 +20,6 @@ import "./utils/PionexContractLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
 /// @title Pionex Contract
-/// @notice Modified from LimitOrder contract. Maker is user, pionex is Pionex agent.
 /// @notice Order can be filled as long as the provided pionexToken/userToken ratio is better than or equal to user's specfied pionexToken/userToken ratio.
 /// @author imToken Labs
 contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, SignatureValidator, ReentrancyGuard {
@@ -58,7 +57,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     /// @notice Only owner can call
     /// @param _newCoordinator The new address of coordinator
     function upgradeCoordinator(address _newCoordinator) external onlyOwner {
-        require(_newCoordinator != address(0), "LimitOrder: coordinator can not be zero address");
+        require(_newCoordinator != address(0), "PionexContract: coordinator can not be zero address");
         coordinator = _newCoordinator;
 
         emit UpgradeCoordinator(_newCoordinator);
@@ -67,7 +66,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     /// @notice Only owner can call
     /// @param _userFeeFactor The new fee factor for user
     function setFactors(uint16 _userFeeFactor) external onlyOwner {
-        require(_userFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid user fee factor");
+        require(_userFeeFactor <= LibConstant.BPS_MAX, "PionexContract: Invalid user fee factor");
 
         pendingMakerFeeFactor = _userFeeFactor;
 
@@ -76,8 +75,8 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
     /// @notice Only owner can call
     function activateFactors() external onlyOwner {
-        require(factorsTimeLock != 0, "LimitOrder: no pending fee factors");
-        require(block.timestamp >= factorsTimeLock, "LimitOrder: fee factors timelocked");
+        require(factorsTimeLock != 0, "PionexContract: no pending fee factors");
+        require(block.timestamp >= factorsTimeLock, "PionexContract: fee factors timelocked");
         factorsTimeLock = 0;
         userFeeFactor = pendingMakerFeeFactor;
         pendingMakerFeeFactor = 0;
@@ -88,14 +87,14 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     /// @notice Only owner can call
     /// @param _newFeeCollector The new address of fee collector
     function setFeeCollector(address _newFeeCollector) external onlyOwner {
-        require(_newFeeCollector != address(0), "LimitOrder: fee collector can not be zero address");
+        require(_newFeeCollector != address(0), "PionexContract: fee collector can not be zero address");
         feeCollector = _newFeeCollector;
 
         emit SetFeeCollector(_newFeeCollector);
     }
 
     /// @inheritdoc IPionexContract
-    function fillLimitOrderByTrader(
+    function fillLimitOrder(
         PionexContractLibEIP712.Order calldata _order,
         bytes calldata _orderMakerSig,
         TraderParams calldata _params,
@@ -111,14 +110,14 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         // -> _params.pionexTokenAmount/_params.userTokenAmount >= _order.pionexTokenAmount/_order.userTokenAmount
         require(
             _params.pionexTokenAmount.mul(_order.userTokenAmount) >= _order.pionexTokenAmount.mul(_params.userTokenAmount),
-            "LimitOrder: pionex/user token ratio not good enough"
+            "PionexContract: pionex/user token ratio not good enough"
         );
         // Check gas fee factor and pionex strategy fee factor do not exceed limit
         require(
             (_params.gasFeeFactor <= LibConstant.BPS_MAX) &&
                 (_params.pionexStrategyFeeFactor <= LibConstant.BPS_MAX) &&
                 (_params.gasFeeFactor + _params.pionexStrategyFeeFactor <= LibConstant.BPS_MAX - userFeeFactor),
-            "LimitOrder: Invalid pionex fee factor"
+            "PionexContract: Invalid pionex fee factor"
         );
 
         {
@@ -162,11 +161,11 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     }
 
     function _validateTraderFill(PionexContractLibEIP712.Fill memory _fill, bytes memory _fillTakerSig) internal {
-        require(_fill.expiry > uint64(block.timestamp), "LimitOrder: Fill request is expired");
-        require(_fill.recipient != address(0), "LimitOrder: recipient can not be zero address");
+        require(_fill.expiry > uint64(block.timestamp), "PionexContract: Fill request is expired");
+        require(_fill.recipient != address(0), "PionexContract: recipient can not be zero address");
 
         bytes32 fillHash = getEIP712Hash(PionexContractLibEIP712._getFillStructHash(_fill));
-        require(isValidSignature(_fill.pionex, fillHash, bytes(""), _fillTakerSig), "LimitOrder: Fill is not signed by pionex");
+        require(isValidSignature(_fill.pionex, fillHash, bytes(""), _fillTakerSig), "PionexContract: Fill is not signed by pionex");
 
         // Set fill seen to avoid replay attack.
         // PermanentStorage would throw error if fill is already seen.
@@ -179,7 +178,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         address _executor,
         CoordinatorParams memory _crdParams
     ) internal returns (bytes32) {
-        require(_crdParams.expiry > uint64(block.timestamp), "LimitOrder: Fill permission is expired");
+        require(_crdParams.expiry > uint64(block.timestamp), "PionexContract: Fill permission is expired");
 
         bytes32 allowFillHash = getEIP712Hash(
             PionexContractLibEIP712._getAllowFillStructHash(
@@ -192,7 +191,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 })
             )
         );
-        require(isValidSignature(coordinator, allowFillHash, bytes(""), _crdParams.sig), "LimitOrder: AllowFill is not signed by coordinator");
+        require(isValidSignature(coordinator, allowFillHash, bytes(""), _crdParams.sig), "PionexContract: AllowFill is not signed by coordinator");
 
         // Set allow fill seen to avoid replay attack
         // PermanentStorage would throw error if allow fill is already seen.
@@ -263,16 +262,16 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
     /// @inheritdoc IPionexContract
     function cancelLimitOrder(PionexContractLibEIP712.Order calldata _order, bytes calldata _cancelOrderMakerSig) external override onlyUserProxy nonReentrant {
-        require(_order.expiry > uint64(block.timestamp), "LimitOrder: Order is expired");
+        require(_order.expiry > uint64(block.timestamp), "PionexContract: Order is expired");
         bytes32 orderHash = getEIP712Hash(PionexContractLibEIP712._getOrderStructHash(_order));
         bool isCancelled = LibPionexContractOrderStorage.getStorage().orderHashToCancelled[orderHash];
-        require(!isCancelled, "LimitOrder: Order is cancelled already");
+        require(!isCancelled, "PionexContract: Order is cancelled already");
         {
             PionexContractLibEIP712.Order memory cancelledOrder = _order;
             cancelledOrder.pionexTokenAmount = 0;
 
             bytes32 cancelledOrderHash = getEIP712Hash(PionexContractLibEIP712._getOrderStructHash(cancelledOrder));
-            require(isValidSignature(_order.user, cancelledOrderHash, bytes(""), _cancelOrderMakerSig), "LimitOrder: Cancel request is not signed by user");
+            require(isValidSignature(_order.user, cancelledOrderHash, bytes(""), _cancelOrderMakerSig), "PionexContract: Cancel request is not signed by user");
         }
 
         // Set cancelled state to storage
@@ -287,16 +286,16 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         bytes32 _orderHash,
         bytes memory _orderMakerSig
     ) internal view {
-        require(_order.expiry > uint64(block.timestamp), "LimitOrder: Order is expired");
+        require(_order.expiry > uint64(block.timestamp), "PionexContract: Order is expired");
         bool isCancelled = LibPionexContractOrderStorage.getStorage().orderHashToCancelled[_orderHash];
-        require(!isCancelled, "LimitOrder: Order is cancelled");
+        require(!isCancelled, "PionexContract: Order is cancelled");
 
-        require(isValidSignature(_order.user, _orderHash, bytes(""), _orderMakerSig), "LimitOrder: Order is not signed by user");
+        require(isValidSignature(_order.user, _orderHash, bytes(""), _orderMakerSig), "PionexContract: Order is not signed by user");
     }
 
     function _validateOrderTaker(PionexContractLibEIP712.Order memory _order, address _pionex) internal pure {
         if (_order.pionex != address(0)) {
-            require(_order.pionex == _pionex, "LimitOrder: Order cannot be filled by this pionex");
+            require(_order.pionex == _pionex, "PionexContract: Order cannot be filled by this pionex");
         }
     }
 
@@ -307,13 +306,13 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     ) internal view returns (uint256, uint256) {
         uint256 userTokenFilledAmount = LibPionexContractOrderStorage.getStorage().orderHashToMakerTokenFilledAmount[_orderHash];
 
-        require(userTokenFilledAmount < _order.userTokenAmount, "LimitOrder: Order is filled");
+        require(userTokenFilledAmount < _order.userTokenAmount, "PionexContract: Order is filled");
 
         uint256 userTokenFillableAmount = _order.userTokenAmount.sub(userTokenFilledAmount);
         uint256 userTokenQuota = Math.min(_userTokenAmount, userTokenFillableAmount);
         uint256 remainingAfterFill = userTokenFillableAmount.sub(userTokenQuota);
 
-        require(userTokenQuota != 0, "LimitOrder: zero token amount");
+        require(userTokenQuota != 0, "PionexContract: zero token amount");
         return (userTokenQuota, remainingAfterFill);
     }
 

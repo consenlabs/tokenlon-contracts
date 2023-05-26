@@ -77,7 +77,7 @@ interface IPionexContract is IStrategyBase {
     /// @param _orderMakerSig The signature of the order from user
     /// @param _params Trader specific filling parameters
     /// @param _crdParams Contains details of the fill permit
-    function fillLimitOrderByTrader(
+    function fillLimitOrder(
         PionexContractLibEIP712.Order calldata _order,
         bytes calldata _orderMakerSig,
         TraderParams calldata _params,

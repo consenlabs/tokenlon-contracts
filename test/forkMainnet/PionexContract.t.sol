@@ -236,7 +236,7 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function testCannotUpgradeCoordinatorToZeroAddr() public {
-        vm.expectRevert("LimitOrder: coordinator can not be zero address");
+        vm.expectRevert("PionexContract: coordinator can not be zero address");
         vm.prank(owner, owner);
         pionexContract.upgradeCoordinator(address(0));
     }
@@ -301,7 +301,7 @@ contract PionexContractTest is StrategySharedSetup {
      *********************************/
 
     function testCannotSetFactorsIfLargerThanBpsMax() public {
-        vm.expectRevert("LimitOrder: Invalid user fee factor");
+        vm.expectRevert("PionexContract: Invalid user fee factor");
         vm.prank(owner, owner);
         pionexContract.setFactors(LibConstant.BPS_MAX + 1);
     }
@@ -330,7 +330,7 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function testCannotSetFeeCollectorToZeroAddr() public {
-        vm.expectRevert("LimitOrder: fee collector can not be zero address");
+        vm.expectRevert("PionexContract: fee collector can not be zero address");
         vm.prank(owner, owner);
         pionexContract.setFeeCollector(address(0));
     }
@@ -342,13 +342,13 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     /*********************************
-     *  Test: fillLimitOrderByTrader *
+     *  Test: fillLimitOrder *
      *********************************/
 
     function testCannotFillByTraderIfNotFromUserProxy() public {
         vm.expectRevert("Strategy: not from UserProxy contract");
         // Call limit order contract directly will get reverted since msg.sender is not from UserProxy
-        pionexContract.fillLimitOrderByTrader(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
+        pionexContract.fillLimitOrder(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
     }
 
     function testCannotFillFilledOrderByTrader() public {
@@ -373,7 +373,7 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.salt = allowFill.salt;
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        vm.expectRevert("LimitOrder: Order is filled");
+        vm.expectRevert("PionexContract: Order is filled");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload2);
     }
@@ -398,7 +398,7 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
-        vm.expectRevert("LimitOrder: Order is expired");
+        vm.expectRevert("PionexContract: Order is expired");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -407,7 +407,7 @@ contract PionexContractTest is StrategySharedSetup {
         bytes memory wrongMakerSig = _signOrder(pionexPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, wrongMakerSig, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("LimitOrder: Order is not signed by user");
+        vm.expectRevert("PionexContract: Order is not signed by user");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -417,7 +417,7 @@ contract PionexContractTest is StrategySharedSetup {
         wrongTraderParams.pionexSig = _signFill(userPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, wrongTraderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("LimitOrder: Fill is not signed by pionex");
+        vm.expectRevert("PionexContract: Fill is not signed by pionex");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -443,7 +443,7 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
-        vm.expectRevert("LimitOrder: Order cannot be filled by this pionex");
+        vm.expectRevert("PionexContract: Order cannot be filled by this pionex");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -457,7 +457,7 @@ contract PionexContractTest is StrategySharedSetup {
         traderParams.expiry = fill.expiry;
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("LimitOrder: Fill request is expired");
+        vm.expectRevert("PionexContract: Fill request is expired");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -494,7 +494,7 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        vm.expectRevert("LimitOrder: Fill is not signed by pionex");
+        vm.expectRevert("PionexContract: Fill is not signed by pionex");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -504,7 +504,7 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.recipient = coordinator;
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("LimitOrder: Fill is not signed by pionex");
+        vm.expectRevert("PionexContract: Fill is not signed by pionex");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -518,7 +518,7 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.expiry = allowFill.expiry;
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: Fill permission is expired");
+        vm.expectRevert("PionexContract: Fill permission is expired");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -532,7 +532,7 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
+        vm.expectRevert("PionexContract: AllowFill is not signed by coordinator");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -547,7 +547,7 @@ contract PionexContractTest is StrategySharedSetup {
 
         // Fill order using pionex (not executor)
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
+        vm.expectRevert("PionexContract: AllowFill is not signed by coordinator");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -561,7 +561,7 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
+        vm.expectRevert("PionexContract: AllowFill is not signed by coordinator");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -572,7 +572,7 @@ contract PionexContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(pionexPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
+        vm.expectRevert("PionexContract: AllowFill is not signed by coordinator");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -600,7 +600,7 @@ contract PionexContractTest is StrategySharedSetup {
         traderParams.recipient = address(0);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("LimitOrder: recipient can not be zero address");
+        vm.expectRevert("PionexContract: recipient can not be zero address");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -615,7 +615,7 @@ contract PionexContractTest is StrategySharedSetup {
         traderParams.pionexSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("LimitOrder: pionex/user token ratio not good enough");
+        vm.expectRevert("PionexContract: pionex/user token ratio not good enough");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -971,7 +971,7 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(cancelPayload);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("LimitOrder: Order is cancelled");
+        vm.expectRevert("PionexContract: Order is cancelled");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -984,7 +984,7 @@ contract PionexContractTest is StrategySharedSetup {
             DEFAULT_ORDER,
             _signOrder(pionexPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712)
         );
-        vm.expectRevert("LimitOrder: Cancel request is not signed by user");
+        vm.expectRevert("PionexContract: Cancel request is not signed by user");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(cancelPayload);
     }
@@ -994,7 +994,7 @@ contract PionexContractTest is StrategySharedSetup {
         expiredOrder.expiry = 0;
 
         bytes memory payload = _genCancelLimitOrderPayload(expiredOrder, _signOrder(pionexPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712));
-        vm.expectRevert("LimitOrder: Order is expired");
+        vm.expectRevert("PionexContract: Order is expired");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -1006,7 +1006,7 @@ contract PionexContractTest is StrategySharedSetup {
         bytes memory payload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
-        vm.expectRevert("LimitOrder: Order is cancelled already");
+        vm.expectRevert("PionexContract: Order is cancelled already");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -1131,7 +1131,7 @@ contract PionexContractTest is StrategySharedSetup {
         IPionexContract.TraderParams memory params,
         IPionexContract.CoordinatorParams memory crdParams
     ) internal view returns (bytes memory payload) {
-        return abi.encodeWithSelector(pionexContract.fillLimitOrderByTrader.selector, order, orderMakerSig, params, crdParams);
+        return abi.encodeWithSelector(pionexContract.fillLimitOrder.selector, order, orderMakerSig, params, crdParams);
     }
 
     function _genCancelLimitOrderPayload(PionexContractLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
