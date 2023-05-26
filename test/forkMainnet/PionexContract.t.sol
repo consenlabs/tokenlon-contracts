@@ -144,8 +144,8 @@ contract PionexContractTest is StrategySharedSetup {
             feeCollector
         );
         // Setup
+        vm.startPrank(tokenlonOperator, tokenlonOperator);
         userProxy.upgradeLimitOrder(address(pionexContract), true);
-        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeLimitOrder(address(pionexContract));
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(pionexContract), true);
         permanentStorage.setPermission(permanentStorage.allowFillSeenStorageId(), address(pionexContract), true);
