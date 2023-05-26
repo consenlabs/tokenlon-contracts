@@ -109,7 +109,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         // Check provided pionexToken/userToken ratio is better than or equal to user's specfied pionexToken/userToken ratio
         // -> _params.pionexTokenAmount/_params.userTokenAmount >= _order.pionexTokenAmount/_order.userTokenAmount
         require(
-            _params.pionexTokenAmount.mul(_order.userTokenAmount) >= _order.pionexTokenAmount.mul(_params.userTokenAmount),
+            _params.pionexTokenAmount.mul(_order.userTokenAmount) >= _order.minPionexTokenAmount.mul(_params.userTokenAmount),
             "PionexContract: pionex/user token ratio not good enough"
         );
         // Check gas fee factor and pionex strategy fee factor do not exceed limit
@@ -133,7 +133,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
             _validateTraderFill(fill, _params.pionexSig);
         }
 
-        (uint256 userTokenAmount, uint256 remainingAmount) = _quoteOrderFromMakerToken(_order, orderHash, _params.userTokenAmount);
+        (uint256 userTokenAmount, uint256 remainingUserTokenAmount) = _quoteOrderFromMakerToken(_order, orderHash, _params.userTokenAmount);
         // Calculate pionexTokenAmount according to the provided pionexToken/userToken ratio
         uint256 pionexTokenAmount = userTokenAmount.mul(_params.pionexTokenAmount).div(_params.userTokenAmount);
 
@@ -149,7 +149,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 pionexToken: _order.pionexToken,
                 userTokenAmount: userTokenAmount,
                 pionexTokenAmount: pionexTokenAmount,
-                remainingAmount: remainingAmount,
+                remainingUserTokenAmount: remainingUserTokenAmount,
                 gasFeeFactor: _params.gasFeeFactor,
                 pionexStrategyFeeFactor: _params.pionexStrategyFeeFactor
             })
@@ -211,7 +211,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         IERC20 pionexToken;
         uint256 userTokenAmount;
         uint256 pionexTokenAmount;
-        uint256 remainingAmount;
+        uint256 remainingUserTokenAmount;
         uint16 gasFeeFactor;
         uint16 pionexStrategyFeeFactor;
     }
@@ -251,7 +251,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 pionexToken: address(_settlement.pionexToken),
                 userTokenFilledAmount: _settlement.userTokenAmount,
                 pionexTokenFilledAmount: _settlement.pionexTokenAmount,
-                remainingAmount: _settlement.remainingAmount,
+                remainingUserTokenAmount: _settlement.remainingUserTokenAmount,
                 tokenlonFee: tokenlonFee,
                 pionexFee: pionexFee
             })
@@ -268,7 +268,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         require(!isCancelled, "PionexContract: Order is cancelled already");
         {
             PionexContractLibEIP712.Order memory cancelledOrder = _order;
-            cancelledOrder.pionexTokenAmount = 0;
+            cancelledOrder.minPionexTokenAmount = 0;
 
             bytes32 cancelledOrderHash = getEIP712Hash(PionexContractLibEIP712._getOrderStructHash(cancelledOrder));
             require(isValidSignature(_order.user, cancelledOrderHash, bytes(""), _cancelOrderMakerSig), "PionexContract: Cancel request is not signed by user");
@@ -340,7 +340,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         address pionexToken;
         uint256 userTokenFilledAmount;
         uint256 pionexTokenFilledAmount;
-        uint256 remainingAmount;
+        uint256 remainingUserTokenAmount;
         uint256 tokenlonFee;
         uint256 pionexFee;
     }
@@ -357,7 +357,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 pionexToken: _params.pionexToken,
                 userTokenFilledAmount: _params.userTokenFilledAmount,
                 pionexTokenFilledAmount: _params.pionexTokenFilledAmount,
-                remainingAmount: _params.remainingAmount,
+                remainingUserTokenAmount: _params.remainingUserTokenAmount,
                 tokenlonFee: _params.tokenlonFee,
                 pionexFee: _params.pionexFee
             })

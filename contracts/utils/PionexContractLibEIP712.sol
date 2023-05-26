@@ -10,7 +10,7 @@ library PionexContractLibEIP712 {
         IERC20 userToken;
         IERC20 pionexToken;
         uint256 userTokenAmount;
-        uint256 pionexTokenAmount;
+        uint256 minPionexTokenAmount;
         address user;
         address pionex;
         uint256 salt;
@@ -24,7 +24,7 @@ library PionexContractLibEIP712 {
                 "address userToken,",
                 "address pionexToken,",
                 "uint256 userTokenAmount,",
-                "uint256 pionexTokenAmount,",
+                "uint256 minPionexTokenAmount,",
                 "address user,",
                 "address pionex,",
                 "uint256 salt,",
@@ -33,7 +33,7 @@ library PionexContractLibEIP712 {
             )
         );
     */
-    bytes32 private constant ORDER_TYPEHASH = 0x97aec2eaa3064135fc2be6548ccc65711bf2143e0a4ad193212bfdee8913eb9d;
+    bytes32 private constant ORDER_TYPEHASH = 0xc3eca7f47a388a29b03acba9184de40640fb7d9394cc3ef572b90c15c2f34feb;
 
     function _getOrderStructHash(Order memory _order) internal pure returns (bytes32) {
         return
@@ -43,7 +43,7 @@ library PionexContractLibEIP712 {
                     address(_order.userToken),
                     address(_order.pionexToken),
                     _order.userTokenAmount,
-                    _order.pionexTokenAmount,
+                    _order.minPionexTokenAmount,
                     _order.user,
                     _order.pionex,
                     _order.salt,

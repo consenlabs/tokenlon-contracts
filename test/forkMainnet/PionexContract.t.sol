@@ -72,7 +72,7 @@ contract PionexContractTest is StrategySharedSetup {
             dai, // userToken
             usdt, // pionexToken
             100 * 1e18, // userTokenAmount
-            90 * 1e6, // pionexTokenAmount
+            90 * 1e6, // minPionexTokenAmount
             user, // user
             address(0), // pionex
             uint256(1001), // salt
@@ -85,7 +85,7 @@ contract PionexContractTest is StrategySharedSetup {
             pionex,
             receiver,
             DEFAULT_ORDER.userTokenAmount,
-            DEFAULT_ORDER.pionexTokenAmount,
+            DEFAULT_ORDER.minPionexTokenAmount,
             uint256(1002),
             DEADLINE
         );
@@ -652,21 +652,21 @@ contract PionexContractTest is StrategySharedSetup {
                 address(DEFAULT_ORDER.userToken),
                 address(DEFAULT_ORDER.pionexToken),
                 DEFAULT_ORDER.userTokenAmount,
-                DEFAULT_ORDER.pionexTokenAmount,
-                0, // remainingAmount should be zero after order fully filled
-                DEFAULT_ORDER.pionexTokenAmount.mul(10).div(100), // tokenlonFee = 10% pionexTokenAmount
-                DEFAULT_ORDER.pionexTokenAmount.mul(3).div(100) // pionexStrategyFee = 0.5% + 2.5% = 3% pionexTokenAmount
+                DEFAULT_ORDER.minPionexTokenAmount,
+                0, // remainingUserTokenAmount should be zero after order fully filled
+                DEFAULT_ORDER.minPionexTokenAmount.mul(10).div(100), // tokenlonFee = 10% pionexTokenAmount
+                DEFAULT_ORDER.minPionexTokenAmount.mul(3).div(100) // pionexStrategyFee = 0.5% + 2.5% = 3% pionexTokenAmount
             )
         );
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
 
-        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.pionexTokenAmount.mul(97).div(100))); // 3% fee for Pionex is deducted from pionexTokenAmount directly
+        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.minPionexTokenAmount.mul(97).div(100))); // 3% fee for Pionex is deducted from pionexTokenAmount directly
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
-        userTakerAsset.assertChange(int256(DEFAULT_ORDER.pionexTokenAmount.mul(87).div(100))); // 10% fee for Tokenlon and 3% fee for Pionex
+        userTakerAsset.assertChange(int256(DEFAULT_ORDER.minPionexTokenAmount.mul(87).div(100))); // 10% fee for Tokenlon and 3% fee for Pionex
         userMakerAsset.assertChange(-int256(DEFAULT_ORDER.userTokenAmount));
         fcMakerAsset.assertChange(0);
-        fcTakerAsset.assertChange(int256(DEFAULT_ORDER.pionexTokenAmount.mul(10).div(100)));
+        fcTakerAsset.assertChange(int256(DEFAULT_ORDER.minPionexTokenAmount.mul(10).div(100)));
     }
 
     function testFullyFillByTraderWithBetterTakerMakerTokenRatio() public {
@@ -704,7 +704,7 @@ contract PionexContractTest is StrategySharedSetup {
                 address(DEFAULT_ORDER.pionexToken),
                 DEFAULT_ORDER.userTokenAmount,
                 fill.pionexTokenAmount,
-                0, // remainingAmount should be zero after order fully filled
+                0, // remainingUserTokenAmount should be zero after order fully filled
                 0,
                 0
             )
@@ -797,7 +797,7 @@ contract PionexContractTest is StrategySharedSetup {
         PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         // set the fill amount to 2x of order quota
         fill.userTokenAmount = DEFAULT_ORDER.userTokenAmount.mul(2);
-        fill.pionexTokenAmount = DEFAULT_ORDER.pionexTokenAmount.mul(2);
+        fill.pionexTokenAmount = DEFAULT_ORDER.minPionexTokenAmount.mul(2);
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.userTokenAmount = fill.userTokenAmount;
@@ -815,9 +815,9 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload);
 
         // Balance change should be bound by order amount (not affected by 2x fill amount)
-        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.pionexTokenAmount));
+        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.minPionexTokenAmount));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
-        userTakerAsset.assertChange(int256(DEFAULT_ORDER.pionexTokenAmount));
+        userTakerAsset.assertChange(int256(DEFAULT_ORDER.minPionexTokenAmount));
         userMakerAsset.assertChange(-int256(DEFAULT_ORDER.userTokenAmount));
     }
 
@@ -830,7 +830,7 @@ contract PionexContractTest is StrategySharedSetup {
         PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         // set the fill amount to 2x of order quota
         fill.userTokenAmount = DEFAULT_ORDER.userTokenAmount.mul(2);
-        fill.pionexTokenAmount = DEFAULT_ORDER.pionexTokenAmount.mul(2).mul(11).div(10); // 10% more
+        fill.pionexTokenAmount = DEFAULT_ORDER.minPionexTokenAmount.mul(2).mul(11).div(10); // 10% more
 
         IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.userTokenAmount = fill.userTokenAmount;
@@ -848,9 +848,9 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload);
 
         // Balance change should be bound by order amount (not affected by 2x fill amount)
-        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.pionexTokenAmount.mul(11).div(10))); // 10% more
+        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.minPionexTokenAmount.mul(11).div(10))); // 10% more
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
-        userTakerAsset.assertChange(int256(DEFAULT_ORDER.pionexTokenAmount.mul(11).div(10))); // 10% more
+        userTakerAsset.assertChange(int256(DEFAULT_ORDER.minPionexTokenAmount.mul(11).div(10))); // 10% more
         userMakerAsset.assertChange(-int256(DEFAULT_ORDER.userTokenAmount));
     }
 
@@ -900,9 +900,9 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload2);
 
         // Half of the order filled after 2 txs
-        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.pionexTokenAmount.div(2)));
+        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.minPionexTokenAmount.div(2)));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount.div(2)));
-        userTakerAsset.assertChange(int256(DEFAULT_ORDER.pionexTokenAmount.div(2)));
+        userTakerAsset.assertChange(int256(DEFAULT_ORDER.minPionexTokenAmount.div(2)));
         userMakerAsset.assertChange(-int256(DEFAULT_ORDER.userTokenAmount.div(2)));
     }
 
@@ -964,7 +964,7 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testCannotFillCanceledOrder() public {
         PionexContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
-        zeroOrder.pionexTokenAmount = 0;
+        zeroOrder.minPionexTokenAmount = 0;
 
         bytes memory cancelPayload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
         vm.prank(pionex, pionex); // Only EOA
@@ -978,7 +978,7 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testCannotCancelIfNotMaker() public {
         PionexContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
-        zeroOrder.pionexTokenAmount = 0;
+        zeroOrder.minPionexTokenAmount = 0;
 
         bytes memory cancelPayload = _genCancelLimitOrderPayload(
             DEFAULT_ORDER,
@@ -1001,7 +1001,7 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testCannotCancelTwice() public {
         PionexContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
-        zeroOrder.pionexTokenAmount = 0;
+        zeroOrder.minPionexTokenAmount = 0;
 
         bytes memory payload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
         vm.prank(pionex, pionex); // Only EOA

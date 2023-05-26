@@ -48,7 +48,7 @@ interface IPionexContract is IStrategyBase {
         address pionexToken;
         uint256 userTokenFilledAmount;
         uint256 pionexTokenFilledAmount;
-        uint256 remainingAmount;
+        uint256 remainingUserTokenAmount;
         uint256 tokenlonFee;
         uint256 pionexFee;
     }
