@@ -12,7 +12,6 @@ import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { UniswapStrategy } from "contracts/UniswapStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
-import { Offer } from "contracts/libraries/Offer.sol";
 import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
@@ -88,62 +87,49 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         setTokenBalanceAndApprove(taker, address(genericSwap), tokens, 100000);
 
         gsData = GenericSwapData({
-            offer: Offer({
-                taker: taker,
-                maker: payable(address(uniswapStrategy)),
-                takerToken: USDT_ADDRESS,
-                takerTokenAmount: 10 * 1e6,
-                makerToken: CRV_ADDRESS,
-                makerTokenAmount: 0, // to be filled later
-                minMakerTokenAmount: 0, // to be filled later
-                allowContractSender: true,
-                expiry: 0, // not used in GS
-                salt: 0 // not used in GS
-            }),
+            maker: payable(address(uniswapStrategy)),
+            takerToken: USDT_ADDRESS,
+            takerTokenAmount: 10 * 1e6,
+            makerToken: CRV_ADDRESS,
+            makerTokenAmount: 0, // to be filled later
+            minMakerTokenAmount: 0, // to be filled later
+            expiry: 0, // not used in GS
+            salt: 0, // not used in GS
             recipient: payable(taker),
             strategyData: swapData
         });
 
         IUniswapRouterV2 router = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
-        uint256[] memory amounts = router.getAmountsOut(gsData.offer.takerTokenAmount, defaultPath);
+        uint256[] memory amounts = router.getAmountsOut(gsData.takerTokenAmount, defaultPath);
         uint256 expectedOut = amounts[amounts.length - 1];
-        // update offer of gsData
-        gsData.offer.makerTokenAmount = expectedOut;
-        gsData.offer.minMakerTokenAmount = (expectedOut * 95) / 100; // default 5% slippage tolerance
+        // update gsData
+        gsData.makerTokenAmount = expectedOut;
+        gsData.minMakerTokenAmount = (expectedOut * 95) / 100; // default 5% slippage tolerance
     }
 
     function testGenericSwap() public {
-        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: gsData.offer.taker, token: gsData.offer.takerToken });
-        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: gsData.offer.taker, token: gsData.offer.makerToken });
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: gsData.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: gsData.makerToken });
 
         vm.expectEmit(true, true, true, true);
-        emit Swap(
-            getGSDataHash(gsData),
-            gsData.offer.maker,
-            gsData.offer.taker,
-            gsData.offer.taker,
-            gsData.offer.takerToken,
-            gsData.offer.takerTokenAmount,
-            gsData.offer.makerToken,
-            gsData.offer.makerTokenAmount
-        );
+        emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, gsData.makerTokenAmount);
 
         vm.prank(taker);
         genericSwap.executeSwap(gsData, defaultTakerPermit);
 
-        takerTakerToken.assertChange(-int256(gsData.offer.takerTokenAmount));
-        // the makerTokenAmount in the offer is the exact quote from strategy
-        takerMakerToken.assertChange(int256(gsData.offer.makerTokenAmount));
+        takerTakerToken.assertChange(-int256(gsData.takerTokenAmount));
+        // the makerTokenAmount in the gsData is the exact quote from strategy
+        takerMakerToken.assertChange(int256(gsData.makerTokenAmount));
     }
 
     function testGenericSwapWithInvalidETHInput() public {
         // change input token as ETH and update amount
-        gsData.offer.takerToken = Constant.ETH_ADDRESS;
-        gsData.offer.takerTokenAmount = 1 ether;
+        gsData.takerToken = Constant.ETH_ADDRESS;
+        gsData.takerTokenAmount = 1 ether;
 
         vm.prank(taker);
         vm.expectRevert(IGenericSwap.InvalidMsgValue.selector);
-        genericSwap.executeSwap{ value: 2 * gsData.offer.takerTokenAmount }(gsData, defaultTakerPermit);
+        genericSwap.executeSwap{ value: 2 * gsData.takerTokenAmount }(gsData, defaultTakerPermit);
     }
 
     function testGenericSwapInsufficientOutput() public {
@@ -151,7 +137,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         mockStrategy.setReturnToken(false);
 
         // set mockStrategy as maker
-        gsData.offer.maker = payable(address(mockStrategy));
+        gsData.maker = payable(address(mockStrategy));
 
         vm.prank(taker);
         vm.expectRevert(IGenericSwap.InsufficientOutput.selector);
