@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import { Ownable } from "./abstracts/Ownable.sol";
 import { Asset } from "./libraries/Asset.sol";
 
@@ -22,10 +23,6 @@ contract AMMStrategy is IAMMStrategy, Ownable {
 
     receive() external payable {}
 
-    /************************************************************
-     *              Constructor and init functions               *
-     *************************************************************/
-
     constructor(
         address _owner,
         address _entryPoint,
@@ -42,17 +39,11 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         }
     }
 
-    /************************************************************
-     *                 Internal function modifier                *
-     *************************************************************/
     modifier onlyEntryPoint() {
         require(msg.sender == entryPoint, "only entry point");
         _;
     }
 
-    /************************************************************
-     *           Management functions for Owner               *
-     *************************************************************/
     /// @inheritdoc IAMMStrategy
     function setAMMs(address[] calldata _ammAddrs, bool[] calldata _enables) external override onlyOwner {
         for (uint256 i = 0; i < _ammAddrs.length; ++i) {
@@ -91,9 +82,6 @@ contract AMMStrategy is IAMMStrategy, Ownable {
         }
     }
 
-    /************************************************************
-     *                   External functions                      *
-     *************************************************************/
     /// @inheritdoc IStrategy
     function executeStrategy(
         address inputToken,
