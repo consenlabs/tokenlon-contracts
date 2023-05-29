@@ -91,6 +91,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         if (_offer.expiry < block.timestamp) revert ExpiredOffer();
         if ((!_offer.allowContractSender) && (msg.sender != tx.origin)) revert ForbidContract();
         if (_rfqOrder.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
+        if (_rfqOrder.recipient == address(0)) revert ZeroAddress();
 
         // check if the offer is available to be filled
         (bytes32 offerHash, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
@@ -110,10 +111,12 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             if (msg.value != _offer.takerTokenAmount) revert InvalidMsgValue();
             Address.sendValue(_offer.maker, _offer.takerTokenAmount);
         } else if (_offer.takerToken == address(weth)) {
+            if (msg.value != 0) revert InvalidMsgValue();
             _collect(_offer.takerToken, _offer.taker, address(this), _offer.takerTokenAmount, _takerTokenPermit);
             weth.withdraw(_offer.takerTokenAmount);
             Address.sendValue(_offer.maker, _offer.takerTokenAmount);
         } else {
+            if (msg.value != 0) revert InvalidMsgValue();
             _collect(_offer.takerToken, _offer.taker, _offer.maker, _offer.takerTokenAmount, _takerTokenPermit);
         }
 
