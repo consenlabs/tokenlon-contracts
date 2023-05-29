@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "forge-std/Test.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "contracts/Spender.sol";
-import "contracts/AllowanceTarget.sol";
-import { PermanentStorage } from "contracts/PermanentStorage.sol"; // Using "import from" syntax so PermanentStorage and UserProxy's imports will not collide
-import "contracts/ProxyPermanentStorage.sol";
-import { UserProxy } from "contracts/UserProxy.sol"; // Using "import from" syntax so PermanentStorage and UserProxy's imports will not collide
-import "contracts/Tokenlon.sol";
-import "test/mocks/MockERC1271Wallet.sol";
-import "./Addresses.sol";
-import "./BalanceUtil.sol";
-import "./RegisterCurveIndexes.sol";
-import "./Tokens.sol";
+import { Test } from "forge-std/Test.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import { Spender } from "contracts/Spender.sol";
+import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
+import { PermanentStorage } from "contracts/PermanentStorage.sol";
+import { ProxyPermanentStorage } from "contracts/ProxyPermanentStorage.sol";
+import { UserProxy } from "contracts/UserProxy.sol";
+import { Tokenlon } from "contracts/Tokenlon.sol";
+import { MockERC1271Wallet } from "test/mocks/MockERC1271Wallet.sol";
+import { BalanceUtil } from "test/utils/BalanceUtil.sol";
+import { RegisterCurveIndexes } from "test/utils/RegisterCurveIndexes.sol";
 
-contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
+contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
     using SafeERC20 for IERC20;
 
+    string private constant filePath = "test/utils/config/deployedContracts.json";
+
+    address tokenlonOperator = makeAddr("tokenlonOperator");
     address upgradeAdmin = makeAddr("upgradeAdmin");
-    address psOperator = makeAddr("psOperator");
 
     AllowanceTarget allowanceTarget;
     Spender spender;
@@ -39,8 +39,8 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
             bytes("") // Skip initialization during deployment
         );
         userProxy = UserProxy(address(tokenlon));
-        // Set this contract as operator
-        userProxy.initialize(address(this));
+        // Set operator
+        userProxy.initialize(tokenlonOperator);
     }
 
     function _deployPermanentStorageAndProxy() internal {
@@ -52,11 +52,11 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
         );
         permanentStorage = PermanentStorage(address(permanentStorageProxy));
         // Set permanent storage operator
-        permanentStorage.initialize(psOperator);
-        vm.startPrank(psOperator, psOperator);
-        permanentStorage.upgradeWETH(WETH_ADDRESS);
+        permanentStorage.initialize(tokenlonOperator);
+        vm.startPrank(tokenlonOperator, tokenlonOperator);
+        permanentStorage.upgradeWETH(address(weth));
         // Set Curve indexes
-        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), psOperator, true);
+        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), tokenlonOperator, true);
         _registerCurveIndexes(permanentStorage);
         vm.stopPrank();
     }
@@ -64,36 +64,45 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes, Tokens {
     function setUpSystemContracts() internal {
         if (vm.envBool("DEPLOYED")) {
             // Load deployed system contracts
-            allowanceTarget = AllowanceTarget(vm.envAddress("ALLOWANCE_TARGET_ADDRESS"));
-            spender = Spender(vm.envAddress("SPENDER_ADDRESS"));
-            userProxy = UserProxy(payable(vm.envAddress("USERPROXY_ADDRESS")));
-            permanentStorage = PermanentStorage(vm.envAddress("PERMANENTSTORAGE_ADDRESS"));
+            string memory deployedAddr = vm.readFile(filePath);
+            allowanceTarget = AllowanceTarget(abi.decode(vm.parseJson(deployedAddr, "$.ALLOWANCE_TARGET_ADDRESS"), (address)));
+            spender = Spender(abi.decode(vm.parseJson(deployedAddr, "$.SPENDER_ADDRESS"), (address)));
+            userProxy = UserProxy(abi.decode(vm.parseJson(deployedAddr, "$.USERPROXY_ADDRESS"), (address)));
+            permanentStorage = PermanentStorage(abi.decode(vm.parseJson(deployedAddr, "$.PERMANENTSTORAGE_ADDRESS"), (address)));
 
-            // overwrite psOperator
-            psOperator = permanentStorage.operator();
+            // overwrite tokenlonOperator
+            tokenlonOperator = userProxy.operator();
 
             _setupDeployedStrategy();
         } else {
             // Deploy
-            spender = new Spender(address(this), new address[](1));
+            spender = new Spender(tokenlonOperator, new address[](1));
             allowanceTarget = new AllowanceTarget(address(spender));
             _deployTokenlonAndUserProxy();
             _deployPermanentStorageAndProxy();
             address strategy = _deployStrategyAndUpgrade();
             // Setup
+            vm.startPrank(tokenlonOperator, tokenlonOperator);
             spender.setAllowanceTarget(address(allowanceTarget));
             address[] memory authListAddress = new address[](1);
             authListAddress[0] = strategy;
             spender.authorize(authListAddress);
+            vm.stopPrank();
         }
-        vm.startPrank(psOperator, psOperator);
-        permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), psOperator, true);
+        vm.startPrank(tokenlonOperator, tokenlonOperator);
+        permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), tokenlonOperator, true);
+        permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), tokenlonOperator, true);
         vm.stopPrank();
 
         vm.label(address(spender), "SpenderContract");
         vm.label(address(allowanceTarget), "AllowanceTargetContract");
         vm.label(address(userProxy), "UserProxyContract");
         vm.label(address(permanentStorage), "PermanentStorageContract");
+    }
+
+    function _readDeployedAddr(string memory key) internal returns (address) {
+        string memory deployedAddr = vm.readFile(filePath);
+        return abi.decode(vm.parseJson(deployedAddr, key), (address));
     }
 
     function dealWallet(address[] memory wallet, uint256 amount) internal {

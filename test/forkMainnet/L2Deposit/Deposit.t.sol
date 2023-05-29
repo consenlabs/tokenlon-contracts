@@ -79,7 +79,7 @@ contract TestL2DepositTopUp is TestL2Deposit {
 
     function testCannotDepositInvalidArbitrumToken() public {
         // overwrite l2TokenAddr with USDC address
-        DEFAULT_DEPOSIT.l2TokenAddr = USDC_ADDRESS;
+        DEFAULT_DEPOSIT.l2TokenAddr = address(usdc);
 
         // overwrite deposit data with encoded arbitrum specific params
         DEFAULT_DEPOSIT.data = abi.encode(user, arbMaxSubmissionCost, arbMaxGas, arbGasPriceBid);

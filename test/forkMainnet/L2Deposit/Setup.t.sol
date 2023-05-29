@@ -29,12 +29,12 @@ contract TestL2Deposit is StrategySharedSetup {
     L2Deposit l2Deposit;
 
     // Arbitrum
-    IArbitrumL1GatewayRouter arbitrumL1GatewayRouter;
-    IArbitrumBridge arbitrumL1Bridge;
+    IArbitrumL1GatewayRouter arbitrumL1GatewayRouter = IArbitrumL1GatewayRouter(ARBITRUM_L1_GATEWAY_ROUTER_ADDR);
+    IArbitrumBridge arbitrumL1Bridge = IArbitrumBridge(ARBITRUM_L1_BRIDGE_ADDR);
     IERC20 arbitrumLONAddr;
 
     // Optimism
-    IOptimismL1StandardBridge optimismL1StandardBridge;
+    IOptimismL1StandardBridge optimismL1StandardBridge = IOptimismL1StandardBridge(OPTIMISM_L1_STANDARD_BRIDGE_ADDR);
 
     uint256 DEFAULT_DEADLINE = block.timestamp + 1;
     L2DepositLibEIP712.Deposit DEFAULT_DEPOSIT;
@@ -84,14 +84,10 @@ contract TestL2Deposit is StrategySharedSetup {
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
-        arbitrumL1GatewayRouter = IArbitrumL1GatewayRouter(ARBITRUM_L1_GATEWAY_ROUTER_ADDR);
-        arbitrumL1Bridge = IArbitrumBridge(ARBITRUM_L1_BRIDGE_ADDR);
-        optimismL1StandardBridge = IOptimismL1StandardBridge(OPTIMISM_L1_STANDARD_BRIDGE_ADDR);
-
         l2Deposit = new L2Deposit(
             owner,
             address(userProxy),
-            WETH_ADDRESS,
+            address(weth),
             address(permanentStorage),
             address(spender),
             arbitrumL1GatewayRouter,
@@ -99,8 +95,8 @@ contract TestL2Deposit is StrategySharedSetup {
         );
 
         // Hook up L2Deposit
+        vm.startPrank(tokenlonOperator, tokenlonOperator);
         userProxy.upgradeL2Deposit(address(l2Deposit), true);
-        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeL2Deposit(address(l2Deposit));
         permanentStorage.setPermission(permanentStorage.l2DepositSeenStorageId(), address(l2Deposit), true);
         vm.stopPrank();
@@ -108,10 +104,7 @@ contract TestL2Deposit is StrategySharedSetup {
     }
 
     function _setupDeployedStrategy() internal override {
-        arbitrumL1GatewayRouter = IArbitrumL1GatewayRouter(vm.envAddress("ARBITRUM_L1_GATEWAY_ROUTER_ADDRESS"));
-        arbitrumL1Bridge = IArbitrumBridge(vm.envAddress("ARBITRUM_L1_BRIDGE_ADDRESS"));
-        optimismL1StandardBridge = IOptimismL1StandardBridge(vm.envAddress("OPTIMISM_L1_STANDARD_BRIDGE_ADDRESS"));
-        l2Deposit = L2Deposit(payable(vm.envAddress("L2DEPOSIT_ADDRESS")));
+        l2Deposit = L2Deposit(payable(_readDeployedAddr("$.L2DEPOSIT_ADDRESS")));
         owner = l2Deposit.owner();
     }
 

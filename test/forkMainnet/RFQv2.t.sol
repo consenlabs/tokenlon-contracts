@@ -56,6 +56,8 @@ contract RFQTest is StrategySharedSetup {
     function setUp() public {
         // Setup
         setUpSystemContracts();
+        // Update token list (keep tokens used in this test only)
+        tokens = [weth, usdt, lon];
 
         recipient = payable(address(rfq));
 
@@ -72,9 +74,9 @@ contract RFQTest is StrategySharedSetup {
         defaultOffer = Offer({
             taker: taker,
             maker: maker,
-            takerToken: USDT_ADDRESS,
+            takerToken: address(usdt),
             takerTokenAmount: 10 * 1e6,
-            makerToken: LON_ADDRESS,
+            makerToken: address(lon),
             makerTokenAmount: 10,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -94,9 +96,8 @@ contract RFQTest is StrategySharedSetup {
         rfq = new RFQv2(rfqOwner, address(userProxy), address(weth), address(permanentStorage), address(spender), UNISWAP_PERMIT2_ADDRESS, feeCollector);
 
         // Setup
+        vm.startPrank(tokenlonOperator, tokenlonOperator);
         userProxy.upgradeRFQv2(address(rfq), true);
-
-        vm.startPrank(psOperator, psOperator);
         permanentStorage.upgradeRFQv2(address(rfq));
         permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(rfq), true);
         vm.stopPrank();
@@ -105,12 +106,10 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function _setupDeployedStrategy() internal override {
-        rfq = RFQv2(payable(vm.envAddress("RFQv2_ADDRESS")));
+        rfq = RFQv2(payable(_readDeployedAddr("$.RFQv2_ADDRESS")));
 
         // prank owner and update coordinator address
         rfqOwner = rfq.owner();
-        vm.prank(rfqOwner, rfqOwner);
-        // update local feeCollector address
         feeCollector = rfq.feeCollector();
     }
 
@@ -297,7 +296,7 @@ contract RFQTest is StrategySharedSetup {
     function testFillRFQTakerGetRawETH() public {
         // case : maker token is WETH
         Offer memory offer = defaultOffer;
-        offer.makerToken = WETH_ADDRESS;
+        offer.makerToken = address(weth);
         offer.makerTokenAmount = 1 ether;
         RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient), feeFactor: 0 });
 
@@ -327,7 +326,7 @@ contract RFQTest is StrategySharedSetup {
     function testFillRFQWithWETH() public {
         // case : taker token is WETH
         Offer memory offer = defaultOffer;
-        offer.takerToken = WETH_ADDRESS;
+        offer.takerToken = address(weth);
         offer.takerTokenAmount = 1 ether;
         RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient), feeFactor: 0 });
 
@@ -358,6 +357,7 @@ contract RFQTest is StrategySharedSetup {
         // spender deauthorize RFQv2 to disable other allowance
         address[] memory authListAddress = new address[](1);
         authListAddress[0] = address(rfq);
+        vm.prank(spender.owner());
         spender.deauthorize(authListAddress);
 
         // maker approve tokens to RFQv2 contract directly
