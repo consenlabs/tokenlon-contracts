@@ -144,7 +144,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 trader: _params.pionex,
                 recipient: _params.recipient,
                 user: _order.user,
-                pionex: _order.pionex,
                 userToken: _order.userToken,
                 pionexToken: _order.pionexToken,
                 userTokenAmount: userTokenAmount,
@@ -206,7 +205,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         address trader;
         address recipient;
         address user;
-        address pionex;
         IERC20 userToken;
         IERC20 pionexToken;
         uint256 userTokenAmount;
