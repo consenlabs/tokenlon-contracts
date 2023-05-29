@@ -124,21 +124,21 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         }
 
         // collect makerToken from maker to this
-        uint256 makerHelloAmount = _rfqOffer.makerTokenAmount;
+        uint256 makerSettleAmount = _rfqOffer.makerTokenAmount;
         if (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount) {
-            makerHelloAmount = (_rfqTx.takerRequestAmount * _rfqOffer.makerTokenAmount) / _rfqOffer.takerTokenAmount;
+            makerSettleAmount = (_rfqTx.takerRequestAmount * _rfqOffer.makerTokenAmount) / _rfqOffer.takerTokenAmount;
         }
-        _collect(_rfqOffer.makerToken, _rfqOffer.maker, address(this), makerHelloAmount, _makerTokenPermit);
+        _collect(_rfqOffer.makerToken, _rfqOffer.maker, address(this), makerSettleAmount, _makerTokenPermit);
 
         // transfer makerToken to recipient (sub fee)
-        uint256 fee = (makerHelloAmount * _rfqTx.feeFactor) / Constant.BPS_MAX;
+        uint256 fee = (makerSettleAmount * _rfqTx.feeFactor) / Constant.BPS_MAX;
         // determine if WETH unwrap is needed, send out ETH if makerToken is WETH
         address makerToken = _rfqOffer.makerToken;
         if (makerToken == address(weth)) {
-            weth.withdraw(makerHelloAmount);
+            weth.withdraw(makerSettleAmount);
             makerToken = Constant.ETH_ADDRESS;
         }
-        uint256 makerTokenToTaker = makerHelloAmount - fee;
+        uint256 makerTokenToTaker = makerSettleAmount - fee;
 
         // collect fee
         makerToken.transferTo(feeCollector, fee);
