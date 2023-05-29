@@ -406,7 +406,7 @@ contract RFQTest is StrategySharedSetup {
 
         // case : takerToken is WETH
         Offer memory offer = defaultOffer;
-        offer.takerToken = WETH_ADDRESS;
+        offer.takerToken = address(weth);
         offer.takerTokenAmount = 1 ether;
         RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient), feeFactor: 0 });
 
