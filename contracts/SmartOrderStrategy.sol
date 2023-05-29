@@ -104,14 +104,14 @@ contract SmartOrderStrategy is ISmartOrderStrategy, Ownable {
 
         // replace amount if ratio != 0
         if (_inputRatio != 0) {
-            uint256 tokenInput = IERC20(_inputToken).balanceOf(address(this));
+            uint256 inputTokenBalance = IERC20(_inputToken).balanceOf(address(this));
 
             // calculate input amount if ratio should be applied
             if (_inputRatio != Constant.BPS_MAX) {
-                tokenInput = (tokenInput * _inputRatio) / Constant.BPS_MAX;
+                inputTokenBalance = (inputTokenBalance * _inputRatio) / Constant.BPS_MAX;
             }
             assembly {
-                mstore(add(_data, _dataOffset), tokenInput)
+                mstore(add(_data, _dataOffset), inputTokenBalance)
             }
         }
 

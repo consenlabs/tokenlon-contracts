@@ -146,7 +146,7 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
         bytes memory uniswapData = abi.encodeWithSelector(
             IUniswapRouterV2.swapExactTokensForTokens.selector,
             defaultInputAmount,
-            0,
+            0, // minOutputAmount
             defaultUniV2Path,
             address(smartOrderStrategy),
             defaultExpiry
@@ -155,7 +155,7 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_V2_ADDRESS,
             inputToken: defaultInputToken,
-            inputRatio: 0, // zero ration idicate no replacement
+            inputRatio: 0, // zero ratio indicate no replacement
             dataOffset: 0,
             value: 0,
             data: uniswapData
@@ -235,8 +235,10 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
         });
         bytes memory data = abi.encode(operations);
 
+        // set the actual input amount which will replace the amount of operations[0]
+        uint256 actualInputAmount = 5678;
+
         // get the exact quote from uniswap
-        uint256 actualInputAmount = defaultInputAmount + 1234;
         IUniswapRouterV2 router = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
         uint256[] memory amounts = router.getAmountsOut(actualInputAmount, defaultUniV2Path);
         uint256 expectedOut = amounts[amounts.length - 1];
