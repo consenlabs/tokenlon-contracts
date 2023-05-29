@@ -96,13 +96,13 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     /// @inheritdoc IPionexContract
     function fillLimitOrder(
         PionexContractLibEIP712.Order calldata _order,
-        bytes calldata _orderMakerSig,
+        bytes calldata _orderUserSig,
         TraderParams calldata _params,
         CoordinatorParams calldata _crdParams
     ) external override onlyUserProxy nonReentrant returns (uint256, uint256) {
         bytes32 orderHash = getEIP712Hash(PionexContractLibEIP712._getOrderStructHash(_order));
 
-        _validateOrder(_order, orderHash, _orderMakerSig);
+        _validateOrder(_order, orderHash, _orderUserSig);
         bytes32 allowFillHash = _validateFillPermission(orderHash, _params.pionexTokenAmount, _params.pionex, _crdParams);
         _validateOrderTaker(_order, _params.pionex);
 
@@ -133,7 +133,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
             _validateTraderFill(fill, _params.pionexSig);
         }
 
-        (uint256 userTokenAmount, uint256 remainingUserTokenAmount) = _quoteOrderFromMakerToken(_order, orderHash, _params.userTokenAmount);
+        (uint256 userTokenAmount, uint256 remainingUserTokenAmount) = _quoteOrderFromUserToken(_order, orderHash, _params.userTokenAmount);
         // Calculate pionexTokenAmount according to the provided pionexToken/userToken ratio
         uint256 pionexTokenAmount = userTokenAmount.mul(_params.pionexTokenAmount).div(_params.userTokenAmount);
 
@@ -154,7 +154,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
             })
         );
 
-        _recordMakerTokenFilled(orderHash, userTokenAmount);
+        _recordUserTokenFilled(orderHash, userTokenAmount);
 
         return (pionexTokenAmount, userTokenOut);
     }
@@ -224,10 +224,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         uint256 tokenlonFee = _mulFactor(_settlement.pionexTokenAmount, tokenlonFeeFactor);
         // 2. Fee for Pionex, including gas fee and strategy fee
         uint256 pionexFee = _mulFactor(_settlement.pionexTokenAmount, _settlement.gasFeeFactor + _settlement.pionexStrategyFeeFactor);
-        uint256 pionexTokenForMaker = _settlement.pionexTokenAmount.sub(tokenlonFee).sub(pionexFee);
+        uint256 pionexTokenForUser = _settlement.pionexTokenAmount.sub(tokenlonFee).sub(pionexFee);
 
         // trader -> user
-        _spender.spendFromUserTo(_settlement.trader, address(_settlement.pionexToken), _settlement.user, pionexTokenForMaker);
+        _spender.spendFromUserTo(_settlement.trader, address(_settlement.pionexToken), _settlement.user, pionexTokenForUser);
 
         // user -> recipient
         _spender.spendFromUserTo(_settlement.user, address(_settlement.userToken), _settlement.recipient, _settlement.userTokenAmount);
@@ -259,7 +259,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     }
 
     /// @inheritdoc IPionexContract
-    function cancelLimitOrder(PionexContractLibEIP712.Order calldata _order, bytes calldata _cancelOrderMakerSig) external override onlyUserProxy nonReentrant {
+    function cancelLimitOrder(PionexContractLibEIP712.Order calldata _order, bytes calldata _cancelOrderUserSig) external override onlyUserProxy nonReentrant {
         require(_order.expiry > uint64(block.timestamp), "PionexContract: Order is expired");
         bytes32 orderHash = getEIP712Hash(PionexContractLibEIP712._getOrderStructHash(_order));
         bool isCancelled = LibPionexContractOrderStorage.getStorage().orderHashToCancelled[orderHash];
@@ -269,7 +269,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
             cancelledOrder.minPionexTokenAmount = 0;
 
             bytes32 cancelledOrderHash = getEIP712Hash(PionexContractLibEIP712._getOrderStructHash(cancelledOrder));
-            require(isValidSignature(_order.user, cancelledOrderHash, bytes(""), _cancelOrderMakerSig), "PionexContract: Cancel request is not signed by user");
+            require(isValidSignature(_order.user, cancelledOrderHash, bytes(""), _cancelOrderUserSig), "PionexContract: Cancel request is not signed by user");
         }
 
         // Set cancelled state to storage
@@ -282,13 +282,13 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
     function _validateOrder(
         PionexContractLibEIP712.Order memory _order,
         bytes32 _orderHash,
-        bytes memory _orderMakerSig
+        bytes memory _orderUserSig
     ) internal view {
         require(_order.expiry > uint64(block.timestamp), "PionexContract: Order is expired");
         bool isCancelled = LibPionexContractOrderStorage.getStorage().orderHashToCancelled[_orderHash];
         require(!isCancelled, "PionexContract: Order is cancelled");
 
-        require(isValidSignature(_order.user, _orderHash, bytes(""), _orderMakerSig), "PionexContract: Order is not signed by user");
+        require(isValidSignature(_order.user, _orderHash, bytes(""), _orderUserSig), "PionexContract: Order is not signed by user");
     }
 
     function _validateOrderTaker(PionexContractLibEIP712.Order memory _order, address _pionex) internal pure {
@@ -297,12 +297,12 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         }
     }
 
-    function _quoteOrderFromMakerToken(
+    function _quoteOrderFromUserToken(
         PionexContractLibEIP712.Order memory _order,
         bytes32 _orderHash,
         uint256 _userTokenAmount
     ) internal view returns (uint256, uint256) {
-        uint256 userTokenFilledAmount = LibPionexContractOrderStorage.getStorage().orderHashToMakerTokenFilledAmount[_orderHash];
+        uint256 userTokenFilledAmount = LibPionexContractOrderStorage.getStorage().orderHashToUserTokenFilledAmount[_orderHash];
 
         require(userTokenFilledAmount < _order.userTokenAmount, "PionexContract: Order is filled");
 
@@ -314,10 +314,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         return (userTokenQuota, remainingAfterFill);
     }
 
-    function _recordMakerTokenFilled(bytes32 _orderHash, uint256 _userTokenAmount) internal {
+    function _recordUserTokenFilled(bytes32 _orderHash, uint256 _userTokenAmount) internal {
         LibPionexContractOrderStorage.Storage storage stor = LibPionexContractOrderStorage.getStorage();
-        uint256 userTokenFilledAmount = stor.orderHashToMakerTokenFilledAmount[_orderHash];
-        stor.orderHashToMakerTokenFilledAmount[_orderHash] = userTokenFilledAmount.add(_userTokenAmount);
+        uint256 userTokenFilledAmount = stor.orderHashToUserTokenFilledAmount[_orderHash];
+        stor.orderHashToUserTokenFilledAmount[_orderHash] = userTokenFilledAmount.add(_userTokenAmount);
     }
 
     /* math utils */

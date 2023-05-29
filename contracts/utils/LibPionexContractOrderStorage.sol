@@ -6,7 +6,7 @@ library LibPionexContractOrderStorage {
     /// @dev Storage bucket for this feature.
     struct Storage {
         // How much maker token has been filled in order.
-        mapping(bytes32 => uint256) orderHashToMakerTokenFilledAmount;
+        mapping(bytes32 => uint256) orderHashToUserTokenFilledAmount;
         // Whether order is cancelled or not.
         mapping(bytes32 => bool) orderHashToCancelled;
     }

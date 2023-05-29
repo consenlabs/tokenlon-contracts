@@ -74,12 +74,12 @@ interface IPionexContract is IStrategyBase {
     /// @notice Fill an order by a trader
     /// @notice Only user proxy can call
     /// @param _order The order that is going to be filled
-    /// @param _orderMakerSig The signature of the order from user
+    /// @param _orderUserSig The signature of the order from user
     /// @param _params Trader specific filling parameters
     /// @param _crdParams Contains details of the fill permit
     function fillLimitOrder(
         PionexContractLibEIP712.Order calldata _order,
-        bytes calldata _orderMakerSig,
+        bytes calldata _orderUserSig,
         TraderParams calldata _params,
         CoordinatorParams calldata _crdParams
     ) external returns (uint256, uint256);
@@ -87,6 +87,6 @@ interface IPionexContract is IStrategyBase {
     /// @notice Cancel an order
     /// @notice Only user proxy can call
     /// @param _order The order that is going to be cancelled
-    /// @param _cancelMakerSig The cancelling signature signed by user
-    function cancelLimitOrder(PionexContractLibEIP712.Order calldata _order, bytes calldata _cancelMakerSig) external;
+    /// @param _cancelUserSig The cancelling signature signed by user
+    function cancelLimitOrder(PionexContractLibEIP712.Order calldata _order, bytes calldata _cancelUserSig) external;
 }
