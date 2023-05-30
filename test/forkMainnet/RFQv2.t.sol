@@ -39,7 +39,7 @@ contract RFQTest is StrategySharedSetup {
     address payable maker = payable(vm.addr(makerPrivateKey));
     uint256 takerPrivateKey = uint256(1);
     address taker = vm.addr(takerPrivateKey);
-    address payable recipient = payable(makeAddr("recipient"));
+    address payable recipient;
     address payable feeCollector = payable(makeAddr("feeCollector"));
     uint256 defaultExpiry = block.timestamp + 1;
     uint256 defaultSalt = 1234;
@@ -58,6 +58,8 @@ contract RFQTest is StrategySharedSetup {
         setUpSystemContracts();
         // Update token list (keep tokens used in this test only)
         tokens = [weth, usdt, lon];
+
+        recipient = payable(address(rfq));
 
         marketMakerProxy = new MarketMakerProxy(maker, maker, IWETH(address(weth)));
 
@@ -395,8 +397,30 @@ contract RFQTest is StrategySharedSetup {
         userProxy.toRFQv2(payload);
     }
 
+    function testCannotFillWithNonZeroMsgValueIfNoNeed() public {
+        // case : takerToken is normal ERC20
+        bytes memory payload0 = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
+        vm.expectRevert("invalid msg value");
+        userProxy.toRFQv2{ value: 1 ether }(payload0);
+
+        // case : takerToken is WETH
+        Offer memory offer = defaultOffer;
+        offer.takerToken = address(weth);
+        offer.takerTokenAmount = 1 ether;
+        RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient), feeFactor: 0 });
+
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload1 = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
+        vm.prank(offer.taker, offer.taker);
+        vm.expectRevert("invalid msg value");
+        userProxy.toRFQv2{ value: 1 ether }(payload1);
+    }
+
     function testCannotFillExpiredOffer() public {
-        vm.warp(defaultOffer.expiry + 1);
+        vm.warp(defaultOffer.expiry);
 
         vm.expectRevert("offer expired");
         bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
@@ -436,10 +460,20 @@ contract RFQTest is StrategySharedSetup {
     }
 
     function testCannotFillWithInvalidFeeFactor() public {
-        RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: LibConstant.BPS_MAX + 1 });
+        RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker), feeFactor: LibConstant.BPS_MAX });
         bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder, SignatureValidator.SignatureType.EIP712);
 
         vm.expectRevert("invalid fee factor");
+        bytes memory payload = _genFillRFQPayload(newRFQOrder, defaultMakerSig, defaultPermit, takerSig, defaultPermit);
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
+        userProxy.toRFQv2(payload);
+    }
+
+    function testCannotFillWithZeroRecipient() public {
+        RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: address(0), feeFactor: defaultFeeFactor });
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder, SignatureValidator.SignatureType.EIP712);
+
+        vm.expectRevert("zero recipient");
         bytes memory payload = _genFillRFQPayload(newRFQOrder, defaultMakerSig, defaultPermit, takerSig, defaultPermit);
         vm.prank(defaultOffer.taker, defaultOffer.taker);
         userProxy.toRFQv2(payload);
