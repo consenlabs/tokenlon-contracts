@@ -50,16 +50,46 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
     }
 
     /// @inheritdoc ILimitOrderSwap
+    function fillLimitOrderFullOrKill(
+        LimitOrder calldata order,
+        bytes calldata makerSignature,
+        TakerParams calldata takerParams
+    ) external payable override {
+        _fillLimitOrder(order, makerSignature, takerParams, true);
+    }
+
+    /// @inheritdoc ILimitOrderSwap
     function fillLimitOrder(
         LimitOrder calldata order,
         bytes calldata makerSignature,
         TakerParams calldata takerParams
     ) external payable override {
+        _fillLimitOrder(order, makerSignature, takerParams, false);
+    }
+
+    /// @inheritdoc ILimitOrderSwap
+    function cancelOder(LimitOrder calldata order) external override {
+        if (order.expiry <= uint64(block.timestamp)) revert ExpiredOrder();
+        if (msg.sender != order.maker) revert NotOrderMaker();
+        bytes32 orderHash = getLimitOrderHash(order);
+        if (orderHashToCanceled[orderHash]) revert CanceledOrder();
+
+        // Set canceled state to storage
+        orderHashToCanceled[orderHash] = true;
+        emit OrderCanceled(orderHash, order.maker);
+    }
+
+    function _fillLimitOrder(
+        LimitOrder calldata order,
+        bytes calldata makerSignature,
+        TakerParams calldata takerParams,
+        bool fullOrKill
+    ) private {
         (bytes32 orderHash, uint256 takerTokenQuota, uint256 makerTokenQuota) = _validateOrderAndQuote(
             order,
             makerSignature,
             takerParams.makerTokenAmount,
-            false
+            fullOrKill
         );
 
         // check if taker provide enough amount for this fill (better price is allowed)
@@ -87,18 +117,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
 
         // avoid stack too deep error
         _emitLimitOrderFilled(order, orderHash, takerParams.takerTokenAmount, makerTokenQuota - fee, fee, takerParams.recipient);
-    }
-
-    /// @inheritdoc ILimitOrderSwap
-    function cancelOder(LimitOrder calldata order) external override {
-        if (order.expiry <= uint64(block.timestamp)) revert ExpiredOrder();
-        if (msg.sender != order.maker) revert NotOrderMaker();
-        bytes32 orderHash = getLimitOrderHash(order);
-        if (orderHashToCanceled[orderHash]) revert CanceledOrder();
-
-        // Set canceled state to storage
-        orderHashToCanceled[orderHash] = true;
-        emit OrderCanceled(orderHash, order.maker);
     }
 
     function _validateOrderAndQuote(

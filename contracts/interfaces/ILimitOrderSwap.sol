@@ -47,6 +47,13 @@ interface ILimitOrderSwap {
     }
 
     /// @notice Fill an order
+    function fillLimitOrderFullOrKill(
+        LimitOrder calldata order,
+        bytes calldata makerSignature,
+        TakerParams calldata takerParams
+    ) external payable;
+
+    /// @notice Fill an order
     function fillLimitOrder(
         LimitOrder calldata order,
         bytes calldata makerSignature,
