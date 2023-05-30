@@ -50,21 +50,21 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
     }
 
     /// @inheritdoc ILimitOrderSwap
-    function fillLimitOrderFullOrKill(
-        LimitOrder calldata order,
-        bytes calldata makerSignature,
-        TakerParams calldata takerParams
-    ) external payable override {
-        _fillLimitOrder(order, makerSignature, takerParams, true);
-    }
-
-    /// @inheritdoc ILimitOrderSwap
     function fillLimitOrder(
         LimitOrder calldata order,
         bytes calldata makerSignature,
         TakerParams calldata takerParams
     ) external payable override {
         _fillLimitOrder(order, makerSignature, takerParams, false);
+    }
+
+    /// @inheritdoc ILimitOrderSwap
+    function fillLimitOrderFullOrKill(
+        LimitOrder calldata order,
+        bytes calldata makerSignature,
+        TakerParams calldata takerParams
+    ) external payable override {
+        _fillLimitOrder(order, makerSignature, takerParams, true);
     }
 
     /// @inheritdoc ILimitOrderSwap
@@ -85,51 +85,54 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         TakerParams calldata takerParams,
         bool fullOrKill
     ) private {
-        (bytes32 orderHash, uint256 takerTokenQuota, uint256 makerTokenQuota) = _validateOrderAndQuote(
+        (bytes32 orderHash, uint256 takerSpendingAmount, uint256 makerSpendingAmount) = _validateOrderAndQuote(
             order,
             makerSignature,
+            takerParams.takerTokenAmount,
             takerParams.makerTokenAmount,
             fullOrKill
         );
 
-        // check if taker provide enough amount for this fill (better price is allowed)
-        if (takerParams.takerTokenAmount < takerTokenQuota) revert InvalidTakingAmount();
-
         // maker -> taker
-        _collect(order.makerToken, order.maker, address(this), makerTokenQuota, order.makerTokenPermit);
-        uint256 fee = (makerTokenQuota * order.feeFactor) / Constant.BPS_MAX;
-        order.makerToken.transferTo(payable(takerParams.recipient), makerTokenQuota - fee);
+        _collect(order.makerToken, order.maker, address(this), makerSpendingAmount, order.makerTokenPermit);
+        uint256 fee = (makerSpendingAmount * order.feeFactor) / Constant.BPS_MAX;
+        order.makerToken.transferTo(payable(takerParams.recipient), makerSpendingAmount - fee);
         // collect fee if present
         order.makerToken.transferTo(feeCollector, fee);
 
         if (takerParams.extraAction.length != 0) {
             (address strategy, bytes memory strategyData) = abi.decode(takerParams.extraAction, (address, bytes));
-            IStrategy(strategy).executeStrategy(order.makerToken, order.takerToken, makerTokenQuota, strategyData);
+            IStrategy(strategy).executeStrategy(order.makerToken, order.takerToken, makerSpendingAmount - fee, strategyData);
         }
 
         // taker -> maker
         if (order.takerToken.isETH()) {
             if (msg.value != takerParams.takerTokenAmount) revert InvalidMsgValue();
-            Asset.transferTo(Constant.ETH_ADDRESS, order.maker, takerParams.takerTokenAmount);
+            Asset.transferTo(Constant.ETH_ADDRESS, order.maker, takerSpendingAmount);
+            uint256 ethRefund = takerParams.takerTokenAmount - takerSpendingAmount;
+            if (ethRefund > 0) {
+                Asset.transferTo(Constant.ETH_ADDRESS, payable(msg.sender), ethRefund);
+            }
         } else {
-            _collect(order.takerToken, msg.sender, order.maker, takerParams.takerTokenAmount, takerParams.takerTokenPermit);
+            _collect(order.takerToken, msg.sender, order.maker, takerSpendingAmount, takerParams.takerTokenPermit);
         }
 
         // avoid stack too deep error
-        _emitLimitOrderFilled(order, orderHash, takerParams.takerTokenAmount, makerTokenQuota - fee, fee, takerParams.recipient);
+        _emitLimitOrderFilled(order, orderHash, takerSpendingAmount, makerSpendingAmount - fee, fee, takerParams.recipient);
     }
 
     function _validateOrderAndQuote(
         LimitOrder calldata _order,
         bytes calldata _makerSignature,
+        uint256 _takerTokenAmount,
         uint256 _makerTokenAmount,
         bool _fullOrKill
     )
         internal
         returns (
-            bytes32,
-            uint256,
-            uint256
+            bytes32 orderHash,
+            uint256 takerSpendingAmount,
+            uint256 makerSpendingAmount
         )
     {
         // validate the constrain of the order
@@ -137,7 +140,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         if (_order.taker != address(0) && msg.sender == _order.taker) revert InvalidTaker();
 
         // validate the status of the order
-        bytes32 orderHash = getLimitOrderHash(_order);
+        orderHash = getLimitOrderHash(_order);
         if (orderHashToCanceled[orderHash]) revert CanceledOrder();
 
         // validate maker signature
@@ -148,16 +151,31 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         if (orderFilledAmount >= _order.makerTokenAmount) revert FilledOrder();
 
         // get the quote of the fill
-        uint256 orderFillableAmount = _order.makerTokenAmount - orderFilledAmount;
-        if (_fullOrKill && _makerTokenAmount > orderFillableAmount) revert NotEnoughForFill();
-        uint256 makerTokenQuota = Math.min(_makerTokenAmount, orderFillableAmount);
-        uint256 takerTokenQuota = ((makerTokenQuota * _order.takerTokenAmount) / _order.makerTokenAmount);
-        if (makerTokenQuota == 0 && takerTokenQuota == 0) revert ZeroTokenAmount();
+        uint256 orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
+        if (_makerTokenAmount > orderAvailableAmount) {
+            // the requested amount is larget than fillable amount
+            if (_fullOrKill) {
+                revert NotEnoughForFill();
+            } else {
+                // take the rest of this order
+                makerSpendingAmount = orderAvailableAmount;
+
+                // re-calculate the amount of taker willing to spend for this trade by the requested ratio
+                _takerTokenAmount = ((makerSpendingAmount * _takerTokenAmount) / _makerTokenAmount);
+            }
+        } else {
+            // the requested amount can be statisfied
+            makerSpendingAmount = _makerTokenAmount;
+        }
+        uint256 minTakerTokenAmount = ((makerSpendingAmount * _order.takerTokenAmount) / _order.makerTokenAmount);
+        // check if taker provide enough amount for this fill (better price is allowed)
+        if (_takerTokenAmount < minTakerTokenAmount) revert InvalidTakingAmount();
+        takerSpendingAmount = _takerTokenAmount;
+
+        if (takerSpendingAmount == 0 && makerSpendingAmount == 0) revert ZeroTokenAmount();
 
         // record fill amount of this tx
-        orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makerTokenQuota;
-
-        return (orderHash, takerTokenQuota, makerTokenQuota);
+        orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makerSpendingAmount;
     }
 
     function _emitLimitOrderFilled(
