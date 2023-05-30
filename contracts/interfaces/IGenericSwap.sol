@@ -5,7 +5,6 @@ import { GenericSwapData } from "../libraries/GenericSwapData.sol";
 
 interface IGenericSwap {
     error AlreadyFilled();
-    error InvalidTaker();
     error InvalidMsgValue();
     error InsufficientOutput();
     error InvalidSignature();

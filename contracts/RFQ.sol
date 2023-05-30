@@ -10,13 +10,16 @@ import { EIP712 } from "./abstracts/EIP712.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { IRFQ } from "./interfaces/IRFQ.sol";
 import { Asset } from "./libraries/Asset.sol";
-import { Offer, getOfferHash } from "./libraries/Offer.sol";
-import { RFQOrder, getRFQOrderHash } from "./libraries/RFQOrder.sol";
+import { RFQOffer, getRFQOfferHash } from "./libraries/RFQOffer.sol";
+import { RFQTx, getRFQTxHash } from "./libraries/RFQTx.sol";
 import { Constant } from "./libraries/Constant.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     using Asset for address;
+
+    uint256 private constant FLG_ALLOW_CONTRACT_SENDER = 1 << 255;
+    uint256 private constant FLG_ALLOW_PARTIAL_FILL = 1 << 254;
 
     IWETH public immutable weth;
     address payable public feeCollector;
@@ -26,8 +29,6 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     /// @notice Emitted when fee collector address is updated
     /// @param newFeeCollector The address of the new fee collector
     event SetFeeCollector(address newFeeCollector);
-
-    receive() external payable {}
 
     constructor(
         address _owner,
@@ -40,6 +41,8 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         feeCollector = _feeCollector;
     }
 
+    receive() external payable {}
+
     /// @notice Set fee collector
     /// @notice Only owner can call
     /// @param _newFeeCollector The address of the new fee collector
@@ -51,114 +54,116 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     }
 
     function fillRFQ(
-        Offer calldata offer,
+        RFQTx calldata rfqTx,
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
-        bytes calldata takerTokenPermit,
-        address payable recipient,
-        uint256 feeFactor
+        bytes calldata takerTokenPermit
     ) external payable override {
-        _fillRFQ(RFQOrder({ offer: offer, recipient: recipient, feeFactor: feeFactor }), makerSignature, makerTokenPermit, takerTokenPermit, bytes(""));
+        _fillRFQ(rfqTx, makerSignature, makerTokenPermit, takerTokenPermit, bytes(""));
     }
 
     function fillRFQ(
-        RFQOrder calldata order,
+        RFQTx calldata rfqTx,
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
         bytes calldata takerTokenPermit,
         bytes calldata takerSignature
     ) external override {
-        _fillRFQ(order, makerSignature, makerTokenPermit, takerTokenPermit, takerSignature);
+        _fillRFQ(rfqTx, makerSignature, makerTokenPermit, takerTokenPermit, takerSignature);
     }
 
-    function cancelRFQOffer(Offer calldata offer) external override {
-        if (msg.sender != offer.maker) revert NotOfferMaker();
-        bytes32 offerHash = getOfferHash(offer);
-        filledOffer[offerHash] = true;
+    function cancelRFQOffer(RFQOffer calldata rfqOffer) external override {
+        if (msg.sender != rfqOffer.maker) revert NotOfferMaker();
+        bytes32 rfqOfferHash = getRFQOfferHash(rfqOffer);
+        filledOffer[rfqOfferHash] = true;
 
-        emit CancelRFQOffer(offerHash, offer.maker);
+        emit CancelRFQOffer(rfqOfferHash, rfqOffer.maker);
     }
 
     function _fillRFQ(
-        RFQOrder memory _rfqOrder,
+        RFQTx memory _rfqTx,
         bytes memory _makerSignature,
         bytes memory _makerTokenPermit,
         bytes memory _takerTokenPermit,
         bytes memory _takerSignature
     ) private {
-        Offer memory _offer = _rfqOrder.offer;
+        RFQOffer memory _rfqOffer = _rfqTx.rfqOffer;
         // check the offer deadline and fee factor
-        if (_offer.expiry < block.timestamp) revert ExpiredOffer();
-        if ((!_offer.allowContractSender) && (msg.sender != tx.origin)) revert ForbidContract();
-        if (_rfqOrder.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
-        if (_rfqOrder.recipient == address(0)) revert ZeroAddress();
+        if (_rfqOffer.expiry < block.timestamp) revert ExpiredRFQOffer();
+        if ((_rfqOffer.flags & FLG_ALLOW_CONTRACT_SENDER == 0) && (msg.sender != tx.origin)) revert ForbidContract();
+        if ((_rfqOffer.flags & FLG_ALLOW_PARTIAL_FILL == 0) && (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount)) revert ForbidPartialFill();
+        if (_rfqTx.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
+        if (_rfqTx.recipient == address(0)) revert ZeroAddress();
+        if (_rfqTx.takerRequestAmount > _rfqOffer.takerTokenAmount || _rfqTx.takerRequestAmount == 0) revert InvalidTakerAmount();
 
         // check if the offer is available to be filled
-        (bytes32 offerHash, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
-        if (filledOffer[offerHash]) revert FilledOffer();
-        filledOffer[offerHash] = true;
+        (bytes32 rfqOfferHash, bytes32 rfqTxHash) = getRFQTxHash(_rfqTx);
+        if (filledOffer[rfqOfferHash]) revert FilledRFQOffer();
+        filledOffer[rfqOfferHash] = true;
 
         // check maker signature
-        if (!SignatureValidator.isValidSignature(_offer.maker, getEIP712Hash(offerHash), _makerSignature)) revert InvalidSignature();
+        if (!SignatureValidator.isValidSignature(_rfqOffer.maker, getEIP712Hash(rfqOfferHash), _makerSignature)) revert InvalidSignature();
 
         // check taker signature if needed
-        if (_offer.taker != msg.sender) {
-            if (!SignatureValidator.isValidSignature(_offer.taker, getEIP712Hash(rfqOrderHash), _takerSignature)) revert InvalidSignature();
+        if (_rfqOffer.taker != msg.sender) {
+            if (!SignatureValidator.isValidSignature(_rfqOffer.taker, getEIP712Hash(rfqTxHash), _takerSignature)) revert InvalidSignature();
         }
 
         // transfer takerToken to maker
-        if (_offer.takerToken.isETH()) {
-            if (msg.value != _offer.takerTokenAmount) revert InvalidMsgValue();
-            Address.sendValue(_offer.maker, _offer.takerTokenAmount);
-        } else if (_offer.takerToken == address(weth)) {
+        if (_rfqOffer.takerToken.isETH()) {
+            if (msg.value != _rfqTx.takerRequestAmount) revert InvalidMsgValue();
+            Address.sendValue(_rfqOffer.maker, _rfqTx.takerRequestAmount);
+        } else if (_rfqOffer.takerToken == address(weth)) {
             if (msg.value != 0) revert InvalidMsgValue();
-            _collect(_offer.takerToken, _offer.taker, address(this), _offer.takerTokenAmount, _takerTokenPermit);
-            weth.withdraw(_offer.takerTokenAmount);
-            Address.sendValue(_offer.maker, _offer.takerTokenAmount);
+            _collect(_rfqOffer.takerToken, _rfqOffer.taker, address(this), _rfqTx.takerRequestAmount, _takerTokenPermit);
+            weth.withdraw(_rfqTx.takerRequestAmount);
+            Address.sendValue(_rfqOffer.maker, _rfqTx.takerRequestAmount);
         } else {
             if (msg.value != 0) revert InvalidMsgValue();
-            _collect(_offer.takerToken, _offer.taker, _offer.maker, _offer.takerTokenAmount, _takerTokenPermit);
+            _collect(_rfqOffer.takerToken, _rfqOffer.taker, _rfqOffer.maker, _rfqTx.takerRequestAmount, _takerTokenPermit);
         }
 
         // collect makerToken from maker to this
-        _collect(_offer.makerToken, _offer.maker, address(this), _offer.makerTokenAmount, _makerTokenPermit);
+        uint256 makerSettleAmount = _rfqOffer.makerTokenAmount;
+        if (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount) {
+            makerSettleAmount = (_rfqTx.takerRequestAmount * _rfqOffer.makerTokenAmount) / _rfqOffer.takerTokenAmount;
+        }
+        _collect(_rfqOffer.makerToken, _rfqOffer.maker, address(this), makerSettleAmount, _makerTokenPermit);
 
         // transfer makerToken to recipient (sub fee)
-        uint256 fee = (_offer.makerTokenAmount * _rfqOrder.feeFactor) / Constant.BPS_MAX;
+        uint256 fee = (makerSettleAmount * _rfqTx.feeFactor) / Constant.BPS_MAX;
         // determine if WETH unwrap is needed, send out ETH if makerToken is WETH
-        address makerToken = _offer.makerToken;
+        address makerToken = _rfqOffer.makerToken;
         if (makerToken == address(weth)) {
-            weth.withdraw(_offer.makerTokenAmount);
+            weth.withdraw(makerSettleAmount);
             makerToken = Constant.ETH_ADDRESS;
         }
-        uint256 makerTokenToTaker = _offer.makerTokenAmount - fee;
+        uint256 makerTokenToTaker = makerSettleAmount - fee;
 
-        // collect fee if present
-        if (fee > 0) {
-            makerToken.transferTo(feeCollector, fee);
-        }
+        // collect fee
+        makerToken.transferTo(feeCollector, fee);
 
-        makerToken.transferTo(_rfqOrder.recipient, makerTokenToTaker);
+        makerToken.transferTo(_rfqTx.recipient, makerTokenToTaker);
 
-        _emitFilledRFQEvent(offerHash, _rfqOrder, makerTokenToTaker);
+        _emitFilledRFQEvent(rfqOfferHash, _rfqTx, makerTokenToTaker);
     }
 
     function _emitFilledRFQEvent(
-        bytes32 _offerHash,
-        RFQOrder memory _rfqOrder,
+        bytes32 _rfqOfferHash,
+        RFQTx memory _rfqTx,
         uint256 _makerTokenToTaker
     ) internal {
         emit FilledRFQ(
-            _offerHash,
-            _rfqOrder.offer.taker,
-            _rfqOrder.offer.maker,
-            _rfqOrder.offer.takerToken,
-            _rfqOrder.offer.takerTokenAmount,
-            _rfqOrder.offer.makerToken,
-            _rfqOrder.offer.makerTokenAmount,
-            _rfqOrder.recipient,
+            _rfqOfferHash,
+            _rfqTx.rfqOffer.taker,
+            _rfqTx.rfqOffer.maker,
+            _rfqTx.rfqOffer.takerToken,
+            _rfqTx.rfqOffer.takerTokenAmount,
+            _rfqTx.rfqOffer.makerToken,
+            _rfqTx.rfqOffer.makerTokenAmount,
+            _rfqTx.recipient,
             _makerTokenToTaker,
-            _rfqOrder.feeFactor
+            _rfqTx.feeFactor
         );
     }
 }
