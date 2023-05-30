@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
@@ -65,6 +66,67 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         TakerParams calldata takerParams
     ) external payable override {
         _fillLimitOrder(order, makerSignature, takerParams, true);
+    }
+
+    /// @inheritdoc ILimitOrderSwap
+    function fillLimitOrderGroup(
+        LimitOrder[] calldata orders,
+        bytes[] calldata makerSignatures,
+        uint256[] calldata makerTokenAmounts,
+        address[] calldata profitTokens
+    ) external payable override {
+        if (orders.length != makerSignatures.length || orders.length != makerTokenAmounts.length) revert InvalidParams();
+
+        // validate orders and calculate takingAmounts
+        uint256[] memory takerTokenAmounts = new uint256[](orders.length);
+        for (uint256 i = 0; i < orders.length; ++i) {
+            LimitOrder memory order = orders[i];
+            uint256 makerTokenAmount = makerTokenAmounts[i];
+
+            if (order.expiry <= block.timestamp) revert ExpiredOrder();
+            if (order.taker != address(0) && msg.sender == order.taker) revert InvalidTaker();
+
+            // validate the status of the order
+            bytes32 orderHash = getLimitOrderHash(order);
+            if (orderHashToCanceled[orderHash]) revert CanceledOrder();
+
+            // validate maker signature
+            if (!SignatureValidator.isValidSignature(order.maker, getEIP712Hash(orderHash), makerSignatures[i])) revert InvalidSignature();
+
+            {
+                // check whether the order is fully filled or not
+                uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
+                if (orderFilledAmount >= order.makerTokenAmount) revert FilledOrder();
+                uint256 orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
+                if (makerTokenAmount > orderAvailableAmount) revert NotEnoughForFill();
+                takerTokenAmounts[i] = ((makerTokenAmount * order.takerTokenAmount) / order.makerTokenAmount);
+
+                // record fill amount
+                orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makerTokenAmount;
+            }
+
+            // collect maker tokens
+            _collect(order.makerToken, order.maker, address(this), makerTokenAmount, order.makerTokenPermit);
+            uint256 fee = 0;
+            if (order.feeFactor != 0) {
+                fee = (makerTokenAmount * order.feeFactor) / Constant.BPS_MAX;
+            }
+            // collect fee if present
+            order.makerToken.transferTo(feeCollector, fee);
+
+            _emitLimitOrderFilled(order, orderHash, takerTokenAmounts[i], makerTokenAmount - fee, fee, address(this));
+        }
+
+        for (uint256 i = 0; i < orders.length; ++i) {
+            LimitOrder memory order = orders[i];
+            order.takerToken.transferTo(order.maker, takerTokenAmounts[i]);
+        }
+
+        // any token left is considered as profit
+        for (uint256 i = 0; i < profitTokens.length; ++i) {
+            uint256 profit = profitTokens[i].getBalance(address(this));
+            profitTokens[i].transferTo(payable(msg.sender), profit);
+        }
     }
 
     /// @inheritdoc ILimitOrderSwap
