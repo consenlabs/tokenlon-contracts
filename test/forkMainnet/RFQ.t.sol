@@ -43,6 +43,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
     address payable maker = payable(address(new MockERC1271Wallet(makerSigner)));
     uint256 takerPrivateKey = uint256(9022);
     address taker = vm.addr(takerPrivateKey);
+    address takerWalletContract = address(new MockERC1271Wallet(taker));
     address payable recipient = payable(makeAddr("recipient"));
     address payable feeCollector = payable(makeAddr("feeCollector"));
     address txRelayer = makeAddr("txRelayer");
@@ -70,6 +71,8 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         setTokenBalanceAndApprove(maker, address(rfq), tokens, 100000);
         deal(taker, 100 ether);
         setTokenBalanceAndApprove(taker, address(rfq), tokens, 100000);
+        deal(takerWalletContract, 100 ether);
+        setTokenBalanceAndApprove(takerWalletContract, address(rfq), tokens, 100000);
         defaultPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
 
         defaultRFQOffer = RFQOffer({
@@ -310,12 +313,14 @@ contract RFQTest is Test, Tokens, BalanceUtil {
     function testFillWithContract() public {
         RFQOffer memory rfqOffer = defaultRFQOffer;
         rfqOffer.flags |= FLG_ALLOW_CONTRACT_SENDER;
+        rfqOffer.taker = takerWalletContract;
         bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
 
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.rfqOffer = rfqOffer;
 
-        vm.prank(rfqOffer.taker, makeAddr("anyAddr"));
+        // tx.origin is an EOA, msg.sender is a contract
+        vm.prank(takerWalletContract, makeAddr("anyAddr"));
         rfq.fillRFQ(rfqTx, makerSig, defaultPermit, defaultPermit);
     }
 
