@@ -30,8 +30,6 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     /// @param newFeeCollector The address of the new fee collector
     event SetFeeCollector(address newFeeCollector);
 
-    receive() external payable {}
-
     constructor(
         address _owner,
         address _uniswapPermit2,
@@ -42,6 +40,8 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         weth = _weth;
         feeCollector = _feeCollector;
     }
+
+    receive() external payable {}
 
     /// @notice Set fee collector
     /// @notice Only owner can call
