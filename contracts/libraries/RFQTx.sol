@@ -4,10 +4,10 @@ pragma solidity ^0.8.0;
 import { RFQOffer, getRFQOfferHash, RFQ_OFFER_TYPESTRING } from "./RFQOffer.sol";
 
 string constant RFQ_TX_TYPESTRING = string(
-    abi.encodePacked("RFQTx(RFQOffer rfqOffer,bytes32 offerHash,address recipient,uint256 takerRequestAmount,uint256 feeFactor)", RFQ_OFFER_TYPESTRING)
+    abi.encodePacked("RFQTx(RFQOffer rfqOffer,address recipient,uint256 takerRequestAmount,uint256 feeFactor)", RFQ_OFFER_TYPESTRING)
 );
 
-bytes32 constant RFQ_TX_TYPEHASH = 0x410ccbc4921380ed48f5d0e99274c601d8216ae398d0eb7e1ac71ffe81a62750;
+bytes32 constant RFQ_TX_TYPEHASH = 0x7d40e2c76ab47417bfc78e9a557a4669eec8ffea20951e6f764826b0e6f82f5e;
 // keccak256(RFQ_TX_TYPESTRING);
 
 struct RFQTx {
