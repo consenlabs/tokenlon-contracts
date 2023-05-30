@@ -3,7 +3,6 @@ pragma solidity ^0.7.0;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { LibConstant } from "./LibConstant.sol";
 
@@ -14,19 +13,14 @@ library Asset {
         return (addr == LibConstant.ETH_ADDRESS || addr == LibConstant.ZERO_ADDRESS);
     }
 
-    function getBalance(address asset, address owner) internal view returns (uint256) {
-        if (isETH(asset)) {
-            return owner.balance;
-        } else {
-            return IERC20(asset).balanceOf(owner);
-        }
-    }
-
     function transferTo(
         address asset,
         address payable to,
         uint256 amount
     ) internal {
+        if (to == address(this)) {
+            return;
+        }
         if (isETH(asset)) {
             // @dev forward all available gas and may cause reentrancy
             require(address(this).balance >= amount, "insufficient balance");

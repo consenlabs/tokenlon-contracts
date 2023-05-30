@@ -42,7 +42,7 @@ abstract contract TokenCollector {
             return _collectByTokenlonSpender(token, from, to, amount);
         }
         if (src == Source.Permit2AllowanceTransfer) {
-            return _collectByPermit2AllownaceTransfer(token, from, to, amount, srcData);
+            return _collectByPermit2AllowanceTransfer(token, from, to, amount, srcData);
         }
         if (src == Source.Permit2SignatureTransfer) {
             return _collectByPermit2SignatureTransfer(token, from, to, amount, srcData);
@@ -82,7 +82,7 @@ abstract contract TokenCollector {
         }
     }
 
-    function _collectByPermit2AllownaceTransfer(
+    function _collectByPermit2AllowanceTransfer(
         address token,
         address from,
         address to,
