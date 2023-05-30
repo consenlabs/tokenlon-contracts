@@ -21,6 +21,8 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
 
     constructor(address _uniswapPermit2, address _allowanceTarget) TokenCollector(_uniswapPermit2, _allowanceTarget) {}
 
+    receive() external payable {}
+
     /// @param swapData Swap data
     /// @return returnAmount Output amount of the swap
     function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable override returns (uint256 returnAmount) {
