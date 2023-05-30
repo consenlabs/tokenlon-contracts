@@ -27,7 +27,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         emit Swap(
             getGSDataHash(swapData),
             swapData.maker,
-            msg.sender,
+            msg.sender, // taker
             swapData.recipient,
             swapData.takerToken,
             swapData.takerTokenAmount,
