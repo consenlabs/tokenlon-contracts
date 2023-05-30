@@ -10,6 +10,8 @@ interface ILimitOrderSwap {
     error CanceledOrder();
     error FilledOrder();
     error ZeroAddress();
+    error ZeroTokenAmount();
+    error NotEnoughForFill();
     error InvalidMsgValue();
     error InvalidSignature();
     error InvalidTaker();
@@ -36,16 +38,20 @@ interface ILimitOrderSwap {
     /// @notice Emitted when order is canceled
     event OrderCanceled(bytes32 orderHash, address maker);
 
+    struct TakerParams {
+        uint256 takerTokenAmount;
+        uint256 makerTokenAmount;
+        address recipient;
+        bytes extraAction;
+        bytes takerTokenPermit;
+    }
+
     /// @notice Fill an order
     function fillLimitOrder(
         LimitOrder calldata order,
         bytes calldata makerSignature,
-        uint256 takerTokenAmount,
-        uint256 makerTokenAmount,
-        address recipient,
-        bytes calldata extraAction,
-        bytes calldata takerTokenPermit
-    ) external payable returns (uint256, uint256);
+        TakerParams calldata takerParams
+    ) external payable;
 
     /// @notice Cancel an order
     function cancelOder(LimitOrder calldata order) external;

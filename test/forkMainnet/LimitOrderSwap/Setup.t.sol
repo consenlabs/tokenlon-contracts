@@ -10,6 +10,7 @@ import { MockLimitOrderTaker } from "test/mocks/MockLimitOrderTaker.sol";
 import { LimitOrderSwap } from "contracts/LimitOrderSwap.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
+import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 
@@ -40,6 +41,7 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil {
     LimitOrder defaultOrder;
     bytes defaultMakerSig;
     bytes defaultPermit;
+    ILimitOrderSwap.TakerParams defaultTakerParams;
     MockLimitOrderTaker mockLimitOrderTaker;
     LimitOrderSwap limitOrderSwap;
     AllowanceTarget allowanceTarget;
@@ -81,6 +83,14 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil {
             feeFactor: defaultFeeFactor,
             expiry: defaultExpiry,
             salt: defaultSalt
+        });
+
+        defaultTakerParams = ILimitOrderSwap.TakerParams({
+            takerTokenAmount: defaultOrder.takerTokenAmount,
+            makerTokenAmount: defaultOrder.makerTokenAmount,
+            recipient: recipient,
+            extraAction: bytes(""),
+            takerTokenPermit: defaultPermit
         });
 
         defaultMakerSig = _signLimitOrder(makerPrivateKey, defaultOrder);

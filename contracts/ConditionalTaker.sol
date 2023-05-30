@@ -75,20 +75,23 @@ contract ConditionalTaker is IConditionalTaker, Ownable, TokenCollector, EIP712 
         bytes calldata extraAction,
         bytes calldata userTokenPermit,
         CoordinatorParams calldata crdParams
-    ) external payable override returns (uint256, uint256) {
-        bytes32 orderHash = getLimitOrderHash(order);
+    ) external payable override {
+        // validate fill permission
+        {
+            bytes32 orderHash = getLimitOrderHash(order);
 
-        if (crdParams.expiry < uint64(block.timestamp)) revert ExpiredPermission();
+            if (crdParams.expiry < uint64(block.timestamp)) revert ExpiredPermission();
 
-        bytes32 allowFillHash = getEIP712Hash(
-            getAllowFillHash(
-                AllowFill({ orderHash: orderHash, taker: msg.sender, fillAmount: makerTokenAmount, salt: crdParams.salt, expiry: crdParams.expiry })
-            )
-        );
-        if (!SignatureValidator.isValidSignature(coordinator, allowFillHash, crdParams.sig)) revert InvalidSignature();
+            bytes32 allowFillHash = getEIP712Hash(
+                getAllowFillHash(
+                    AllowFill({ orderHash: orderHash, taker: msg.sender, fillAmount: makerTokenAmount, salt: crdParams.salt, expiry: crdParams.expiry })
+                )
+            );
+            if (!SignatureValidator.isValidSignature(coordinator, allowFillHash, crdParams.sig)) revert InvalidSignature();
 
-        if (allowFillUsed[allowFillHash]) revert ReusedPermission();
-        allowFillUsed[allowFillHash] = true;
+            if (allowFillUsed[allowFillHash]) revert ReusedPermission();
+            allowFillUsed[allowFillHash] = true;
+        }
 
         // collect taker token from user
         if (!order.takerToken.isETH()) {
@@ -97,15 +100,16 @@ contract ConditionalTaker is IConditionalTaker, Ownable, TokenCollector, EIP712 
         }
 
         // send order to limit order contract
-        return
-            limitOrderSwap.fillLimitOrder{ value: msg.value }(
-                order,
-                makerSignature,
-                takerTokenAmount,
-                makerTokenAmount,
-                msg.sender,
-                extraAction,
-                abi.encode(TokenCollector.Source.Token, bytes(""))
-            );
+        limitOrderSwap.fillLimitOrder{ value: msg.value }(
+            order,
+            makerSignature,
+            ILimitOrderSwap.TakerParams({
+                takerTokenAmount: takerTokenAmount,
+                makerTokenAmount: makerTokenAmount,
+                recipient: msg.sender,
+                extraAction: extraAction,
+                takerTokenPermit: abi.encode(TokenCollector.Source.Token, bytes(""))
+            })
+        );
     }
 }

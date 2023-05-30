@@ -30,5 +30,5 @@ interface IConditionalTaker {
         bytes calldata extraAction,
         bytes calldata userTokenPermit,
         CoordinatorParams calldata crdParams
-    ) external payable returns (uint256, uint256);
+    ) external payable;
 }

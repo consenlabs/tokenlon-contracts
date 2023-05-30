@@ -6,7 +6,6 @@ cache = true                                                  # whether to cache
 force = false                                                 # whether to ignore the cache (clean build)
 solc_version = "0.8.17"
 optimizer = true                                              # enable or disable the solc optimizer
-viaIR = true
 optimizer_runs = 1000                                         # the number of optimizer runs
 verbosity = 3                                                 # The verbosity of tests
 ignored_error_codes = []                                      # a list of ignored solc error codes

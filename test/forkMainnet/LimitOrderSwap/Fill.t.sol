@@ -36,15 +36,7 @@ contract FillTest is LimitOrderSwapTest {
         );
 
         vm.prank(taker);
-        limitOrderSwap.fillLimitOrder({
-            order: defaultOrder,
-            makerSignature: defaultMakerSig,
-            takerTokenAmount: defaultOrder.takerTokenAmount,
-            makerTokenAmount: defaultOrder.makerTokenAmount,
-            recipient: recipient,
-            extraAction: bytes(""),
-            takerTokenPermit: defaultPermit
-        });
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: defaultTakerParams });
 
         takerTakerToken.assertChange(-int256(defaultOrder.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -79,11 +71,13 @@ contract FillTest is LimitOrderSwapTest {
         limitOrderSwap.fillLimitOrder({
             order: order,
             makerSignature: makerSig,
-            takerTokenAmount: order.takerTokenAmount,
-            makerTokenAmount: order.makerTokenAmount,
-            recipient: address(mockLimitOrderTaker),
-            extraAction: extraAction,
-            takerTokenPermit: defaultPermit
+            takerParams: ILimitOrderSwap.TakerParams({
+                takerTokenAmount: order.takerTokenAmount,
+                makerTokenAmount: order.makerTokenAmount,
+                recipient: address(mockLimitOrderTaker),
+                extraAction: extraAction,
+                takerTokenPermit: defaultPermit
+            })
         });
     }
 
@@ -100,6 +94,9 @@ contract FillTest is LimitOrderSwapTest {
         // fill with more taker token
         uint256 actualTokenAmount = defaultOrder.takerTokenAmount + 100;
 
+        ILimitOrderSwap.TakerParams memory takerParams = defaultTakerParams;
+        takerParams.takerTokenAmount = actualTokenAmount;
+
         vm.expectEmit(true, true, true, true);
         emit LimitOrderFilled(
             getLimitOrderHash(defaultOrder),
@@ -114,15 +111,7 @@ contract FillTest is LimitOrderSwapTest {
         );
 
         vm.prank(taker);
-        limitOrderSwap.fillLimitOrder({
-            order: defaultOrder,
-            makerSignature: defaultMakerSig,
-            takerTokenAmount: actualTokenAmount,
-            makerTokenAmount: defaultOrder.makerTokenAmount,
-            recipient: recipient,
-            extraAction: bytes(""),
-            takerTokenPermit: defaultPermit
-        });
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: takerParams });
 
         takerTakerToken.assertChange(-int256(actualTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -136,18 +125,12 @@ contract FillTest is LimitOrderSwapTest {
     function testCannotFillWithNotEnoughTakingAmount() public {
         // fill with less than required
         uint256 actualTokenAmount = defaultOrder.takerTokenAmount - 100;
+        ILimitOrderSwap.TakerParams memory takerParams = defaultTakerParams;
+        takerParams.takerTokenAmount = actualTokenAmount;
 
         vm.expectRevert(ILimitOrderSwap.InvalidTakingAmount.selector);
         vm.prank(taker);
-        limitOrderSwap.fillLimitOrder({
-            order: defaultOrder,
-            makerSignature: defaultMakerSig,
-            takerTokenAmount: actualTokenAmount,
-            makerTokenAmount: defaultOrder.makerTokenAmount,
-            recipient: recipient,
-            extraAction: bytes(""),
-            takerTokenPermit: defaultPermit
-        });
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: takerParams });
     }
 
     // case : fill an order with extra action (RFQ)
