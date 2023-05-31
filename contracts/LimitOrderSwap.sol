@@ -199,7 +199,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
     {
         // validate the constrain of the order
         if (_order.expiry <= block.timestamp) revert ExpiredOrder();
-        if (_order.taker != address(0) && msg.sender == _order.taker) revert InvalidTaker();
+        if (_order.taker != address(0) && msg.sender != _order.taker) revert InvalidTaker();
 
         // validate the status of the order
         orderHash = getLimitOrderHash(_order);
