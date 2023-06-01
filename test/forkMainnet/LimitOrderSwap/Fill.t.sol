@@ -361,6 +361,36 @@ contract FillTest is LimitOrderSwapTest {
         feeCollectorBal.assertChange(int256(fee));
     }
 
+    function testFillWithoutMakerSigForVerifiedOrder() public {
+        // fill default order first with 1/10 amount
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({
+            order: defaultOrder,
+            makerSignature: defaultMakerSig,
+            takerParams: ILimitOrderSwap.TakerParams({
+                takerTokenAmount: defaultOrder.takerTokenAmount / 10,
+                makerTokenAmount: defaultOrder.makerTokenAmount / 10,
+                recipient: recipient,
+                extraAction: bytes(""),
+                takerTokenPermit: defaultPermit
+            })
+        });
+
+        // fill default order again without makerSig
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({
+            order: defaultOrder,
+            makerSignature: bytes(""),
+            takerParams: ILimitOrderSwap.TakerParams({
+                takerTokenAmount: defaultOrder.takerTokenAmount / 10,
+                makerTokenAmount: defaultOrder.makerTokenAmount / 10,
+                recipient: recipient,
+                extraAction: bytes(""),
+                takerTokenPermit: defaultPermit
+            })
+        });
+    }
+
     function testCannotFillWithNotEnoughTakingAmount() public {
         // fill with less than required
         uint256 actualTokenAmount = defaultOrder.takerTokenAmount - 100;

@@ -90,13 +90,14 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
             bytes32 orderHash = getLimitOrderHash(order);
             if (orderHashToCanceled[orderHash]) revert CanceledOrder();
 
-            // validate maker signature
-            if (!SignatureValidator.isValidSignature(order.maker, getEIP712Hash(orderHash), makerSignatures[i])) revert InvalidSignature();
-
             {
                 // check whether the order is fully filled or not
                 uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
                 if (orderFilledAmount >= order.makerTokenAmount) revert FilledOrder();
+                if (orderFilledAmount == 0) {
+                    // validate maker signature only once per order
+                    if (!SignatureValidator.isValidSignature(order.maker, getEIP712Hash(orderHash), makerSignatures[i])) revert InvalidSignature();
+                }
                 uint256 orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
                 if (makerTokenAmount > orderAvailableAmount) revert NotEnoughForFill();
                 takerTokenAmounts[i] = ((makerTokenAmount * order.takerTokenAmount) / order.makerTokenAmount);
@@ -206,12 +207,14 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         orderHash = getLimitOrderHash(_order);
         if (orderHashToCanceled[orderHash]) revert CanceledOrder();
 
-        // validate maker signature
-        if (!SignatureValidator.isValidSignature(_order.maker, getEIP712Hash(orderHash), _makerSignature)) revert InvalidSignature();
-
         // check whether the order is fully filled or not
         uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
         if (orderFilledAmount >= _order.makerTokenAmount) revert FilledOrder();
+
+        // validate maker signature only once per order
+        if (orderFilledAmount == 0) {
+            if (!SignatureValidator.isValidSignature(_order.maker, getEIP712Hash(orderHash), _makerSignature)) revert InvalidSignature();
+        }
 
         // get the quote of the fill
         uint256 orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
