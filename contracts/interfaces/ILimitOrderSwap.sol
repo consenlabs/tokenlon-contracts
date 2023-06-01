@@ -69,5 +69,5 @@ interface ILimitOrderSwap {
     ) external payable;
 
     /// @notice Cancel an order
-    function cancelOder(LimitOrder calldata order) external;
+    function cancelOrder(LimitOrder calldata order) external;
 }

@@ -422,7 +422,7 @@ contract FillTest is LimitOrderSwapTest {
 
     function testCannotFillCanceledOrder() public {
         vm.prank(maker);
-        limitOrderSwap.cancelOder(defaultOrder);
+        limitOrderSwap.cancelOrder(defaultOrder);
 
         vm.expectRevert(ILimitOrderSwap.CanceledOrder.selector);
         vm.prank(taker);
