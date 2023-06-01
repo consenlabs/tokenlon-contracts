@@ -176,6 +176,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
                 Asset.transferTo(Constant.ETH_ADDRESS, payable(msg.sender), ethRefund);
             }
         } else {
+            if (msg.value != 0) revert InvalidMsgValue();
             _collect(order.takerToken, msg.sender, order.maker, takerSpendingAmount, takerParams.takerTokenPermit);
         }
 
@@ -223,7 +224,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
                 makerSpendingAmount = orderAvailableAmount;
 
                 // re-calculate the amount of taker willing to spend for this trade by the requested ratio
-                _takerTokenAmount = ((makerSpendingAmount * _takerTokenAmount) / _makerTokenAmount);
+                _takerTokenAmount = ((_takerTokenAmount * makerSpendingAmount) / _makerTokenAmount);
             }
         } else {
             // the requested amount can be statisfied
