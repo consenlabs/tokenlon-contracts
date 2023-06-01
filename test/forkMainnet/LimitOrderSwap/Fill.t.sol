@@ -243,6 +243,55 @@ contract FillTest is LimitOrderSwapTest {
         feeCollectorBal.assertChange(int256(fee));
     }
 
+    function testFillWithLargerVolumeAndSettleAsManyAsPossible() public {
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.makerToken });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.takerToken });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.takerToken });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+
+        // trying to fill with 2x volume of the order but only settle the original volume
+        uint256 traderMakingAmount = defaultOrder.makerTokenAmount * 2;
+        uint256 traderTakingAmount = defaultOrder.takerTokenAmount * 2;
+        uint256 fee = (defaultOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+
+        vm.expectEmit(true, true, true, true);
+        emit LimitOrderFilled(
+            getLimitOrderHash(defaultOrder),
+            taker,
+            defaultOrder.maker,
+            defaultOrder.takerToken,
+            defaultOrder.takerTokenAmount,
+            defaultOrder.makerToken,
+            defaultOrder.makerTokenAmount - fee,
+            fee,
+            recipient
+        );
+
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({
+            order: defaultOrder,
+            makerSignature: defaultMakerSig,
+            takerParams: ILimitOrderSwap.TakerParams({
+                takerTokenAmount: traderTakingAmount,
+                makerTokenAmount: traderMakingAmount,
+                recipient: recipient,
+                extraAction: bytes(""),
+                takerTokenPermit: defaultPermit
+            })
+        });
+
+        takerTakerToken.assertChange(-int256(defaultOrder.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(defaultOrder.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(defaultOrder.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(defaultOrder.makerTokenAmount - fee));
+        feeCollectorBal.assertChange(int256(fee));
+    }
+
     function testFillWithBetterTakingAmountButGetAdjusted() public {
         // fill with better price but the order doesn't have enough for the requested
         // so the makingAmount == order's avaliable amount
