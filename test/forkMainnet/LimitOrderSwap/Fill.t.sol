@@ -150,6 +150,15 @@ contract FillTest is LimitOrderSwapTest {
     }
 
     function testFillLimitOrderWithETH() public {
+        // read token from constant & defaultOrder to avoid stack too deep error
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: Constant.ETH_ADDRESS });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.makerToken });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: Constant.ETH_ADDRESS });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: Constant.ETH_ADDRESS });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+
         LimitOrder memory order = defaultOrder;
         order.takerToken = Constant.ETH_ADDRESS;
         order.takerTokenAmount = 1 ether;
@@ -170,14 +179,6 @@ contract FillTest is LimitOrderSwapTest {
             fee,
             recipient
         );
-
-        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: order.takerToken });
-        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: order.makerToken });
-        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: order.maker, token: order.takerToken });
-        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: order.maker, token: order.makerToken });
-        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: order.takerToken });
-        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: order.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: order.makerToken });
 
         vm.prank(taker);
         limitOrderSwap.fillLimitOrder{ value: order.takerTokenAmount }({
@@ -295,6 +296,15 @@ contract FillTest is LimitOrderSwapTest {
     }
 
     function testFillWithETHRefund() public {
+        // read token from constant & defaultOrder to avoid stack too deep error
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: Constant.ETH_ADDRESS });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: DAI_ADDRESS });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: Constant.ETH_ADDRESS });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: DAI_ADDRESS });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: Constant.ETH_ADDRESS });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: DAI_ADDRESS });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: DAI_ADDRESS });
+
         // order : 1000 DAI -> 1 ETH
         LimitOrder memory order = LimitOrder({
             taker: address(0),
@@ -315,14 +325,6 @@ contract FillTest is LimitOrderSwapTest {
         uint256 traderTakingAmount = order.takerTokenAmount * 2;
 
         uint256 fee = (order.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
-
-        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: order.takerToken });
-        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: order.makerToken });
-        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: order.maker, token: order.takerToken });
-        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: order.maker, token: order.makerToken });
-        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: order.takerToken });
-        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: order.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: order.makerToken });
 
         vm.expectEmit(true, true, true, true);
         emit LimitOrderFilled(
@@ -416,10 +418,16 @@ contract FillTest is LimitOrderSwapTest {
     }
 
     function testCannotFillWithIncorrectMsgValue() public {
+        // case1 : takerToken is not ETH but msg.value != 0
+        vm.expectRevert(ILimitOrderSwap.InvalidMsgValue.selector);
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder{ value: 100 }({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: defaultTakerParams });
+
         LimitOrder memory order = defaultOrder;
         order.takerToken = Constant.ETH_ADDRESS;
         bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
 
+        // case2 : takerToken is ETH but msg.value > takingAmount
         vm.expectRevert(ILimitOrderSwap.InvalidMsgValue.selector);
         vm.prank(taker);
         limitOrderSwap.fillLimitOrder{ value: defaultTakerParams.takerTokenAmount + 1 }({
@@ -428,6 +436,7 @@ contract FillTest is LimitOrderSwapTest {
             takerParams: defaultTakerParams
         });
 
+        // case3 : takerToken is ETH but msg.value < takingAmount
         vm.expectRevert(ILimitOrderSwap.InvalidMsgValue.selector);
         vm.prank(taker);
         limitOrderSwap.fillLimitOrder{ value: defaultTakerParams.takerTokenAmount - 1 }({
