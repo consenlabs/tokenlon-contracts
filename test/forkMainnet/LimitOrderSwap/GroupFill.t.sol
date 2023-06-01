@@ -152,8 +152,4 @@ contract GroupFillTest is LimitOrderSwapTest {
         // check order filled amount
         assertEq(limitOrderSwap.orderHashToMakerTokenFilledAmount(getLimitOrderHash(orders[2])), makerTokenAmounts[2]);
     }
-
-    // one of order should specify taker address
-    // price mismatch should cause fail
-    // extra actions with AMM interactions
 }
