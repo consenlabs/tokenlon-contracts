@@ -11,6 +11,8 @@ import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol"
 contract FillTest is LimitOrderSwapTest {
     using BalanceSnapshot for Snapshot;
 
+    address[] defaultAMMPath = [DAI_ADDRESS, USDT_ADDRESS];
+
     function testFullyFillLimitOrder() public {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.makerToken });
@@ -48,24 +50,42 @@ contract FillTest is LimitOrderSwapTest {
     }
 
     function testFullyFillLimitOrderUsingAMM() public {
-        address[] memory defaultPath = new address[](2);
-        defaultPath[0] = DAI_ADDRESS;
-        defaultPath[1] = USDT_ADDRESS;
-
-        uint256 fee = (defaultOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
-
-        IUniswapRouterV2 router = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
-        uint256[] memory amounts = router.getAmountsOut(defaultOrder.makerTokenAmount - fee, defaultPath);
-        uint256 expectedOut = amounts[amounts.length - 1];
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: address(mockLimitOrderTaker), token: defaultOrder.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: address(mockLimitOrderTaker), token: defaultOrder.makerToken });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.takerToken });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
 
         LimitOrder memory order = defaultOrder;
-        order.takerTokenAmount = expectedOut;
+        uint256 fee = (order.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+        {
+            // update order takerTokenAmount by AMM quote
+            IUniswapRouterV2 router = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
+            uint256[] memory amounts = router.getAmountsOut(defaultOrder.makerTokenAmount - fee, defaultAMMPath);
+            order.takerTokenAmount = amounts[amounts.length - 1];
+        }
 
         bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
 
-        bytes memory makerSpecificData = abi.encode(defaultExpiry, defaultPath);
-        bytes memory strategyData = abi.encode(UNISWAP_V2_ADDRESS, makerSpecificData);
-        bytes memory extraAction = abi.encode(address(mockLimitOrderTaker), strategyData);
+        bytes memory extraAction;
+        {
+            bytes memory makerSpecificData = abi.encode(defaultExpiry, defaultAMMPath);
+            bytes memory strategyData = abi.encode(UNISWAP_V2_ADDRESS, makerSpecificData);
+            extraAction = abi.encode(address(mockLimitOrderTaker), strategyData);
+        }
+
+        vm.expectEmit(true, true, true, true);
+        emit LimitOrderFilled(
+            getLimitOrderHash(order),
+            address(mockLimitOrderTaker),
+            order.maker,
+            order.takerToken,
+            order.takerTokenAmount,
+            order.makerToken,
+            order.makerTokenAmount - fee,
+            fee,
+            address(mockLimitOrderTaker)
+        );
 
         vm.prank(address(mockLimitOrderTaker));
         limitOrderSwap.fillLimitOrder({
@@ -79,9 +99,109 @@ contract FillTest is LimitOrderSwapTest {
                 takerTokenPermit: defaultPermit
             })
         });
+
+        // taker should not have token balance changes
+        takerTakerToken.assertChange(int256(0));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(order.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(order.makerTokenAmount));
+        feeCollectorBal.assertChange(int256(fee));
     }
 
-    function testFillWithBetterPrice() public {
+    function testPartiallyFillLimitOrder() public {
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.makerToken });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.takerToken });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.takerToken });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+
+        uint256 takingAmount = defaultOrder.takerTokenAmount / 2;
+        uint256 makingAmount = defaultOrder.takerTokenAmount / 2;
+        uint256 fee = (makingAmount * defaultFeeFactor) / Constant.BPS_MAX;
+
+        vm.expectEmit(true, true, true, true);
+        emit LimitOrderFilled(
+            getLimitOrderHash(defaultOrder),
+            taker,
+            defaultOrder.maker,
+            defaultOrder.takerToken,
+            takingAmount,
+            defaultOrder.makerToken,
+            makingAmount - fee,
+            fee,
+            recipient
+        );
+        ILimitOrderSwap.TakerParams memory takerParams = defaultTakerParams;
+        takerParams.takerTokenAmount = takingAmount;
+        takerParams.makerTokenAmount = makingAmount;
+
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: takerParams });
+
+        takerTakerToken.assertChange(-int256(takingAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(takingAmount));
+        makerMakerToken.assertChange(-int256(makingAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(makingAmount - fee));
+        feeCollectorBal.assertChange(int256(fee));
+    }
+
+    function testFillLimitOrderWithETH() public {
+        LimitOrder memory order = defaultOrder;
+        order.takerToken = Constant.ETH_ADDRESS;
+        order.takerTokenAmount = 1 ether;
+
+        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+
+        uint256 fee = (order.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+
+        vm.expectEmit(true, true, true, true);
+        emit LimitOrderFilled(
+            getLimitOrderHash(order),
+            taker,
+            order.maker,
+            order.takerToken,
+            order.takerTokenAmount,
+            order.makerToken,
+            order.makerTokenAmount - fee,
+            fee,
+            recipient
+        );
+
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: order.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: order.makerToken });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: order.maker, token: order.takerToken });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: order.maker, token: order.makerToken });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: order.takerToken });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: order.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: order.makerToken });
+
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder{ value: order.takerTokenAmount }({
+            order: order,
+            makerSignature: makerSig,
+            takerParams: ILimitOrderSwap.TakerParams({
+                takerTokenAmount: order.takerTokenAmount,
+                makerTokenAmount: order.makerTokenAmount,
+                recipient: recipient,
+                extraAction: bytes(""),
+                takerTokenPermit: defaultPermit
+            })
+        });
+
+        takerTakerToken.assertChange(-int256(order.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(order.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(order.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(order.makerTokenAmount - fee));
+        feeCollectorBal.assertChange(int256(fee));
+    }
+
+    function testFillWithBetterTakingAmount() public {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.makerToken });
         Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.takerToken });
@@ -122,6 +242,123 @@ contract FillTest is LimitOrderSwapTest {
         feeCollectorBal.assertChange(int256(fee));
     }
 
+    function testFillWithBetterTakingAmountButGetAdjusted() public {
+        // fill with better price but the order doesn't have enough for the requested
+        // so the makingAmount == order's avaliable amount
+        // takingAmount should be adjusted to keep the original price that taker provided
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.makerToken });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.takerToken });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.takerToken });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+
+        // fill with more taker token
+        // original : 10 DAI -> 10 USDT
+        // taker provide : 30 USDT -> 20 DAI
+        uint256 traderMakingAmount = defaultOrder.makerTokenAmount * 2; // 20 DAI
+        uint256 traderTakingAmount = defaultOrder.takerTokenAmount * 3; // 30 USDT
+        // should be 15 USDT
+        uint256 settleTakingAMount = (traderTakingAmount * defaultOrder.makerTokenAmount) / traderMakingAmount;
+
+        ILimitOrderSwap.TakerParams memory takerParams = defaultTakerParams;
+        takerParams.takerTokenAmount = traderTakingAmount;
+        takerParams.makerTokenAmount = traderMakingAmount;
+
+        // fee is calculated by the actual settlement makerTokenAmount which is the order full amount in this case
+        uint256 fee = (defaultOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+
+        vm.expectEmit(true, true, true, true);
+        emit LimitOrderFilled(
+            getLimitOrderHash(defaultOrder),
+            taker,
+            defaultOrder.maker,
+            defaultOrder.takerToken,
+            settleTakingAMount,
+            defaultOrder.makerToken,
+            defaultOrder.makerTokenAmount - fee,
+            fee,
+            recipient
+        );
+
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: takerParams });
+
+        takerTakerToken.assertChange(-int256(settleTakingAMount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(settleTakingAMount));
+        makerMakerToken.assertChange(-int256(defaultOrder.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(defaultOrder.makerTokenAmount - fee));
+        feeCollectorBal.assertChange(int256(fee));
+    }
+
+    function testFillWithETHRefund() public {
+        // order : 1000 DAI -> 1 ETH
+        LimitOrder memory order = LimitOrder({
+            taker: address(0),
+            maker: maker,
+            takerToken: Constant.ETH_ADDRESS,
+            takerTokenAmount: 1 ether,
+            makerToken: DAI_ADDRESS,
+            makerTokenAmount: 1000 ether,
+            makerTokenPermit: defaultPermit,
+            feeFactor: defaultFeeFactor,
+            expiry: defaultExpiry,
+            salt: defaultSalt
+        });
+        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+
+        // keep the same ratio but double the amount
+        uint256 traderMakingAmount = order.makerTokenAmount * 2;
+        uint256 traderTakingAmount = order.takerTokenAmount * 2;
+
+        uint256 fee = (order.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: order.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: order.makerToken });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: order.maker, token: order.takerToken });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: order.maker, token: order.makerToken });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: order.takerToken });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: order.makerToken });
+        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: order.makerToken });
+
+        vm.expectEmit(true, true, true, true);
+        emit LimitOrderFilled(
+            getLimitOrderHash(order),
+            taker,
+            order.maker,
+            order.takerToken,
+            order.takerTokenAmount,
+            order.makerToken,
+            order.makerTokenAmount - fee,
+            fee,
+            recipient
+        );
+
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder{ value: traderTakingAmount }({
+            order: order,
+            makerSignature: makerSig,
+            takerParams: ILimitOrderSwap.TakerParams({
+                takerTokenAmount: traderTakingAmount,
+                makerTokenAmount: traderMakingAmount,
+                recipient: recipient,
+                extraAction: bytes(""),
+                takerTokenPermit: defaultPermit
+            })
+        });
+
+        takerTakerToken.assertChange(-int256(order.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(order.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(order.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(order.makerTokenAmount - fee));
+        feeCollectorBal.assertChange(int256(fee));
+    }
+
     function testCannotFillWithNotEnoughTakingAmount() public {
         // fill with less than required
         uint256 actualTokenAmount = defaultOrder.takerTokenAmount - 100;
@@ -133,12 +370,70 @@ contract FillTest is LimitOrderSwapTest {
         limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: takerParams });
     }
 
-    // case : fill an order with extra action (RFQ)
-    // case : partial fill
-    // cast : WETH as input
-    // x order filled
-    // x order expired
-    // x not valid taker
-    // x wrong maker sig
-    // x invalid fill permission (replayed, expired, invalid amount)
+    function testCannotFillExpiredOrder() public {
+        vm.warp(defaultOrder.expiry + 1);
+
+        vm.expectRevert(ILimitOrderSwap.ExpiredOrder.selector);
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: defaultTakerParams });
+    }
+
+    function testCannotFillByNotSpecifiedTaker() public {
+        LimitOrder memory order = defaultOrder;
+        order.taker = makeAddr("specialTaker");
+        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+
+        vm.expectRevert(ILimitOrderSwap.InvalidTaker.selector);
+        vm.prank(makeAddr("randomTaker"));
+        limitOrderSwap.fillLimitOrder({ order: order, makerSignature: makerSig, takerParams: defaultTakerParams });
+    }
+
+    function testCannotFillCanceledOrder() public {
+        vm.prank(maker);
+        limitOrderSwap.cancelOder(defaultOrder);
+
+        vm.expectRevert(ILimitOrderSwap.CanceledOrder.selector);
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: defaultTakerParams });
+    }
+
+    function testCannotFillWithIncorrectMakerSig() public {
+        uint256 randomPrivateKey = 5677;
+        bytes memory makerSig = _signLimitOrder(randomPrivateKey, defaultOrder);
+
+        vm.expectRevert(ILimitOrderSwap.InvalidSignature.selector);
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: makerSig, takerParams: defaultTakerParams });
+    }
+
+    function testCannotTradeFilledOrder() public {
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: defaultTakerParams });
+
+        vm.expectRevert(ILimitOrderSwap.FilledOrder.selector);
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: defaultTakerParams });
+    }
+
+    function testCannotFillWithIncorrectMsgValue() public {
+        LimitOrder memory order = defaultOrder;
+        order.takerToken = Constant.ETH_ADDRESS;
+        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+
+        vm.expectRevert(ILimitOrderSwap.InvalidMsgValue.selector);
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder{ value: defaultTakerParams.takerTokenAmount + 1 }({
+            order: order,
+            makerSignature: makerSig,
+            takerParams: defaultTakerParams
+        });
+
+        vm.expectRevert(ILimitOrderSwap.InvalidMsgValue.selector);
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder{ value: defaultTakerParams.takerTokenAmount - 1 }({
+            order: order,
+            makerSignature: makerSig,
+            takerParams: defaultTakerParams
+        });
+    }
 }

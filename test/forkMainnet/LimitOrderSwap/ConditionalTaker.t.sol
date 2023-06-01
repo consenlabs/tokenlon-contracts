@@ -52,7 +52,7 @@ contract FillTest is LimitOrderSwapTest {
         setTokenBalanceAndApprove(user, address(conditionalTaker), tokens, 100000);
 
         defaultConOrder = defaultOrder;
-        defaultConOrder.taker = address(this);
+        defaultConOrder.taker = address(conditionalTaker);
 
         defaultMakerSig = _signLimitOrder(makerPrivateKey, defaultConOrder);
 
