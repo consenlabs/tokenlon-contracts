@@ -61,13 +61,6 @@ interface ILimitOrderSwap {
         TakerParams calldata takerParams
     ) external payable;
 
-    function fillLimitOrderGroup(
-        LimitOrder[] calldata orders,
-        bytes[] calldata makerSignatures,
-        uint256[] calldata makerTokenAmounts,
-        address[] calldata profitTokens
-    ) external payable;
-
     /// @notice Cancel an order
     function cancelOrder(LimitOrder calldata order) external;
 }
