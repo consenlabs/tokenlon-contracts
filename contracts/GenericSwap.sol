@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
 import { IGenericSwap } from "./interfaces/IGenericSwap.sol";
@@ -13,7 +10,6 @@ import { Asset } from "./libraries/Asset.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
-    using SafeERC20 for IERC20;
     using Asset for address;
 
     mapping(bytes32 => bool) private filledSwap;
@@ -58,16 +54,19 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     }
 
     function _executeSwap(
-        GenericSwapData memory _swapData,
+        GenericSwapData calldata _swapData,
         address _authorizedUser,
-        bytes memory _takerTokenPermit
+        bytes calldata _takerTokenPermit
     ) private returns (uint256 returnAmount) {
+        if (_swapData.expiry < block.timestamp) revert ExpiredOrder();
+
         address _inputToken = _swapData.takerToken;
         address _outputToken = _swapData.makerToken;
 
         if (_inputToken.isETH() && msg.value != _swapData.takerTokenAmount) revert InvalidMsgValue();
 
         if (!_inputToken.isETH()) {
+            if (msg.value != 0) revert InvalidMsgValue();
             _collect(_inputToken, _authorizedUser, _swapData.maker, _swapData.takerTokenAmount, _takerTokenPermit);
         }
 
