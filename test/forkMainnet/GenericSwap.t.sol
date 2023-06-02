@@ -146,11 +146,10 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
 
         uint256 actualOutput = 900;
 
-        vm.expectEmit(true, true, true, true);
-        emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, actualOutput);
-
         // 800 < 900 < 1000
         mockStrategy.setOutputAmount(actualOutput);
+        vm.expectEmit(true, true, true, true);
+        emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, actualOutput);
         vm.prank(taker);
         genericSwap.executeSwap(gsData, defaultTakerPermit);
 
@@ -171,10 +170,9 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: address(mockStrategy), token: gsData.takerToken });
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: address(mockStrategy), token: gsData.makerToken });
 
+        mockStrategy.setOutputAmount(gsData.makerTokenAmount);
         vm.expectEmit(true, true, true, true);
         emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, gsData.makerTokenAmount);
-
-        mockStrategy.setOutputAmount(gsData.makerTokenAmount);
         vm.prank(taker);
         genericSwap.executeSwap{ value: gsData.takerTokenAmount }(gsData, defaultTakerPermit);
 
@@ -196,10 +194,9 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: address(mockStrategy), token: gsData.takerToken });
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: address(mockStrategy), token: gsData.makerToken });
 
+        mockStrategy.setOutputAmount(gsData.makerTokenAmount);
         vm.expectEmit(true, true, true, true);
         emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, gsData.makerTokenAmount);
-
-        mockStrategy.setOutputAmount(gsData.makerTokenAmount);
         vm.prank(taker);
         genericSwap.executeSwap(gsData, defaultTakerPermit);
 
