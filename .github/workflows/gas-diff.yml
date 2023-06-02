@@ -11,6 +11,9 @@ on:
       - remappings.txt
       - .github/workflows/gas-diff.yml
 
+permissions:
+  pull-requests: write
+
 jobs:
   compare_gas_reports:
     runs-on: ubuntu-latest
