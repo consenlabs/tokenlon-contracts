@@ -20,7 +20,7 @@ contract FillTest is LimitOrderSwapTest {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
 
         uint256 fee = (defaultOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
 
@@ -46,7 +46,7 @@ contract FillTest is LimitOrderSwapTest {
         makerMakerToken.assertChange(-int256(defaultOrder.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(defaultOrder.makerTokenAmount - fee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFullyFillLimitOrderUsingAMM() public {
@@ -54,7 +54,7 @@ contract FillTest is LimitOrderSwapTest {
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: address(mockLimitOrderTaker), token: defaultOrder.makerToken });
         Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.takerToken });
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
 
         LimitOrder memory order = defaultOrder;
         uint256 fee = (order.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
@@ -105,7 +105,7 @@ contract FillTest is LimitOrderSwapTest {
         takerMakerToken.assertChange(int256(0));
         makerTakerToken.assertChange(int256(order.takerTokenAmount));
         makerMakerToken.assertChange(-int256(order.makerTokenAmount));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testPartiallyFillLimitOrder() public {
@@ -115,7 +115,7 @@ contract FillTest is LimitOrderSwapTest {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
 
         uint256 takingAmount = defaultOrder.takerTokenAmount / 2;
         uint256 makingAmount = defaultOrder.takerTokenAmount / 2;
@@ -146,7 +146,7 @@ contract FillTest is LimitOrderSwapTest {
         makerMakerToken.assertChange(-int256(makingAmount));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(makingAmount - fee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFillLimitOrderWithETH() public {
@@ -157,7 +157,7 @@ contract FillTest is LimitOrderSwapTest {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: Constant.ETH_ADDRESS });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
 
         LimitOrder memory order = defaultOrder;
         order.takerToken = Constant.ETH_ADDRESS;
@@ -199,7 +199,7 @@ contract FillTest is LimitOrderSwapTest {
         makerMakerToken.assertChange(-int256(order.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(order.makerTokenAmount - fee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFillWithBetterTakingAmount() public {
@@ -209,7 +209,7 @@ contract FillTest is LimitOrderSwapTest {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
 
         uint256 fee = (defaultOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
         // fill with more taker token
@@ -240,7 +240,7 @@ contract FillTest is LimitOrderSwapTest {
         makerMakerToken.assertChange(-int256(defaultOrder.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(defaultOrder.makerTokenAmount - fee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFillWithLargerVolumeAndSettleAsManyAsPossible() public {
@@ -250,7 +250,7 @@ contract FillTest is LimitOrderSwapTest {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
 
         // trying to fill with 2x volume of the order but only settle the original volume
         uint256 traderMakingAmount = defaultOrder.makerTokenAmount * 2;
@@ -289,7 +289,7 @@ contract FillTest is LimitOrderSwapTest {
         makerMakerToken.assertChange(-int256(defaultOrder.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(defaultOrder.makerTokenAmount - fee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFillWithBetterTakingAmountButGetAdjusted() public {
@@ -302,7 +302,7 @@ contract FillTest is LimitOrderSwapTest {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
 
         // fill with more taker token
         // original : 10 DAI -> 10 USDT
@@ -341,7 +341,7 @@ contract FillTest is LimitOrderSwapTest {
         makerMakerToken.assertChange(-int256(defaultOrder.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(defaultOrder.makerTokenAmount - fee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFillWithETHRefund() public {
@@ -352,7 +352,7 @@ contract FillTest is LimitOrderSwapTest {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: DAI_ADDRESS });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: Constant.ETH_ADDRESS });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: DAI_ADDRESS });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: DAI_ADDRESS });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: DAI_ADDRESS });
 
         // order : 1000 DAI -> 1 ETH
         LimitOrder memory order = LimitOrder({
@@ -407,7 +407,7 @@ contract FillTest is LimitOrderSwapTest {
         makerMakerToken.assertChange(-int256(order.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(order.makerTokenAmount - fee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFillWithoutMakerSigForVerifiedOrder() public {

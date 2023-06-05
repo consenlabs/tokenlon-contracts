@@ -17,7 +17,7 @@ contract FullOrKillTest is LimitOrderSwapTest {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOrder.maker, token: defaultOrder.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOrder.makerToken });
 
         // fill FOK default order with 1/10 amount
         uint256 traderMakingAmount = defaultOrder.makerTokenAmount / 10;
@@ -56,7 +56,7 @@ contract FullOrKillTest is LimitOrderSwapTest {
         makerMakerToken.assertChange(-int256(traderMakingAmount));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(traderMakingAmount - fee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testCannotFillFOKIfNotEnough() public {
