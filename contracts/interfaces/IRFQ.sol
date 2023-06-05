@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-import { Offer } from "../libraries/Offer.sol";
-import { RFQOrder } from "../libraries/RFQOrder.sol";
+import { RFQOffer } from "../libraries/RFQOffer.sol";
+import { RFQTx } from "../libraries/RFQTx.sol";
 
 /// @title IRFQ Interface
 /// @author imToken Labs
 interface IRFQ {
-    error ExpiredOffer();
-    error FilledOffer();
+    error ExpiredRFQOffer();
+    error FilledRFQOffer();
     error ZeroAddress();
     error InvalidFeeFactor();
     error InvalidMsgValue();
     error InvalidSignature();
+    error InvalidTakerAmount();
     error ForbidContract();
+    error ForbidPartialFill();
     error NotOfferMaker();
 
     event FilledRFQ(
-        bytes32 indexed offerHash,
+        bytes32 indexed rfqOfferHash,
         address indexed user,
         address indexed maker,
         address takerToken,
@@ -29,24 +31,22 @@ interface IRFQ {
         uint256 feeFactor
     );
 
-    event CancelRFQOffer(bytes32 indexed offerHash, address indexed maker);
+    event CancelRFQOffer(bytes32 indexed rfqOfferHash, address indexed maker);
 
     function fillRFQ(
-        Offer calldata offer,
+        RFQTx calldata rfqTx,
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
-        bytes calldata takerTokenPermit,
-        address payable recipient,
-        uint256 feeFactor
+        bytes calldata takerTokenPermit
     ) external payable;
 
     function fillRFQ(
-        RFQOrder calldata rfqOrder,
+        RFQTx calldata rfqTx,
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
         bytes calldata takerTokenPermit,
         bytes calldata takerSignature
     ) external;
 
-    function cancelRFQOffer(Offer calldata offer) external;
+    function cancelRFQOffer(RFQOffer calldata rfqOffer) external;
 }
