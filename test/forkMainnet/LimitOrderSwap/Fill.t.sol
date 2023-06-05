@@ -1,17 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol";
+import { MockStrategy } from "test/mocks/MockStrategy.sol";
 
 contract FillTest is LimitOrderSwapTest {
     using BalanceSnapshot for Snapshot;
+    using SafeERC20 for IERC20;
 
     address[] defaultAMMPath = [DAI_ADDRESS, USDT_ADDRESS];
+    MockStrategy mockStrategy;
+
+    function setUp() public override {
+        super.setUp();
+
+        mockStrategy = new MockStrategy();
+        deal(address(mockStrategy), 100 ether);
+        setTokenBalanceAndApprove(address(mockStrategy), address(limitOrderSwap), tokens, 100000);
+    }
 
     function testFullyFillLimitOrder() public {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.takerToken });
@@ -449,6 +463,33 @@ contract FillTest is LimitOrderSwapTest {
         vm.expectRevert(ILimitOrderSwap.InvalidTakingAmount.selector);
         vm.prank(taker);
         limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: takerParams });
+    }
+
+    function testCannotFillIfStrategyNotReturnEnoughTakingAmount() public {
+        bytes memory extraAction = abi.encode(address(mockStrategy), bytes(""));
+        // prank a random EOA taker without any asset so the only way to fill is via external strategy contract
+        address randomTaker = makeAddr("randomTaker");
+
+        // make strategy contract return less than order required
+        mockStrategy.setOutputAmountAndRecipient(defaultOrder.takerTokenAmount - 1, payable(randomTaker));
+
+        vm.startPrank(randomTaker);
+        IERC20(defaultOrder.takerToken).safeApprove(address(limitOrderSwap), type(uint256).max);
+
+        // the final step transferFrom will fail since taker doesn't have enough balance to fill
+        vm.expectRevert("SafeERC20: low-level call failed");
+        limitOrderSwap.fillLimitOrder({
+            order: defaultOrder,
+            makerSignature: defaultMakerSig,
+            takerParams: ILimitOrderSwap.TakerParams({
+                takerTokenAmount: defaultOrder.takerTokenAmount,
+                makerTokenAmount: defaultOrder.makerTokenAmount,
+                recipient: randomTaker,
+                extraAction: extraAction,
+                takerTokenPermit: defaultPermit
+            })
+        });
+        vm.stopPrank();
     }
 
     function testCannotFillExpiredOrder() public {
