@@ -17,8 +17,6 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
     using Asset for address;
     using SafeERC20 for IERC20;
 
-    uint256 private constant FEE_ON_INPUT_MASK = 1 << 255;
-    uint256 private constant FEE_AMOUNT_MASK = 2**255 - 1;
     address private constant v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address private constant v3Router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address payable private constant universalRouter = payable(0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B);
