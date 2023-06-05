@@ -16,7 +16,6 @@ interface ILimitOrderSwap {
     error InvalidSignature();
     error InvalidTaker();
     error InvalidTakingAmount();
-    error InvalidParams();
     error NotOrderMaker();
 
     /// @notice Emitted when fee collector address is updated
@@ -25,7 +24,7 @@ interface ILimitOrderSwap {
 
     /// @notice Emitted when an order is filled
     event LimitOrderFilled(
-        bytes32 indexed offerHash,
+        bytes32 indexed orderHash,
         address indexed taker,
         address indexed maker,
         address takerToken,

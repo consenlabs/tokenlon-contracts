@@ -159,16 +159,14 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         // get the quote of the fill
         uint256 orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
         if (_makerTokenAmount > orderAvailableAmount) {
-            // the requested amount is larget than fillable amount
-            if (_fullOrKill) {
-                revert NotEnoughForFill();
-            } else {
-                // take the rest of this order
-                makerSpendingAmount = orderAvailableAmount;
+            // the requested amount is larger than fillable amount
+            if (_fullOrKill) revert NotEnoughForFill();
 
-                // re-calculate the amount of taker willing to spend for this trade by the requested ratio
-                _takerTokenAmount = ((_takerTokenAmount * makerSpendingAmount) / _makerTokenAmount);
-            }
+            // take the rest of this order
+            makerSpendingAmount = orderAvailableAmount;
+
+            // re-calculate the amount of taker willing to spend for this trade by the requested ratio
+            _takerTokenAmount = ((_takerTokenAmount * makerSpendingAmount) / _makerTokenAmount);
         } else {
             // the requested amount can be statisfied
             makerSpendingAmount = _makerTokenAmount;
