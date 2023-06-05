@@ -31,7 +31,7 @@ function getLimitOrderHash(LimitOrder memory limitOrder) pure returns (bytes32) 
                 limitOrder.takerTokenAmount,
                 limitOrder.makerToken,
                 limitOrder.makerTokenAmount,
-                limitOrder.makerTokenPermit,
+                keccak256(limitOrder.makerTokenPermit),
                 limitOrder.feeFactor,
                 limitOrder.expiry,
                 limitOrder.salt
