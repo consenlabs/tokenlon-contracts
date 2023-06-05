@@ -38,7 +38,7 @@ function getGSDataHash(GenericSwapData memory gsData) pure returns (bytes32) {
                 gsData.expiry,
                 gsData.salt,
                 gsData.recipient,
-                gsData.strategyData
+                keccak256(gsData.strategyData)
             )
         );
 }
