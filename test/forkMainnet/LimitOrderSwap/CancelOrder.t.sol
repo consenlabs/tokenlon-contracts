@@ -14,7 +14,7 @@ contract CancelOrderTest is LimitOrderSwapTest {
 
         vm.prank(maker, maker);
         limitOrderSwap.cancelOrder(defaultOrder);
-        assertEq(limitOrderSwap.orderHashToCanceled(getLimitOrderHash(defaultOrder)), true);
+        assertEq(limitOrderSwap.isOrderCanceled(getLimitOrderHash(defaultOrder)), true);
     }
 
     function testCannotCancelOrderIfNotMaker() public {

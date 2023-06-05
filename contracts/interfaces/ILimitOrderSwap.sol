@@ -62,4 +62,6 @@ interface ILimitOrderSwap {
 
     /// @notice Cancel an order
     function cancelOrder(LimitOrder calldata order) external;
+
+    function isOrderCanceled(bytes32 orderHash) external view returns (bool);
 }

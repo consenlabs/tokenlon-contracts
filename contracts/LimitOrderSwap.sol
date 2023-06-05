@@ -20,6 +20,8 @@ import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
     using Asset for address;
 
+    uint256 private constant ORDER_CANCEL_AMOUNT_MASK = 1 << 255;
+
     IWETH public immutable weth;
     address payable public feeCollector;
 
@@ -74,12 +76,17 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         if (msg.sender != order.maker) revert NotOrderMaker();
         bytes32 orderHash = getLimitOrderHash(order);
         uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
+        if ((orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0) revert CanceledOrder();
         if (orderFilledAmount >= order.makerTokenAmount) revert FilledOrder();
-        if (orderHashToCanceled[orderHash]) revert CanceledOrder();
 
         // Set canceled state to storage
-        orderHashToCanceled[orderHash] = true;
+        orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount | ORDER_CANCEL_AMOUNT_MASK;
         emit OrderCanceled(orderHash, order.maker);
+    }
+
+    function isOrderCanceled(bytes32 orderHash) external view override returns (bool) {
+        uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
+        return (orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0;
     }
 
     function _fillLimitOrder(
@@ -145,16 +152,16 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
 
         // validate the status of the order
         orderHash = getLimitOrderHash(_order);
-        if (orderHashToCanceled[orderHash]) revert CanceledOrder();
 
         // check whether the order is fully filled or not
         uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
-        if (orderFilledAmount >= _order.makerTokenAmount) revert FilledOrder();
-
         // validate maker signature only once per order
         if (orderFilledAmount == 0) {
             if (!SignatureValidator.isValidSignature(_order.maker, getEIP712Hash(orderHash), _makerSignature)) revert InvalidSignature();
         }
+
+        if ((orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0) revert CanceledOrder();
+        if (orderFilledAmount >= _order.makerTokenAmount) revert FilledOrder();
 
         // get the quote of the fill
         uint256 orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
