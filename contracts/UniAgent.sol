@@ -80,7 +80,7 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
         if (!inputToken.isETH()) {
             if (msg.value != 0) revert InvalidMsgValue();
 
-            if (routerType == RouterType.universal) {
+            if (routerType == RouterType.UniversalRouter) {
                 // deposit directly into router if it's universal router
                 _collect(inputToken, msg.sender, universalRouter, inputAmount, userPermit);
             } else {
@@ -99,11 +99,11 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
     }
 
     function _getRouterAddress(RouterType routerType) private pure returns (address) {
-        if (routerType == RouterType.v2) {
+        if (routerType == RouterType.V2Router) {
             return v2Router;
-        } else if (routerType == RouterType.v3) {
+        } else if (routerType == RouterType.V3Router) {
             return v3Router;
-        } else if (routerType == RouterType.universal) {
+        } else if (routerType == RouterType.UniversalRouter) {
             return universalRouter;
         } else {
             revert UnknownRouterType();

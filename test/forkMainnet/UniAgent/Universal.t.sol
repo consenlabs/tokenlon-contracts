@@ -36,7 +36,7 @@ contract UniversalTest is UniAgentTest {
         Snapshot memory recvOutputToken = BalanceSnapshot.take({ owner: recipient, token: defaultOutputToken });
 
         vm.prank(user);
-        uniAgent.swap(IUniAgent.RouterType.universal, defaultInputToken, defaultInputAmount, defaultRouterPayload, defaultUserPermit);
+        uniAgent.swap(IUniAgent.RouterType.UniversalRouter, defaultInputToken, defaultInputAmount, defaultRouterPayload, defaultUserPermit);
 
         userInputToken.assertChange(-int256(defaultInputAmount));
         // recipient should receive exact amount of quote from Uniswap

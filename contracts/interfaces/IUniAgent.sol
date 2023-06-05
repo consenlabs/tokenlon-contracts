@@ -11,9 +11,9 @@ interface IUniAgent {
     event Swap(address indexed user, address indexed router, address indexed inputToken, uint256 inputAmount);
 
     enum RouterType {
-        v2,
-        v3,
-        universal
+        V2Router,
+        V3Router,
+        UniversalRouter
     }
 
     function swap(
