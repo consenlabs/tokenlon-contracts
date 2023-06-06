@@ -128,7 +128,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultRFQOffer.maker, token: defaultRFQOffer.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultRFQOffer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultRFQOffer.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultRFQOffer.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultRFQOffer.makerToken });
 
         uint256 fee = (defaultRFQOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
         uint256 amountAfterFee = defaultRFQOffer.makerTokenAmount - fee;
@@ -155,7 +155,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         recTakerToken.assertChange(int256(0));
         // recipient gets less than original makerTokenAmount because of the fee
         recMakerToken.assertChange(int256(amountAfterFee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFillRFQWithTakerApproveAllowanceTarget() public {
@@ -216,7 +216,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: rfqOffer.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
 
         uint256 fee = (rfqOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
         uint256 amountAfterFee = rfqOffer.makerTokenAmount - fee;
@@ -235,7 +235,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         recTakerToken.assertChange(int256(0));
         // recipient gets less than original makerTokenAmount because of the fee
         recMakerToken.assertChange(int256(amountAfterFee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFillRFQTakerGetRawETH() public {
@@ -253,7 +253,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         // recipient should receive raw ETH
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: Constant.ZERO_ADDRESS });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: Constant.ZERO_ADDRESS });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: Constant.ZERO_ADDRESS });
 
         uint256 fee = (rfqOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
         uint256 amountAfterFee = rfqOffer.makerTokenAmount - fee;
@@ -271,7 +271,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         recTakerToken.assertChange(int256(0));
         // recipient gets less than original makerTokenAmount because of the fee
         recMakerToken.assertChange(int256(amountAfterFee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFillRFQWithWETH() public {
@@ -289,7 +289,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: rfqOffer.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
 
         uint256 fee = (rfqOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
         uint256 amountAfterFee = rfqOffer.makerTokenAmount - fee;
@@ -307,7 +307,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         makerMakerToken.assertChange(-int256(rfqOffer.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(amountAfterFee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testFillWithContract() public {
@@ -336,7 +336,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: rfqOffer.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
 
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.rfqOffer = rfqOffer;
@@ -356,7 +356,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
             makerMakerToken.assertChange(-int256(makerActualAmount));
             recTakerToken.assertChange(int256(0));
             recMakerToken.assertChange(int256(amountAfterFee));
-            feeCollectorBal.assertChange(int256(fee));
+            fcMakerToken.assertChange(int256(fee));
         }
     }
 
@@ -467,7 +467,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultRFQOffer.maker, token: defaultRFQOffer.makerToken });
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultRFQOffer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultRFQOffer.makerToken });
-        Snapshot memory feeCollectorBal = BalanceSnapshot.take({ owner: feeCollector, token: defaultRFQOffer.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultRFQOffer.makerToken });
 
         bytes memory takerSig = _signRFQTx(takerPrivateKey, defaultRFQTx);
 
@@ -497,7 +497,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         recTakerToken.assertChange(int256(0));
         // recipient gets less than original makerTokenAmount because of the fee
         recMakerToken.assertChange(int256(amountAfterFee));
-        feeCollectorBal.assertChange(int256(fee));
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testCannotFillRFQByIncorrectTakerSig() public {

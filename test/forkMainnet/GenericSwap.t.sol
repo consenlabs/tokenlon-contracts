@@ -7,35 +7,15 @@ import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
+import { MockStrategy } from "test/mocks/MockStrategy.sol";
 import { GenericSwap } from "contracts/GenericSwap.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { UniswapStrategy } from "contracts/UniswapStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
-import { Asset } from "contracts/libraries/Asset.sol";
 import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
-import { IStrategy } from "contracts/interfaces/IStrategy.sol";
-
-contract MockStrategy is IStrategy, Test {
-    using Asset for address;
-
-    uint256 public outputAmount;
-
-    function setOutputAmount(uint256 amount) external {
-        outputAmount = amount;
-    }
-
-    function executeStrategy(
-        address,
-        address outputToken,
-        uint256,
-        bytes calldata
-    ) external payable override {
-        outputToken.transferTo(payable(msg.sender), outputAmount);
-    }
-}
 
 contract GenericSwapTest is Test, Tokens, BalanceUtil {
     using BalanceSnapshot for Snapshot;
@@ -147,7 +127,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         uint256 actualOutput = 900;
 
         // 800 < 900 < 1000
-        mockStrategy.setOutputAmount(actualOutput);
+        mockStrategy.setOutputAmountAndRecipient(actualOutput, payable(address(genericSwap)));
         vm.expectEmit(true, true, true, true);
         emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, actualOutput);
         vm.prank(taker);
@@ -170,7 +150,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: address(mockStrategy), token: gsData.takerToken });
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: address(mockStrategy), token: gsData.makerToken });
 
-        mockStrategy.setOutputAmount(gsData.makerTokenAmount);
+        mockStrategy.setOutputAmountAndRecipient(gsData.makerTokenAmount, payable(address(genericSwap)));
         vm.expectEmit(true, true, true, true);
         emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, gsData.makerTokenAmount);
         vm.prank(taker);
@@ -194,7 +174,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: address(mockStrategy), token: gsData.takerToken });
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: address(mockStrategy), token: gsData.makerToken });
 
-        mockStrategy.setOutputAmount(gsData.makerTokenAmount);
+        mockStrategy.setOutputAmountAndRecipient(gsData.makerTokenAmount, payable(address(genericSwap)));
         vm.expectEmit(true, true, true, true);
         emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, gsData.makerTokenAmount);
         vm.prank(taker);
@@ -240,7 +220,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         GenericSwapData memory gsData = defaultGSData;
         gsData.maker = payable(address(mockStrategy));
 
-        mockStrategy.setOutputAmount(gsData.minMakerTokenAmount - 1);
+        mockStrategy.setOutputAmountAndRecipient(gsData.minMakerTokenAmount - 1, payable(address(genericSwap)));
         vm.prank(taker);
         vm.expectRevert(IGenericSwap.InsufficientOutput.selector);
         genericSwap.executeSwap(gsData, defaultTakerPermit);
