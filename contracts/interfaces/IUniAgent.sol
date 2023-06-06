@@ -4,7 +4,6 @@ pragma solidity >=0.8.0;
 /// @title IUniAgent Interface
 /// @author imToken Labs
 interface IUniAgent {
-    error ZeroAddress();
     error InvalidMsgValue();
     error UnknownRouterType();
 

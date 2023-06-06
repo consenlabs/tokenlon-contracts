@@ -10,7 +10,6 @@ import { IWETH } from "./interfaces/IWETH.sol";
 import { IUniAgent } from "./interfaces/IUniAgent.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { Constant } from "./libraries/Constant.sol";
-import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
     using Asset for address;
@@ -20,33 +19,17 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
     address payable private constant universalRouter = payable(0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B);
 
     IWETH public immutable weth;
-    address payable public feeCollector;
-
-    mapping(bytes32 => bool) private filledOrder;
-
-    /// @notice Emitted when fee collector address is updated
-    /// @param newFeeCollector The address of the new fee collector
-    event SetFeeCollector(address newFeeCollector);
 
     constructor(
         address _owner,
         address _uniswapPermit2,
         address _allowanceTarget,
-        IWETH _weth,
-        address payable _feeCollector
+        IWETH _weth
     ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
         weth = _weth;
-        feeCollector = _feeCollector;
     }
 
     receive() external payable {}
-
-    function setFeeCollector(address payable _newFeeCollector) external onlyOwner {
-        if (_newFeeCollector == address(0)) revert ZeroAddress();
-        feeCollector = _newFeeCollector;
-
-        emit SetFeeCollector(_newFeeCollector);
-    }
 
     function approveTokensToRouters(address[] calldata tokens) external {
         for (uint256 i = 0; i < tokens.length; ++i) {
