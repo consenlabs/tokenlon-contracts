@@ -54,7 +54,6 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
             // ignore return value and proceed anyway since three calls are independent
             tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v2Router, Constant.MAX_UINT));
             tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v3Router, Constant.MAX_UINT));
-            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, universalRouter, Constant.MAX_UINT));
         }
     }
 
