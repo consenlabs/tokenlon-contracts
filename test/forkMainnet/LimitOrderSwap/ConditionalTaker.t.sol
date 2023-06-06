@@ -14,7 +14,7 @@ import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
 
-contract FillTest is LimitOrderSwapTest {
+contract ConditionalTakerTest is LimitOrderSwapTest {
     using BalanceSnapshot for Snapshot;
 
     event SetCoordinator(address newCoordinator);
