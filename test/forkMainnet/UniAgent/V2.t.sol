@@ -89,6 +89,64 @@ contract V2Test is UniAgentTest {
         recvOutputToken.assertChange(int256(outputAmount));
     }
 
+    function testV2ApproveAndSwap() public {
+        // USDC -> CRV
+        address inputToken = USDC_ADDRESS;
+        Snapshot memory userInputToken = BalanceSnapshot.take({ owner: user, token: inputToken });
+        Snapshot memory recvOutputToken = BalanceSnapshot.take({ owner: recipient, token: defaultOutputToken });
+
+        address[] memory path = new address[](2);
+        path[0] = inputToken;
+        path[1] = defaultOutputToken;
+
+        uint256[] memory amounts = v2Router.getAmountsOut(defaultInputAmount, path);
+        uint256 outputAmount = amounts[amounts.length - 1];
+
+        bytes memory payload = abi.encodeCall(IUniswapRouterV2.swapExactTokensForTokens, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
+
+        vm.prank(user);
+        uniAgent.approveAndSwap(IUniAgent.RouterType.V2Router, inputToken, defaultInputAmount, payload, defaultUserPermit);
+
+        userInputToken.assertChange(-int256(defaultInputAmount));
+        // recipient should receive exact amount of quote from Uniswap
+        recvOutputToken.assertChange(int256(outputAmount));
+    }
+
+    function testV2WithDupplicatedApprove() public {
+        // case1 : input token is USDT
+        // USDT will revert if approve to a spender but current allownace != 0
+        vm.prank(user);
+        vm.expectRevert();
+        uniAgent.approveAndSwap(IUniAgent.RouterType.V2Router, defaultInputToken, defaultInputAmount, defaultRouterPayload, defaultUserPermit);
+
+        // case2 : input token is WETH
+        // WETH will overwrite allowance without any check
+        address inputToken = WETH_ADDRESS;
+        Snapshot memory userInputToken = BalanceSnapshot.take({ owner: user, token: inputToken });
+        Snapshot memory recvOutputToken = BalanceSnapshot.take({ owner: recipient, token: defaultOutputToken });
+
+        address[] memory path = new address[](2);
+        path[0] = inputToken;
+        path[1] = defaultOutputToken;
+
+        uint256[] memory amounts = v2Router.getAmountsOut(defaultInputAmount, path);
+        uint256 outputAmount = amounts[amounts.length - 1];
+
+        bytes memory payload = abi.encodeCall(IUniswapRouterV2.swapExactTokensForTokens, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
+
+        // should still succeed even re-approve the token
+        vm.startPrank(user);
+        address[] memory approveList = new address[](1);
+        approveList[0] = inputToken;
+        uniAgent.approveTokensToRouters(approveList);
+        uniAgent.approveAndSwap(IUniAgent.RouterType.V2Router, inputToken, defaultInputAmount, payload, defaultUserPermit);
+        vm.stopPrank();
+
+        userInputToken.assertChange(-int256(defaultInputAmount));
+        // recipient should receive exact amount of quote from Uniswap
+        recvOutputToken.assertChange(int256(outputAmount));
+    }
+
     function testV2HandleRouterError() public {
         vm.warp(defaultExpiry + 1);
 

@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
@@ -15,7 +14,6 @@ import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
     using Asset for address;
-    using SafeERC20 for IERC20;
 
     address private constant v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address private constant v3Router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
@@ -50,11 +48,13 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
         emit SetFeeCollector(_newFeeCollector);
     }
 
-    function approveTokens(address[] calldata tokens, address[] calldata spenders) external onlyOwner {
+    function approveTokensToRouters(address[] calldata tokens) external {
         for (uint256 i = 0; i < tokens.length; ++i) {
-            for (uint256 j = 0; j < spenders.length; ++j) {
-                IERC20(tokens[i]).safeApprove(spenders[j], Constant.MAX_UINT);
-            }
+            // use low level call to avoid return size check
+            // ignore return value and proceed anyway since three calls are independent
+            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v2Router, Constant.MAX_UINT));
+            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v3Router, Constant.MAX_UINT));
+            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, universalRouter, Constant.MAX_UINT));
         }
     }
 
@@ -67,6 +67,16 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
         }
     }
 
+    function approveAndSwap(
+        RouterType routerType,
+        address inputToken,
+        uint256 inputAmount,
+        bytes calldata payload,
+        bytes calldata userPermit
+    ) external payable override {
+        _swap(routerType, true, inputToken, inputAmount, payload, userPermit);
+    }
+
     function swap(
         RouterType routerType,
         address inputToken,
@@ -74,7 +84,27 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
         bytes calldata payload,
         bytes calldata userPermit
     ) external payable override {
+        _swap(routerType, false, inputToken, inputAmount, payload, userPermit);
+    }
+
+    function _swap(
+        RouterType routerType,
+        bool needApprove,
+        address inputToken,
+        uint256 inputAmount,
+        bytes calldata payload,
+        bytes calldata userPermit
+    ) private {
         address routerAddr = _getRouterAddress(routerType);
+        if (needApprove) {
+            // use low level call to avoid return size check
+            (bool apvSuccess, bytes memory apvResult) = inputToken.call(abi.encodeWithSelector(IERC20.approve.selector, routerAddr, Constant.MAX_UINT));
+            if (!apvSuccess) {
+                assembly {
+                    revert(add(apvResult, 32), mload(apvResult))
+                }
+            }
+        }
 
         if (inputToken.isETH() && msg.value != inputAmount) revert InvalidMsgValue();
         if (!inputToken.isETH()) {

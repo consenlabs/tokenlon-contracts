@@ -25,7 +25,6 @@ contract UniAgentTest is Test, Tokens, BalanceUtil {
     address defaultInputToken = USDT_ADDRESS;
     address defaultOutputToken = CRV_ADDRESS;
     address[] defaultPath = [defaultInputToken, defaultOutputToken];
-    address[] routers = [UNISWAP_V2_ADDRESS, UNISWAP_V3_ADDRESS, UNISWAP_UNIVERSAL_ROUTER_ADDRESS];
     bytes defaultUserPermit;
     UniAgent uniAgent;
     AllowanceTarget allowanceTarget;
@@ -39,8 +38,7 @@ contract UniAgentTest is Test, Tokens, BalanceUtil {
         allowanceTarget = new AllowanceTarget(trusted);
 
         uniAgent = new UniAgent(uniAgentOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS), feeCollector);
-        vm.prank(uniAgentOwner);
-        uniAgent.approveTokens(defaultPath, routers);
+        uniAgent.approveTokensToRouters(defaultPath);
 
         deal(user, 100 ether);
         setTokenBalanceAndApprove(user, address(uniAgent), tokens, 100000);

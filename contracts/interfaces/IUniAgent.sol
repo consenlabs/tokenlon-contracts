@@ -16,6 +16,14 @@ interface IUniAgent {
         UniversalRouter
     }
 
+    function approveAndSwap(
+        RouterType routerType,
+        address inputToken,
+        uint256 inputAmount,
+        bytes calldata payload,
+        bytes calldata userPermit
+    ) external payable;
+
     function swap(
         RouterType routerType,
         address inputToken,
