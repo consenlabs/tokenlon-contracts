@@ -71,6 +71,73 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
     }
 
     /// @inheritdoc ILimitOrderSwap
+    function fillLimitOrderGroup(
+        LimitOrder[] calldata orders,
+        bytes[] calldata makerSignatures,
+        uint256[] calldata makerTokenAmounts,
+        address[] calldata profitTokens
+    ) external payable override {
+        if (orders.length != makerSignatures.length || orders.length != makerTokenAmounts.length) revert InvalidParams();
+
+        // validate orders and calculate takingAmounts
+        uint256 unwrapAmount;
+        uint256[] memory takerTokenAmounts = new uint256[](orders.length);
+        for (uint256 i = 0; i < orders.length; ++i) {
+            LimitOrder memory order = orders[i];
+            uint256 makerTokenAmount = makerTokenAmounts[i];
+
+            if (order.expiry <= block.timestamp) revert ExpiredOrder();
+            if (order.taker != address(0) && msg.sender == order.taker) revert InvalidTaker();
+
+            bytes32 orderHash = getLimitOrderHash(order);
+            {
+                uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
+                if (orderFilledAmount == 0) {
+                    // validate maker signature only once per order
+                    if (!SignatureValidator.isValidSignature(order.maker, getEIP712Hash(orderHash), makerSignatures[i])) revert InvalidSignature();
+                }
+
+                // check whether the order is fully filled or not
+                if (orderFilledAmount >= order.makerTokenAmount) revert FilledOrder();
+                // check whether the order is canceled or not
+                if ((orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0) revert CanceledOrder();
+
+                uint256 orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
+                if (makerTokenAmount > orderAvailableAmount) revert NotEnoughForFill();
+                takerTokenAmounts[i] = ((makerTokenAmount * order.takerTokenAmount) / order.makerTokenAmount);
+                if (order.takerToken.isETH()) {
+                    unwrapAmount += takerTokenAmounts[i];
+                }
+
+                // record fill amount
+                orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makerTokenAmount;
+            }
+
+            // collect maker tokens
+            _collect(order.makerToken, order.maker, address(this), makerTokenAmount, order.makerTokenPermit);
+
+            // transfer fee if present
+            uint256 fee = (makerTokenAmount * order.feeFactor) / Constant.BPS_MAX;
+            order.makerToken.transferTo(feeCollector, fee);
+
+            _emitLimitOrderFilled(order, orderHash, takerTokenAmounts[i], makerTokenAmount - fee, fee, address(this));
+        }
+
+        weth.withdraw(unwrapAmount);
+
+        for (uint256 i = 0; i < orders.length; ++i) {
+            LimitOrder memory order = orders[i];
+            order.takerToken.transferTo(order.maker, takerTokenAmounts[i]);
+        }
+
+        // any token left is considered as profit
+        for (uint256 i = 0; i < profitTokens.length; ++i) {
+            uint256 profit = profitTokens[i].getBalance(address(this));
+            profitTokens[i].transferTo(payable(msg.sender), profit);
+        }
+    }
+
+    /// @inheritdoc ILimitOrderSwap
     function cancelOrder(LimitOrder calldata order) external override {
         if (order.expiry <= uint64(block.timestamp)) revert ExpiredOrder();
         if (msg.sender != order.maker) revert NotOrderMaker();
