@@ -89,7 +89,7 @@ contract V2Test is UniAgentTest {
         recvOutputToken.assertChange(int256(outputAmount));
     }
 
-    function testV2ShouldPassRevertMsg() public {
+    function testV2HandleRouterError() public {
         vm.warp(defaultExpiry + 1);
 
         vm.expectRevert("UniswapV2Router: EXPIRED");
