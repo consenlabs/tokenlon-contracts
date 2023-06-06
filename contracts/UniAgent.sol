@@ -11,7 +11,7 @@ import { IUniAgent } from "./interfaces/IUniAgent.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { Constant } from "./libraries/Constant.sol";
 
-contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
+contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
     using Asset for address;
 
     address private constant v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -31,15 +31,6 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
 
     receive() external payable {}
 
-    function approveTokensToRouters(address[] calldata tokens) external {
-        for (uint256 i = 0; i < tokens.length; ++i) {
-            // use low level call to avoid return size check
-            // ignore return value and proceed anyway since three calls are independent
-            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v2Router, Constant.MAX_UINT));
-            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v3Router, Constant.MAX_UINT));
-        }
-    }
-
     function withdrawTokens(address[] calldata tokens, address recipient) external onlyOwner {
         for (uint256 i = 0; i < tokens.length; ++i) {
             uint256 selfBalance = Asset.getBalance(tokens[i], address(this));
@@ -49,6 +40,16 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
         }
     }
 
+    function approveTokensToRouters(address[] calldata tokens) external {
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            // use low level call to avoid return size check
+            // ignore return value and proceed anyway since three calls are independent
+            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v2Router, Constant.MAX_UINT));
+            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v3Router, Constant.MAX_UINT));
+        }
+    }
+
+    /// @inheritdoc IUniAgent
     function approveAndSwap(
         RouterType routerType,
         address inputToken,
@@ -59,6 +60,7 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
         _swap(routerType, true, inputToken, inputAmount, payload, userPermit);
     }
 
+    /// @inheritdoc IUniAgent
     function swap(
         RouterType routerType,
         address inputToken,
