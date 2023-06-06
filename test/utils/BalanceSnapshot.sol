@@ -31,7 +31,7 @@ library BalanceSnapshot {
 
     function assertChange(Snapshot memory snapshot, int256 expectedChange) internal view {
         int256 balanceAfter = _getBalanceAfter(snapshot);
-        require(int256(balanceAfter) - snapshot.balanceBefore == expectedChange, "Not expected balance change");
+        require(balanceAfter - snapshot.balanceBefore == expectedChange, "Not expected balance change");
     }
 
     function assertChangeGt(Snapshot memory snapshot, int256 expectedMinChange) internal view {
