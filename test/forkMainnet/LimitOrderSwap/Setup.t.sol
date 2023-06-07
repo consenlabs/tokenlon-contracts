@@ -63,7 +63,7 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil {
         setTokenBalanceAndApprove(taker, address(limitOrderSwap), tokens, 100000);
         deal(address(mockLimitOrderTaker), 100 ether);
         setTokenBalanceAndApprove(address(mockLimitOrderTaker), address(limitOrderSwap), tokens, 100000);
-        defaultPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
+        defaultPermit = abi.encodePacked(TokenCollector.Source.Token);
 
         address[] memory tokenList = new address[](2);
         tokenList[0] = DAI_ADDRESS;

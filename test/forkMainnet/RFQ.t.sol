@@ -73,7 +73,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         setTokenBalanceAndApprove(taker, address(rfq), tokens, 100000);
         deal(takerWalletContract, 100 ether);
         setTokenBalanceAndApprove(takerWalletContract, address(rfq), tokens, 100000);
-        defaultPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
+        defaultPermit = abi.encodePacked(TokenCollector.Source.Token);
 
         defaultRFQOffer = RFQOffer({
             taker: taker,
@@ -161,7 +161,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
     function testFillRFQWithTakerApproveAllowanceTarget() public {
         setTokenBalanceAndApprove(taker, address(allowanceTarget), tokens, 100000);
 
-        bytes memory takerPermit = abi.encode(TokenCollector.Source.TokenlonAllowanceTarget, bytes(""));
+        bytes memory takerPermit = abi.encodePacked(TokenCollector.Source.TokenlonAllowanceTarget);
 
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultPermit, takerPermit);

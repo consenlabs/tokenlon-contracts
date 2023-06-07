@@ -61,7 +61,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         defaultPath[1] = DAI_ADDRESS;
         bytes memory makerSpecificData = abi.encode(defaultExpiry, defaultPath);
         bytes memory swapData = abi.encode(UNISWAP_V2_ADDRESS, makerSpecificData);
-        defaultTakerPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
+        defaultTakerPermit = abi.encodePacked(TokenCollector.Source.Token);
 
         deal(taker, 100 ether);
         setTokenBalanceAndApprove(taker, address(genericSwap), tokens, 100000);
