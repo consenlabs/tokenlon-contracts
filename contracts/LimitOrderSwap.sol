@@ -86,22 +86,8 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
             LimitOrder calldata order = orders[i];
             uint256 makerTokenAmount = makerTokenAmounts[i];
 
-            if (order.expiry < block.timestamp) revert ExpiredOrder();
-            if (order.taker != address(0) && msg.sender != order.taker) revert InvalidTaker();
-
-            bytes32 orderHash = getLimitOrderHash(order);
+            (bytes32 orderHash, uint256 orderFilledAmount) = _validateOrder(order, makerSignatures[i]);
             {
-                uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
-                if (orderFilledAmount == 0) {
-                    // validate maker signature only once per order
-                    if (!SignatureValidator.isValidSignature(order.maker, getEIP712Hash(orderHash), makerSignatures[i])) revert InvalidSignature();
-                }
-
-                // check whether the order is fully filled or not
-                if (orderFilledAmount >= order.makerTokenAmount) revert FilledOrder();
-                // check whether the order is canceled or not
-                if ((orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0) revert CanceledOrder();
-
                 uint256 orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
                 if (makerTokenAmount > orderAvailableAmount) revert NotEnoughForFill();
                 takerTokenAmounts[i] = ((makerTokenAmount * order.takerTokenAmount) / order.makerTokenAmount);
@@ -213,22 +199,8 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
             uint256 makerSpendingAmount
         )
     {
-        // validate the constrain of the order
-        if (_order.expiry < block.timestamp) revert ExpiredOrder();
-        if (_order.taker != address(0) && msg.sender != _order.taker) revert InvalidTaker();
-
-        // validate the status of the order
-        orderHash = getLimitOrderHash(_order);
-
-        // check whether the order is fully filled or not
-        uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
-        // validate maker signature only once per order
-        if (orderFilledAmount == 0) {
-            if (!SignatureValidator.isValidSignature(_order.maker, getEIP712Hash(orderHash), _makerSignature)) revert InvalidSignature();
-        }
-
-        if ((orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0) revert CanceledOrder();
-        if (orderFilledAmount >= _order.makerTokenAmount) revert FilledOrder();
+        uint256 orderFilledAmount;
+        (orderHash, orderFilledAmount) = _validateOrder(_order, _makerSignature);
 
         // get the quote of the fill
         uint256 orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
@@ -254,6 +226,27 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
 
         // record fill amount of this tx
         orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makerSpendingAmount;
+    }
+
+    function _validateOrder(LimitOrder calldata _order, bytes calldata _makerSignature) private view returns (bytes32, uint256) {
+        // validate the constrain of the order
+        if (_order.expiry < block.timestamp) revert ExpiredOrder();
+        if (_order.taker != address(0) && msg.sender != _order.taker) revert InvalidTaker();
+
+        // validate the status of the order
+        bytes32 orderHash = getLimitOrderHash(_order);
+
+        // check whether the order is fully filled or not
+        uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
+        // validate maker signature only once per order
+        if (orderFilledAmount == 0) {
+            if (!SignatureValidator.isValidSignature(_order.maker, getEIP712Hash(orderHash), _makerSignature)) revert InvalidSignature();
+        }
+
+        if ((orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0) revert CanceledOrder();
+        if (orderFilledAmount >= _order.makerTokenAmount) revert FilledOrder();
+
+        return (orderHash, orderFilledAmount);
     }
 
     function _emitLimitOrderFilled(
