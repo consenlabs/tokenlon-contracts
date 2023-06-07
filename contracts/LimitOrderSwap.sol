@@ -86,7 +86,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
             LimitOrder calldata order = orders[i];
             uint256 makerTokenAmount = makerTokenAmounts[i];
 
-            if (order.expiry <= block.timestamp) revert ExpiredOrder();
+            if (order.expiry < block.timestamp) revert ExpiredOrder();
             if (order.taker != address(0) && msg.sender != order.taker) revert InvalidTaker();
 
             bytes32 orderHash = getLimitOrderHash(order);
@@ -126,7 +126,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         weth.withdraw(unwrapAmount);
 
         for (uint256 i = 0; i < orders.length; ++i) {
-            LimitOrder memory order = orders[i];
+            LimitOrder calldata order = orders[i];
             order.takerToken.transferTo(order.maker, takerTokenAmounts[i]);
         }
 
@@ -139,7 +139,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
 
     /// @inheritdoc ILimitOrderSwap
     function cancelOrder(LimitOrder calldata order) external override {
-        if (order.expiry <= uint64(block.timestamp)) revert ExpiredOrder();
+        if (order.expiry < uint64(block.timestamp)) revert ExpiredOrder();
         if (msg.sender != order.maker) revert NotOrderMaker();
         bytes32 orderHash = getLimitOrderHash(order);
         uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
@@ -214,7 +214,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         )
     {
         // validate the constrain of the order
-        if (_order.expiry <= block.timestamp) revert ExpiredOrder();
+        if (_order.expiry < block.timestamp) revert ExpiredOrder();
         if (_order.taker != address(0) && msg.sender != _order.taker) revert InvalidTaker();
 
         // validate the status of the order
