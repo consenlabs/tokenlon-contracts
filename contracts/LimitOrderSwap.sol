@@ -87,7 +87,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
             uint256 makerTokenAmount = makerTokenAmounts[i];
 
             if (order.expiry <= block.timestamp) revert ExpiredOrder();
-            if (order.taker != address(0) && msg.sender == order.taker) revert InvalidTaker();
+            if (order.taker != address(0) && msg.sender != order.taker) revert InvalidTaker();
 
             bytes32 orderHash = getLimitOrderHash(order);
             {
