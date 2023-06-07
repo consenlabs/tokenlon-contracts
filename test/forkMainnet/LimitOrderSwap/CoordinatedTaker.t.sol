@@ -4,17 +4,17 @@ pragma solidity 0.8.17;
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
-import { IConditionalTaker } from "contracts/interfaces/IConditionalTaker.sol";
+import { ICoordinatedTaker } from "contracts/interfaces/ICoordinatedTaker.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 import { AllowFill, getAllowFillHash } from "contracts/libraries/AllowFill.sol";
-import { ConditionalTaker } from "contracts/ConditionalTaker.sol";
+import { CoordinatedTaker } from "contracts/CoordinatedTaker.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
 
-contract ConditionalTakerTest is LimitOrderSwapTest {
+contract CoordinatedTakerTest is LimitOrderSwapTest {
     using BalanceSnapshot for Snapshot;
 
     event SetCoordinator(address newCoordinator);
@@ -29,12 +29,12 @@ contract ConditionalTakerTest is LimitOrderSwapTest {
     address coordinator = vm.addr(crdPrivateKey);
     LimitOrder defaultConOrder;
     AllowFill defaultAllowFill;
-    IConditionalTaker.CoordinatorParams defaultCRDParams;
-    ConditionalTaker conditionalTaker;
+    ICoordinatedTaker.CoordinatorParams defaultCRDParams;
+    CoordinatedTaker conditionalTaker;
 
     function setUp() public override {
         super.setUp();
-        conditionalTaker = new ConditionalTaker(
+        conditionalTaker = new CoordinatedTaker(
             conditionalTakerOwner,
             UNISWAP_PERMIT2_ADDRESS,
             address(allowanceTarget),
@@ -64,7 +64,7 @@ contract ConditionalTakerTest is LimitOrderSwapTest {
             salt: defaultSalt
         });
 
-        defaultCRDParams = IConditionalTaker.CoordinatorParams({
+        defaultCRDParams = ICoordinatedTaker.CoordinatorParams({
             sig: _signAllowFill(crdPrivateKey, defaultAllowFill),
             expiry: defaultAllowFill.expiry,
             salt: defaultAllowFill.salt
@@ -80,7 +80,7 @@ contract ConditionalTakerTest is LimitOrderSwapTest {
 
     function testCannotSetCoordinatorToZero() public {
         vm.prank(conditionalTakerOwner, conditionalTakerOwner);
-        vm.expectRevert(IConditionalTaker.ZeroAddress.selector);
+        vm.expectRevert(ICoordinatedTaker.ZeroAddress.selector);
         conditionalTaker.setCoordinator(payable(address(0)));
     }
 
@@ -150,7 +150,7 @@ contract ConditionalTakerTest is LimitOrderSwapTest {
     function testCannotFillWithExpiredPermission() public {
         vm.warp(defaultAllowFill.expiry + 1);
 
-        vm.expectRevert(IConditionalTaker.ExpiredPermission.selector);
+        vm.expectRevert(ICoordinatedTaker.ExpiredPermission.selector);
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill({
             order: defaultConOrder,
@@ -167,10 +167,10 @@ contract ConditionalTakerTest is LimitOrderSwapTest {
         uint256 randomPrivateKey = 5677;
         bytes memory randomAllowFillSig = _signAllowFill(randomPrivateKey, defaultAllowFill);
 
-        IConditionalTaker.CoordinatorParams memory crdParams = defaultCRDParams;
+        ICoordinatedTaker.CoordinatorParams memory crdParams = defaultCRDParams;
         crdParams.sig = randomAllowFillSig;
 
-        vm.expectRevert(IConditionalTaker.InvalidSignature.selector);
+        vm.expectRevert(ICoordinatedTaker.InvalidSignature.selector);
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill({
             order: defaultConOrder,
@@ -195,7 +195,7 @@ contract ConditionalTakerTest is LimitOrderSwapTest {
             crdParams: defaultCRDParams
         });
 
-        vm.expectRevert(IConditionalTaker.ReusedPermission.selector);
+        vm.expectRevert(ICoordinatedTaker.ReusedPermission.selector);
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill({
             order: defaultConOrder,
@@ -209,7 +209,7 @@ contract ConditionalTakerTest is LimitOrderSwapTest {
     }
 
     function testCannotFillWithInvalidMsgValue() public {
-        vm.expectRevert(IConditionalTaker.InvalidMsgValue.selector);
+        vm.expectRevert(ICoordinatedTaker.InvalidMsgValue.selector);
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill{ value: 1 ether }({
             order: defaultConOrder,

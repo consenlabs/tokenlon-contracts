@@ -8,7 +8,7 @@ import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
-import { IConditionalTaker } from "./interfaces/IConditionalTaker.sol";
+import { ICoordinatedTaker } from "./interfaces/ICoordinatedTaker.sol";
 import { ILimitOrderSwap } from "./interfaces/ILimitOrderSwap.sol";
 import { LimitOrder, getLimitOrderHash } from "./libraries/LimitOrder.sol";
 import { AllowFill, getAllowFillHash } from "./libraries/AllowFill.sol";
@@ -16,9 +16,9 @@ import { Constant } from "./libraries/Constant.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
-/// @title ConditionalTaker Contract
+/// @title CoordinatedTaker Contract
 /// @author imToken Labs
-contract ConditionalTaker is IConditionalTaker, Ownable, TokenCollector, EIP712 {
+contract CoordinatedTaker is ICoordinatedTaker, Ownable, TokenCollector, EIP712 {
     using Asset for address;
     using SafeERC20 for IERC20;
 

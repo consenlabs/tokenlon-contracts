@@ -3,9 +3,9 @@ pragma solidity >=0.8.0;
 
 import { LimitOrder } from "../libraries/LimitOrder.sol";
 
-/// @title IConditionalTaker Interface
+/// @title ICoordinatedTaker Interface
 /// @author imToken Labs
-interface IConditionalTaker {
+interface ICoordinatedTaker {
     error ReusedPermission();
     error InvalidMsgValue();
     error InvalidSignature();
