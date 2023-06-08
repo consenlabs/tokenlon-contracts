@@ -5,7 +5,6 @@ pragma solidity >=0.8.0;
 /// @author imToken Labs
 interface IUniAgent {
     error InvalidMsgValue();
-    error UnknownRouterType();
 
     /// @notice Emitted when a swap is executed
     /// @param user The user address of the swap.

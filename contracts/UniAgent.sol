@@ -119,8 +119,9 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
             return v3Router;
         } else if (routerType == RouterType.UniversalRouter) {
             return universalRouter;
-        } else {
-            revert UnknownRouterType();
         }
+
+        // won't be reached
+        revert();
     }
 }
