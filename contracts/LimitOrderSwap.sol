@@ -84,26 +84,26 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         uint256[] memory takerTokenAmounts = new uint256[](orders.length);
         for (uint256 i = 0; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
-            uint256 makerTokenAmount = makerTokenAmounts[i];
+            uint256 makingAmount = makerTokenAmounts[i];
 
             (bytes32 orderHash, uint256 orderFilledAmount) = _validateOrder(order, makerSignatures[i]);
             {
                 uint256 orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
-                if (makerTokenAmount > orderAvailableAmount) revert NotEnoughForFill();
-                takerTokenAmounts[i] = ((makerTokenAmount * order.takerTokenAmount) / order.makerTokenAmount);
+                if (makingAmount > orderAvailableAmount) revert NotEnoughForFill();
+                takerTokenAmounts[i] = ((makingAmount * order.takerTokenAmount) / order.makerTokenAmount);
 
                 // record fill amount
-                orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makerTokenAmount;
+                orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makingAmount;
             }
 
             // collect maker tokens
-            _collect(order.makerToken, order.maker, address(this), makerTokenAmount, order.makerTokenPermit);
+            _collect(order.makerToken, order.maker, address(this), makingAmount, order.makerTokenPermit);
 
             // transfer fee if present
-            uint256 fee = (makerTokenAmount * order.feeFactor) / Constant.BPS_MAX;
+            uint256 fee = (makingAmount * order.feeFactor) / Constant.BPS_MAX;
             order.makerToken.transferTo(feeCollector, fee);
 
-            _emitLimitOrderFilled(order, orderHash, takerTokenAmounts[i], makerTokenAmount - fee, fee, address(this));
+            _emitLimitOrderFilled(order, orderHash, takerTokenAmounts[i], makingAmount - fee, fee, address(this));
         }
 
         // unwrap WETH if trader specified
