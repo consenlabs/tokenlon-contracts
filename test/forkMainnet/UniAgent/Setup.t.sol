@@ -18,6 +18,7 @@ contract UniAgentTest is Test, Tokens, BalanceUtil {
     uint256 userPrivateKey = uint256(1);
     address user = vm.addr(userPrivateKey);
     address uniAgentOwner = makeAddr("uniAgentOwner");
+    address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
     address payable feeCollector = payable(makeAddr("feeCollector"));
     address payable recipient = payable(makeAddr("recipient"));
     uint256 defaultExpiry = block.timestamp + 1;
@@ -35,7 +36,7 @@ contract UniAgentTest is Test, Tokens, BalanceUtil {
         // pre-compute UniAgent address since the whitelist of allowance target is immutable
         // NOTE: this assumes UniAgent is deployed right next to Allowance Target
         trusted[0] = computeContractAddress(address(this), uint8(vm.getNonce(address(this)) + 1));
-        allowanceTarget = new AllowanceTarget(trusted);
+        allowanceTarget = new AllowanceTarget(allowanceTargetOwner, trusted);
 
         uniAgent = new UniAgent(uniAgentOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS), feeCollector);
         uniAgent.approveTokensToRouters(defaultPath);
