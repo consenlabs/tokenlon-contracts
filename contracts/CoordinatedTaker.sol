@@ -93,7 +93,7 @@ contract CoordinatedTaker is ICoordinatedTaker, Ownable, TokenCollector, EIP712 
             allowFillUsed[allowFillHash] = true;
         }
 
-        // collect taker token from user (forward to LO contract without check if isETH)
+        // collect taker token from user (forward to LO contract without validation if taker token is ETH)
         if (!order.takerToken.isETH()) {
             if (msg.value != 0) revert InvalidMsgValue();
             _collect(order.takerToken, msg.sender, address(this), takerTokenAmount, userTokenPermit);
