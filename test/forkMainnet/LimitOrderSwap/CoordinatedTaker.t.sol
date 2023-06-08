@@ -135,6 +135,27 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     }
 
     function testFillWithPermission() public {
+        Snapshot memory userTakerToken = BalanceSnapshot.take({ owner: user, token: defaultConOrder.takerToken });
+        Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultConOrder.makerToken });
+        Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultConOrder.takerToken });
+        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultConOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultConOrder.makerToken });
+
+        uint256 fee = (defaultConOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+
+        vm.expectEmit(true, true, true, true);
+        emit LimitOrderFilled(
+            getLimitOrderHash(defaultConOrder),
+            address(conditionalTaker), // taker
+            defaultConOrder.maker,
+            defaultConOrder.takerToken,
+            defaultConOrder.takerTokenAmount,
+            defaultConOrder.makerToken,
+            defaultConOrder.makerTokenAmount - fee,
+            fee,
+            user // recipient
+        );
+
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill({
             order: defaultConOrder,
@@ -145,6 +166,73 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             userTokenPermit: defaultPermit,
             crdParams: defaultCRDParams
         });
+
+        userTakerToken.assertChange(-int256(defaultConOrder.takerTokenAmount));
+        userMakerToken.assertChange(int256(defaultConOrder.makerTokenAmount - fee));
+        contractTakerToken.assertChange(0);
+        contractrMakerToken.assertChange(0);
+        fcMakerToken.assertChange(int256(fee));
+    }
+
+    function testFillWithETH() public {
+        // read token from constant & defaultOrder to avoid stack too deep error
+        Snapshot memory userTakerToken = BalanceSnapshot.take({ owner: user, token: Constant.ETH_ADDRESS });
+        Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultConOrder.makerToken });
+        Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: Constant.ETH_ADDRESS });
+        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultConOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultConOrder.makerToken });
+
+        LimitOrder memory order = defaultConOrder;
+        order.takerToken = Constant.ETH_ADDRESS;
+        order.takerTokenAmount = 1 ether;
+
+        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+
+        AllowFill memory allowFill = AllowFill({
+            orderHash: getLimitOrderHash(order),
+            taker: user,
+            fillAmount: order.makerTokenAmount,
+            expiry: defaultExpiry,
+            salt: defaultSalt
+        });
+
+        ICoordinatedTaker.CoordinatorParams memory crdParams = ICoordinatedTaker.CoordinatorParams({
+            sig: _signAllowFill(crdPrivateKey, allowFill),
+            expiry: allowFill.expiry,
+            salt: allowFill.salt
+        });
+
+        uint256 fee = (order.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+
+        vm.expectEmit(true, true, true, true);
+        emit LimitOrderFilled(
+            getLimitOrderHash(order),
+            address(conditionalTaker), // taker
+            order.maker,
+            order.takerToken,
+            order.takerTokenAmount,
+            order.makerToken,
+            order.makerTokenAmount - fee,
+            fee,
+            user // recipient
+        );
+
+        vm.prank(user, user);
+        conditionalTaker.submitLimitOrderFill{ value: order.takerTokenAmount }({
+            order: order,
+            makerSignature: makerSig,
+            takerTokenAmount: order.takerTokenAmount,
+            makerTokenAmount: order.makerTokenAmount,
+            extraAction: bytes(""),
+            userTokenPermit: defaultPermit,
+            crdParams: crdParams
+        });
+
+        userTakerToken.assertChange(-int256(order.takerTokenAmount));
+        userMakerToken.assertChange(int256(order.makerTokenAmount - fee));
+        contractTakerToken.assertChange(0);
+        contractrMakerToken.assertChange(0);
+        fcMakerToken.assertChange(int256(fee));
     }
 
     function testCannotFillWithExpiredPermission() public {

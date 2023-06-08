@@ -100,6 +100,7 @@ contract CoordinatedTaker is ICoordinatedTaker, Ownable, TokenCollector, EIP712 
         }
 
         // send order to limit order contract
+        // use fullOrKill since coordinator should manage fill amount distribution
         limitOrderSwap.fillLimitOrderFullOrKill{ value: msg.value }(
             order,
             makerSignature,
