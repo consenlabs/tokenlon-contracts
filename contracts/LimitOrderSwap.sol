@@ -92,6 +92,8 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
                 if (makingAmount > orderAvailableAmount) revert NotEnoughForFill();
                 takerTokenAmounts[i] = ((makingAmount * order.takerTokenAmount) / order.makerTokenAmount);
 
+                if (makingAmount == 0 && takerTokenAmounts[i] == 0) revert ZeroTokenAmount();
+
                 // record fill amount
                 orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makingAmount;
             }
