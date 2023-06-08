@@ -195,15 +195,12 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         internal
         returns (
             bytes32 orderHash,
-            bool skipPermit,
             uint256 takerSpendingAmount,
             uint256 makerSpendingAmount
         )
     {
         uint256 orderFilledAmount;
         (orderHash, orderFilledAmount) = _validateOrder(_order, _makerSignature);
-
-        // if (orderFilledAmount == 0 && _order.makerTokenPermit[0] == )
 
         // get the quote of the fill
         uint256 orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
