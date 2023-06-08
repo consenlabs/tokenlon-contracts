@@ -11,7 +11,8 @@ import { IAllowanceTarget } from "../interfaces/IAllowanceTarget.sol";
 abstract contract TokenCollector {
     using SafeERC20 for IERC20;
 
-    error UnknownTokenSource();
+    error Permit2AmountTooLarge();
+    error Permit2DataEmpty();
 
     enum Source {
         TokenlonAllowanceTarget,
@@ -34,50 +35,50 @@ abstract contract TokenCollector {
         address from,
         address to,
         uint256 amount,
-        bytes memory data
+        bytes calldata data
     ) internal {
-        if (data.length == 1) {
-            if (uint8(data[0]) == uint8(Source.TokenlonAllowanceTarget)) {
-                return IAllowanceTarget(allowanceTarget).spendFromUserTo(from, token, to, amount);
-            } else if (uint8(data[0]) == uint8(Source.Token)) {
-                return IERC20(token).safeTransferFrom(from, to, amount);
+        Source src = Source(uint8(data[0]));
+
+        if (src == Source.TokenlonAllowanceTarget) {
+            return IAllowanceTarget(allowanceTarget).spendFromUserTo(from, token, to, amount);
+        } else if (src == Source.Token) {
+            return IERC20(token).safeTransferFrom(from, to, amount);
+        } else if (src == Source.TokenPermit) {
+            (bool success, bytes memory result) = token.call(abi.encodePacked(IERC20Permit.permit.selector, data[1:]));
+            if (!success) {
+                assembly {
+                    result := add(result, 0x04)
+                }
+                revert(abi.decode(result, (string)));
             }
-            revert UnknownTokenSource();
-        } else {
-            (Source src, bytes memory srcData) = abi.decode(data, (Source, bytes));
-            if (src == Source.TokenPermit) {
-                (bool success, bytes memory result) = token.call(abi.encodePacked(IERC20Permit.permit.selector, srcData));
-                if (!success) {
-                    assembly {
-                        result := add(result, 0x04)
-                    }
-                    revert(abi.decode(result, (string)));
-                }
-                return IERC20(token).safeTransferFrom(from, to, amount);
-            } else if (src == Source.Permit2AllowanceTransfer) {
-                require(amount < uint256(type(uint160).max), "TokenCollector: permit2 amount too large");
-                if (srcData.length > 0) {
-                    (uint48 nonce, uint48 deadline, bytes memory permitSig) = abi.decode(srcData, (uint48, uint48, bytes));
-                    IUniswapPermit2.PermitSingle memory permit = IUniswapPermit2.PermitSingle({
-                        details: IUniswapPermit2.PermitDetails({ token: token, amount: uint160(amount), expiration: deadline, nonce: nonce }),
-                        spender: address(this),
-                        sigDeadline: uint256(deadline)
-                    });
-                    IUniswapPermit2(permit2).permit(from, permit, permitSig);
-                }
-                return IUniswapPermit2(permit2).transferFrom(from, to, uint160(amount), token);
-            } else if (src == Source.Permit2SignatureTransfer) {
-                require(srcData.length > 0, "TokenCollector: permit2 data cannot be empty");
-                (uint256 nonce, uint256 deadline, bytes memory permitSig) = abi.decode(srcData, (uint256, uint256, bytes));
-                IUniswapPermit2.PermitTransferFrom memory permit = IUniswapPermit2.PermitTransferFrom({
-                    permitted: IUniswapPermit2.TokenPermissions({ token: token, amount: amount }),
-                    nonce: nonce,
-                    deadline: deadline
+            return IERC20(token).safeTransferFrom(from, to, amount);
+        } else if (src == Source.Permit2AllowanceTransfer) {
+            if (amount > uint256(type(uint160).max)) revert Permit2AmountTooLarge();
+            bytes memory permit2Data = data[1:];
+            if (permit2Data.length > 0) {
+                (uint48 nonce, uint48 deadline, bytes memory permitSig) = abi.decode(permit2Data, (uint48, uint48, bytes));
+                IUniswapPermit2.PermitSingle memory permit = IUniswapPermit2.PermitSingle({
+                    details: IUniswapPermit2.PermitDetails({ token: token, amount: uint160(amount), expiration: deadline, nonce: nonce }),
+                    spender: address(this),
+                    sigDeadline: uint256(deadline)
                 });
-                IUniswapPermit2.SignatureTransferDetails memory detail = IUniswapPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount });
-                return IUniswapPermit2(permit2).permitTransferFrom(permit, detail, from, permitSig);
+                IUniswapPermit2(permit2).permit(from, permit, permitSig);
             }
-            revert UnknownTokenSource();
+            return IUniswapPermit2(permit2).transferFrom(from, to, uint160(amount), token);
+        } else if (src == Source.Permit2SignatureTransfer) {
+            bytes memory permit2Data = data[1:];
+            if (permit2Data.length == 0) revert Permit2DataEmpty();
+            (uint256 nonce, uint256 deadline, bytes memory permitSig) = abi.decode(permit2Data, (uint256, uint256, bytes));
+            IUniswapPermit2.PermitTransferFrom memory permit = IUniswapPermit2.PermitTransferFrom({
+                permitted: IUniswapPermit2.TokenPermissions({ token: token, amount: amount }),
+                nonce: nonce,
+                deadline: deadline
+            });
+            IUniswapPermit2.SignatureTransferDetails memory detail = IUniswapPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount });
+            return IUniswapPermit2(permit2).permitTransferFrom(permit, detail, from, permitSig);
         }
+
+        // won't be reached
+        revert();
     }
 }
