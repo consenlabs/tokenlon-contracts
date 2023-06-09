@@ -27,7 +27,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
     uint256 crdPrivateKey = uint256(2);
     address coordinator = vm.addr(crdPrivateKey);
-    LimitOrder defaultConOrder;
+    LimitOrder defaultCrdOrder;
     AllowFill defaultAllowFill;
     ICoordinatedTaker.CoordinatorParams defaultCRDParams;
     CoordinatedTaker conditionalTaker;
@@ -51,15 +51,15 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         deal(user, 100 ether);
         setTokenBalanceAndApprove(user, address(conditionalTaker), tokens, 100000);
 
-        defaultConOrder = defaultOrder;
-        defaultConOrder.taker = address(conditionalTaker);
+        defaultCrdOrder = defaultOrder;
+        defaultCrdOrder.taker = address(conditionalTaker);
 
-        defaultMakerSig = _signLimitOrder(makerPrivateKey, defaultConOrder);
+        defaultMakerSig = _signLimitOrder(makerPrivateKey, defaultCrdOrder);
 
         defaultAllowFill = AllowFill({
-            orderHash: getLimitOrderHash(defaultConOrder),
+            orderHash: getLimitOrderHash(defaultCrdOrder),
             taker: user,
-            fillAmount: defaultConOrder.makerTokenAmount,
+            fillAmount: defaultCrdOrder.makerTokenAmount,
             expiry: defaultExpiry,
             salt: defaultSalt
         });
@@ -135,40 +135,40 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     }
 
     function testFillWithPermission() public {
-        Snapshot memory userTakerToken = BalanceSnapshot.take({ owner: user, token: defaultConOrder.takerToken });
-        Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultConOrder.makerToken });
-        Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultConOrder.takerToken });
-        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultConOrder.makerToken });
-        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultConOrder.makerToken });
+        Snapshot memory userTakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.takerToken });
+        Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.makerToken });
+        Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultCrdOrder.takerToken });
+        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultCrdOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultCrdOrder.makerToken });
 
-        uint256 fee = (defaultConOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+        uint256 fee = (defaultCrdOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
 
         vm.expectEmit(true, true, true, true);
         emit LimitOrderFilled(
-            getLimitOrderHash(defaultConOrder),
+            getLimitOrderHash(defaultCrdOrder),
             address(conditionalTaker), // taker
-            defaultConOrder.maker,
-            defaultConOrder.takerToken,
-            defaultConOrder.takerTokenAmount,
-            defaultConOrder.makerToken,
-            defaultConOrder.makerTokenAmount - fee,
+            defaultCrdOrder.maker,
+            defaultCrdOrder.takerToken,
+            defaultCrdOrder.takerTokenAmount,
+            defaultCrdOrder.makerToken,
+            defaultCrdOrder.makerTokenAmount - fee,
             fee,
             user // recipient
         );
 
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill({
-            order: defaultConOrder,
+            order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
-            takerTokenAmount: defaultConOrder.takerTokenAmount,
-            makerTokenAmount: defaultConOrder.makerTokenAmount,
+            takerTokenAmount: defaultCrdOrder.takerTokenAmount,
+            makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
             userTokenPermit: defaultPermit,
             crdParams: defaultCRDParams
         });
 
-        userTakerToken.assertChange(-int256(defaultConOrder.takerTokenAmount));
-        userMakerToken.assertChange(int256(defaultConOrder.makerTokenAmount - fee));
+        userTakerToken.assertChange(-int256(defaultCrdOrder.takerTokenAmount));
+        userMakerToken.assertChange(int256(defaultCrdOrder.makerTokenAmount - fee));
         contractTakerToken.assertChange(0);
         contractrMakerToken.assertChange(0);
         fcMakerToken.assertChange(int256(fee));
@@ -177,12 +177,12 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     function testFillWithETH() public {
         // read token from constant & defaultOrder to avoid stack too deep error
         Snapshot memory userTakerToken = BalanceSnapshot.take({ owner: user, token: Constant.ETH_ADDRESS });
-        Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultConOrder.makerToken });
+        Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.makerToken });
         Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: Constant.ETH_ADDRESS });
-        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultConOrder.makerToken });
-        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultConOrder.makerToken });
+        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultCrdOrder.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultCrdOrder.makerToken });
 
-        LimitOrder memory order = defaultConOrder;
+        LimitOrder memory order = defaultCrdOrder;
         order.takerToken = Constant.ETH_ADDRESS;
         order.takerTokenAmount = 1 ether;
 
@@ -241,10 +241,10 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         vm.expectRevert(ICoordinatedTaker.ExpiredPermission.selector);
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill({
-            order: defaultConOrder,
+            order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
-            takerTokenAmount: defaultConOrder.takerTokenAmount,
-            makerTokenAmount: defaultConOrder.makerTokenAmount,
+            takerTokenAmount: defaultCrdOrder.takerTokenAmount,
+            makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
             userTokenPermit: defaultPermit,
             crdParams: defaultCRDParams
@@ -261,10 +261,10 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         vm.expectRevert(ICoordinatedTaker.InvalidSignature.selector);
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill({
-            order: defaultConOrder,
+            order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
-            takerTokenAmount: defaultConOrder.takerTokenAmount,
-            makerTokenAmount: defaultConOrder.makerTokenAmount,
+            takerTokenAmount: defaultCrdOrder.takerTokenAmount,
+            makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
             userTokenPermit: defaultPermit,
             crdParams: crdParams
@@ -274,10 +274,10 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     function testCannotFillWithReplayedPermission() public {
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill({
-            order: defaultConOrder,
+            order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
-            takerTokenAmount: defaultConOrder.takerTokenAmount,
-            makerTokenAmount: defaultConOrder.makerTokenAmount,
+            takerTokenAmount: defaultCrdOrder.takerTokenAmount,
+            makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
             userTokenPermit: defaultPermit,
             crdParams: defaultCRDParams
@@ -286,10 +286,10 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         vm.expectRevert(ICoordinatedTaker.ReusedPermission.selector);
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill({
-            order: defaultConOrder,
+            order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
-            takerTokenAmount: defaultConOrder.takerTokenAmount,
-            makerTokenAmount: defaultConOrder.makerTokenAmount,
+            takerTokenAmount: defaultCrdOrder.takerTokenAmount,
+            makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
             userTokenPermit: defaultPermit,
             crdParams: defaultCRDParams
@@ -300,10 +300,10 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         vm.expectRevert(ICoordinatedTaker.InvalidMsgValue.selector);
         vm.prank(user, user);
         conditionalTaker.submitLimitOrderFill{ value: 1 ether }({
-            order: defaultConOrder,
+            order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
-            takerTokenAmount: defaultConOrder.takerTokenAmount,
-            makerTokenAmount: defaultConOrder.makerTokenAmount,
+            takerTokenAmount: defaultCrdOrder.takerTokenAmount,
+            makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
             userTokenPermit: defaultPermit,
             crdParams: defaultCRDParams
