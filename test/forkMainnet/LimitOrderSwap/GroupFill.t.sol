@@ -215,7 +215,7 @@ contract GroupFillTest is LimitOrderSwapTest {
         // scenario
         // maker tokens (input): 5 WETH, 8000 USDT
         // taker tokens (output): 1 ETH, 3 WETH, 8000 USDT
-        // should unwrap 4 ether and leave 1 WETH
+        // should unwrap 2 ether and leave 3 WETH
         // profit for arbitrageur: 1 ETH
 
         // order0 5 WETH -> 8000 USDT
