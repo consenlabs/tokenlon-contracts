@@ -19,7 +19,6 @@ contract UniAgentTest is Test, Tokens, BalanceUtil {
     address user = vm.addr(userPrivateKey);
     address uniAgentOwner = makeAddr("uniAgentOwner");
     address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
-    address payable feeCollector = payable(makeAddr("feeCollector"));
     address payable recipient = payable(makeAddr("recipient"));
     uint256 defaultExpiry = block.timestamp + 1;
     uint256 defaultInputAmount = 10 * 1e6;
@@ -38,7 +37,7 @@ contract UniAgentTest is Test, Tokens, BalanceUtil {
         trusted[0] = computeContractAddress(address(this), uint8(vm.getNonce(address(this)) + 1));
         allowanceTarget = new AllowanceTarget(allowanceTargetOwner, trusted);
 
-        uniAgent = new UniAgent(uniAgentOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS), feeCollector);
+        uniAgent = new UniAgent(uniAgentOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS));
         uniAgent.approveTokensToRouters(defaultPath);
 
         deal(user, 100 ether);

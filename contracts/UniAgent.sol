@@ -10,9 +10,8 @@ import { IWETH } from "./interfaces/IWETH.sol";
 import { IUniAgent } from "./interfaces/IUniAgent.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { Constant } from "./libraries/Constant.sol";
-import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
-contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
+contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
     using Asset for address;
 
     address private constant v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -20,43 +19,17 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
     address payable private constant universalRouter = payable(0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B);
 
     IWETH public immutable weth;
-    address payable public feeCollector;
-
-    mapping(bytes32 => bool) private filledOrder;
-
-    /// @notice Emitted when fee collector address is updated
-    /// @param newFeeCollector The address of the new fee collector
-    event SetFeeCollector(address newFeeCollector);
 
     constructor(
         address _owner,
         address _uniswapPermit2,
         address _allowanceTarget,
-        IWETH _weth,
-        address payable _feeCollector
+        IWETH _weth
     ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
         weth = _weth;
-        feeCollector = _feeCollector;
     }
 
     receive() external payable {}
-
-    function setFeeCollector(address payable _newFeeCollector) external onlyOwner {
-        if (_newFeeCollector == address(0)) revert ZeroAddress();
-        feeCollector = _newFeeCollector;
-
-        emit SetFeeCollector(_newFeeCollector);
-    }
-
-    function approveTokensToRouters(address[] calldata tokens) external {
-        for (uint256 i = 0; i < tokens.length; ++i) {
-            // use low level call to avoid return size check
-            // ignore return value and proceed anyway since three calls are independent
-            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v2Router, Constant.MAX_UINT));
-            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v3Router, Constant.MAX_UINT));
-            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, universalRouter, Constant.MAX_UINT));
-        }
-    }
 
     function withdrawTokens(address[] calldata tokens, address recipient) external onlyOwner {
         for (uint256 i = 0; i < tokens.length; ++i) {
@@ -67,6 +40,16 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
         }
     }
 
+    function approveTokensToRouters(address[] calldata tokens) external {
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            // use low level call to avoid return size check
+            // ignore return value and proceed anyway since three calls are independent
+            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v2Router, Constant.MAX_UINT));
+            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v3Router, Constant.MAX_UINT));
+        }
+    }
+
+    /// @inheritdoc IUniAgent
     function approveAndSwap(
         RouterType routerType,
         address inputToken,
@@ -77,6 +60,7 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
         _swap(routerType, true, inputToken, inputAmount, payload, userPermit);
     }
 
+    /// @inheritdoc IUniAgent
     function swap(
         RouterType routerType,
         address inputToken,
@@ -135,8 +119,9 @@ contract UniAgent is Ownable, IUniAgent, TokenCollector, EIP712 {
             return v3Router;
         } else if (routerType == RouterType.UniversalRouter) {
             return universalRouter;
-        } else {
-            revert UnknownRouterType();
         }
+
+        // won't be reached
+        revert();
     }
 }
