@@ -19,7 +19,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
     event SetCoordinator(address newCoordinator);
 
-    address conditionalTakerOwner = makeAddr("conditionalTakerOwner");
+    address crdTakerOwner = makeAddr("crdTakerOwner");
     address user = makeAddr("user");
 
     address[] tokenList = [USDC_ADDRESS, USDT_ADDRESS, DAI_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
@@ -35,7 +35,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     function setUp() public override {
         super.setUp();
         conditionalTaker = new CoordinatedTaker(
-            conditionalTakerOwner,
+            crdTakerOwner,
             UNISWAP_PERMIT2_ADDRESS,
             address(allowanceTarget),
             IWETH(WETH_ADDRESS),
@@ -45,7 +45,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         // setup conditionalTaker approval
         address[] memory targetList = new address[](1);
         targetList[0] = address(limitOrderSwap);
-        vm.prank(conditionalTakerOwner);
+        vm.prank(crdTakerOwner);
         conditionalTaker.approveTokens(tokenList, targetList);
 
         deal(user, 100 ether);
@@ -79,14 +79,14 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     }
 
     function testCannotSetCoordinatorToZero() public {
-        vm.prank(conditionalTakerOwner, conditionalTakerOwner);
+        vm.prank(crdTakerOwner, crdTakerOwner);
         vm.expectRevert(ICoordinatedTaker.ZeroAddress.selector);
         conditionalTaker.setCoordinator(payable(address(0)));
     }
 
     function testSetCoordinator() public {
         address newCoordinator = makeAddr("newCoordinator");
-        vm.prank(conditionalTakerOwner, conditionalTakerOwner);
+        vm.prank(crdTakerOwner, crdTakerOwner);
         conditionalTaker.setCoordinator(payable(newCoordinator));
         emit SetCoordinator(newCoordinator);
         assertEq(conditionalTaker.coordinator(), newCoordinator);
@@ -107,7 +107,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         targetList[0] = target;
 
         assertEq(mockERC20.allowance(address(conditionalTaker), target), 0);
-        vm.prank(conditionalTakerOwner);
+        vm.prank(crdTakerOwner);
         conditionalTaker.approveTokens(newTokens, targetList);
         assertEq(mockERC20.allowance(address(conditionalTaker), target), Constant.MAX_UINT);
     }
@@ -128,7 +128,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         address withdrawTarget = makeAddr("withdrawTarget");
         Snapshot memory recipientBalance = BalanceSnapshot.take(withdrawTarget, address(mockERC20));
 
-        vm.prank(conditionalTakerOwner);
+        vm.prank(crdTakerOwner);
         conditionalTaker.withdrawTokens(withdrawList, withdrawTarget);
 
         recipientBalance.assertChange(int256(amount));
