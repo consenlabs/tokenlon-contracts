@@ -136,8 +136,10 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         (uint256 userTokenAmount, uint256 remainingUserTokenAmount) = _quoteOrderFromUserToken(_order, orderHash, _params.userTokenAmount);
         // Calculate pionexTokenAmount according to the provided pionexToken/userToken ratio
         uint256 pionexTokenAmount = userTokenAmount.mul(_params.pionexTokenAmount).div(_params.userTokenAmount);
+        // Calculate minimum pionexTokenAmount according to the offer's pionexToken/userToken ratio
+        uint256 minPionexTokenAmount = userTokenAmount.mul(_order.minPionexTokenAmount).div(_order.userTokenAmount);
 
-        uint256 userTokenOut = _settleForTrader(
+        _settleForTrader(
             TraderSettlement({
                 orderHash: orderHash,
                 allowFillHash: allowFillHash,
@@ -148,6 +150,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 pionexToken: _order.pionexToken,
                 userTokenAmount: userTokenAmount,
                 pionexTokenAmount: pionexTokenAmount,
+                minPionexTokenAmount: minPionexTokenAmount,
                 remainingUserTokenAmount: remainingUserTokenAmount,
                 gasFeeFactor: _params.gasFeeFactor,
                 pionexStrategyFeeFactor: _params.pionexStrategyFeeFactor
@@ -156,7 +159,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
 
         _recordUserTokenFilled(orderHash, userTokenAmount);
 
-        return (pionexTokenAmount, userTokenOut);
+        return (pionexTokenAmount, userTokenAmount);
     }
 
     function _validateTraderFill(PionexContractLibEIP712.Fill memory _fill, bytes memory _fillTakerSig) internal {
@@ -209,12 +212,13 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         IERC20 pionexToken;
         uint256 userTokenAmount;
         uint256 pionexTokenAmount;
+        uint256 minPionexTokenAmount;
         uint256 remainingUserTokenAmount;
         uint16 gasFeeFactor;
         uint16 pionexStrategyFeeFactor;
     }
 
-    function _settleForTrader(TraderSettlement memory _settlement) internal returns (uint256) {
+    function _settleForTrader(TraderSettlement memory _settlement) internal {
         // memory cache
         ISpender _spender = spender;
         address _feeCollector = feeCollector;
@@ -225,6 +229,7 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         // 2. Fee for Pionex, including gas fee and strategy fee
         uint256 pionexFee = _mulFactor(_settlement.pionexTokenAmount, _settlement.gasFeeFactor + _settlement.pionexStrategyFeeFactor);
         uint256 pionexTokenForUser = _settlement.pionexTokenAmount.sub(tokenlonFee).sub(pionexFee);
+        require(pionexTokenForUser >= _settlement.minPionexTokenAmount, "PionexContract: pionex token amount not enough");
 
         // trader -> user
         _spender.spendFromUserTo(_settlement.trader, address(_settlement.pionexToken), _settlement.user, pionexTokenForUser);
@@ -254,8 +259,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
                 pionexFee: pionexFee
             })
         );
-
-        return _settlement.userTokenAmount;
     }
 
     /// @inheritdoc IPionexContract

@@ -620,7 +620,56 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload);
     }
 
-    function testFullyFillByTrader() public {
+    function testCannotFullyFillByTraderWithWorseTakerTokenAmountDueToFee() public {
+        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.gasFeeFactor = 50; // gasFeeFactor: 0.5%
+        traderParams.pionexStrategyFeeFactor = 250; // pionexStrategyFeeFactor: 2.5%
+        traderParams.pionexSig = _signFill(pionexPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
+        vm.expectRevert("PionexContract: pionex token amount not enough");
+        vm.prank(pionex, pionex); // Only EOA
+        userProxy.toLimitOrder(payload);
+    }
+
+    function testFullyFillByTraderWithNoFee() public {
+        BalanceSnapshot.Snapshot memory pionexTakerAsset = BalanceSnapshot.take(pionex, address(DEFAULT_ORDER.pionexToken));
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.userToken));
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.pionexToken));
+        BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.userToken));
+        BalanceSnapshot.Snapshot memory fcMakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.userToken));
+        BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.pionexToken));
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
+        vm.expectEmit(true, true, true, true);
+        emit LimitOrderFilledByTrader(
+            DEFAULT_ORDER_HASH,
+            DEFAULT_ORDER.user,
+            pionex,
+            getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
+            DEFAULT_TRADER_PARAMS.recipient,
+            IPionexContract.FillReceipt(
+                address(DEFAULT_ORDER.userToken),
+                address(DEFAULT_ORDER.pionexToken),
+                DEFAULT_ORDER.userTokenAmount,
+                DEFAULT_ORDER.minPionexTokenAmount,
+                0, // remainingUserTokenAmount should be zero after order fully filled
+                0, // tokenlonFee = 0
+                0 // pionexStrategyFee = 0
+            )
+        );
+        vm.prank(pionex, pionex); // Only EOA
+        userProxy.toLimitOrder(payload);
+
+        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.minPionexTokenAmount));
+        receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
+        userTakerAsset.assertChange(int256(DEFAULT_ORDER.minPionexTokenAmount));
+        userMakerAsset.assertChange(-int256(DEFAULT_ORDER.userTokenAmount));
+        fcMakerAsset.assertChange(0);
+        fcTakerAsset.assertChange(0);
+    }
+
+    function testFullyFillByTraderWithAddedTokenlonFee() public {
         BalanceSnapshot.Snapshot memory pionexTakerAsset = BalanceSnapshot.take(pionex, address(DEFAULT_ORDER.pionexToken));
         BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.userToken));
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.pionexToken));
@@ -635,38 +684,102 @@ contract PionexContractTest is StrategySharedSetup {
         pionexContract.activateFactors();
         vm.stopPrank();
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.gasFeeFactor = 50; // gasFeeFactor: 0.5%
-        traderParams.pionexStrategyFeeFactor = 250; // pionexStrategyFeeFactor: 2.5%
-        traderParams.pionexSig = _signFill(pionexPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
+        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        // Increase pionex token amount so the pionexToken/userToken ratio is better than order's pionexToken/userToken ratio
+        // to account for tokenlon fee
+        fill.pionexTokenAmount = DEFAULT_FILL.pionexTokenAmount.mul(115).div(100); // 15% more
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
+        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.pionexTokenAmount = fill.pionexTokenAmount;
+        traderParams.pionexSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+
+        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.fillAmount = traderParams.pionexTokenAmount;
+
+        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectEmit(true, true, true, true);
         emit LimitOrderFilledByTrader(
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             pionex,
-            getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
+            getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
             IPionexContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
                 address(DEFAULT_ORDER.pionexToken),
                 DEFAULT_ORDER.userTokenAmount,
-                DEFAULT_ORDER.minPionexTokenAmount,
+                traderParams.pionexTokenAmount,
                 0, // remainingUserTokenAmount should be zero after order fully filled
-                DEFAULT_ORDER.minPionexTokenAmount.mul(10).div(100), // tokenlonFee = 10% pionexTokenAmount
-                DEFAULT_ORDER.minPionexTokenAmount.mul(3).div(100) // pionexStrategyFee = 0.5% + 2.5% = 3% pionexTokenAmount
+                traderParams.pionexTokenAmount.div(10), // tokenlonFee = 10% pionexTokenAmount
+                0 // pionexStrategyFee = 0
             )
         );
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
 
-        pionexTakerAsset.assertChange(-int256(DEFAULT_ORDER.minPionexTokenAmount.mul(97).div(100))); // 3% fee for Pionex is deducted from pionexTokenAmount directly
+        pionexTakerAsset.assertChange(-int256(traderParams.pionexTokenAmount));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
-        userTakerAsset.assertChange(int256(DEFAULT_ORDER.minPionexTokenAmount.mul(87).div(100))); // 10% fee for Tokenlon and 3% fee for Pionex
+        userTakerAsset.assertChange(int256(traderParams.pionexTokenAmount.mul(9).div(10))); // 10% fee for Tokenlon
         userMakerAsset.assertChange(-int256(DEFAULT_ORDER.userTokenAmount));
         fcMakerAsset.assertChange(0);
-        fcTakerAsset.assertChange(int256(DEFAULT_ORDER.minPionexTokenAmount.mul(10).div(100)));
+        fcTakerAsset.assertChange(int256(traderParams.pionexTokenAmount.div(10)));
+    }
+
+    function testFullyFillByTraderWithAddedGasFeeAndStrategyFee() public {
+        BalanceSnapshot.Snapshot memory pionexTakerAsset = BalanceSnapshot.take(pionex, address(DEFAULT_ORDER.pionexToken));
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take(receiver, address(DEFAULT_ORDER.userToken));
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.pionexToken));
+        BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.userToken));
+        BalanceSnapshot.Snapshot memory fcMakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.userToken));
+        BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.pionexToken));
+
+        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        // Increase pionex token amount so the pionexToken/userToken ratio is better than order's pionexToken/userToken ratio
+        // to account for gas fee and pionex strategy fee
+        fill.pionexTokenAmount = DEFAULT_FILL.pionexTokenAmount.mul(11).div(10); // 10% more
+
+        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.gasFeeFactor = 50; // gasFeeFactor: 0.5%
+        traderParams.pionexStrategyFeeFactor = 250; // pionexStrategyFeeFactor: 2.5%
+        traderParams.pionexTokenAmount = fill.pionexTokenAmount;
+        traderParams.pionexSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+
+        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.fillAmount = traderParams.pionexTokenAmount;
+
+        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
+        vm.expectEmit(true, true, true, true);
+        emit LimitOrderFilledByTrader(
+            DEFAULT_ORDER_HASH,
+            DEFAULT_ORDER.user,
+            pionex,
+            getEIP712Hash(pionexContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(allowFill)),
+            DEFAULT_TRADER_PARAMS.recipient,
+            IPionexContract.FillReceipt(
+                address(DEFAULT_ORDER.userToken),
+                address(DEFAULT_ORDER.pionexToken),
+                DEFAULT_ORDER.userTokenAmount,
+                traderParams.pionexTokenAmount,
+                0, // remainingUserTokenAmount should be zero after order fully filled
+                0, // tokenlonFee = 0
+                traderParams.pionexTokenAmount.mul(3).div(100) // pionexStrategyFee = 0.5% + 2.5% = 3% pionexTokenAmount
+            )
+        );
+        vm.prank(pionex, pionex); // Only EOA
+        userProxy.toLimitOrder(payload);
+
+        pionexTakerAsset.assertChange(-int256(traderParams.pionexTokenAmount.mul(97).div(100))); // 3% fee for Pionex is deducted from pionexTokenAmount directly
+        receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
+        userTakerAsset.assertChange(int256(traderParams.pionexTokenAmount.mul(97).div(100))); // 3% fee for Pionex
+        userMakerAsset.assertChange(-int256(DEFAULT_ORDER.userTokenAmount));
+        fcMakerAsset.assertChange(0);
+        fcTakerAsset.assertChange(0);
     }
 
     function testFullyFillByTraderWithBetterTakerMakerTokenRatio() public {
