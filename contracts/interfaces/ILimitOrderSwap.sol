@@ -16,6 +16,7 @@ interface ILimitOrderSwap {
     error InvalidSignature();
     error InvalidTaker();
     error InvalidTakingAmount();
+    error InvalidParams();
     error NotOrderMaker();
 
     /// @notice Emitted when fee collector address is updated
@@ -58,6 +59,14 @@ interface ILimitOrderSwap {
         LimitOrder calldata order,
         bytes calldata makerSignature,
         TakerParams calldata takerParams
+    ) external payable;
+
+    function fillLimitOrderGroup(
+        LimitOrder[] calldata orders,
+        bytes[] calldata makerSignatures,
+        uint256[] calldata makerTokenAmounts,
+        address[] calldata profitTokens,
+        uint256 unwrapAmount
     ) external payable;
 
     /// @notice Cancel an order
