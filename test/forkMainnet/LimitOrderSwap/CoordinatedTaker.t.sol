@@ -30,11 +30,11 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     LimitOrder defaultCrdOrder;
     AllowFill defaultAllowFill;
     ICoordinatedTaker.CoordinatorParams defaultCRDParams;
-    CoordinatedTaker conditionalTaker;
+    CoordinatedTaker coordinatedTaker;
 
     function setUp() public override {
         super.setUp();
-        conditionalTaker = new CoordinatedTaker(
+        coordinatedTaker = new CoordinatedTaker(
             crdTakerOwner,
             UNISWAP_PERMIT2_ADDRESS,
             address(allowanceTarget),
@@ -42,17 +42,17 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             coordinator,
             ILimitOrderSwap(address(limitOrderSwap))
         );
-        // setup conditionalTaker approval
+        // setup coordinatedTaker approval
         address[] memory targetList = new address[](1);
         targetList[0] = address(limitOrderSwap);
         vm.prank(crdTakerOwner);
-        conditionalTaker.approveTokens(tokenList, targetList);
+        coordinatedTaker.approveTokens(tokenList, targetList);
 
         deal(user, 100 ether);
-        setTokenBalanceAndApprove(user, address(conditionalTaker), tokens, 100000);
+        setTokenBalanceAndApprove(user, address(coordinatedTaker), tokens, 100000);
 
         defaultCrdOrder = defaultOrder;
-        defaultCrdOrder.taker = address(conditionalTaker);
+        defaultCrdOrder.taker = address(coordinatedTaker);
 
         defaultMakerSig = _signLimitOrder(makerPrivateKey, defaultCrdOrder);
 
@@ -75,26 +75,26 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         address newCoordinator = makeAddr("newCoordinator");
         vm.prank(newCoordinator);
         vm.expectRevert("not owner");
-        conditionalTaker.setCoordinator(payable(newCoordinator));
+        coordinatedTaker.setCoordinator(payable(newCoordinator));
     }
 
     function testCannotSetCoordinatorToZero() public {
         vm.prank(crdTakerOwner, crdTakerOwner);
         vm.expectRevert(ICoordinatedTaker.ZeroAddress.selector);
-        conditionalTaker.setCoordinator(payable(address(0)));
+        coordinatedTaker.setCoordinator(payable(address(0)));
     }
 
     function testSetCoordinator() public {
         address newCoordinator = makeAddr("newCoordinator");
         vm.prank(crdTakerOwner, crdTakerOwner);
-        conditionalTaker.setCoordinator(payable(newCoordinator));
+        coordinatedTaker.setCoordinator(payable(newCoordinator));
         emit SetCoordinator(newCoordinator);
-        assertEq(conditionalTaker.coordinator(), newCoordinator);
+        assertEq(coordinatedTaker.coordinator(), newCoordinator);
     }
 
     function testCannotApproveTokensByNotOwner() public {
         vm.expectRevert("not owner");
-        conditionalTaker.approveTokens(tokenList, ammList);
+        coordinatedTaker.approveTokens(tokenList, ammList);
     }
 
     function testApproveTokens() public {
@@ -106,21 +106,21 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         address[] memory targetList = new address[](1);
         targetList[0] = target;
 
-        assertEq(mockERC20.allowance(address(conditionalTaker), target), 0);
+        assertEq(mockERC20.allowance(address(coordinatedTaker), target), 0);
         vm.prank(crdTakerOwner);
-        conditionalTaker.approveTokens(newTokens, targetList);
-        assertEq(mockERC20.allowance(address(conditionalTaker), target), Constant.MAX_UINT);
+        coordinatedTaker.approveTokens(newTokens, targetList);
+        assertEq(mockERC20.allowance(address(coordinatedTaker), target), Constant.MAX_UINT);
     }
 
     function testCannotWithdrawTokensByNotOwner() public {
         vm.expectRevert("not owner");
-        conditionalTaker.withdrawTokens(tokenList, address(this));
+        coordinatedTaker.withdrawTokens(tokenList, address(this));
     }
 
     function testWithdrawTokens() public {
         uint256 amount = 5678;
         MockERC20 mockERC20 = new MockERC20("Mock Token", "MKT", 18);
-        mockERC20.mint(address(conditionalTaker), amount);
+        mockERC20.mint(address(coordinatedTaker), amount);
 
         address[] memory withdrawList = new address[](1);
         withdrawList[0] = address(mockERC20);
@@ -129,7 +129,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         Snapshot memory recipientBalance = BalanceSnapshot.take(withdrawTarget, address(mockERC20));
 
         vm.prank(crdTakerOwner);
-        conditionalTaker.withdrawTokens(withdrawList, withdrawTarget);
+        coordinatedTaker.withdrawTokens(withdrawList, withdrawTarget);
 
         recipientBalance.assertChange(int256(amount));
     }
@@ -137,8 +137,8 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     function testFillWithPermission() public {
         Snapshot memory userTakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.takerToken });
         Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.makerToken });
-        Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultCrdOrder.takerToken });
-        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultCrdOrder.makerToken });
+        Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(coordinatedTaker), token: defaultCrdOrder.takerToken });
+        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(coordinatedTaker), token: defaultCrdOrder.makerToken });
         Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultCrdOrder.makerToken });
 
         uint256 fee = (defaultCrdOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
@@ -146,7 +146,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         vm.expectEmit(true, true, true, true);
         emit LimitOrderFilled(
             getLimitOrderHash(defaultCrdOrder),
-            address(conditionalTaker), // taker
+            address(coordinatedTaker), // taker
             defaultCrdOrder.maker,
             defaultCrdOrder.takerToken,
             defaultCrdOrder.takerTokenAmount,
@@ -157,7 +157,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         );
 
         vm.prank(user, user);
-        conditionalTaker.submitLimitOrderFill({
+        coordinatedTaker.submitLimitOrderFill({
             order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
@@ -178,8 +178,8 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         // read token from constant & defaultOrder to avoid stack too deep error
         Snapshot memory userTakerToken = BalanceSnapshot.take({ owner: user, token: Constant.ETH_ADDRESS });
         Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.makerToken });
-        Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: Constant.ETH_ADDRESS });
-        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(conditionalTaker), token: defaultCrdOrder.makerToken });
+        Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(coordinatedTaker), token: Constant.ETH_ADDRESS });
+        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(coordinatedTaker), token: defaultCrdOrder.makerToken });
         Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultCrdOrder.makerToken });
 
         LimitOrder memory order = defaultCrdOrder;
@@ -207,7 +207,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         vm.expectEmit(true, true, true, true);
         emit LimitOrderFilled(
             getLimitOrderHash(order),
-            address(conditionalTaker), // taker
+            address(coordinatedTaker), // taker
             order.maker,
             order.takerToken,
             order.takerTokenAmount,
@@ -218,7 +218,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         );
 
         vm.prank(user, user);
-        conditionalTaker.submitLimitOrderFill{ value: order.takerTokenAmount }({
+        coordinatedTaker.submitLimitOrderFill{ value: order.takerTokenAmount }({
             order: order,
             makerSignature: makerSig,
             takerTokenAmount: order.takerTokenAmount,
@@ -240,7 +240,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
         vm.expectRevert(ICoordinatedTaker.ExpiredPermission.selector);
         vm.prank(user, user);
-        conditionalTaker.submitLimitOrderFill({
+        coordinatedTaker.submitLimitOrderFill({
             order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
@@ -260,7 +260,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
         vm.expectRevert(ICoordinatedTaker.InvalidSignature.selector);
         vm.prank(user, user);
-        conditionalTaker.submitLimitOrderFill({
+        coordinatedTaker.submitLimitOrderFill({
             order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
@@ -273,7 +273,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
     function testCannotFillWithReplayedPermission() public {
         vm.prank(user, user);
-        conditionalTaker.submitLimitOrderFill({
+        coordinatedTaker.submitLimitOrderFill({
             order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
@@ -285,7 +285,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
         vm.expectRevert(ICoordinatedTaker.ReusedPermission.selector);
         vm.prank(user, user);
-        conditionalTaker.submitLimitOrderFill({
+        coordinatedTaker.submitLimitOrderFill({
             order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
@@ -299,7 +299,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     function testCannotFillWithInvalidMsgValue() public {
         vm.expectRevert(ICoordinatedTaker.InvalidMsgValue.selector);
         vm.prank(user, user);
-        conditionalTaker.submitLimitOrderFill{ value: 1 ether }({
+        coordinatedTaker.submitLimitOrderFill{ value: 1 ether }({
             order: defaultCrdOrder,
             makerSignature: defaultMakerSig,
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
@@ -312,7 +312,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
     function _signAllowFill(uint256 _privateKey, AllowFill memory _allowFill) internal view returns (bytes memory sig) {
         bytes32 allowFillHash = getAllowFillHash(_allowFill);
-        bytes32 EIP712SignDigest = getEIP712Hash(conditionalTaker.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(coordinatedTaker.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
