@@ -120,10 +120,7 @@ contract TestTokenCollector is Addresses {
         bytes32 r,
         bytes32 s
     ) private pure returns (bytes memory) {
-        return
-            bytes.concat(
-                abi.encodePacked(TokenCollector.Source.TokenPermit, abi.encode(permit.owner, permit.spender, permit.amount, permit.deadline, v, r, s))
-            );
+        return abi.encodePacked(TokenCollector.Source.TokenPermit, abi.encode(permit.owner, permit.spender, permit.amount, permit.deadline, v, r, s));
     }
 
     function testCannotCollectByTokenPermitWhenPermitSigIsInvalid() public {
@@ -235,10 +232,7 @@ contract TestTokenCollector is Addresses {
     }
 
     function encodePermit2Data(IUniswapPermit2.PermitSingle memory permit, bytes memory permitSig) private pure returns (bytes memory) {
-        return
-            bytes.concat(
-                abi.encodePacked(TokenCollector.Source.Permit2AllowanceTransfer, abi.encode(permit.details.nonce, permit.details.expiration, permitSig))
-            );
+        return abi.encodePacked(TokenCollector.Source.Permit2AllowanceTransfer, abi.encode(permit.details.nonce, permit.details.expiration, permitSig));
     }
 
     function testCannotCollectByPermit2AllowanceTransferWhenPermitSigIsInvalid() public {
@@ -357,7 +351,7 @@ contract TestTokenCollector is Addresses {
     }
 
     function encodePermit2Data(IUniswapPermit2.PermitTransferFrom memory permit, bytes memory permitSig) private pure returns (bytes memory) {
-        return bytes.concat(abi.encodePacked(TokenCollector.Source.Permit2SignatureTransfer, abi.encode(permit.nonce, permit.deadline, permitSig)));
+        return abi.encodePacked(TokenCollector.Source.Permit2SignatureTransfer, abi.encode(permit.nonce, permit.deadline, permitSig));
     }
 
     function testCannotCollectByPermit2SignatureTransferWhenSpenderIsInvalid() public {
