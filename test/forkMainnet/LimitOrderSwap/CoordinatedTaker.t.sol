@@ -138,7 +138,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         Snapshot memory userTakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.takerToken });
         Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.makerToken });
         Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(coordinatedTaker), token: defaultCrdOrder.takerToken });
-        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(coordinatedTaker), token: defaultCrdOrder.makerToken });
+        Snapshot memory contractMakerToken = BalanceSnapshot.take({ owner: address(coordinatedTaker), token: defaultCrdOrder.makerToken });
         Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultCrdOrder.makerToken });
 
         uint256 fee = (defaultCrdOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
@@ -170,7 +170,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         userTakerToken.assertChange(-int256(defaultCrdOrder.takerTokenAmount));
         userMakerToken.assertChange(int256(defaultCrdOrder.makerTokenAmount - fee));
         contractTakerToken.assertChange(0);
-        contractrMakerToken.assertChange(0);
+        contractMakerToken.assertChange(0);
         fcMakerToken.assertChange(int256(fee));
     }
 
@@ -179,7 +179,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         Snapshot memory userTakerToken = BalanceSnapshot.take({ owner: user, token: Constant.ETH_ADDRESS });
         Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.makerToken });
         Snapshot memory contractTakerToken = BalanceSnapshot.take({ owner: address(coordinatedTaker), token: Constant.ETH_ADDRESS });
-        Snapshot memory contractrMakerToken = BalanceSnapshot.take({ owner: address(coordinatedTaker), token: defaultCrdOrder.makerToken });
+        Snapshot memory contractMakerToken = BalanceSnapshot.take({ owner: address(coordinatedTaker), token: defaultCrdOrder.makerToken });
         Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultCrdOrder.makerToken });
 
         LimitOrder memory order = defaultCrdOrder;
@@ -231,7 +231,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         userTakerToken.assertChange(-int256(order.takerTokenAmount));
         userMakerToken.assertChange(int256(order.makerTokenAmount - fee));
         contractTakerToken.assertChange(0);
-        contractrMakerToken.assertChange(0);
+        contractMakerToken.assertChange(0);
         fcMakerToken.assertChange(int256(fee));
     }
 
