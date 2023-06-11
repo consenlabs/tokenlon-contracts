@@ -19,6 +19,7 @@ contract AllowanceTargetTest is BalanceUtil {
     address user = makeAddr("user");
     address recipient = makeAddr("recipient");
     address authorized = makeAddr("authorized");
+    address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
     address[] trusted = [authorized];
 
     AllowanceTarget allowanceTarget;
@@ -31,7 +32,7 @@ contract AllowanceTargetTest is BalanceUtil {
     // effectively a "beforeEach" block
     function setUp() public {
         // Deploy
-        allowanceTarget = new AllowanceTarget(trusted);
+        allowanceTarget = new AllowanceTarget(allowanceTargetOwner, trusted);
 
         // Set user's mock tokens balance and approve
         setTokenBalanceAndApprove(user, address(allowanceTarget), tokens, 100);
@@ -64,6 +65,27 @@ contract AllowanceTargetTest is BalanceUtil {
         vm.expectRevert("SafeERC20: ERC20 operation did not succeed");
         vm.prank(authorized);
         allowanceTarget.spendFromUserTo(user, address(noRevertERC20), recipient, userBalance + 1);
+    }
+
+    function testCannotPauseIfNotOwner() public {
+        vm.expectRevert("not owner");
+        allowanceTarget.pause();
+    }
+
+    function testCannotUnpauseIfNotOwner() public {
+        vm.prank(allowanceTargetOwner, allowanceTargetOwner);
+        allowanceTarget.pause();
+
+        vm.expectRevert("not owner");
+        allowanceTarget.unpause();
+    }
+
+    function testCannotSpendIfPaused() public {
+        vm.prank(allowanceTargetOwner, allowanceTargetOwner);
+        allowanceTarget.pause();
+
+        vm.expectRevert("Pausable: paused");
+        allowanceTarget.spendFromUserTo(user, address(mockERC20), recipient, 1234);
     }
 
     function testSpendFromUserTo() public {

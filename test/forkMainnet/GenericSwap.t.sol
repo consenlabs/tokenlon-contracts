@@ -32,6 +32,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
     );
 
     address strategyAdmin = makeAddr("strategyAdmin");
+    address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
     uint256 takerPrivateKey = uint256(1);
     address taker = vm.addr(takerPrivateKey);
     uint256 defaultExpiry = block.timestamp + 1;
@@ -48,7 +49,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         // pre-compute GenericSwap address since the whitelist of allowance target is immutable
         // NOTE: this assumes GenericSwap is deployed right next to Allowance Target
         trusted[0] = computeContractAddress(address(this), uint8(vm.getNonce(address(this)) + 1));
-        allowanceTarget = new AllowanceTarget(trusted);
+        allowanceTarget = new AllowanceTarget(allowanceTargetOwner, trusted);
 
         genericSwap = new GenericSwap(UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget));
         uniswapStrategy = new UniswapStrategy(strategyAdmin, address(genericSwap), UNISWAP_V2_ADDRESS);

@@ -25,6 +25,7 @@ contract TestTokenCollector is Addresses {
     uint256 otherPrivateKey = uint256(123);
     uint256 userPrivateKey = uint256(1);
     address user = vm.addr(userPrivateKey);
+    address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
 
     MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
     IUniswapPermit2 permit2 = IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS);
@@ -32,7 +33,7 @@ contract TestTokenCollector is Addresses {
     // pre-compute Strategy address since the whitelist of allowance target is immutable
     // NOTE: this assumes Strategy is deployed right next to Allowance Target
     address[] trusted = [computeContractAddress(address(this), uint8(vm.getNonce(address(this)) + 1))];
-    AllowanceTarget allowanceTarget = new AllowanceTarget(trusted);
+    AllowanceTarget allowanceTarget = new AllowanceTarget(allowanceTargetOwner, trusted);
 
     Strategy strategy = new Strategy(address(permit2), address(allowanceTarget));
 

@@ -29,6 +29,7 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil {
     );
 
     address limitOrderOwner = makeAddr("limitOrderOwner");
+    address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
     uint256 makerPrivateKey = uint256(1);
     address payable maker = payable(vm.addr(makerPrivateKey));
     address taker = makeAddr("taker");
@@ -52,7 +53,7 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil {
         // pre-compute LimitOrderSwap address since the whitelist of allowance target is immutable
         // NOTE: this assumes LimitOrderSwap is deployed right next to Allowance Target
         trusted[0] = computeContractAddress(address(this), uint8(vm.getNonce(address(this)) + 1));
-        allowanceTarget = new AllowanceTarget(trusted);
+        allowanceTarget = new AllowanceTarget(allowanceTargetOwner, trusted);
 
         limitOrderSwap = new LimitOrderSwap(limitOrderOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS), feeCollector);
         mockLimitOrderTaker = new MockLimitOrderTaker(walletOwner, UNISWAP_V2_ADDRESS);
