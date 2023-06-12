@@ -75,13 +75,13 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         LimitOrder[] calldata orders,
         bytes[] calldata makerSignatures,
         uint256[] calldata makerTokenAmounts,
-        address[] calldata profitTokens,
-        uint256 unwrapAmount
+        address[] calldata profitTokens
     ) external payable override {
         if (orders.length != makerSignatures.length || orders.length != makerTokenAmounts.length) revert InvalidParams();
 
         // validate orders and calculate takingAmounts
         uint256[] memory takerTokenAmounts = new uint256[](orders.length);
+        uint256 wethToPay;
         for (uint256 i = 0; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
             uint256 makingAmount = makerTokenAmounts[i];
@@ -93,6 +93,10 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
                 takerTokenAmounts[i] = ((makingAmount * order.takerTokenAmount) / order.makerTokenAmount);
 
                 if (makingAmount == 0 && takerTokenAmounts[i] == 0) revert ZeroTokenAmount();
+
+                if (order.takerToken == address(weth)) {
+                    wethToPay += takerTokenAmounts[i];
+                }
 
                 // record fill amount
                 orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makingAmount;
@@ -108,9 +112,10 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
             _emitLimitOrderFilled(order, orderHash, takerTokenAmounts[i], makingAmount - fee, fee, address(this));
         }
 
-        // unwrap WETH if trader specified
-        if (unwrapAmount > 0) {
-            weth.withdraw(unwrapAmount);
+        // unwrap extra WETH in order to pay for ETH taker token and profit
+        uint256 wethBalance = weth.balanceOf(address(this));
+        if (wethBalance > wethToPay) {
+            weth.withdraw(wethBalance - wethToPay);
         }
 
         for (uint256 i = 0; i < orders.length; ++i) {

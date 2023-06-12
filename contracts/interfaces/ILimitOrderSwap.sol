@@ -65,8 +65,7 @@ interface ILimitOrderSwap {
         LimitOrder[] calldata orders,
         bytes[] calldata makerSignatures,
         uint256[] calldata makerTokenAmounts,
-        address[] calldata profitTokens,
-        uint256 unwrapAmount
+        address[] calldata profitTokens
     ) external payable;
 
     /// @notice Cancel an order
