@@ -106,12 +106,6 @@ contract PionexContract is IPionexContract, StrategyBase, BaseLibEIP712, Signatu
         bytes32 allowFillHash = _validateFillPermission(orderHash, _params.pionexTokenAmount, _params.pionex, _crdParams);
         _validateOrderTaker(_order, _params.pionex);
 
-        // Check provided pionexToken/userToken ratio is better than or equal to user's specfied pionexToken/userToken ratio
-        // -> _params.pionexTokenAmount/_params.userTokenAmount >= _order.pionexTokenAmount/_order.userTokenAmount
-        require(
-            _params.pionexTokenAmount.mul(_order.userTokenAmount) >= _order.minPionexTokenAmount.mul(_params.userTokenAmount),
-            "PionexContract: pionex/user token ratio not good enough"
-        );
         // Check gas fee factor and pionex strategy fee factor do not exceed limit
         require(
             (_params.gasFeeFactor <= LibConstant.BPS_MAX) &&

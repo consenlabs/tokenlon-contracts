@@ -615,7 +615,7 @@ contract PionexContractTest is StrategySharedSetup {
         traderParams.pionexSig = _signFill(pionexPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("PionexContract: pionex/user token ratio not good enough");
+        vm.expectRevert("PionexContract: pionex token amount not enough");
         vm.prank(pionex, pionex); // Only EOA
         userProxy.toLimitOrder(payload);
     }
