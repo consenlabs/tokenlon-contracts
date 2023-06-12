@@ -6,10 +6,10 @@ import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
-import "contracts/PionexContract.sol";
-import "contracts/interfaces/IPionexContract.sol";
+import "contracts/SignalBuyContract.sol";
+import "contracts/interfaces/ISignalBuyContract.sol";
 import "contracts/utils/SignatureValidator.sol";
-import "contracts/utils/PionexContractLibEIP712.sol";
+import "contracts/utils/SignalBuyContractLibEIP712.sol";
 import "contracts/utils/LibConstant.sol";
 
 import "test/mocks/MockERC1271Wallet.sol";
@@ -17,7 +17,7 @@ import "test/utils/BalanceSnapshot.sol";
 import "test/utils/StrategySharedSetup.sol";
 import { computeMainnetEIP712DomainSeparator, getEIP712Hash } from "test/utils/Sig.sol";
 
-contract PionexContractTest is StrategySharedSetup {
+contract SignalBuyContractTest is StrategySharedSetup {
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
@@ -27,7 +27,7 @@ contract PionexContractTest is StrategySharedSetup {
         address indexed dealer,
         bytes32 allowFillHash,
         address recipient,
-        IPionexContract.FillReceipt fillReceipt
+        ISignalBuyContract.FillReceipt fillReceipt
     );
 
     uint256 dealerPrivateKey = uint256(1);
@@ -45,17 +45,17 @@ contract PionexContractTest is StrategySharedSetup {
     address[] allowanceAddrs;
 
     address[] DEFAULT_AMM_PATH;
-    PionexContractLibEIP712.Order DEFAULT_ORDER;
+    SignalBuyContractLibEIP712.Order DEFAULT_ORDER;
     bytes32 DEFAULT_ORDER_HASH;
     bytes DEFAULT_ORDER_MAKER_SIG;
-    PionexContractLibEIP712.Fill DEFAULT_FILL;
-    PionexContractLibEIP712.AllowFill DEFAULT_ALLOW_FILL;
+    SignalBuyContractLibEIP712.Fill DEFAULT_FILL;
+    SignalBuyContractLibEIP712.AllowFill DEFAULT_ALLOW_FILL;
     uint16 DEFAULT_GAS_FEE_FACTOR = 0;
     uint16 DEFAULT_PIONEX_STRATEGY_FEE_FACTOR = 0;
-    IPionexContract.TraderParams DEFAULT_TRADER_PARAMS;
-    IPionexContract.CoordinatorParams DEFAULT_CRD_PARAMS;
+    ISignalBuyContract.TraderParams DEFAULT_TRADER_PARAMS;
+    ISignalBuyContract.CoordinatorParams DEFAULT_CRD_PARAMS;
 
-    PionexContract dealerContract;
+    SignalBuyContract dealerContract;
     uint64 DEADLINE = uint64(block.timestamp + 2 days);
     uint256 FACTORSDEALY = 12 hours;
 
@@ -68,7 +68,7 @@ contract PionexContractTest is StrategySharedSetup {
         allowanceAddrs = DEFAULT_AMM_PATH;
 
         // Default params
-        DEFAULT_ORDER = PionexContractLibEIP712.Order(
+        DEFAULT_ORDER = SignalBuyContractLibEIP712.Order(
             dai, // userToken
             usdt, // dealerToken
             100 * 1e18, // userTokenAmount
@@ -78,9 +78,9 @@ contract PionexContractTest is StrategySharedSetup {
             uint256(1001), // salt
             DEADLINE // expiry
         );
-        DEFAULT_ORDER_HASH = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(DEFAULT_ORDER));
+        DEFAULT_ORDER_HASH = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(DEFAULT_ORDER));
         DEFAULT_ORDER_MAKER_SIG = _signOrder(userPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
-        DEFAULT_FILL = PionexContractLibEIP712.Fill(
+        DEFAULT_FILL = SignalBuyContractLibEIP712.Fill(
             DEFAULT_ORDER_HASH,
             dealer,
             receiver,
@@ -89,7 +89,7 @@ contract PionexContractTest is StrategySharedSetup {
             uint256(1002),
             DEADLINE
         );
-        DEFAULT_TRADER_PARAMS = IPionexContract.TraderParams(
+        DEFAULT_TRADER_PARAMS = ISignalBuyContract.TraderParams(
             dealer, // dealer
             receiver, // recipient
             DEFAULT_FILL.userTokenAmount, // userTokenAmount
@@ -100,14 +100,14 @@ contract PionexContractTest is StrategySharedSetup {
             DEADLINE, // expiry
             _signFill(dealerPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712) // dealerSig
         );
-        DEFAULT_ALLOW_FILL = PionexContractLibEIP712.AllowFill(
+        DEFAULT_ALLOW_FILL = SignalBuyContractLibEIP712.AllowFill(
             DEFAULT_ORDER_HASH, // orderHash
             dealer, // executor
             DEFAULT_FILL.dealerTokenAmount, // fillAmount
             uint256(1003), // salt
             DEADLINE // expiry
         );
-        DEFAULT_CRD_PARAMS = IPionexContract.CoordinatorParams(
+        DEFAULT_CRD_PARAMS = ISignalBuyContract.CoordinatorParams(
             _signAllowFill(coordinatorPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712),
             DEFAULT_ALLOW_FILL.salt,
             DEFAULT_ALLOW_FILL.expiry
@@ -122,7 +122,7 @@ contract PionexContractTest is StrategySharedSetup {
         setEOABalanceAndApprove(address(mockERC1271Wallet), tokens, 10000);
 
         // Label addresses for easier debugging
-        vm.label(dealer, "Pionex");
+        vm.label(dealer, "SignalBuy");
         vm.label(user, "User");
         vm.label(coordinator, "Coordinator");
         vm.label(receiver, "Receiver");
@@ -133,7 +133,7 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
-        dealerContract = new PionexContract(
+        dealerContract = new SignalBuyContract(
             owner,
             address(userProxy),
             address(weth),
@@ -154,7 +154,7 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function _setupDeployedStrategy() internal override {
-        dealerContract = PionexContract(payable(vm.envAddress("LIMITORDER_ADDRESS")));
+        dealerContract = SignalBuyContract(payable(vm.envAddress("LIMITORDER_ADDRESS")));
 
         // prank owner and update coordinator address
         owner = dealerContract.owner();
@@ -236,7 +236,7 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function testCannotUpgradeCoordinatorToZeroAddr() public {
-        vm.expectRevert("PionexContract: coordinator can not be zero address");
+        vm.expectRevert("SignalBuyContract: coordinator can not be zero address");
         vm.prank(owner, owner);
         dealerContract.upgradeCoordinator(address(0));
     }
@@ -301,7 +301,7 @@ contract PionexContractTest is StrategySharedSetup {
      *********************************/
 
     function testCannotSetFactorsIfLargerThanBpsMax() public {
-        vm.expectRevert("PionexContract: Invalid user fee factor");
+        vm.expectRevert("SignalBuyContract: Invalid user fee factor");
         vm.prank(owner, owner);
         dealerContract.setFactors(LibConstant.BPS_MAX + 1);
     }
@@ -330,7 +330,7 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function testCannotSetFeeCollectorToZeroAddr() public {
-        vm.expectRevert("PionexContract: fee collector can not be zero address");
+        vm.expectRevert("SignalBuyContract: fee collector can not be zero address");
         vm.prank(owner, owner);
         dealerContract.setFeeCollector(address(0));
     }
@@ -358,47 +358,47 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload1);
 
         // Try to fill the default order, should fail
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.dealerSalt = uint256(8001);
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
         traderParams.salt = fill.dealerSalt;
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.salt = uint256(8002);
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
         crdParams.salt = allowFill.salt;
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        vm.expectRevert("PionexContract: Order is filled");
+        vm.expectRevert("SignalBuyContract: Order is filled");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload2);
     }
 
     function testCannotFillExpiredOrderByTrader() public {
-        PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
         order.expiry = uint64(block.timestamp - 1);
 
-        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
-        vm.expectRevert("PionexContract: Order is expired");
+        vm.expectRevert("SignalBuyContract: Order is expired");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -407,57 +407,57 @@ contract PionexContractTest is StrategySharedSetup {
         bytes memory wrongMakerSig = _signOrder(dealerPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, wrongMakerSig, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("PionexContract: Order is not signed by user");
+        vm.expectRevert("SignalBuyContract: Order is not signed by user");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithWrongTakerSig() public {
-        IPionexContract.TraderParams memory wrongTraderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory wrongTraderParams = DEFAULT_TRADER_PARAMS;
         wrongTraderParams.dealerSig = _signFill(userPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, wrongTraderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("PionexContract: Fill is not signed by dealer");
+        vm.expectRevert("SignalBuyContract: Fill is not signed by dealer");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithTakerOtherThanOrderSpecified() public {
-        PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify dealer address
         order.dealer = coordinator;
-        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         // dealer try to fill this order
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
-        vm.expectRevert("PionexContract: Order cannot be filled by this dealer");
+        vm.expectRevert("SignalBuyContract: Order cannot be filled by this dealer");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithExpiredFill() public {
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.expiry = uint64(block.timestamp - 1);
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
         traderParams.expiry = fill.expiry;
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("PionexContract: Fill request is expired");
+        vm.expectRevert("SignalBuyContract: Fill request is expired");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -469,10 +469,10 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload1);
 
         // Try to fill with same fill request with differnt allowFill (otherwise will revert by dup allowFill)
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.salt = uint256(9001);
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
         crdParams.salt = allowFill.salt;
 
@@ -484,95 +484,95 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testCannotFillByTraderWithAlteredTakerTokenAmount() public {
         // Replace dealerTokenAmount in traderParams without corresponded signature
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerTokenAmount = DEFAULT_TRADER_PARAMS.dealerTokenAmount.mul(2);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        vm.expectRevert("PionexContract: Fill is not signed by dealer");
+        vm.expectRevert("SignalBuyContract: Fill is not signed by dealer");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAlteredRecipient() public {
         // Replace recipient in traderParams without corresponded signature
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.recipient = coordinator;
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("PionexContract: Fill is not signed by dealer");
+        vm.expectRevert("SignalBuyContract: Fill is not signed by dealer");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithExpiredAllowFill() public {
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.expiry = uint64(block.timestamp - 1);
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
         crdParams.expiry = allowFill.expiry;
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("PionexContract: Fill permission is expired");
+        vm.expectRevert("SignalBuyContract: Fill permission is expired");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAlteredOrderHash() public {
         // Replace orderHash in allowFill
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = bytes32(0);
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("PionexContract: AllowFill is not signed by coordinator");
+        vm.expectRevert("SignalBuyContract: AllowFill is not signed by coordinator");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAlteredExecutor() public {
         // Set the executor to user (not dealer)
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.executor = user;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         // Fill order using dealer (not executor)
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("PionexContract: AllowFill is not signed by coordinator");
+        vm.expectRevert("SignalBuyContract: AllowFill is not signed by coordinator");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAlteredFillAmount() public {
         // Change fill amount in allow fill
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = DEFAULT_ALLOW_FILL.fillAmount.div(2);
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("PionexContract: AllowFill is not signed by coordinator");
+        vm.expectRevert("SignalBuyContract: AllowFill is not signed by coordinator");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithAllowFillNotSignedByCoordinator() public {
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         // Sign allow fill using dealer's private key
         crdParams.sig = _signAllowFill(dealerPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("PionexContract: AllowFill is not signed by coordinator");
+        vm.expectRevert("SignalBuyContract: AllowFill is not signed by coordinator");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -583,10 +583,10 @@ contract PionexContractTest is StrategySharedSetup {
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload1);
 
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.dealerSalt = uint256(8001);
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
@@ -596,38 +596,38 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function testCannotFillByZeroTrader() public {
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.recipient = address(0);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("PionexContract: recipient can not be zero address");
+        vm.expectRevert("SignalBuyContract: recipient can not be zero address");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFillByTraderWithWorseTakerMakerTokenRatio() public {
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         // Increase user token amount so the dealerToken/userToken ratio is worse than order's dealerToken/userToken ratio
         fill.userTokenAmount = DEFAULT_FILL.userTokenAmount.add(1);
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.userTokenAmount = fill.userTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("PionexContract: dealer token amount not enough");
+        vm.expectRevert("SignalBuyContract: dealer token amount not enough");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotFullyFillByTraderWithWorseTakerTokenAmountDueToFee() public {
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.gasFeeFactor = 50; // gasFeeFactor: 0.5%
         traderParams.dealerStrategyFeeFactor = 250; // dealerStrategyFeeFactor: 2.5%
         traderParams.dealerSig = _signFill(dealerPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("PionexContract: dealer token amount not enough");
+        vm.expectRevert("SignalBuyContract: dealer token amount not enough");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -646,9 +646,9 @@ contract PionexContractTest is StrategySharedSetup {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
+            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
             DEFAULT_TRADER_PARAMS.recipient,
-            IPionexContract.FillReceipt(
+            ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
                 address(DEFAULT_ORDER.dealerToken),
                 DEFAULT_ORDER.userTokenAmount,
@@ -684,19 +684,19 @@ contract PionexContractTest is StrategySharedSetup {
         dealerContract.activateFactors();
         vm.stopPrank();
 
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         // Increase dealer token amount so the dealerToken/userToken ratio is better than order's dealerToken/userToken ratio
         // to account for tokenlon fee
         fill.dealerTokenAmount = DEFAULT_FILL.dealerTokenAmount.mul(115).div(100); // 15% more
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
@@ -705,9 +705,9 @@ contract PionexContractTest is StrategySharedSetup {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
-            IPionexContract.FillReceipt(
+            ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
                 address(DEFAULT_ORDER.dealerToken),
                 DEFAULT_ORDER.userTokenAmount,
@@ -736,21 +736,21 @@ contract PionexContractTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory fcMakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.userToken));
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.dealerToken));
 
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         // Increase dealer token amount so the dealerToken/userToken ratio is better than order's dealerToken/userToken ratio
         // to account for gas fee and dealer strategy fee
         fill.dealerTokenAmount = DEFAULT_FILL.dealerTokenAmount.mul(11).div(10); // 10% more
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.gasFeeFactor = 50; // gasFeeFactor: 0.5%
         traderParams.dealerStrategyFeeFactor = 250; // dealerStrategyFeeFactor: 2.5%
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
@@ -759,9 +759,9 @@ contract PionexContractTest is StrategySharedSetup {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
-            IPionexContract.FillReceipt(
+            ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
                 address(DEFAULT_ORDER.dealerToken),
                 DEFAULT_ORDER.userTokenAmount,
@@ -774,9 +774,9 @@ contract PionexContractTest is StrategySharedSetup {
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
 
-        dealerTakerAsset.assertChange(-int256(traderParams.dealerTokenAmount.mul(97).div(100))); // 3% fee for Pionex is deducted from dealerTokenAmount directly
+        dealerTakerAsset.assertChange(-int256(traderParams.dealerTokenAmount.mul(97).div(100))); // 3% fee for SignalBuy is deducted from dealerTokenAmount directly
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
-        userTakerAsset.assertChange(int256(traderParams.dealerTokenAmount.mul(97).div(100))); // 3% fee for Pionex
+        userTakerAsset.assertChange(int256(traderParams.dealerTokenAmount.mul(97).div(100))); // 3% fee for SignalBuy
         userMakerAsset.assertChange(-int256(DEFAULT_ORDER.userTokenAmount));
         fcMakerAsset.assertChange(0);
         fcTakerAsset.assertChange(0);
@@ -790,18 +790,18 @@ contract PionexContractTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory fcMakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.userToken));
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.dealerToken));
 
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         // Increase dealer token amount so the dealerToken/userToken ratio is better than order's dealerToken/userToken ratio
         fill.dealerTokenAmount = DEFAULT_FILL.dealerTokenAmount.mul(11).div(10); // 10% more
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
@@ -810,9 +810,9 @@ contract PionexContractTest is StrategySharedSetup {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
             traderParams.recipient,
-            IPionexContract.FillReceipt(
+            ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
                 address(DEFAULT_ORDER.dealerToken),
                 DEFAULT_ORDER.userTokenAmount,
@@ -835,17 +835,17 @@ contract PionexContractTest is StrategySharedSetup {
 
     function testFullyFillByContractWalletTrader() public {
         // Contract mockERC1271Wallet as dealer which always return valid ERC-1271 magic value no matter what.
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.dealer = address(mockERC1271Wallet);
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealer = address(mockERC1271Wallet);
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.WalletBytes32);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.executor = address(mockERC1271Wallet);
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
@@ -854,22 +854,22 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function testFillBySpecificTaker() public {
-        PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify dealer address
         order.dealer = dealer;
-        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
@@ -878,22 +878,22 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function testFillBySpecificTakerWithOldEIP712Method() public {
-        PionexContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify dealer address
         order.dealer = dealer;
-        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), PionexContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrderWithOldEIP712Method(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFillWithOldEIP712Method(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFillWithOldEIP712Method(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
@@ -907,20 +907,20 @@ contract PionexContractTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.dealerToken));
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.userToken));
 
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         // set the fill amount to 2x of order quota
         fill.userTokenAmount = DEFAULT_ORDER.userTokenAmount.mul(2);
         fill.dealerTokenAmount = DEFAULT_ORDER.minDealerTokenAmount.mul(2);
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.userTokenAmount = fill.userTokenAmount;
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = fill.dealerTokenAmount;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
@@ -940,20 +940,20 @@ contract PionexContractTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.dealerToken));
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.userToken));
 
-        PionexContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         // set the fill amount to 2x of order quota
         fill.userTokenAmount = DEFAULT_ORDER.userTokenAmount.mul(2);
         fill.dealerTokenAmount = DEFAULT_ORDER.minDealerTokenAmount.mul(2).mul(11).div(10); // 10% more
 
-        IPionexContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.userTokenAmount = fill.userTokenAmount;
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = fill.dealerTokenAmount;
 
-        IPionexContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
@@ -974,18 +974,18 @@ contract PionexContractTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.userToken));
 
         // First fill amount : 9 USDT
-        PionexContractLibEIP712.Fill memory fill1 = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill1 = DEFAULT_FILL;
         fill1.userTokenAmount = 10 * 1e18;
         fill1.dealerTokenAmount = 9 * 1e6;
-        IPionexContract.TraderParams memory traderParams1 = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams1 = DEFAULT_TRADER_PARAMS;
         traderParams1.userTokenAmount = fill1.userTokenAmount;
         traderParams1.dealerTokenAmount = fill1.dealerTokenAmount;
         traderParams1.dealerSig = _signFill(dealerPrivateKey, fill1, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
         allowFill1.fillAmount = fill1.dealerTokenAmount;
 
-        IPionexContract.CoordinatorParams memory crdParams1 = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams1 = DEFAULT_CRD_PARAMS;
         crdParams1.sig = _signAllowFill(coordinatorPrivateKey, allowFill1, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
@@ -993,19 +993,19 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload1);
 
         // Second fill amount : 36 USDT
-        PionexContractLibEIP712.Fill memory fill2 = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill2 = DEFAULT_FILL;
         fill2.userTokenAmount = 40 * 1e18;
         fill2.dealerTokenAmount = 36 * 1e6;
 
-        IPionexContract.TraderParams memory traderParams2 = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams2 = DEFAULT_TRADER_PARAMS;
         traderParams2.userTokenAmount = fill2.userTokenAmount;
         traderParams2.dealerTokenAmount = fill2.dealerTokenAmount;
         traderParams2.dealerSig = _signFill(dealerPrivateKey, fill2, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
         allowFill2.fillAmount = fill2.dealerTokenAmount;
 
-        IPionexContract.CoordinatorParams memory crdParams2 = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams2 = DEFAULT_CRD_PARAMS;
         crdParams2.sig = _signAllowFill(coordinatorPrivateKey, allowFill2, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
@@ -1026,18 +1026,18 @@ contract PionexContractTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.userToken));
 
         // First fill amount : 9 USDT and same dealerToken/userToken ratio
-        PionexContractLibEIP712.Fill memory fill1 = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill1 = DEFAULT_FILL;
         fill1.userTokenAmount = 10 * 1e18;
         fill1.dealerTokenAmount = 9 * 1e6;
-        IPionexContract.TraderParams memory traderParams1 = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams1 = DEFAULT_TRADER_PARAMS;
         traderParams1.userTokenAmount = fill1.userTokenAmount;
         traderParams1.dealerTokenAmount = fill1.dealerTokenAmount;
         traderParams1.dealerSig = _signFill(dealerPrivateKey, fill1, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
         allowFill1.fillAmount = fill1.dealerTokenAmount;
 
-        IPionexContract.CoordinatorParams memory crdParams1 = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams1 = DEFAULT_CRD_PARAMS;
         crdParams1.sig = _signAllowFill(coordinatorPrivateKey, allowFill1, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
@@ -1045,19 +1045,19 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(payload1);
 
         // Second fill amount : 36 USDT and better dealerToken/userToken ratio
-        PionexContractLibEIP712.Fill memory fill2 = DEFAULT_FILL;
+        SignalBuyContractLibEIP712.Fill memory fill2 = DEFAULT_FILL;
         fill2.userTokenAmount = 40 * 1e18;
         fill2.dealerTokenAmount = uint256(36 * 1e6).mul(11).div(10); // 10% more
 
-        IPionexContract.TraderParams memory traderParams2 = DEFAULT_TRADER_PARAMS;
+        ISignalBuyContract.TraderParams memory traderParams2 = DEFAULT_TRADER_PARAMS;
         traderParams2.userTokenAmount = fill2.userTokenAmount;
         traderParams2.dealerTokenAmount = fill2.dealerTokenAmount;
         traderParams2.dealerSig = _signFill(dealerPrivateKey, fill2, SignatureValidator.SignatureType.EIP712);
 
-        PionexContractLibEIP712.AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
+        SignalBuyContractLibEIP712.AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
         allowFill2.fillAmount = fill2.dealerTokenAmount;
 
-        IPionexContract.CoordinatorParams memory crdParams2 = DEFAULT_CRD_PARAMS;
+        ISignalBuyContract.CoordinatorParams memory crdParams2 = DEFAULT_CRD_PARAMS;
         crdParams2.sig = _signAllowFill(coordinatorPrivateKey, allowFill2, SignatureValidator.SignatureType.EIP712);
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
@@ -1076,7 +1076,7 @@ contract PionexContractTest is StrategySharedSetup {
      *********************************/
 
     function testCannotFillCanceledOrder() public {
-        PionexContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
+        SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
 
         bytes memory cancelPayload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
@@ -1084,42 +1084,42 @@ contract PionexContractTest is StrategySharedSetup {
         userProxy.toLimitOrder(cancelPayload);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("PionexContract: Order is cancelled");
+        vm.expectRevert("SignalBuyContract: Order is cancelled");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotCancelIfNotMaker() public {
-        PionexContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
+        SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
 
         bytes memory cancelPayload = _genCancelLimitOrderPayload(
             DEFAULT_ORDER,
             _signOrder(dealerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712)
         );
-        vm.expectRevert("PionexContract: Cancel request is not signed by user");
+        vm.expectRevert("SignalBuyContract: Cancel request is not signed by user");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(cancelPayload);
     }
 
     function testCannotCancelExpiredOrder() public {
-        PionexContractLibEIP712.Order memory expiredOrder = DEFAULT_ORDER;
+        SignalBuyContractLibEIP712.Order memory expiredOrder = DEFAULT_ORDER;
         expiredOrder.expiry = 0;
 
         bytes memory payload = _genCancelLimitOrderPayload(expiredOrder, _signOrder(dealerPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712));
-        vm.expectRevert("PionexContract: Order is expired");
+        vm.expectRevert("SignalBuyContract: Order is expired");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
 
     function testCannotCancelTwice() public {
-        PionexContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
+        SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
 
         bytes memory payload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
-        vm.expectRevert("PionexContract: Order is cancelled already");
+        vm.expectRevert("SignalBuyContract: Order is cancelled already");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
     }
@@ -1127,9 +1127,9 @@ contract PionexContractTest is StrategySharedSetup {
     function _signOrderEIP712(
         address limitOrderAddr,
         uint256 privateKey,
-        PionexContractLibEIP712.Order memory order
+        SignalBuyContractLibEIP712.Order memory order
     ) internal returns (bytes memory sig) {
-        bytes32 orderHash = PionexContractLibEIP712._getOrderStructHash(order);
+        bytes32 orderHash = SignalBuyContractLibEIP712._getOrderStructHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
@@ -1138,9 +1138,9 @@ contract PionexContractTest is StrategySharedSetup {
     function _signFillEIP712(
         address limitOrderAddr,
         uint256 privateKey,
-        PionexContractLibEIP712.Fill memory fill
+        SignalBuyContractLibEIP712.Fill memory fill
     ) internal returns (bytes memory sig) {
-        bytes32 fillHash = PionexContractLibEIP712._getFillStructHash(fill);
+        bytes32 fillHash = SignalBuyContractLibEIP712._getFillStructHash(fill);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), fillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
@@ -1149,9 +1149,9 @@ contract PionexContractTest is StrategySharedSetup {
     function _signAllowFillEIP712(
         address limitOrderAddr,
         uint256 privateKey,
-        PionexContractLibEIP712.AllowFill memory allowFill
+        SignalBuyContractLibEIP712.AllowFill memory allowFill
     ) internal returns (bytes memory sig) {
-        bytes32 allowFillHash = PionexContractLibEIP712._getAllowFillStructHash(allowFill);
+        bytes32 allowFillHash = SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), allowFillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
@@ -1163,10 +1163,10 @@ contract PionexContractTest is StrategySharedSetup {
 
     function _signOrder(
         uint256 privateKey,
-        PionexContractLibEIP712.Order memory order,
+        SignalBuyContractLibEIP712.Order memory order,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 orderHash = PionexContractLibEIP712._getOrderStructHash(order);
+        bytes32 orderHash = SignalBuyContractLibEIP712._getOrderStructHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
         if (sigType == SignatureValidator.SignatureType.EIP712) {
@@ -1182,10 +1182,10 @@ contract PionexContractTest is StrategySharedSetup {
 
     function _signOrderWithOldEIP712Method(
         uint256 privateKey,
-        PionexContractLibEIP712.Order memory order,
+        SignalBuyContractLibEIP712.Order memory order,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 orderHash = PionexContractLibEIP712._getOrderStructHash(order);
+        bytes32 orderHash = SignalBuyContractLibEIP712._getOrderStructHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), orderHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -1194,10 +1194,10 @@ contract PionexContractTest is StrategySharedSetup {
 
     function _signFill(
         uint256 privateKey,
-        PionexContractLibEIP712.Fill memory fill,
+        SignalBuyContractLibEIP712.Fill memory fill,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 fillHash = PionexContractLibEIP712._getFillStructHash(fill);
+        bytes32 fillHash = SignalBuyContractLibEIP712._getFillStructHash(fill);
         bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), fillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
@@ -1205,10 +1205,10 @@ contract PionexContractTest is StrategySharedSetup {
 
     function _signFillWithOldEIP712Method(
         uint256 privateKey,
-        PionexContractLibEIP712.Fill memory fill,
+        SignalBuyContractLibEIP712.Fill memory fill,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 fillHash = PionexContractLibEIP712._getFillStructHash(fill);
+        bytes32 fillHash = SignalBuyContractLibEIP712._getFillStructHash(fill);
         bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), fillHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -1217,10 +1217,10 @@ contract PionexContractTest is StrategySharedSetup {
 
     function _signAllowFill(
         uint256 privateKey,
-        PionexContractLibEIP712.AllowFill memory allowFill,
+        SignalBuyContractLibEIP712.AllowFill memory allowFill,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 allowFillHash = PionexContractLibEIP712._getAllowFillStructHash(allowFill);
+        bytes32 allowFillHash = SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill);
         bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
@@ -1228,10 +1228,10 @@ contract PionexContractTest is StrategySharedSetup {
 
     function _signAllowFillWithOldEIP712Method(
         uint256 privateKey,
-        PionexContractLibEIP712.AllowFill memory allowFill,
+        SignalBuyContractLibEIP712.AllowFill memory allowFill,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 allowFillHash = PionexContractLibEIP712._getAllowFillStructHash(allowFill);
+        bytes32 allowFillHash = SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill);
         bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -1239,15 +1239,15 @@ contract PionexContractTest is StrategySharedSetup {
     }
 
     function _genFillByTraderPayload(
-        PionexContractLibEIP712.Order memory order,
+        SignalBuyContractLibEIP712.Order memory order,
         bytes memory orderMakerSig,
-        IPionexContract.TraderParams memory params,
-        IPionexContract.CoordinatorParams memory crdParams
+        ISignalBuyContract.TraderParams memory params,
+        ISignalBuyContract.CoordinatorParams memory crdParams
     ) internal view returns (bytes memory payload) {
         return abi.encodeWithSelector(dealerContract.fillLimitOrder.selector, order, orderMakerSig, params, crdParams);
     }
 
-    function _genCancelLimitOrderPayload(PionexContractLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
+    function _genCancelLimitOrderPayload(SignalBuyContractLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
         internal
         view
         returns (bytes memory payload)

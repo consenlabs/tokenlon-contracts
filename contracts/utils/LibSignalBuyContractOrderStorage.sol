@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.6;
 
-library LibPionexContractOrderStorage {
-    bytes32 private constant STORAGE_SLOT = 0x95a5390854dc73a7f7b647527d9be60908d60f6434dd66098c304c2918e6d1a1;
+library LibSignalBuyContractOrderStorage {
+    bytes32 private constant STORAGE_SLOT = 0x1360fb69f36f46eb45cf50ca3a6184b38e4ef3bde9e5aff734dccec027d7b9f7;
     /// @dev Storage bucket for this feature.
     struct Storage {
         // How much maker token has been filled in order.
@@ -13,7 +13,7 @@ library LibPionexContractOrderStorage {
 
     /// @dev Get the storage bucket for this contract.
     function getStorage() internal pure returns (Storage storage stor) {
-        assert(STORAGE_SLOT == bytes32(uint256(keccak256("pionexcontract.order.storage")) - 1));
+        assert(STORAGE_SLOT == bytes32(uint256(keccak256("signalbuycontract.order.storage")) - 1));
 
         // Dip into assembly to change the slot pointed to by the local
         // variable `stor`.

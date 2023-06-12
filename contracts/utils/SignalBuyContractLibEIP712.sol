@@ -3,9 +3,9 @@ pragma solidity ^0.7.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "../interfaces/IPionexContract.sol";
+import "../interfaces/ISignalBuyContract.sol";
 
-library PionexContractLibEIP712 {
+library SignalBuyContractLibEIP712 {
     struct Order {
         IERC20 userToken;
         IERC20 dealerToken;

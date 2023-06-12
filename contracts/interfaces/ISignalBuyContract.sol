@@ -5,11 +5,11 @@ pragma abicoder v2;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./IStrategyBase.sol";
-import "../utils/PionexContractLibEIP712.sol";
+import "../utils/SignalBuyContractLibEIP712.sol";
 
-/// @title IPionexContract Interface
+/// @title ISignalBuyContract Interface
 /// @author imToken Labs
-interface IPionexContract is IStrategyBase {
+interface ISignalBuyContract is IStrategyBase {
     /// @notice Emitted when coordinator address is updated
     /// @param newCoordinator The address of the new coordinator
     event UpgradeCoordinator(address newCoordinator);
@@ -78,7 +78,7 @@ interface IPionexContract is IStrategyBase {
     /// @param _params Trader specific filling parameters
     /// @param _crdParams Contains details of the fill permit
     function fillLimitOrder(
-        PionexContractLibEIP712.Order calldata _order,
+        SignalBuyContractLibEIP712.Order calldata _order,
         bytes calldata _orderUserSig,
         TraderParams calldata _params,
         CoordinatorParams calldata _crdParams
@@ -88,5 +88,5 @@ interface IPionexContract is IStrategyBase {
     /// @notice Only user proxy can call
     /// @param _order The order that is going to be cancelled
     /// @param _cancelUserSig The cancelling signature signed by user
-    function cancelLimitOrder(PionexContractLibEIP712.Order calldata _order, bytes calldata _cancelUserSig) external;
+    function cancelLimitOrder(SignalBuyContractLibEIP712.Order calldata _order, bytes calldata _cancelUserSig) external;
 }
