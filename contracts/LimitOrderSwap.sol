@@ -27,8 +27,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
 
     // how much maker token has been filled in an order
     mapping(bytes32 => uint256) public orderHashToMakerTokenFilledAmount;
-    // whether an order is canceled or not
-    mapping(bytes32 => bool) public orderHashToCanceled;
 
     constructor(
         address _owner,
