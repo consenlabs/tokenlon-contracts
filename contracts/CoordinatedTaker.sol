@@ -109,7 +109,7 @@ contract CoordinatedTaker is ICoordinatedTaker, Ownable, TokenCollector, EIP712 
                 makerTokenAmount: makerTokenAmount,
                 recipient: msg.sender,
                 extraAction: extraAction,
-                takerTokenPermit: abi.encode(TokenCollector.Source.Token, bytes(""))
+                takerTokenPermit: abi.encodePacked(TokenCollector.Source.Token)
             })
         );
     }
