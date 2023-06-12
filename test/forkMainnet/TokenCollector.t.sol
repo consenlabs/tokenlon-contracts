@@ -15,7 +15,7 @@ contract Strategy is TokenCollector {
         address from,
         address to,
         uint256 amount,
-        bytes memory data
+        bytes calldata data
     ) external {
         _collect(token, from, to, amount, data);
     }
@@ -47,7 +47,7 @@ contract TestTokenCollector is Addresses {
     /* Token Approval */
 
     function testCannotCollectByTokenApprovalWhenAllowanceIsNotEnough() public {
-        bytes memory data = abi.encode(TokenCollector.Source.Token, bytes(""));
+        bytes memory data = abi.encodePacked(TokenCollector.Source.Token);
 
         vm.expectRevert("ERC20: insufficient allowance");
         strategy.collect(address(token), user, address(this), 1, data);
@@ -59,7 +59,7 @@ contract TestTokenCollector is Addresses {
         vm.prank(user);
         token.approve(address(strategy), amount);
 
-        bytes memory data = abi.encode(TokenCollector.Source.Token, bytes(""));
+        bytes memory data = abi.encodePacked(TokenCollector.Source.Token);
         strategy.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
@@ -67,7 +67,7 @@ contract TestTokenCollector is Addresses {
     }
 
     function testCannotCollectByAllowanceTargetIfNoPriorApprove() public {
-        bytes memory data = abi.encode(TokenCollector.Source.TokenlonAllowanceTarget, bytes(""));
+        bytes memory data = abi.encodePacked(TokenCollector.Source.TokenlonAllowanceTarget);
 
         vm.expectRevert("ERC20: insufficient allowance");
         strategy.collect(address(token), user, address(this), 1, data);
@@ -79,7 +79,7 @@ contract TestTokenCollector is Addresses {
         vm.prank(user);
         token.approve(address(allowanceTarget), amount);
 
-        bytes memory data = abi.encode(TokenCollector.Source.TokenlonAllowanceTarget, bytes(""));
+        bytes memory data = abi.encodePacked(TokenCollector.Source.TokenlonAllowanceTarget);
         strategy.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
@@ -121,7 +121,7 @@ contract TestTokenCollector is Addresses {
         bytes32 r,
         bytes32 s
     ) private pure returns (bytes memory) {
-        return abi.encode(TokenCollector.Source.Token, abi.encode(permit.owner, permit.spender, permit.amount, permit.deadline, v, r, s));
+        return abi.encodePacked(TokenCollector.Source.TokenPermit, abi.encode(permit.owner, permit.spender, permit.amount, permit.deadline, v, r, s));
     }
 
     function testCannotCollectByTokenPermitWhenPermitSigIsInvalid() public {
@@ -233,7 +233,7 @@ contract TestTokenCollector is Addresses {
     }
 
     function encodePermit2Data(IUniswapPermit2.PermitSingle memory permit, bytes memory permitSig) private pure returns (bytes memory) {
-        return abi.encode(TokenCollector.Source.Permit2AllowanceTransfer, abi.encode(permit.details.nonce, permit.details.expiration, permitSig));
+        return abi.encodePacked(TokenCollector.Source.Permit2AllowanceTransfer, abi.encode(permit.details.nonce, permit.details.expiration, permitSig));
     }
 
     function testCannotCollectByPermit2AllowanceTransferWhenPermitSigIsInvalid() public {
@@ -352,7 +352,7 @@ contract TestTokenCollector is Addresses {
     }
 
     function encodePermit2Data(IUniswapPermit2.PermitTransferFrom memory permit, bytes memory permitSig) private pure returns (bytes memory) {
-        return abi.encode(TokenCollector.Source.Permit2SignatureTransfer, abi.encode(permit.nonce, permit.deadline, permitSig));
+        return abi.encodePacked(TokenCollector.Source.Permit2SignatureTransfer, abi.encode(permit.nonce, permit.deadline, permitSig));
     }
 
     function testCannotCollectByPermit2SignatureTransferWhenSpenderIsInvalid() public {

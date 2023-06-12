@@ -81,10 +81,10 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     }
 
     function _fillRFQ(
-        RFQTx memory _rfqTx,
-        bytes memory _makerSignature,
-        bytes memory _makerTokenPermit,
-        bytes memory _takerTokenPermit,
+        RFQTx calldata _rfqTx,
+        bytes calldata _makerSignature,
+        bytes calldata _makerTokenPermit,
+        bytes calldata _takerTokenPermit,
         bytes memory _takerSignature
     ) private {
         RFQOffer memory _rfqOffer = _rfqTx.rfqOffer;
@@ -130,27 +130,30 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         }
         _collect(_rfqOffer.makerToken, _rfqOffer.maker, address(this), makerSettleAmount, _makerTokenPermit);
 
-        // transfer makerToken to recipient (sub fee)
+        // calculate maket token settlement amount (sub fee)
         uint256 fee = (makerSettleAmount * _rfqTx.feeFactor) / Constant.BPS_MAX;
-        // determine if WETH unwrap is needed, send out ETH if makerToken is WETH
-        address makerToken = _rfqOffer.makerToken;
-        if (makerToken == address(weth)) {
-            weth.withdraw(makerSettleAmount);
-            makerToken = Constant.ETH_ADDRESS;
-        }
         uint256 makerTokenToTaker = makerSettleAmount - fee;
 
-        // collect fee
-        makerToken.transferTo(feeCollector, fee);
+        {
+            // determine if WETH unwrap is needed, send out ETH if makerToken is WETH
+            address makerToken = _rfqOffer.makerToken;
+            if (makerToken == address(weth)) {
+                weth.withdraw(makerSettleAmount);
+                makerToken = Constant.ETH_ADDRESS;
+            }
 
-        makerToken.transferTo(_rfqTx.recipient, makerTokenToTaker);
+            // collect fee
+            makerToken.transferTo(feeCollector, fee);
+            // transfer maker token to recipient
+            makerToken.transferTo(_rfqTx.recipient, makerTokenToTaker);
+        }
 
         _emitFilledRFQEvent(rfqOfferHash, _rfqTx, makerTokenToTaker);
     }
 
     function _emitFilledRFQEvent(
         bytes32 _rfqOfferHash,
-        RFQTx memory _rfqTx,
+        RFQTx calldata _rfqTx,
         uint256 _makerTokenToTaker
     ) internal {
         emit FilledRFQ(

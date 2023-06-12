@@ -43,6 +43,6 @@ contract UniAgentTest is Test, Tokens, BalanceUtil {
         deal(user, 100 ether);
         setTokenBalanceAndApprove(user, address(uniAgent), tokens, 100000);
 
-        defaultUserPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
+        defaultUserPermit = abi.encodePacked(TokenCollector.Source.Token);
     }
 }
