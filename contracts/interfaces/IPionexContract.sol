@@ -22,17 +22,17 @@ interface IPionexContract is IStrategyBase {
     /// @param newFeeCollector The address of the new fee collector
     event SetFeeCollector(address newFeeCollector);
 
-    /// @notice Emitted when an order is filled by Pionex agent
+    /// @notice Emitted when an order is filled by dealer
     /// @param orderHash The EIP-712 hash of the target order
     /// @param user The address of the user
-    /// @param pionex The address of the pionex (trader)
+    /// @param dealer The address of the dealer
     /// @param allowFillHash The EIP-712 hash of the fill permit granted by coordinator
     /// @param recipient The address of the recipient which will receive tokens from user
     /// @param fillReceipt Contains details of this single fill
     event LimitOrderFilledByTrader(
         bytes32 indexed orderHash,
         address indexed user,
-        address indexed pionex,
+        address indexed dealer,
         bytes32 allowFillHash,
         address recipient,
         FillReceipt fillReceipt
@@ -45,12 +45,12 @@ interface IPionexContract is IStrategyBase {
 
     struct FillReceipt {
         address userToken;
-        address pionexToken;
+        address dealerToken;
         uint256 userTokenFilledAmount;
-        uint256 pionexTokenFilledAmount;
+        uint256 dealerTokenFilledAmount;
         uint256 remainingUserTokenAmount;
         uint256 tokenlonFee;
-        uint256 pionexFee;
+        uint256 dealerFee;
     }
 
     struct CoordinatorParams {
@@ -60,15 +60,15 @@ interface IPionexContract is IStrategyBase {
     }
 
     struct TraderParams {
-        address pionex;
+        address dealer;
         address recipient;
         uint256 userTokenAmount;
-        uint256 pionexTokenAmount;
+        uint256 dealerTokenAmount;
         uint16 gasFeeFactor;
-        uint16 pionexStrategyFeeFactor;
+        uint16 dealerStrategyFeeFactor;
         uint256 salt;
         uint64 expiry;
-        bytes pionexSig;
+        bytes dealerSig;
     }
 
     /// @notice Fill an order by a trader

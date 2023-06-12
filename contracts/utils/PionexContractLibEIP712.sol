@@ -8,11 +8,11 @@ import "../interfaces/IPionexContract.sol";
 library PionexContractLibEIP712 {
     struct Order {
         IERC20 userToken;
-        IERC20 pionexToken;
+        IERC20 dealerToken;
         uint256 userTokenAmount;
-        uint256 minPionexTokenAmount;
+        uint256 minDealerTokenAmount;
         address user;
-        address pionex;
+        address dealer;
         uint256 salt;
         uint64 expiry;
     }
@@ -22,18 +22,18 @@ library PionexContractLibEIP712 {
             abi.encodePacked(
                 "Order(",
                 "address userToken,",
-                "address pionexToken,",
+                "address dealerToken,",
                 "uint256 userTokenAmount,",
-                "uint256 minPionexTokenAmount,",
+                "uint256 minDealerTokenAmount,",
                 "address user,",
-                "address pionex,",
+                "address dealer,",
                 "uint256 salt,",
                 "uint64 expiry",
                 ")"
             )
         );
     */
-    bytes32 private constant ORDER_TYPEHASH = 0xc3eca7f47a388a29b03acba9184de40640fb7d9394cc3ef572b90c15c2f34feb;
+    bytes32 private constant ORDER_TYPEHASH = 0x2f0bead1a08e744d3b433a8d66c0a8f920a802838bc159ace4322e432f51458d;
 
     function _getOrderStructHash(Order memory _order) internal pure returns (bytes32) {
         return
@@ -41,11 +41,11 @@ library PionexContractLibEIP712 {
                 abi.encode(
                     ORDER_TYPEHASH,
                     address(_order.userToken),
-                    address(_order.pionexToken),
+                    address(_order.dealerToken),
                     _order.userTokenAmount,
-                    _order.minPionexTokenAmount,
+                    _order.minDealerTokenAmount,
                     _order.user,
-                    _order.pionex,
+                    _order.dealer,
                     _order.salt,
                     _order.expiry
                 )
@@ -54,11 +54,11 @@ library PionexContractLibEIP712 {
 
     struct Fill {
         bytes32 orderHash; // EIP712 hash
-        address pionex;
+        address dealer;
         address recipient;
         uint256 userTokenAmount;
-        uint256 pionexTokenAmount;
-        uint256 pionexSalt;
+        uint256 dealerTokenAmount;
+        uint256 dealerSalt;
         uint64 expiry;
     }
 
@@ -67,17 +67,17 @@ library PionexContractLibEIP712 {
             abi.encodePacked(
                 "Fill(",
                 "bytes32 orderHash,",
-                "address pionex,",
+                "address dealer,",
                 "address recipient,",
                 "uint256 userTokenAmount,",
-                "uint256 pionexTokenAmount,",
-                "uint256 pionexSalt,",
+                "uint256 dealerTokenAmount,",
+                "uint256 dealerSalt,",
                 "uint64 expiry",
                 ")"
             )
         );
     */
-    bytes32 private constant FILL_TYPEHASH = 0x8df856cadbad83b5dc946bdac2a541b74332d7444f83e9794203304034f44166;
+    bytes32 private constant FILL_TYPEHASH = 0xd368a73a41233a76912e96676a984799852399878d2dc3ae8ddd0480b42aec88;
 
     function _getFillStructHash(Fill memory _fill) internal pure returns (bytes32) {
         return
@@ -85,11 +85,11 @@ library PionexContractLibEIP712 {
                 abi.encode(
                     FILL_TYPEHASH,
                     _fill.orderHash,
-                    _fill.pionex,
+                    _fill.dealer,
                     _fill.recipient,
                     _fill.userTokenAmount,
-                    _fill.pionexTokenAmount,
-                    _fill.pionexSalt,
+                    _fill.dealerTokenAmount,
+                    _fill.dealerSalt,
                     _fill.expiry
                 )
             );
