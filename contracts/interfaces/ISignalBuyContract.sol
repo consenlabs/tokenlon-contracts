@@ -29,7 +29,7 @@ interface ISignalBuyContract is IStrategyBase {
     /// @param allowFillHash The EIP-712 hash of the fill permit granted by coordinator
     /// @param recipient The address of the recipient which will receive tokens from user
     /// @param fillReceipt Contains details of this single fill
-    event LimitOrderFilledByTrader(
+    event SignalBuyFilledByTrader(
         bytes32 indexed orderHash,
         address indexed user,
         address indexed dealer,
@@ -77,7 +77,7 @@ interface ISignalBuyContract is IStrategyBase {
     /// @param _orderUserSig The signature of the order from user
     /// @param _params Trader specific filling parameters
     /// @param _crdParams Contains details of the fill permit
-    function fillLimitOrder(
+    function fillSignalBuy(
         SignalBuyContractLibEIP712.Order calldata _order,
         bytes calldata _orderUserSig,
         TraderParams calldata _params,
@@ -88,5 +88,5 @@ interface ISignalBuyContract is IStrategyBase {
     /// @notice Only user proxy can call
     /// @param _order The order that is going to be cancelled
     /// @param _cancelUserSig The cancelling signature signed by user
-    function cancelLimitOrder(SignalBuyContractLibEIP712.Order calldata _order, bytes calldata _cancelUserSig) external;
+    function cancelSignalBuy(SignalBuyContractLibEIP712.Order calldata _order, bytes calldata _cancelUserSig) external;
 }

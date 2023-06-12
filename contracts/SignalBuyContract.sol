@@ -94,7 +94,7 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
     }
 
     /// @inheritdoc ISignalBuyContract
-    function fillLimitOrder(
+    function fillSignalBuy(
         SignalBuyContractLibEIP712.Order calldata _order,
         bytes calldata _orderUserSig,
         TraderParams calldata _params,
@@ -237,8 +237,8 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
         }
 
         // bypass stack too deep error
-        _emitLimitOrderFilledByTrader(
-            LimitOrderFilledByTraderParams({
+        _emitSignalBuyFilledByTrader(
+            SignalBuyFilledByTraderParams({
                 orderHash: _settlement.orderHash,
                 user: _settlement.user,
                 dealer: _settlement.trader,
@@ -256,7 +256,7 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
     }
 
     /// @inheritdoc ISignalBuyContract
-    function cancelLimitOrder(SignalBuyContractLibEIP712.Order calldata _order, bytes calldata _cancelOrderUserSig)
+    function cancelSignalBuy(SignalBuyContractLibEIP712.Order calldata _order, bytes calldata _cancelOrderUserSig)
         external
         override
         onlyUserProxy
@@ -333,7 +333,7 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
 
     /* event utils */
 
-    struct LimitOrderFilledByTraderParams {
+    struct SignalBuyFilledByTraderParams {
         bytes32 orderHash;
         address user;
         address dealer;
@@ -348,8 +348,8 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
         uint256 dealerFee;
     }
 
-    function _emitLimitOrderFilledByTrader(LimitOrderFilledByTraderParams memory _params) internal {
-        emit LimitOrderFilledByTrader(
+    function _emitSignalBuyFilledByTrader(SignalBuyFilledByTraderParams memory _params) internal {
+        emit SignalBuyFilledByTrader(
             _params.orderHash,
             _params.user,
             _params.dealer,

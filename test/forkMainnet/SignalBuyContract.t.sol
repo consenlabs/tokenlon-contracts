@@ -21,7 +21,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
-    event LimitOrderFilledByTrader(
+    event SignalBuyFilledByTrader(
         bytes32 indexed orderHash,
         address indexed user,
         address indexed dealer,
@@ -55,7 +55,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
     ISignalBuyContract.TraderParams DEFAULT_TRADER_PARAMS;
     ISignalBuyContract.CoordinatorParams DEFAULT_CRD_PARAMS;
 
-    SignalBuyContract dealerContract;
+    SignalBuyContract signalBuyContract;
     uint64 DEADLINE = uint64(block.timestamp + 2 days);
     uint256 FACTORSDEALY = 12 hours;
 
@@ -78,7 +78,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
             uint256(1001), // salt
             DEADLINE // expiry
         );
-        DEFAULT_ORDER_HASH = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(DEFAULT_ORDER));
+        DEFAULT_ORDER_HASH = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(DEFAULT_ORDER));
         DEFAULT_ORDER_MAKER_SIG = _signOrder(userPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
         DEFAULT_FILL = SignalBuyContractLibEIP712.Fill(
             DEFAULT_ORDER_HASH,
@@ -128,12 +128,12 @@ contract SignalBuyContractTest is StrategySharedSetup {
         vm.label(receiver, "Receiver");
         vm.label(feeCollector, "FeeCollector");
         vm.label(address(this), "TestingContract");
-        vm.label(address(dealerContract), "LimitOrderContract");
+        vm.label(address(signalBuyContract), "SignalBuyContract");
         vm.label(address(mockERC1271Wallet), "MockERC1271Wallet");
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
-        dealerContract = new SignalBuyContract(
+        signalBuyContract = new SignalBuyContract(
             owner,
             address(userProxy),
             address(weth),
@@ -145,38 +145,38 @@ contract SignalBuyContractTest is StrategySharedSetup {
         );
         // Setup
         vm.startPrank(tokenlonOperator, tokenlonOperator);
-        userProxy.upgradeLimitOrder(address(dealerContract), true);
-        permanentStorage.upgradeLimitOrder(address(dealerContract));
-        permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(dealerContract), true);
-        permanentStorage.setPermission(permanentStorage.allowFillSeenStorageId(), address(dealerContract), true);
+        userProxy.upgradeLimitOrder(address(signalBuyContract), true);
+        permanentStorage.upgradeLimitOrder(address(signalBuyContract));
+        permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(signalBuyContract), true);
+        permanentStorage.setPermission(permanentStorage.allowFillSeenStorageId(), address(signalBuyContract), true);
         vm.stopPrank();
-        return address(dealerContract);
+        return address(signalBuyContract);
     }
 
     function _setupDeployedStrategy() internal override {
-        dealerContract = SignalBuyContract(payable(vm.envAddress("LIMITORDER_ADDRESS")));
+        signalBuyContract = SignalBuyContract(payable(vm.envAddress("LIMITORDER_ADDRESS")));
 
         // prank owner and update coordinator address
-        owner = dealerContract.owner();
+        owner = signalBuyContract.owner();
         vm.prank(owner, owner);
-        dealerContract.upgradeCoordinator(coordinator);
+        signalBuyContract.upgradeCoordinator(coordinator);
         // update local feeCollector address
-        feeCollector = dealerContract.feeCollector();
+        feeCollector = signalBuyContract.feeCollector();
     }
 
     /*********************************
      *          Test: setup          *
      *********************************/
 
-    function testSetupLimitOrder() public {
-        assertEq(dealerContract.owner(), owner);
-        assertEq(dealerContract.coordinator(), coordinator);
-        assertEq(dealerContract.userProxy(), address(userProxy));
-        assertEq(address(dealerContract.spender()), address(spender));
-        assertEq(address(dealerContract.permStorage()), address(permanentStorage));
-        assertEq(address(dealerContract.weth()), address(weth));
+    function testSetupSignalBuy() public {
+        assertEq(signalBuyContract.owner(), owner);
+        assertEq(signalBuyContract.coordinator(), coordinator);
+        assertEq(signalBuyContract.userProxy(), address(userProxy));
+        assertEq(address(signalBuyContract.spender()), address(spender));
+        assertEq(address(signalBuyContract.permStorage()), address(permanentStorage));
+        assertEq(address(signalBuyContract.weth()), address(weth));
 
-        assertEq(uint256(dealerContract.tokenlonFeeFactor()), 0);
+        assertEq(uint256(signalBuyContract.tokenlonFeeFactor()), 0);
     }
 
     /*********************************
@@ -186,21 +186,21 @@ contract SignalBuyContractTest is StrategySharedSetup {
     function testCannotTransferOwnershipByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(dealer);
-        dealerContract.nominateNewOwner(dealer);
+        signalBuyContract.nominateNewOwner(dealer);
     }
 
     function testCannotAcceptOwnershipIfNotNominated() public {
         vm.expectRevert("not nominated");
         vm.prank(dealer);
-        dealerContract.acceptOwnership();
+        signalBuyContract.acceptOwnership();
     }
 
     function testTransferOwnership() public {
         vm.prank(owner, owner);
-        dealerContract.nominateNewOwner(dealer);
+        signalBuyContract.nominateNewOwner(dealer);
         vm.prank(dealer);
-        dealerContract.acceptOwnership();
-        assertEq(dealerContract.owner(), dealer);
+        signalBuyContract.acceptOwnership();
+        assertEq(signalBuyContract.owner(), dealer);
     }
 
     /*********************************
@@ -210,19 +210,19 @@ contract SignalBuyContractTest is StrategySharedSetup {
     function testCannotUpgradeSpenderByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(dealer);
-        dealerContract.upgradeSpender(dealer);
+        signalBuyContract.upgradeSpender(dealer);
     }
 
     function testCannotUpgradeSpenderToZeroAddr() public {
         vm.expectRevert("Strategy: spender can not be zero address");
         vm.prank(owner, owner);
-        dealerContract.upgradeSpender(address(0));
+        signalBuyContract.upgradeSpender(address(0));
     }
 
     function testUpgradeSpender() public {
         vm.prank(owner, owner);
-        dealerContract.upgradeSpender(dealer);
-        assertEq(address(dealerContract.spender()), dealer);
+        signalBuyContract.upgradeSpender(dealer);
+        assertEq(address(signalBuyContract.spender()), dealer);
     }
 
     /*********************************
@@ -232,19 +232,19 @@ contract SignalBuyContractTest is StrategySharedSetup {
     function testCannotUpgradeCoordinatorByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(dealer);
-        dealerContract.upgradeCoordinator(dealer);
+        signalBuyContract.upgradeCoordinator(dealer);
     }
 
     function testCannotUpgradeCoordinatorToZeroAddr() public {
         vm.expectRevert("SignalBuyContract: coordinator can not be zero address");
         vm.prank(owner, owner);
-        dealerContract.upgradeCoordinator(address(0));
+        signalBuyContract.upgradeCoordinator(address(0));
     }
 
     function testUpgradeCoordinator() public {
         vm.prank(owner, owner);
-        dealerContract.upgradeCoordinator(dealer);
-        assertEq(address(dealerContract.coordinator()), dealer);
+        signalBuyContract.upgradeCoordinator(dealer);
+        assertEq(address(signalBuyContract.coordinator()), dealer);
     }
 
     /*********************************
@@ -254,27 +254,27 @@ contract SignalBuyContractTest is StrategySharedSetup {
     function testCannotSetAllowanceByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(dealer);
-        dealerContract.setAllowance(allowanceAddrs, address(allowanceTarget));
+        signalBuyContract.setAllowance(allowanceAddrs, address(allowanceTarget));
     }
 
     function testCannotCloseAllowanceByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(dealer);
-        dealerContract.closeAllowance(allowanceAddrs, address(allowanceTarget));
+        signalBuyContract.closeAllowance(allowanceAddrs, address(allowanceTarget));
     }
 
     function testSetAndCloseAllowance() public {
         // Set allowance
         vm.prank(owner, owner);
-        dealerContract.setAllowance(allowanceAddrs, address(allowanceTarget));
-        assertEq(usdt.allowance(address(dealerContract), address(allowanceTarget)), LibConstant.MAX_UINT);
-        assertEq(dai.allowance(address(dealerContract), address(allowanceTarget)), LibConstant.MAX_UINT);
+        signalBuyContract.setAllowance(allowanceAddrs, address(allowanceTarget));
+        assertEq(usdt.allowance(address(signalBuyContract), address(allowanceTarget)), LibConstant.MAX_UINT);
+        assertEq(dai.allowance(address(signalBuyContract), address(allowanceTarget)), LibConstant.MAX_UINT);
 
         // Close allowance
         vm.prank(owner, owner);
-        dealerContract.closeAllowance(allowanceAddrs, address(allowanceTarget));
-        assertEq(usdt.allowance(address(dealerContract), address(allowanceTarget)), 0);
-        assertEq(dai.allowance(address(dealerContract), address(allowanceTarget)), 0);
+        signalBuyContract.closeAllowance(allowanceAddrs, address(allowanceTarget));
+        assertEq(usdt.allowance(address(signalBuyContract), address(allowanceTarget)), 0);
+        assertEq(dai.allowance(address(signalBuyContract), address(allowanceTarget)), 0);
     }
 
     /*********************************
@@ -284,16 +284,16 @@ contract SignalBuyContractTest is StrategySharedSetup {
     function testCannotDepositETHByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(dealer);
-        dealerContract.depositETH();
+        signalBuyContract.depositETH();
     }
 
     function testDepositETH() public {
         // Send ether to limit order contract
         uint256 amount = 1234 ether;
-        deal(address(dealerContract), amount);
+        deal(address(signalBuyContract), amount);
         vm.prank(owner, owner);
-        dealerContract.depositETH();
-        assertEq(weth.balanceOf(address(dealerContract)), amount);
+        signalBuyContract.depositETH();
+        assertEq(weth.balanceOf(address(signalBuyContract)), amount);
     }
 
     /*********************************
@@ -303,20 +303,20 @@ contract SignalBuyContractTest is StrategySharedSetup {
     function testCannotSetFactorsIfLargerThanBpsMax() public {
         vm.expectRevert("SignalBuyContract: Invalid user fee factor");
         vm.prank(owner, owner);
-        dealerContract.setFactors(LibConstant.BPS_MAX + 1);
+        signalBuyContract.setFactors(LibConstant.BPS_MAX + 1);
     }
 
     function testSetFactors() public {
         vm.startPrank(owner, owner);
-        dealerContract.setFactors(1);
+        signalBuyContract.setFactors(1);
         // fee factors should stay same before new ones activate
-        assertEq(uint256(dealerContract.tokenlonFeeFactor()), 0);
-        vm.warp(block.timestamp + dealerContract.factorActivateDelay());
+        assertEq(uint256(signalBuyContract.tokenlonFeeFactor()), 0);
+        vm.warp(block.timestamp + signalBuyContract.factorActivateDelay());
 
         // fee factors should be updated now
-        dealerContract.activateFactors();
+        signalBuyContract.activateFactors();
         vm.stopPrank();
-        assertEq(uint256(dealerContract.tokenlonFeeFactor()), 1);
+        assertEq(uint256(signalBuyContract.tokenlonFeeFactor()), 1);
     }
 
     /*********************************
@@ -326,29 +326,29 @@ contract SignalBuyContractTest is StrategySharedSetup {
     function testCannotSetFeeCollectorByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(dealer);
-        dealerContract.setFeeCollector(feeCollector);
+        signalBuyContract.setFeeCollector(feeCollector);
     }
 
     function testCannotSetFeeCollectorToZeroAddr() public {
         vm.expectRevert("SignalBuyContract: fee collector can not be zero address");
         vm.prank(owner, owner);
-        dealerContract.setFeeCollector(address(0));
+        signalBuyContract.setFeeCollector(address(0));
     }
 
     function testSetFeeCollector() public {
         vm.prank(owner, owner);
-        dealerContract.setFeeCollector(dealer);
-        assertEq(address(dealerContract.feeCollector()), dealer);
+        signalBuyContract.setFeeCollector(dealer);
+        assertEq(address(signalBuyContract.feeCollector()), dealer);
     }
 
     /*********************************
-     *  Test: fillLimitOrder *
+     *  Test: fillSignalBuy *
      *********************************/
 
     function testCannotFillByTraderIfNotFromUserProxy() public {
         vm.expectRevert("Strategy: not from UserProxy contract");
         // Call limit order contract directly will get reverted since msg.sender is not from UserProxy
-        dealerContract.fillLimitOrder(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
     }
 
     function testCannotFillFilledOrderByTrader() public {
@@ -382,7 +382,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
         order.expiry = uint64(block.timestamp - 1);
 
-        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -426,7 +426,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify dealer address
         order.dealer = coordinator;
-        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -642,11 +642,11 @@ contract SignalBuyContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectEmit(true, true, true, true);
-        emit LimitOrderFilledByTrader(
+        emit SignalBuyFilledByTrader(
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
             DEFAULT_TRADER_PARAMS.recipient,
             ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
@@ -679,9 +679,9 @@ contract SignalBuyContractTest is StrategySharedSetup {
 
         // tokenlonFeeFactor : 10%
         vm.startPrank(owner, owner);
-        dealerContract.setFactors(1000);
-        vm.warp(block.timestamp + dealerContract.factorActivateDelay());
-        dealerContract.activateFactors();
+        signalBuyContract.setFactors(1000);
+        vm.warp(block.timestamp + signalBuyContract.factorActivateDelay());
+        signalBuyContract.activateFactors();
         vm.stopPrank();
 
         SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -701,11 +701,11 @@ contract SignalBuyContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectEmit(true, true, true, true);
-        emit LimitOrderFilledByTrader(
+        emit SignalBuyFilledByTrader(
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
             ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
@@ -755,11 +755,11 @@ contract SignalBuyContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectEmit(true, true, true, true);
-        emit LimitOrderFilledByTrader(
+        emit SignalBuyFilledByTrader(
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
             ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
@@ -806,11 +806,11 @@ contract SignalBuyContractTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectEmit(true, true, true, true);
-        emit LimitOrderFilledByTrader(
+        emit SignalBuyFilledByTrader(
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
             traderParams.recipient,
             ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
@@ -857,7 +857,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify dealer address
         order.dealer = dealer;
-        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -881,7 +881,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
         // order specify dealer address
         order.dealer = dealer;
-        bytes32 orderHash = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrderWithOldEIP712Method(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
         SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -1072,14 +1072,14 @@ contract SignalBuyContractTest is StrategySharedSetup {
     }
 
     /*********************************
-     *        cancelLimitOrder       *
+     *        cancelSignalBuy       *
      *********************************/
 
     function testCannotFillCanceledOrder() public {
         SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
 
-        bytes memory cancelPayload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
+        bytes memory cancelPayload = _genCancelSignalBuyPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(cancelPayload);
 
@@ -1093,7 +1093,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
 
-        bytes memory cancelPayload = _genCancelLimitOrderPayload(
+        bytes memory cancelPayload = _genCancelSignalBuyPayload(
             DEFAULT_ORDER,
             _signOrder(dealerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712)
         );
@@ -1106,7 +1106,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignalBuyContractLibEIP712.Order memory expiredOrder = DEFAULT_ORDER;
         expiredOrder.expiry = 0;
 
-        bytes memory payload = _genCancelLimitOrderPayload(expiredOrder, _signOrder(dealerPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712));
+        bytes memory payload = _genCancelSignalBuyPayload(expiredOrder, _signOrder(dealerPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712));
         vm.expectRevert("SignalBuyContract: Order is expired");
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
@@ -1116,7 +1116,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
 
-        bytes memory payload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
+        bytes memory payload = _genCancelSignalBuyPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
         vm.prank(dealer, dealer); // Only EOA
         userProxy.toLimitOrder(payload);
         vm.expectRevert("SignalBuyContract: Order is cancelled already");
@@ -1167,7 +1167,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = SignalBuyContractLibEIP712._getOrderStructHash(order);
-        bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
         if (sigType == SignatureValidator.SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -1186,7 +1186,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = SignalBuyContractLibEIP712._getOrderStructHash(order);
-        bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), orderHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), orderHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
@@ -1198,7 +1198,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 fillHash = SignalBuyContractLibEIP712._getFillStructHash(fill);
-        bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), fillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), fillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
     }
@@ -1209,7 +1209,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 fillHash = SignalBuyContractLibEIP712._getFillStructHash(fill);
-        bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), fillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), fillHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
@@ -1221,7 +1221,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 allowFillHash = SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill);
-        bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
     }
@@ -1232,7 +1232,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 allowFillHash = SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill);
-        bytes32 EIP712SignDigest = getEIP712Hash(dealerContract.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
+        bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
@@ -1244,14 +1244,14 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.TraderParams memory params,
         ISignalBuyContract.CoordinatorParams memory crdParams
     ) internal view returns (bytes memory payload) {
-        return abi.encodeWithSelector(dealerContract.fillLimitOrder.selector, order, orderMakerSig, params, crdParams);
+        return abi.encodeWithSelector(signalBuyContract.fillSignalBuy.selector, order, orderMakerSig, params, crdParams);
     }
 
-    function _genCancelLimitOrderPayload(SignalBuyContractLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
+    function _genCancelSignalBuyPayload(SignalBuyContractLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
         internal
         view
         returns (bytes memory payload)
     {
-        return abi.encodeWithSelector(dealerContract.cancelLimitOrder.selector, order, cancelOrderMakerSig);
+        return abi.encodeWithSelector(signalBuyContract.cancelSignalBuy.selector, order, cancelOrderMakerSig);
     }
 }
