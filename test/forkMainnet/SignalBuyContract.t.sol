@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "contracts/SignalBuyContract.sol";
@@ -14,11 +15,12 @@ import "contracts/utils/LibConstant.sol";
 
 import "test/mocks/MockERC1271Wallet.sol";
 import "test/utils/BalanceSnapshot.sol";
-import "test/utils/StrategySharedSetup.sol";
+import "test/utils/BalanceUtil.sol";
 import { computeMainnetEIP712DomainSeparator, getEIP712Hash } from "test/utils/Sig.sol";
 
-contract SignalBuyContractTest is StrategySharedSetup {
+contract SignalBuyContractTest is BalanceUtil {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     event SignalBuyFilledByTrader(
@@ -62,7 +64,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
     // effectively a "beforeEach" block
     function setUp() public {
         // Setup
-        setUpSystemContracts();
+        signalBuyContract = new SignalBuyContract(owner, address(weth), coordinator, FACTORSDEALY, feeCollector);
 
         DEFAULT_AMM_PATH = [address(dai), address(usdt)];
         allowanceAddrs = DEFAULT_AMM_PATH;
@@ -132,38 +134,6 @@ contract SignalBuyContractTest is StrategySharedSetup {
         vm.label(address(mockERC1271Wallet), "MockERC1271Wallet");
     }
 
-    function _deployStrategyAndUpgrade() internal override returns (address) {
-        signalBuyContract = new SignalBuyContract(
-            owner,
-            address(userProxy),
-            address(weth),
-            address(permanentStorage),
-            address(spender),
-            coordinator,
-            FACTORSDEALY,
-            feeCollector
-        );
-        // Setup
-        vm.startPrank(tokenlonOperator, tokenlonOperator);
-        userProxy.upgradeLimitOrder(address(signalBuyContract), true);
-        permanentStorage.upgradeLimitOrder(address(signalBuyContract));
-        permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(signalBuyContract), true);
-        permanentStorage.setPermission(permanentStorage.allowFillSeenStorageId(), address(signalBuyContract), true);
-        vm.stopPrank();
-        return address(signalBuyContract);
-    }
-
-    function _setupDeployedStrategy() internal override {
-        signalBuyContract = SignalBuyContract(payable(vm.envAddress("LIMITORDER_ADDRESS")));
-
-        // prank owner and update coordinator address
-        owner = signalBuyContract.owner();
-        vm.prank(owner, owner);
-        signalBuyContract.upgradeCoordinator(coordinator);
-        // update local feeCollector address
-        feeCollector = signalBuyContract.feeCollector();
-    }
-
     /*********************************
      *          Test: setup          *
      *********************************/
@@ -171,9 +141,6 @@ contract SignalBuyContractTest is StrategySharedSetup {
     function testSetupSignalBuy() public {
         assertEq(signalBuyContract.owner(), owner);
         assertEq(signalBuyContract.coordinator(), coordinator);
-        assertEq(signalBuyContract.userProxy(), address(userProxy));
-        assertEq(address(signalBuyContract.spender()), address(spender));
-        assertEq(address(signalBuyContract.permStorage()), address(permanentStorage));
         assertEq(address(signalBuyContract.weth()), address(weth));
 
         assertEq(uint256(signalBuyContract.tokenlonFeeFactor()), 0);
@@ -201,28 +168,6 @@ contract SignalBuyContractTest is StrategySharedSetup {
         vm.prank(dealer);
         signalBuyContract.acceptOwnership();
         assertEq(signalBuyContract.owner(), dealer);
-    }
-
-    /*********************************
-     *     Test: upgradeSpender      *
-     *********************************/
-
-    function testCannotUpgradeSpenderByNotOwner() public {
-        vm.expectRevert("not owner");
-        vm.prank(dealer);
-        signalBuyContract.upgradeSpender(dealer);
-    }
-
-    function testCannotUpgradeSpenderToZeroAddr() public {
-        vm.expectRevert("Strategy: spender can not be zero address");
-        vm.prank(owner, owner);
-        signalBuyContract.upgradeSpender(address(0));
-    }
-
-    function testUpgradeSpender() public {
-        vm.prank(owner, owner);
-        signalBuyContract.upgradeSpender(dealer);
-        assertEq(address(signalBuyContract.spender()), dealer);
     }
 
     /*********************************
@@ -254,27 +199,27 @@ contract SignalBuyContractTest is StrategySharedSetup {
     function testCannotSetAllowanceByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(dealer);
-        signalBuyContract.setAllowance(allowanceAddrs, address(allowanceTarget));
+        signalBuyContract.setAllowance(allowanceAddrs, address(receiver));
     }
 
     function testCannotCloseAllowanceByNotOwner() public {
         vm.expectRevert("not owner");
         vm.prank(dealer);
-        signalBuyContract.closeAllowance(allowanceAddrs, address(allowanceTarget));
+        signalBuyContract.closeAllowance(allowanceAddrs, address(receiver));
     }
 
     function testSetAndCloseAllowance() public {
         // Set allowance
         vm.prank(owner, owner);
-        signalBuyContract.setAllowance(allowanceAddrs, address(allowanceTarget));
-        assertEq(usdt.allowance(address(signalBuyContract), address(allowanceTarget)), LibConstant.MAX_UINT);
-        assertEq(dai.allowance(address(signalBuyContract), address(allowanceTarget)), LibConstant.MAX_UINT);
+        signalBuyContract.setAllowance(allowanceAddrs, address(receiver));
+        assertEq(usdt.allowance(address(signalBuyContract), address(receiver)), LibConstant.MAX_UINT);
+        assertEq(dai.allowance(address(signalBuyContract), address(receiver)), LibConstant.MAX_UINT);
 
         // Close allowance
         vm.prank(owner, owner);
-        signalBuyContract.closeAllowance(allowanceAddrs, address(allowanceTarget));
-        assertEq(usdt.allowance(address(signalBuyContract), address(allowanceTarget)), 0);
-        assertEq(dai.allowance(address(signalBuyContract), address(allowanceTarget)), 0);
+        signalBuyContract.closeAllowance(allowanceAddrs, address(receiver));
+        assertEq(usdt.allowance(address(signalBuyContract), address(receiver)), 0);
+        assertEq(dai.allowance(address(signalBuyContract), address(receiver)), 0);
     }
 
     /*********************************
@@ -345,17 +290,9 @@ contract SignalBuyContractTest is StrategySharedSetup {
      *  Test: fillSignalBuy *
      *********************************/
 
-    function testCannotFillByTraderIfNotFromUserProxy() public {
-        vm.expectRevert("Strategy: not from UserProxy contract");
-        // Call limit order contract directly will get reverted since msg.sender is not from UserProxy
-        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-    }
-
     function testCannotFillFilledOrderByTrader() public {
         // Fullly fill the default order first
-        bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload1);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
 
         // Try to fill the default order, should fail
         SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
@@ -372,10 +309,8 @@ contract SignalBuyContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
         crdParams.salt = allowFill.salt;
 
-        bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectRevert("SignalBuyContract: Order is filled");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload2);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
     }
 
     function testCannotFillExpiredOrderByTrader() public {
@@ -397,29 +332,23 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
         vm.expectRevert("SignalBuyContract: Order is expired");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(order, orderMakerSig, traderParams, crdParams);
     }
 
     function testCannotFillByTraderWithWrongMakerSig() public {
         bytes memory wrongMakerSig = _signOrder(dealerPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, wrongMakerSig, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectRevert("SignalBuyContract: Order is not signed by user");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, wrongMakerSig, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
     }
 
     function testCannotFillByTraderWithWrongTakerSig() public {
         ISignalBuyContract.TraderParams memory wrongTraderParams = DEFAULT_TRADER_PARAMS;
         wrongTraderParams.dealerSig = _signFill(userPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, wrongTraderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("SignalBuyContract: Fill is not signed by dealer");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, wrongTraderParams, DEFAULT_CRD_PARAMS);
     }
 
     function testCannotFillByTraderWithTakerOtherThanOrderSpecified() public {
@@ -442,10 +371,8 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
         vm.expectRevert("SignalBuyContract: Order cannot be filled by this dealer");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(order, orderMakerSig, traderParams, crdParams);
     }
 
     function testCannotFillByTraderWithExpiredFill() public {
@@ -456,17 +383,13 @@ contract SignalBuyContractTest is StrategySharedSetup {
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
         traderParams.expiry = fill.expiry;
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("SignalBuyContract: Fill request is expired");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
     }
 
     function testCannotReplayFill() public {
         // Fill with DEFAULT_FILL
-        bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload1);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
 
         // Try to fill with same fill request with differnt allowFill (otherwise will revert by dup allowFill)
         SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
@@ -476,10 +399,8 @@ contract SignalBuyContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
         crdParams.salt = allowFill.salt;
 
-        bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
-        vm.expectRevert("PermanentStorage: transaction seen before");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload2);
+        vm.expectRevert("SignalBuyContract: Fill seen before");
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
     }
 
     function testCannotFillByTraderWithAlteredTakerTokenAmount() public {
@@ -493,20 +414,16 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectRevert("SignalBuyContract: Fill is not signed by dealer");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
     }
 
     function testCannotFillByTraderWithAlteredRecipient() public {
         // Replace recipient in traderParams without corresponded signature
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.recipient = coordinator;
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("SignalBuyContract: Fill is not signed by dealer");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
     }
 
     function testCannotFillByTraderWithExpiredAllowFill() public {
@@ -517,10 +434,8 @@ contract SignalBuyContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
         crdParams.expiry = allowFill.expiry;
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("SignalBuyContract: Fill permission is expired");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
     }
 
     function testCannotFillByTraderWithAlteredOrderHash() public {
@@ -531,10 +446,8 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("SignalBuyContract: AllowFill is not signed by coordinator");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
     }
 
     function testCannotFillByTraderWithAlteredExecutor() public {
@@ -546,10 +459,8 @@ contract SignalBuyContractTest is StrategySharedSetup {
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         // Fill order using dealer (not executor)
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("SignalBuyContract: AllowFill is not signed by coordinator");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
     }
 
     function testCannotFillByTraderWithAlteredFillAmount() public {
@@ -560,10 +471,8 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("SignalBuyContract: AllowFill is not signed by coordinator");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
     }
 
     function testCannotFillByTraderWithAllowFillNotSignedByCoordinator() public {
@@ -571,17 +480,13 @@ contract SignalBuyContractTest is StrategySharedSetup {
         // Sign allow fill using dealer's private key
         crdParams.sig = _signAllowFill(dealerPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("SignalBuyContract: AllowFill is not signed by coordinator");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
     }
 
     function testCannotFillByTraderWithReplayedAllowFill() public {
         // Fill with default allow fill
-        bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload1);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
 
         SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.dealerSalt = uint256(8001);
@@ -589,20 +494,16 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
-        vm.expectRevert("PermanentStorage: allow fill seen before");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload2);
+        vm.expectRevert("SignalBuyContract: Fill seen before");
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
     }
 
     function testCannotFillByZeroTrader() public {
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.recipient = address(0);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("SignalBuyContract: recipient can not be zero address");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
     }
 
     function testCannotFillByTraderWithWorseTakerMakerTokenRatio() public {
@@ -614,10 +515,8 @@ contract SignalBuyContractTest is StrategySharedSetup {
         traderParams.userTokenAmount = fill.userTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("SignalBuyContract: dealer token amount not enough");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
     }
 
     function testCannotFullyFillByTraderWithWorseTakerTokenAmountDueToFee() public {
@@ -626,10 +525,8 @@ contract SignalBuyContractTest is StrategySharedSetup {
         traderParams.dealerStrategyFeeFactor = 250; // dealerStrategyFeeFactor: 2.5%
         traderParams.dealerSig = _signFill(dealerPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("SignalBuyContract: dealer token amount not enough");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
     }
 
     function testFullyFillByTraderWithNoFee() public {
@@ -640,7 +537,6 @@ contract SignalBuyContractTest is StrategySharedSetup {
         BalanceSnapshot.Snapshot memory fcMakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.userToken));
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.dealerToken));
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectEmit(true, true, true, true);
         emit SignalBuyFilledByTrader(
             DEFAULT_ORDER_HASH,
@@ -658,8 +554,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
                 0 // dealerStrategyFee = 0
             )
         );
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
 
         dealerTakerAsset.assertChange(-int256(DEFAULT_ORDER.minDealerTokenAmount));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
@@ -699,7 +594,6 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectEmit(true, true, true, true);
         emit SignalBuyFilledByTrader(
             DEFAULT_ORDER_HASH,
@@ -717,8 +611,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
                 0 // dealerStrategyFee = 0
             )
         );
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
 
         dealerTakerAsset.assertChange(-int256(traderParams.dealerTokenAmount));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
@@ -753,7 +646,6 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectEmit(true, true, true, true);
         emit SignalBuyFilledByTrader(
             DEFAULT_ORDER_HASH,
@@ -771,8 +663,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
                 traderParams.dealerTokenAmount.mul(3).div(100) // dealerStrategyFee = 0.5% + 2.5% = 3% dealerTokenAmount
             )
         );
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
 
         dealerTakerAsset.assertChange(-int256(traderParams.dealerTokenAmount.mul(97).div(100))); // 3% fee for SignalBuy is deducted from dealerTokenAmount directly
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
@@ -804,7 +695,6 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectEmit(true, true, true, true);
         emit SignalBuyFilledByTrader(
             DEFAULT_ORDER_HASH,
@@ -822,8 +712,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
                 0
             )
         );
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
 
         dealerTakerAsset.assertChange(-int256(fill.dealerTokenAmount));
         receiverMakerAsset.assertChange(int256(DEFAULT_ORDER.userTokenAmount));
@@ -848,9 +737,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
     }
 
     function testFillBySpecificTaker() public {
@@ -872,9 +759,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(order, orderMakerSig, traderParams, crdParams);
     }
 
     function testFillBySpecificTakerWithOldEIP712Method() public {
@@ -896,9 +781,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFillWithOldEIP712Method(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(order, orderMakerSig, traderParams, crdParams);
     }
 
     function testOverFillByTrader() public {
@@ -923,9 +806,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
 
         // Balance change should be bound by order amount (not affected by 2x fill amount)
         dealerTakerAsset.assertChange(-int256(DEFAULT_ORDER.minDealerTokenAmount));
@@ -956,9 +837,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
 
         // Balance change should be bound by order amount (not affected by 2x fill amount)
         dealerTakerAsset.assertChange(-int256(DEFAULT_ORDER.minDealerTokenAmount.mul(11).div(10))); // 10% more
@@ -988,9 +867,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams1 = DEFAULT_CRD_PARAMS;
         crdParams1.sig = _signAllowFill(coordinatorPrivateKey, allowFill1, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload1);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
 
         // Second fill amount : 36 USDT
         SignalBuyContractLibEIP712.Fill memory fill2 = DEFAULT_FILL;
@@ -1008,9 +885,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams2 = DEFAULT_CRD_PARAMS;
         crdParams2.sig = _signAllowFill(coordinatorPrivateKey, allowFill2, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload2);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
 
         // Half of the order filled after 2 txs
         dealerTakerAsset.assertChange(-int256(DEFAULT_ORDER.minDealerTokenAmount.div(2)));
@@ -1040,9 +915,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams1 = DEFAULT_CRD_PARAMS;
         crdParams1.sig = _signAllowFill(coordinatorPrivateKey, allowFill1, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload1);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
 
         // Second fill amount : 36 USDT and better dealerToken/userToken ratio
         SignalBuyContractLibEIP712.Fill memory fill2 = DEFAULT_FILL;
@@ -1060,9 +933,7 @@ contract SignalBuyContractTest is StrategySharedSetup {
         ISignalBuyContract.CoordinatorParams memory crdParams2 = DEFAULT_CRD_PARAMS;
         crdParams2.sig = _signAllowFill(coordinatorPrivateKey, allowFill2, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload2);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
 
         // Half of the order filled after 2 txs
         dealerTakerAsset.assertChange(-int256(fill1.dealerTokenAmount.add(fill2.dealerTokenAmount)));
@@ -1078,50 +949,40 @@ contract SignalBuyContractTest is StrategySharedSetup {
     function testCannotFillCanceledOrder() public {
         SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
+        bytes memory cancelSig = _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory cancelPayload = _genCancelSignalBuyPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(cancelPayload);
+        signalBuyContract.cancelSignalBuy(DEFAULT_ORDER, cancelSig);
 
-        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectRevert("SignalBuyContract: Order is cancelled");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
     }
 
     function testCannotCancelIfNotMaker() public {
         SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
+        bytes memory cancelSig = _signOrder(dealerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory cancelPayload = _genCancelSignalBuyPayload(
-            DEFAULT_ORDER,
-            _signOrder(dealerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712)
-        );
         vm.expectRevert("SignalBuyContract: Cancel request is not signed by user");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(cancelPayload);
+        signalBuyContract.cancelSignalBuy(DEFAULT_ORDER, cancelSig);
     }
 
     function testCannotCancelExpiredOrder() public {
         SignalBuyContractLibEIP712.Order memory expiredOrder = DEFAULT_ORDER;
         expiredOrder.expiry = 0;
+        bytes memory cancelSig = _signOrder(userPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genCancelSignalBuyPayload(expiredOrder, _signOrder(dealerPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712));
         vm.expectRevert("SignalBuyContract: Order is expired");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.cancelSignalBuy(expiredOrder, cancelSig);
     }
 
     function testCannotCancelTwice() public {
         SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
+        bytes memory cancelSig = _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712);
 
-        bytes memory payload = _genCancelSignalBuyPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.cancelSignalBuy(DEFAULT_ORDER, cancelSig);
         vm.expectRevert("SignalBuyContract: Order is cancelled already");
-        vm.prank(dealer, dealer); // Only EOA
-        userProxy.toLimitOrder(payload);
+        signalBuyContract.cancelSignalBuy(DEFAULT_ORDER, cancelSig);
     }
 
     function _signOrderEIP712(
@@ -1160,6 +1021,27 @@ contract SignalBuyContractTest is StrategySharedSetup {
     /*********************************
      *             Helpers           *
      *********************************/
+
+    function dealWallet(address[] memory _wallet, uint256 _amount) internal {
+        // Deal 100 ETH to each account
+        for (uint256 i = 0; i < _wallet.length; i++) {
+            deal(_wallet[i], _amount);
+        }
+    }
+
+    function setEOABalanceAndApprove(
+        address eoa,
+        IERC20[] memory tokens,
+        uint256 amount
+    ) internal {
+        require(address(signalBuyContract) != address(0), "System contracts not setup yet");
+        vm.startPrank(eoa);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            setERC20Balance(address(tokens[i]), eoa, amount);
+            tokens[i].safeApprove(address(signalBuyContract), type(uint256).max);
+        }
+        vm.stopPrank();
+    }
 
     function _signOrder(
         uint256 privateKey,
@@ -1236,22 +1118,5 @@ contract SignalBuyContractTest is StrategySharedSetup {
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
-    }
-
-    function _genFillByTraderPayload(
-        SignalBuyContractLibEIP712.Order memory order,
-        bytes memory orderMakerSig,
-        ISignalBuyContract.TraderParams memory params,
-        ISignalBuyContract.CoordinatorParams memory crdParams
-    ) internal view returns (bytes memory payload) {
-        return abi.encodeWithSelector(signalBuyContract.fillSignalBuy.selector, order, orderMakerSig, params, crdParams);
-    }
-
-    function _genCancelSignalBuyPayload(SignalBuyContractLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
-        internal
-        view
-        returns (bytes memory payload)
-    {
-        return abi.encodeWithSelector(signalBuyContract.cancelSignalBuy.selector, order, cancelOrderMakerSig);
     }
 }

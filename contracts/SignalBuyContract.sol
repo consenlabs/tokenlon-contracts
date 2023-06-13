@@ -12,20 +12,21 @@ import "./interfaces/ISignalBuyContract.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/ISpender.sol";
 import "./interfaces/IWeth.sol";
-import "./utils/StrategyBase.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
 import "./utils/LibSignalBuyContractOrderStorage.sol";
+import "./utils/Ownable.sol";
 import "./utils/SignalBuyContractLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
 /// @title SignalBuy Contract
 /// @notice Order can be filled as long as the provided dealerToken/userToken ratio is better than or equal to user's specfied dealerToken/userToken ratio.
 /// @author imToken Labs
-contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, SignatureValidator, ReentrancyGuard {
+contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValidator, ReentrancyGuard, Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
+    IWETH public immutable weth;
     uint256 public immutable factorActivateDelay;
 
     // Below are the variables which consume storage slots.
@@ -37,22 +38,69 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
     uint16 public tokenlonFeeFactor = 0;
     uint16 public pendingTokenlonFeeFactor;
 
+    mapping(bytes32 => uint256) public filledAmount;
+
+    /// @notice Emitted when allowing another account to spend assets
+    /// @param spender The address that is allowed to transfer tokens
+    event AllowTransfer(address indexed spender, address token);
+
+    /// @notice Emitted when disallowing an account to spend assets
+    /// @param spender The address that is removed from allow list
+    event DisallowTransfer(address indexed spender, address token);
+
+    /// @notice Emitted when ETH converted to WETH
+    /// @param amount The amount of converted ETH
+    event DepositETH(uint256 amount);
+
     constructor(
         address _owner,
-        address _userProxy,
         address _weth,
-        address _permStorage,
-        address _spender,
         address _coordinator,
         uint256 _factorActivateDelay,
         address _feeCollector
-    ) StrategyBase(_owner, _userProxy, _weth, _permStorage, _spender) {
+    ) Ownable(_owner) {
+        weth = IWETH(_weth);
         coordinator = _coordinator;
         factorActivateDelay = _factorActivateDelay;
         feeCollector = _feeCollector;
     }
 
     receive() external payable {}
+
+    /// @notice Set allowance of tokens to an address
+    /// @notice Only owner can call
+    /// @param _tokenList The list of tokens
+    /// @param _spender The address that will be allowed
+    function setAllowance(address[] calldata _tokenList, address _spender) external onlyOwner {
+        for (uint256 i = 0; i < _tokenList.length; ++i) {
+            IERC20(_tokenList[i]).safeApprove(_spender, LibConstant.MAX_UINT);
+
+            emit AllowTransfer(_spender, _tokenList[i]);
+        }
+    }
+
+    /// @notice Clear allowance of tokens to an address
+    /// @notice Only owner can call
+    /// @param _tokenList The list of tokens
+    /// @param _spender The address that will be cleared
+    function closeAllowance(address[] calldata _tokenList, address _spender) external onlyOwner {
+        for (uint256 i = 0; i < _tokenList.length; ++i) {
+            IERC20(_tokenList[i]).safeApprove(_spender, 0);
+
+            emit DisallowTransfer(_spender, _tokenList[i]);
+        }
+    }
+
+    /// @notice Convert ETH in this contract to WETH
+    /// @notice Only owner can call
+    function depositETH() external onlyOwner {
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            weth.deposit{ value: balance }();
+
+            emit DepositETH(balance);
+        }
+    }
 
     /// @notice Only owner can call
     /// @param _newCoordinator The new address of coordinator
@@ -99,7 +147,7 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
         bytes calldata _orderUserSig,
         TraderParams calldata _params,
         CoordinatorParams calldata _crdParams
-    ) external override onlyUserProxy nonReentrant returns (uint256, uint256) {
+    ) external override nonReentrant returns (uint256, uint256) {
         bytes32 orderHash = getEIP712Hash(SignalBuyContractLibEIP712._getOrderStructHash(_order));
 
         _validateOrder(_order, orderHash, _orderUserSig);
@@ -161,11 +209,11 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
         require(_fill.recipient != address(0), "SignalBuyContract: recipient can not be zero address");
 
         bytes32 fillHash = getEIP712Hash(SignalBuyContractLibEIP712._getFillStructHash(_fill));
+        require(!LibSignalBuyContractOrderStorage.getStorage().fillSeen[fillHash], "SignalBuyContract: Fill seen before");
         require(isValidSignature(_fill.dealer, fillHash, bytes(""), _fillTakerSig), "SignalBuyContract: Fill is not signed by dealer");
 
         // Set fill seen to avoid replay attack.
-        // PermanentStorage would throw error if fill is already seen.
-        permStorage.setLimitOrderTransactionSeen(fillHash);
+        LibSignalBuyContractOrderStorage.getStorage().fillSeen[fillHash] = true;
     }
 
     function _validateFillPermission(
@@ -187,11 +235,11 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
                 })
             )
         );
+        require(!LibSignalBuyContractOrderStorage.getStorage().fillSeen[allowFillHash], "SignalBuyContract: AllowFill seen before");
         require(isValidSignature(coordinator, allowFillHash, bytes(""), _crdParams.sig), "SignalBuyContract: AllowFill is not signed by coordinator");
 
         // Set allow fill seen to avoid replay attack
-        // PermanentStorage would throw error if allow fill is already seen.
-        permStorage.setLimitOrderAllowFillSeen(allowFillHash);
+        LibSignalBuyContractOrderStorage.getStorage().allowFillSeen[allowFillHash] = true;
 
         return allowFillHash;
     }
@@ -214,7 +262,6 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
 
     function _settleForTrader(TraderSettlement memory _settlement) internal {
         // memory cache
-        ISpender _spender = spender;
         address _feeCollector = feeCollector;
 
         // Calculate user fee (user receives dealer token so fee is charged in dealer token)
@@ -226,14 +273,14 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
         require(dealerTokenForUser >= _settlement.minDealerTokenAmount, "SignalBuyContract: dealer token amount not enough");
 
         // trader -> user
-        _spender.spendFromUserTo(_settlement.trader, address(_settlement.dealerToken), _settlement.user, dealerTokenForUser);
+        _settlement.dealerToken.safeTransferFrom(_settlement.trader, _settlement.user, dealerTokenForUser);
 
         // user -> recipient
-        _spender.spendFromUserTo(_settlement.user, address(_settlement.userToken), _settlement.recipient, _settlement.userTokenAmount);
+        _settlement.userToken.safeTransferFrom(_settlement.user, _settlement.recipient, _settlement.userTokenAmount);
 
         // Collect user fee (charged in dealer token)
         if (tokenlonFee > 0) {
-            _spender.spendFromUserTo(_settlement.trader, address(_settlement.dealerToken), _feeCollector, tokenlonFee);
+            _settlement.dealerToken.safeTransferFrom(_settlement.trader, _feeCollector, tokenlonFee);
         }
 
         // bypass stack too deep error
@@ -256,12 +303,7 @@ contract SignalBuyContract is ISignalBuyContract, StrategyBase, BaseLibEIP712, S
     }
 
     /// @inheritdoc ISignalBuyContract
-    function cancelSignalBuy(SignalBuyContractLibEIP712.Order calldata _order, bytes calldata _cancelOrderUserSig)
-        external
-        override
-        onlyUserProxy
-        nonReentrant
-    {
+    function cancelSignalBuy(SignalBuyContractLibEIP712.Order calldata _order, bytes calldata _cancelOrderUserSig) external override nonReentrant {
         require(_order.expiry > uint64(block.timestamp), "SignalBuyContract: Order is expired");
         bytes32 orderHash = getEIP712Hash(SignalBuyContractLibEIP712._getOrderStructHash(_order));
         bool isCancelled = LibSignalBuyContractOrderStorage.getStorage().orderHashToCancelled[orderHash];

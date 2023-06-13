@@ -5,6 +5,10 @@ library LibSignalBuyContractOrderStorage {
     bytes32 private constant STORAGE_SLOT = 0x1360fb69f36f46eb45cf50ca3a6184b38e4ef3bde9e5aff734dccec027d7b9f7;
     /// @dev Storage bucket for this feature.
     struct Storage {
+        // Has the fill been executed.
+        mapping(bytes32 => bool) fillSeen;
+        // Has the allowFill been executed.
+        mapping(bytes32 => bool) allowFillSeen;
         // How much maker token has been filled in order.
         mapping(bytes32 => uint256) orderHashToUserTokenFilledAmount;
         // Whether order is cancelled or not.

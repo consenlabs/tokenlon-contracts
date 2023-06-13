@@ -4,12 +4,11 @@ pragma abicoder v2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./IStrategyBase.sol";
 import "../utils/SignalBuyContractLibEIP712.sol";
 
 /// @title ISignalBuyContract Interface
 /// @author imToken Labs
-interface ISignalBuyContract is IStrategyBase {
+interface ISignalBuyContract {
     /// @notice Emitted when coordinator address is updated
     /// @param newCoordinator The address of the new coordinator
     event UpgradeCoordinator(address newCoordinator);
