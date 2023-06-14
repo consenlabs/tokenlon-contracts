@@ -2,8 +2,6 @@
 pragma solidity >=0.7.0;
 pragma abicoder v2;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 import "../utils/SignalBuyContractLibEIP712.sol";
 
 /// @title ISignalBuyContract Interface
