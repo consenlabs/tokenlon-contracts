@@ -943,6 +943,263 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     /*********************************
+     *      ETH/WETH settlement      *
+     *********************************/
+
+    struct ETHandWETHAssetSnapshot {
+        BalanceSnapshot.Snapshot dealerETHAsset;
+        BalanceSnapshot.Snapshot dealerWETHAsset;
+        BalanceSnapshot.Snapshot userETHAsset;
+        BalanceSnapshot.Snapshot userWETHAsset;
+    }
+    ETHandWETHAssetSnapshot assetSnapshots;
+
+    function testSettlementETHToETHWithNoFee() public {
+        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.dealerToken = IERC20(LibConstant.ETH_ADDRESS);
+        order.minDealerTokenAmount = 1e18;
+        bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        fill.dealerTokenAmount = order.minDealerTokenAmount;
+
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.dealerTokenAmount = fill.dealerTokenAmount;
+        traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        allowFill.fillAmount = traderParams.dealerTokenAmount;
+
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        assetSnapshots.dealerETHAsset = BalanceSnapshot.take(dealer, LibConstant.ETH_ADDRESS);
+        assetSnapshots.dealerWETHAsset = BalanceSnapshot.take(dealer, address(weth));
+        assetSnapshots.userETHAsset = BalanceSnapshot.take(user, LibConstant.ETH_ADDRESS);
+        assetSnapshots.userWETHAsset = BalanceSnapshot.take(user, address(weth));
+
+        // Case 1: Tx failed due to mismatch msg.value
+        vm.expectRevert("SignalBuyContract: mismatch dealer token (ETH) amount");
+        vm.prank(dealer, dealer);
+        signalBuyContract.fillSignalBuy{ value: fill.dealerTokenAmount - 1 }(order, orderMakerSig, traderParams, crdParams);
+
+        // Case 2: Tx succeeded
+        vm.expectEmit(true, true, true, true);
+        emit SignalBuyFilledByTrader(
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order)),
+            order.user,
+            dealer,
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            DEFAULT_TRADER_PARAMS.recipient,
+            ISignalBuyContract.FillReceipt(
+                address(order.userToken),
+                address(order.dealerToken),
+                order.userTokenAmount,
+                order.minDealerTokenAmount,
+                0, // remainingUserTokenAmount should be zero after order fully filled
+                0, // tokenlonFee = 0
+                0 // dealerStrategyFee = 0
+            )
+        );
+        vm.prank(dealer, dealer);
+        signalBuyContract.fillSignalBuy{ value: fill.dealerTokenAmount }(order, orderMakerSig, traderParams, crdParams);
+
+        assetSnapshots.dealerETHAsset.assertChange(-int256(order.minDealerTokenAmount));
+        assetSnapshots.dealerWETHAsset.assertChange(0);
+        assetSnapshots.userETHAsset.assertChange(int256(order.minDealerTokenAmount));
+        assetSnapshots.userWETHAsset.assertChange(0);
+    }
+
+    function testSettlementWETHToWETHWithNoFee() public {
+        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.dealerToken = weth;
+        order.minDealerTokenAmount = 1e18;
+        bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        fill.dealerTokenAmount = order.minDealerTokenAmount;
+
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.dealerTokenAmount = fill.dealerTokenAmount;
+        traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        allowFill.fillAmount = traderParams.dealerTokenAmount;
+
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        assetSnapshots.dealerETHAsset = BalanceSnapshot.take(dealer, LibConstant.ETH_ADDRESS);
+        assetSnapshots.dealerWETHAsset = BalanceSnapshot.take(dealer, address(weth));
+        assetSnapshots.userETHAsset = BalanceSnapshot.take(user, LibConstant.ETH_ADDRESS);
+        assetSnapshots.userWETHAsset = BalanceSnapshot.take(user, address(weth));
+
+        // Case 1: Tx failed due to invalid msg.value
+        vm.expectRevert("SignalBuyContract: mismatch dealer token (ETH) amount");
+        vm.prank(dealer, dealer);
+        signalBuyContract.fillSignalBuy{ value: 1 }(order, orderMakerSig, traderParams, crdParams);
+
+        // Case 2: Tx succeeded
+        vm.expectEmit(true, true, true, true);
+        emit SignalBuyFilledByTrader(
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order)),
+            order.user,
+            dealer,
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            DEFAULT_TRADER_PARAMS.recipient,
+            ISignalBuyContract.FillReceipt(
+                address(order.userToken),
+                address(order.dealerToken),
+                order.userTokenAmount,
+                order.minDealerTokenAmount,
+                0, // remainingUserTokenAmount should be zero after order fully filled
+                0, // tokenlonFee = 0
+                0 // dealerStrategyFee = 0
+            )
+        );
+        vm.prank(dealer, dealer);
+        signalBuyContract.fillSignalBuy(order, orderMakerSig, traderParams, crdParams);
+
+        assetSnapshots.dealerETHAsset.assertChange(0);
+        assetSnapshots.dealerWETHAsset.assertChange(-int256(order.minDealerTokenAmount));
+        assetSnapshots.userETHAsset.assertChange(0);
+        assetSnapshots.userWETHAsset.assertChange(int256(order.minDealerTokenAmount));
+    }
+
+    function testSettlementETHToWETHWithAddedTokenlonFee() public {
+        // tokenlonFeeFactor : 10%
+        vm.startPrank(owner, owner);
+        signalBuyContract.setFactors(1000);
+        vm.warp(block.timestamp + signalBuyContract.factorActivateDelay());
+        signalBuyContract.activateFactors();
+        vm.stopPrank();
+
+        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.dealerToken = weth;
+        order.minDealerTokenAmount = 1e18;
+        bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        // Increase dealer token amount so the dealerToken/userToken ratio is better than order's dealerToken/userToken ratio
+        // to account for tokenlon fee
+        fill.dealerTokenAmount = order.minDealerTokenAmount.mul(115).div(100); // 15% more
+
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.dealerTokenAmount = fill.dealerTokenAmount;
+        traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        allowFill.fillAmount = traderParams.dealerTokenAmount;
+
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        assetSnapshots.dealerETHAsset = BalanceSnapshot.take(dealer, LibConstant.ETH_ADDRESS);
+        assetSnapshots.dealerWETHAsset = BalanceSnapshot.take(dealer, address(weth));
+        assetSnapshots.userETHAsset = BalanceSnapshot.take(user, LibConstant.ETH_ADDRESS);
+        assetSnapshots.userWETHAsset = BalanceSnapshot.take(user, address(weth));
+
+        // Case 1: Tx failed due to invalid msg.value
+        vm.expectRevert("SignalBuyContract: mismatch dealer token (ETH) amount");
+        vm.prank(dealer, dealer);
+        signalBuyContract.fillSignalBuy{ value: 1 }(order, orderMakerSig, traderParams, crdParams);
+
+        // Case 2: Tx succeeded
+        vm.expectEmit(true, true, true, true);
+        emit SignalBuyFilledByTrader(
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order)),
+            order.user,
+            dealer,
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            DEFAULT_TRADER_PARAMS.recipient,
+            ISignalBuyContract.FillReceipt(
+                address(order.userToken),
+                address(order.dealerToken),
+                order.userTokenAmount,
+                fill.dealerTokenAmount,
+                0, // remainingUserTokenAmount should be zero after order fully filled
+                fill.dealerTokenAmount.div(10), // tokenlonFee = 10% dealerTokenAmount
+                0 // dealerStrategyFee = 0
+            )
+        );
+        vm.prank(dealer, dealer);
+        signalBuyContract.fillSignalBuy{ value: fill.dealerTokenAmount }(order, orderMakerSig, traderParams, crdParams);
+
+        assetSnapshots.dealerETHAsset.assertChange(-int256(fill.dealerTokenAmount));
+        assetSnapshots.dealerWETHAsset.assertChange(0);
+        assetSnapshots.userETHAsset.assertChange(0);
+        assetSnapshots.userWETHAsset.assertChange(int256(fill.dealerTokenAmount.mul(9).div(10))); // 10% fee for Tokenlon
+    }
+
+    function testSettlementWETHToETHWithAddedGasFeeAndStrategyFee() public {
+        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        order.dealerToken = IERC20(LibConstant.ETH_ADDRESS);
+        order.minDealerTokenAmount = 1e18;
+        bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+
+        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        // Increase dealer token amount so the dealerToken/userToken ratio is better than order's dealerToken/userToken ratio
+        // to account for gas fee and dealer strategy fee
+        fill.dealerTokenAmount = order.minDealerTokenAmount.mul(11).div(10); // 10% more
+
+        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.gasFeeFactor = 50; // gasFeeFactor: 0.5%
+        traderParams.dealerStrategyFeeFactor = 250; // dealerStrategyFeeFactor: 2.5%
+        traderParams.dealerTokenAmount = fill.dealerTokenAmount;
+        traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+
+        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        allowFill.fillAmount = traderParams.dealerTokenAmount;
+
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        assetSnapshots.dealerETHAsset = BalanceSnapshot.take(dealer, LibConstant.ETH_ADDRESS);
+        assetSnapshots.dealerWETHAsset = BalanceSnapshot.take(dealer, address(weth));
+        assetSnapshots.userETHAsset = BalanceSnapshot.take(user, LibConstant.ETH_ADDRESS);
+        assetSnapshots.userWETHAsset = BalanceSnapshot.take(user, address(weth));
+
+        // Case 1: Tx failed due to invalid msg.value
+        vm.expectRevert("SignalBuyContract: mismatch dealer token (ETH) amount");
+        vm.prank(dealer, dealer);
+        signalBuyContract.fillSignalBuy{ value: 1 }(order, orderMakerSig, traderParams, crdParams);
+
+        // Case 2: Tx succeeded
+        vm.expectEmit(true, true, true, true);
+        emit SignalBuyFilledByTrader(
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order)),
+            order.user,
+            dealer,
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            DEFAULT_TRADER_PARAMS.recipient,
+            ISignalBuyContract.FillReceipt(
+                address(order.userToken),
+                address(order.dealerToken),
+                order.userTokenAmount,
+                fill.dealerTokenAmount,
+                0, // remainingUserTokenAmount should be zero after order fully filled
+                0, // tokenlonFee = 0
+                fill.dealerTokenAmount.mul(3).div(100) // dealerStrategyFee = 0.5% + 2.5% = 3% dealerTokenAmount
+            )
+        );
+        vm.prank(dealer, dealer);
+        signalBuyContract.fillSignalBuy(order, orderMakerSig, traderParams, crdParams);
+
+        assetSnapshots.dealerETHAsset.assertChange(0);
+        assetSnapshots.dealerWETHAsset.assertChange(-int256(fill.dealerTokenAmount.mul(97).div(100))); // 3% fee for SignalBuy is deducted from dealerTokenAmount directly
+        assetSnapshots.userETHAsset.assertChange(int256(fill.dealerTokenAmount.mul(97).div(100))); // 3% fee for SignalBuy
+        assetSnapshots.userWETHAsset.assertChange(0);
+    }
+
+    /*********************************
      *        cancelSignalBuy       *
      *********************************/
 
