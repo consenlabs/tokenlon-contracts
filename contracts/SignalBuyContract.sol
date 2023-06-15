@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "./interfaces/ISignalBuyContract.sol";
 import "./interfaces/IWeth.sol";
+import { Asset } from "./utils/Asset.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
 import "./utils/LibSignalBuyContractOrderStorage.sol";
@@ -23,6 +24,7 @@ import "./utils/SignatureValidator.sol";
 contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValidator, ReentrancyGuard, Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+    using Asset for address;
 
     IWETH public immutable weth;
     uint256 public immutable factorActivateDelay;
@@ -145,7 +147,7 @@ contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValida
         bytes calldata _orderUserSig,
         TraderParams calldata _params,
         CoordinatorParams calldata _crdParams
-    ) external override nonReentrant returns (uint256, uint256) {
+    ) external payable override nonReentrant returns (uint256, uint256) {
         bytes32 orderHash = getEIP712Hash(SignalBuyContractLibEIP712._getOrderStructHash(_order));
 
         _validateOrder(_order, orderHash, _orderUserSig);
@@ -267,18 +269,53 @@ contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValida
         uint256 tokenlonFee = _mulFactor(_settlement.dealerTokenAmount, tokenlonFeeFactor);
         // 2. Fee for SignalBuy, including gas fee and strategy fee
         uint256 dealerFee = _mulFactor(_settlement.dealerTokenAmount, _settlement.gasFeeFactor + _settlement.dealerStrategyFeeFactor);
-        uint256 dealerTokenForUser = _settlement.dealerTokenAmount.sub(tokenlonFee).sub(dealerFee);
+        uint256 dealerTokenForUserAndTokenlon = _settlement.dealerTokenAmount.sub(dealerFee);
+        uint256 dealerTokenForUser = dealerTokenForUserAndTokenlon.sub(tokenlonFee);
         require(dealerTokenForUser >= _settlement.minDealerTokenAmount, "SignalBuyContract: dealer token amount not enough");
 
         // trader -> user
-        _settlement.dealerToken.safeTransferFrom(_settlement.trader, _settlement.user, dealerTokenForUser);
+        address _weth = address(weth); // cache
+        if (address(_settlement.dealerToken).isETH()) {
+            if (msg.value > 0) {
+                // User wants ETH and dealer pays in ETH
+                require(msg.value == dealerTokenForUserAndTokenlon, "SignalBuyContract: mismatch dealer token (ETH) amount");
+            } else {
+                // User wants ETH but dealer pays in WETH
+                IERC20(_weth).safeTransferFrom(_settlement.trader, address(this), dealerTokenForUserAndTokenlon);
+                weth.withdraw(dealerTokenForUserAndTokenlon);
+            }
+            // Send ETH to user
+            LibConstant.ETH_ADDRESS.transferTo(payable(_settlement.user), dealerTokenForUser);
+        } else if (address(_settlement.dealerToken) == _weth) {
+            if (msg.value > 0) {
+                // User wants WETH but dealer pays in ETH
+                require(msg.value == dealerTokenForUserAndTokenlon, "SignalBuyContract: mismatch dealer token (ETH) amount");
+                weth.deposit{ value: dealerTokenForUserAndTokenlon }();
+                weth.transfer(_settlement.user, dealerTokenForUser);
+            } else {
+                // User wants WETH and dealer pays in WETH
+                IERC20(_weth).safeTransferFrom(_settlement.trader, _settlement.user, dealerTokenForUser);
+            }
+        } else {
+            _settlement.dealerToken.safeTransferFrom(_settlement.trader, _settlement.user, dealerTokenForUser);
+        }
 
         // user -> recipient
         _settlement.userToken.safeTransferFrom(_settlement.user, _settlement.recipient, _settlement.userTokenAmount);
 
         // Collect user fee (charged in dealer token)
         if (tokenlonFee > 0) {
-            _settlement.dealerToken.safeTransferFrom(_settlement.trader, _feeCollector, tokenlonFee);
+            if (address(_settlement.dealerToken).isETH()) {
+                LibConstant.ETH_ADDRESS.transferTo(payable(_feeCollector), tokenlonFee);
+            } else if (address(_settlement.dealerToken) == _weth) {
+                if (msg.value > 0) {
+                    weth.transfer(_feeCollector, tokenlonFee);
+                } else {
+                    weth.transferFrom(_settlement.trader, _feeCollector, tokenlonFee);
+                }
+            } else {
+                _settlement.dealerToken.safeTransferFrom(_settlement.trader, _feeCollector, tokenlonFee);
+            }
         }
 
         // bypass stack too deep error

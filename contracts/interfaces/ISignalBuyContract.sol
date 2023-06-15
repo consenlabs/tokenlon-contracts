@@ -79,7 +79,7 @@ interface ISignalBuyContract {
         bytes calldata _orderUserSig,
         TraderParams calldata _params,
         CoordinatorParams calldata _crdParams
-    ) external returns (uint256, uint256);
+    ) external payable returns (uint256, uint256);
 
     /// @notice Cancel an order
     /// @notice Only user proxy can call
