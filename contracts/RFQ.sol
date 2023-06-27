@@ -92,7 +92,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         if (_rfqOffer.expiry < block.timestamp) revert ExpiredRFQOffer();
         if ((_rfqOffer.flags & FLG_ALLOW_CONTRACT_SENDER == 0) && (msg.sender != tx.origin)) revert ForbidContract();
         if ((_rfqOffer.flags & FLG_ALLOW_PARTIAL_FILL == 0) && (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount)) revert ForbidPartialFill();
-        if (_rfqTx.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
+        if (_rfqOffer.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
         if (_rfqTx.recipient == address(0)) revert ZeroAddress();
         if (_rfqTx.takerRequestAmount > _rfqOffer.takerTokenAmount || _rfqTx.takerRequestAmount == 0) revert InvalidTakerAmount();
 
@@ -131,7 +131,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         _collect(_rfqOffer.makerToken, _rfqOffer.maker, address(this), makerSettleAmount, _makerTokenPermit);
 
         // calculate maket token settlement amount (sub fee)
-        uint256 fee = (makerSettleAmount * _rfqTx.feeFactor) / Constant.BPS_MAX;
+        uint256 fee = (makerSettleAmount * _rfqOffer.feeFactor) / Constant.BPS_MAX;
         uint256 makerTokenToTaker = makerSettleAmount - fee;
 
         {
@@ -166,7 +166,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             _rfqTx.rfqOffer.makerTokenAmount,
             _rfqTx.recipient,
             _makerTokenToTaker,
-            _rfqTx.feeFactor
+            _rfqTx.rfqOffer.feeFactor
         );
     }
 }
