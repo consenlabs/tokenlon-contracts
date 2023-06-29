@@ -20,15 +20,4 @@ interface ISmartOrderStrategy is IStrategy {
         uint256 value;
         bytes data;
     }
-
-    /// @notice Only owner can call
-    /// @param tokens The address list of tokens
-    /// @param spenders The address list of spenders
-    function approveTokens(address[] calldata tokens, address[] calldata spenders) external;
-
-    /// @notice Only owner can call
-    /// There may be some tokens left after swap while the order has been filled
-    /// @param tokens The address list of tokens
-    /// @param recipient The recipient address
-    function withdrawTokens(address[] calldata tokens, address recipient) external;
 }

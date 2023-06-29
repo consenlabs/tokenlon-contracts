@@ -54,48 +54,6 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
         vm.label(UNISWAP_UNIVERSAL_ROUTER_ADDRESS, "UniswapUniversalRouter");
     }
 
-    function testCannotApproveTokensByNotOwner() public {
-        vm.expectRevert("not owner");
-        smartOrderStrategy.approveTokens(tokenList, ammList);
-    }
-
-    function testApproveTokens() public {
-        MockERC20 mockERC20 = new MockERC20("Mock Token", "MKT", 18);
-        address[] memory newTokens = new address[](1);
-        newTokens[0] = address(mockERC20);
-
-        address target = makeAddr("target");
-        address[] memory targetList = new address[](1);
-        targetList[0] = target;
-
-        assertEq(mockERC20.allowance(address(smartOrderStrategy), target), 0);
-        vm.prank(strategyOwner);
-        smartOrderStrategy.approveTokens(newTokens, targetList);
-        assertEq(mockERC20.allowance(address(smartOrderStrategy), target), Constant.MAX_UINT);
-    }
-
-    function testCannotWithdrawTokensByNotOwner() public {
-        vm.expectRevert("not owner");
-        smartOrderStrategy.withdrawTokens(tokenList, address(this));
-    }
-
-    function testWithdrawTokens() public {
-        uint256 amount = 5678;
-        MockERC20 mockERC20 = new MockERC20("Mock Token", "MKT", 18);
-        mockERC20.mint(address(smartOrderStrategy), amount);
-
-        address[] memory withdrawList = new address[](1);
-        withdrawList[0] = address(mockERC20);
-
-        address withdrawTarget = makeAddr("withdrawTarget");
-        Snapshot memory recipientBalance = BalanceSnapshot.take(withdrawTarget, address(mockERC20));
-
-        vm.prank(strategyOwner);
-        smartOrderStrategy.withdrawTokens(withdrawList, withdrawTarget);
-
-        recipientBalance.assertChange(int256(amount));
-    }
-
     function testCannotExecuteNotFromGenericSwap() public {
         vm.expectRevert(ISmartOrderStrategy.NotFromGS.selector);
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, defaultOpsData);
