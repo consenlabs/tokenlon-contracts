@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
@@ -17,7 +18,7 @@ import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 /// @title LimitOrderSwap Contract
 /// @author imToken Labs
-contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
+contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, ReentrancyGuard {
     using Asset for address;
 
     uint256 private constant ORDER_CANCEL_AMOUNT_MASK = 1 << 255;
@@ -27,8 +28,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
 
     // how much maker token has been filled in an order
     mapping(bytes32 => uint256) public orderHashToMakerTokenFilledAmount;
-    // whether an order is canceled or not
-    mapping(bytes32 => bool) public orderHashToCanceled;
 
     constructor(
         address _owner,
@@ -57,7 +56,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         LimitOrder calldata order,
         bytes calldata makerSignature,
         TakerParams calldata takerParams
-    ) external payable override {
+    ) external payable override nonReentrant {
         _fillLimitOrder(order, makerSignature, takerParams, false);
     }
 
@@ -66,7 +65,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         LimitOrder calldata order,
         bytes calldata makerSignature,
         TakerParams calldata takerParams
-    ) external payable override {
+    ) external payable override nonReentrant {
         _fillLimitOrder(order, makerSignature, takerParams, true);
     }
 
@@ -76,7 +75,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712 {
         bytes[] calldata makerSignatures,
         uint256[] calldata makerTokenAmounts,
         address[] calldata profitTokens
-    ) external payable override {
+    ) external payable override nonReentrant {
         if (orders.length != makerSignatures.length || orders.length != makerTokenAmounts.length) revert InvalidParams();
 
         // validate orders and calculate takingAmounts
