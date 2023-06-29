@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
+import { Constant } from "contracts/libraries/Constant.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { MockERC20Permit } from "test/mocks/MockERC20Permit.sol";
 import { Addresses, computeContractAddress } from "test/utils/Addresses.sol";
@@ -213,7 +214,7 @@ contract TestTokenCollector is Addresses {
         IUniswapPermit2.PermitSingle({
             details: IUniswapPermit2.PermitDetails({
                 token: address(token),
-                amount: 100 * 1e18,
+                amount: type(uint160).max,
                 expiration: uint48(block.timestamp + 1 days),
                 nonce: uint48(0)
             }),
@@ -276,19 +277,6 @@ contract TestTokenCollector is Addresses {
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
     }
 
-    function testCannotCollectByPermit2AllowanceTransferWhenAmountIsNotEqualToPermitted() public {
-        IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
-
-        bytes32 permitHash = getPermit2PermitHash(permit);
-        bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
-        bytes memory data = encodePermit2Data(permit, permitSig);
-
-        // Amount is not equal to permitted
-        uint256 invalidAmount = permit.details.amount + 100;
-        vm.expectRevert(IUniswapPermit2.InvalidSigner.selector);
-        strategy.collect(address(token), user, address(this), invalidAmount, data);
-    }
-
     function testCannotCollectByPermit2AllowanceTransferWhenNonceIsInvalid() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
         // Nonce is invalid
@@ -316,18 +304,19 @@ contract TestTokenCollector is Addresses {
 
     function testCollectByPermit2AllowanceTransfer() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
+        uint256 amount = 1234;
 
         vm.prank(user);
-        token.approve(address(permit2), permit.details.amount);
+        token.approve(address(permit2), Constant.MAX_UINT);
 
         bytes32 permitHash = getPermit2PermitHash(permit);
         bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
         bytes memory data = encodePermit2Data(permit, permitSig);
 
-        strategy.collect(address(token), user, address(this), permit.details.amount, data);
+        strategy.collect(address(token), user, address(this), amount, data);
 
         uint256 balance = token.balanceOf(address(this));
-        assertEq(balance, permit.details.amount);
+        assertEq(balance, amount);
     }
 
     /* Permit2 Signature Transfer */

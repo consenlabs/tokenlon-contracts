@@ -8,6 +8,7 @@ import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { MockERC1271Wallet } from "test/mocks/MockERC1271Wallet.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
+import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 import { RFQ } from "contracts/RFQ.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { IRFQ } from "contracts/interfaces/IRFQ.sol";
@@ -17,7 +18,7 @@ import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
 import { RFQTx, getRFQTxHash } from "contracts/libraries/RFQTx.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 
-contract RFQTest is Test, Tokens, BalanceUtil {
+contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
     using BalanceSnapshot for Snapshot;
 
     uint256 private constant FLG_ALLOW_CONTRACT_SENDER = 1 << 255;
@@ -51,7 +52,8 @@ contract RFQTest is Test, Tokens, BalanceUtil {
     uint256 defaultExpiry = block.timestamp + 1;
     uint256 defaultSalt = 1234;
     uint256 defaultFeeFactor = 100;
-    bytes defaultPermit;
+    bytes defaultMakerPermit = abi.encodePacked(TokenCollector.Source.Token);
+    bytes defaultTakerPermit;
     bytes defaultMakerSig;
     RFQOffer defaultRFQOffer;
     RFQTx defaultRFQTx;
@@ -71,10 +73,9 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         deal(maker, 100 ether);
         setTokenBalanceAndApprove(maker, address(rfq), tokens, 100000);
         deal(taker, 100 ether);
-        setTokenBalanceAndApprove(taker, address(rfq), tokens, 100000);
+        setTokenBalanceAndApprove(taker, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
         deal(takerWalletContract, 100 ether);
-        setTokenBalanceAndApprove(takerWalletContract, address(rfq), tokens, 100000);
-        defaultPermit = abi.encodePacked(TokenCollector.Source.Token);
+        setTokenBalanceAndApprove(takerWalletContract, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
 
         defaultRFQOffer = RFQOffer({
             taker: taker,
@@ -91,6 +92,8 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         defaultRFQTx = RFQTx({ rfqOffer: defaultRFQOffer, takerRequestAmount: defaultRFQOffer.takerTokenAmount, recipient: payable(recipient) });
 
         defaultMakerSig = _signRFQOffer(makerSignerPrivateKey, defaultRFQOffer);
+
+        defaultTakerPermit = getTokenlonPermit2Data(takerPrivateKey, defaultRFQOffer.takerToken, address(rfq));
 
         vm.label(taker, "taker");
         vm.label(maker, "maker");
@@ -144,7 +147,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         );
 
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
-        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
         takerTakerToken.assertChange(-int256(defaultRFQOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
         makerTakerToken.assertChange(int256(defaultRFQOffer.takerTokenAmount));
@@ -161,7 +164,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         bytes memory takerPermit = abi.encodePacked(TokenCollector.Source.TokenlonAllowanceTarget);
 
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
-        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultPermit, takerPermit);
+        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, takerPermit);
     }
 
     function testFillRFQWithZeroFee() public {
@@ -193,7 +196,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         );
 
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
-        rfq.fillRFQ(rfqTx, makerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
 
         takerTakerToken.assertChange(-int256(defaultRFQOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -227,7 +230,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount;
 
         vm.prank(rfqOffer.taker, rfqOffer.taker);
-        rfq.fillRFQ{ value: rfqOffer.takerTokenAmount }(rfqTx, makerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ{ value: rfqOffer.takerTokenAmount }(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
 
         takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -263,7 +266,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         rfqTx.rfqOffer = rfqOffer;
 
         vm.prank(rfqOffer.taker, rfqOffer.taker);
-        rfq.fillRFQ(rfqTx, makerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
 
         takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -299,8 +302,10 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         rfqTx.rfqOffer = rfqOffer;
         rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount;
 
+        bytes memory takerPermit = getTokenlonPermit2Data(takerPrivateKey, rfqOffer.takerToken, address(rfq));
+
         vm.prank(rfqOffer.taker, rfqOffer.taker);
-        rfq.fillRFQ(rfqTx, makerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, takerPermit);
 
         takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -322,7 +327,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         // tx.origin is an EOA, msg.sender is a contract
         vm.prank(takerWalletContract, makeAddr("anyAddr"));
-        rfq.fillRFQ(rfqTx, makerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
     }
 
     function testPartialFill() public {
@@ -344,7 +349,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount / 2;
 
         vm.prank(rfqOffer.taker, rfqOffer.taker);
-        rfq.fillRFQ(rfqTx, makerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
 
         {
             uint256 makerActualAmount = rfqOffer.makerTokenAmount / 2;
@@ -367,7 +372,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         vm.expectRevert(IRFQ.ForbidPartialFill.selector);
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
-        rfq.fillRFQ(rfqTx, defaultMakerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
     }
 
     function testCannotPartialFillWithInvalidAmount() public {
@@ -382,7 +387,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         rfqTx.takerRequestAmount = defaultRFQOffer.takerTokenAmount * 2;
         vm.expectRevert(IRFQ.InvalidTakerAmount.selector);
         vm.prank(rfqOffer.taker, rfqOffer.taker);
-        rfq.fillRFQ(rfqTx, makerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
 
         // case : takerRequestAmount = 0
         RFQTx memory rfqTx1 = defaultRFQTx;
@@ -390,7 +395,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         rfqTx1.takerRequestAmount = 0;
         vm.expectRevert(IRFQ.InvalidTakerAmount.selector);
         vm.prank(rfqOffer.taker, rfqOffer.taker);
-        rfq.fillRFQ(rfqTx1, makerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(rfqTx1, makerSig, defaultMakerPermit, defaultTakerPermit);
     }
 
     function testCannotFillExpiredRFQTx() public {
@@ -398,16 +403,16 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         vm.expectRevert(IRFQ.ExpiredRFQOffer.selector);
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
-        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
     }
 
     function testCannotFillAlreadyFillRFQTx() public {
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
-        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
 
         vm.expectRevert(IRFQ.FilledRFQOffer.selector);
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
-        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
     }
 
     function testCannotFillRFQWithIncorrectMakerSig() public {
@@ -416,7 +421,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         vm.expectRevert(IRFQ.InvalidSignature.selector);
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
-        rfq.fillRFQ(defaultRFQTx, randomMakerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(defaultRFQTx, randomMakerSig, defaultMakerPermit, defaultTakerPermit);
     }
 
     function testCannotFillWithZeroRecipient() public {
@@ -425,14 +430,14 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         vm.expectRevert(IRFQ.ZeroAddress.selector);
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
-        rfq.fillRFQ(rfqTx, defaultMakerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
     }
 
     function testCannotFillWithIncorrectMsgValue() public {
         // case : takerToken is normal ERC20
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.InvalidMsgValue.selector);
-        rfq.fillRFQ{ value: 1 ether }(defaultRFQTx, defaultMakerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ{ value: 1 ether }(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
 
         // case : takerToken is WETH
         RFQOffer memory rfqOffer = defaultRFQOffer;
@@ -445,7 +450,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.InvalidMsgValue.selector);
-        rfq.fillRFQ{ value: 2 ether }(rfqTx, makerSig, defaultPermit, defaultPermit);
+        rfq.fillRFQ{ value: 2 ether }(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
 
         // case : takerToken is raw ETH
         RFQOffer memory rfqOffer1 = defaultRFQOffer;
@@ -458,7 +463,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.InvalidMsgValue.selector);
-        rfq.fillRFQ{ value: 2 ether }(rfqTx1, makerSig1, defaultPermit, defaultPermit);
+        rfq.fillRFQ{ value: 2 ether }(rfqTx1, makerSig1, defaultMakerPermit, defaultTakerPermit);
     }
 
     function testFillRFQByTakerSig() public {
@@ -489,7 +494,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         );
 
         vm.prank(txRelayer, txRelayer);
-        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultPermit, defaultPermit, takerSig);
+        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, takerSig);
 
         takerTakerToken.assertChange(-int256(defaultRFQOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -507,7 +512,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         vm.expectRevert(IRFQ.InvalidSignature.selector);
         vm.prank(txRelayer, txRelayer);
-        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultPermit, defaultPermit, randomSig);
+        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, randomSig);
     }
 
     function testCannotFillWithInvalidFeeFactor() public {
@@ -517,7 +522,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
 
         vm.expectRevert(IRFQ.InvalidFeeFactor.selector);
         vm.prank(txRelayer, txRelayer);
-        rfq.fillRFQ(rfqTx, defaultMakerSig, defaultPermit, defaultPermit, takerSig);
+        rfq.fillRFQ(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, takerSig);
     }
 
     function _signRFQOffer(uint256 _privateKey, RFQOffer memory _rfqOffer) internal view returns (bytes memory sig) {

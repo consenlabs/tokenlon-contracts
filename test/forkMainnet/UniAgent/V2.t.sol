@@ -103,9 +103,10 @@ contract V2Test is UniAgentTest {
         uint256 outputAmount = amounts[amounts.length - 1];
 
         bytes memory payload = abi.encodeCall(IUniswapRouterV2.swapExactTokensForTokens, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
+        bytes memory userPermit = getTokenlonPermit2Data(userPrivateKey, inputToken, address(uniAgent));
 
         vm.prank(user);
-        uniAgent.approveAndSwap(IUniAgent.RouterType.V2Router, inputToken, defaultInputAmount, payload, defaultUserPermit);
+        uniAgent.approveAndSwap(IUniAgent.RouterType.V2Router, inputToken, defaultInputAmount, payload, userPermit);
 
         userInputToken.assertChange(-int256(defaultInputAmount));
         // recipient should receive exact amount of quote from Uniswap
@@ -133,13 +134,14 @@ contract V2Test is UniAgentTest {
         uint256 outputAmount = amounts[amounts.length - 1];
 
         bytes memory payload = abi.encodeCall(IUniswapRouterV2.swapExactTokensForTokens, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
+        bytes memory userPermit = getTokenlonPermit2Data(userPrivateKey, inputToken, address(uniAgent));
 
         // should still succeed even re-approve the token
         vm.startPrank(user);
         address[] memory approveList = new address[](1);
         approveList[0] = inputToken;
         uniAgent.approveTokensToRouters(approveList);
-        uniAgent.approveAndSwap(IUniAgent.RouterType.V2Router, inputToken, defaultInputAmount, payload, defaultUserPermit);
+        uniAgent.approveAndSwap(IUniAgent.RouterType.V2Router, inputToken, defaultInputAmount, payload, userPermit);
         vm.stopPrank();
 
         userInputToken.assertChange(-int256(defaultInputAmount));

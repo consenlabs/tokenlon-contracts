@@ -20,13 +20,15 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     event SetCoordinator(address newCoordinator);
 
     address crdTakerOwner = makeAddr("crdTakerOwner");
-    address user = makeAddr("user");
+    uint256 userPrivateKey = uint256(5);
+    address user = vm.addr(userPrivateKey);
 
     address[] tokenList = [USDC_ADDRESS, USDT_ADDRESS, DAI_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
     address[] ammList = [UNISWAP_V2_ADDRESS, SUSHISWAP_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS];
 
     uint256 crdPrivateKey = uint256(2);
     address coordinator = vm.addr(crdPrivateKey);
+    bytes defaultUserPrmit;
     LimitOrder defaultCrdOrder;
     AllowFill defaultAllowFill;
     ICoordinatedTaker.CoordinatorParams defaultCRDParams;
@@ -49,12 +51,14 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         coordinatedTaker.approveTokens(tokenList, targetList);
 
         deal(user, 100 ether);
-        setTokenBalanceAndApprove(user, address(coordinatedTaker), tokens, 100000);
+        setTokenBalanceAndApprove(user, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
 
         defaultCrdOrder = defaultOrder;
         defaultCrdOrder.taker = address(coordinatedTaker);
 
         defaultMakerSig = _signLimitOrder(makerPrivateKey, defaultCrdOrder);
+
+        defaultUserPrmit = getTokenlonPermit2Data(userPrivateKey, defaultCrdOrder.takerToken, address(coordinatedTaker));
 
         defaultAllowFill = AllowFill({
             orderHash: getLimitOrderHash(defaultCrdOrder),
@@ -163,7 +167,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultPermit,
+            userTokenPermit: defaultUserPrmit,
             crdParams: defaultCRDParams
         });
 
@@ -224,7 +228,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: order.takerTokenAmount,
             makerTokenAmount: order.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultPermit,
+            userTokenPermit: defaultUserPrmit,
             crdParams: crdParams
         });
 
@@ -246,7 +250,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultPermit,
+            userTokenPermit: defaultUserPrmit,
             crdParams: defaultCRDParams
         });
     }
@@ -266,7 +270,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultPermit,
+            userTokenPermit: defaultUserPrmit,
             crdParams: crdParams
         });
     }
@@ -279,7 +283,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultPermit,
+            userTokenPermit: defaultUserPrmit,
             crdParams: defaultCRDParams
         });
 
@@ -291,7 +295,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultPermit,
+            userTokenPermit: allowanceTransferPermit, // should be able to transfer without permit data
             crdParams: defaultCRDParams
         });
     }
@@ -305,7 +309,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultPermit,
+            userTokenPermit: defaultUserPrmit,
             crdParams: defaultCRDParams
         });
     }
