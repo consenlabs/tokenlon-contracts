@@ -11,7 +11,6 @@ import { IAllowanceTarget } from "../interfaces/IAllowanceTarget.sol";
 abstract contract TokenCollector {
     using SafeERC20 for IERC20;
 
-    error Permit2AmountTooLarge();
     error Permit2DataEmpty();
 
     enum Source {
@@ -53,12 +52,11 @@ abstract contract TokenCollector {
             }
             return IERC20(token).safeTransferFrom(from, to, amount);
         } else if (src == Source.Permit2AllowanceTransfer) {
-            if (amount > uint256(type(uint160).max)) revert Permit2AmountTooLarge();
             bytes memory permit2Data = data[1:];
             if (permit2Data.length > 0) {
                 (uint48 nonce, uint48 deadline, bytes memory permitSig) = abi.decode(permit2Data, (uint48, uint48, bytes));
                 IUniswapPermit2.PermitSingle memory permit = IUniswapPermit2.PermitSingle({
-                    details: IUniswapPermit2.PermitDetails({ token: token, amount: uint160(amount), expiration: deadline, nonce: nonce }),
+                    details: IUniswapPermit2.PermitDetails({ token: token, amount: type(uint160).max, expiration: deadline, nonce: nonce }),
                     spender: address(this),
                     sigDeadline: uint256(deadline)
                 });
