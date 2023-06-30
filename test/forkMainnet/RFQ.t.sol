@@ -77,8 +77,6 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         setTokenBalanceAndApprove(taker, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
         deal(takerWalletContract, 100 ether);
         setTokenBalanceAndApprove(takerWalletContract, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
-        vm.prank(takerWalletContract);
-        IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS).approve(USDT_ADDRESS, address(rfq), type(uint160).max, uint48(block.timestamp + 1 days));
 
         defaultRFQOffer = RFQOffer({
             taker: taker,
@@ -328,9 +326,13 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.rfqOffer = rfqOffer;
 
+        // the owner should be takerWalletContract but the signer is taker
+        // permit2 will validate sig using EIP-1271
+        bytes memory takerPermit = getTokenlonPermit2Data(takerWalletContract, takerPrivateKey, defaultRFQOffer.takerToken, address(rfq));
+
         // tx.origin is an EOA, msg.sender is a contract
         vm.prank(takerWalletContract, makeAddr("anyAddr"));
-        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, takerPermit);
     }
 
     function testPartialFill() public {
