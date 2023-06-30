@@ -18,6 +18,8 @@ interface ICoordinatedTaker {
         uint256 expiry;
     }
 
+    event CoordinatorFill(address indexed user, bytes32 indexed orderHash, bytes32 indexed allowFillHash);
+
     /// @notice Emitted when coordinator address is updated
     /// @param newCoordinator The address of the new coordinator
     event SetCoordinator(address newCoordinator);
