@@ -4,7 +4,6 @@ pragma solidity 0.8.17;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { AdminManagement } from "contracts/abstracts/AdminManagement.sol";
-import { Constant } from "contracts/libraries/Constant.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 
@@ -42,7 +41,7 @@ contract AdminManagementTest is BalanceUtil {
 
         for (uint256 i = 0; i < tokens.length; ++i) {
             for (uint256 j = 0; j < spenders.length; ++j) {
-                assertEq(IERC20(tokens[i]).allowance(address(contractWithAdmin), spenders[j]), Constant.MAX_UINT);
+                assertEq(IERC20(tokens[i]).allowance(address(contractWithAdmin), spenders[j]), type(uint256).max);
             }
         }
     }

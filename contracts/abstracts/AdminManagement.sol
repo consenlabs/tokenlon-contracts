@@ -6,7 +6,6 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 import { Ownable } from "./Ownable.sol";
 import { Asset } from "../libraries/Asset.sol";
-import { Constant } from "../libraries/Constant.sol";
 
 /// @title AdminManagement Contract
 /// @author imToken Labs
@@ -18,7 +17,7 @@ abstract contract AdminManagement is Ownable {
     function approveTokens(address[] calldata tokens, address[] calldata spenders) external onlyOwner {
         for (uint256 i = 0; i < tokens.length; ++i) {
             for (uint256 j = 0; j < spenders.length; ++j) {
-                IERC20(tokens[i]).safeApprove(spenders[j], Constant.MAX_UINT);
+                IERC20(tokens[i]).safeApprove(spenders[j], type(uint256).max);
             }
         }
     }
