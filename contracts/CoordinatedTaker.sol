@@ -12,7 +12,6 @@ import { ICoordinatedTaker } from "./interfaces/ICoordinatedTaker.sol";
 import { ILimitOrderSwap } from "./interfaces/ILimitOrderSwap.sol";
 import { LimitOrder, getLimitOrderHash } from "./libraries/LimitOrder.sol";
 import { AllowFill, getAllowFillHash } from "./libraries/AllowFill.sol";
-import { Constant } from "./libraries/Constant.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
@@ -53,7 +52,7 @@ contract CoordinatedTaker is ICoordinatedTaker, Ownable, TokenCollector, EIP712 
     function approveTokens(address[] calldata tokens, address[] calldata spenders) external onlyOwner {
         for (uint256 i = 0; i < tokens.length; ++i) {
             for (uint256 j = 0; j < spenders.length; ++j) {
-                IERC20(tokens[i]).safeApprove(spenders[j], Constant.MAX_UINT);
+                IERC20(tokens[i]).safeApprove(spenders[j], type(uint256).max);
             }
         }
     }
@@ -91,6 +90,8 @@ contract CoordinatedTaker is ICoordinatedTaker, Ownable, TokenCollector, EIP712 
 
             if (allowFillUsed[allowFillHash]) revert ReusedPermission();
             allowFillUsed[allowFillHash] = true;
+
+            emit CoordinatorFill({ user: msg.sender, orderHash: orderHash, allowFillHash: allowFillHash });
         }
 
         // collect taker token from user (forward to LO contract without validation if taker token is ETH)
