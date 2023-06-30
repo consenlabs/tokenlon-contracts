@@ -6,40 +6,24 @@ abstract contract EIP712 {
     string public constant EIP191_HEADER = "\x19\x01";
 
     // EIP-712 Domain
-    string public constant EIP712_DOMAIN_NAME = "Tokenlon";
-    string public constant EIP712_DOMAIN_VERSION = "v6";
+    bytes32 public constant EIP712_HASHED_NAME = keccak256("Tokenlon");
+    bytes32 public constant EIP712_HASHED_VERSION = keccak256("v6");
+    bytes32 public constant EIP712_TYPE_HASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
-    bytes32 public immutable originalEIP712DomainSeparator;
     uint256 public immutable originalChainId;
+    bytes32 public immutable originalEIP712DomainSeparator;
 
     constructor() {
+        originalChainId = block.chainid;
         originalEIP712DomainSeparator = _buildDomainSeparator();
-        originalChainId = getChainID();
-    }
-
-    function getChainID() internal view returns (uint256) {
-        uint256 chainId;
-        assembly {
-            chainId := chainid()
-        }
-        return chainId;
     }
 
     function _buildDomainSeparator() private view returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                    keccak256(bytes(EIP712_DOMAIN_NAME)),
-                    keccak256(bytes(EIP712_DOMAIN_VERSION)),
-                    getChainID(),
-                    address(this)
-                )
-            );
+        return keccak256(abi.encode(EIP712_TYPE_HASH, EIP712_HASHED_NAME, EIP712_HASHED_VERSION, block.chainid, address(this)));
     }
 
     function _getDomainSeparator() private view returns (bytes32) {
-        if (getChainID() == originalChainId) {
+        if (block.chainid == originalChainId) {
             return originalEIP712DomainSeparator;
         } else {
             return _buildDomainSeparator();
