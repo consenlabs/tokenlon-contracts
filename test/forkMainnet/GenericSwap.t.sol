@@ -55,7 +55,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         uniswapStrategy = new UniswapStrategy(strategyAdmin, address(genericSwap), UNISWAP_V2_ADDRESS);
         mockStrategy = new MockStrategy();
         vm.prank(strategyAdmin);
-        uniswapStrategy.approveToken(USDT_ADDRESS, UNISWAP_V2_ADDRESS, Constant.MAX_UINT);
+        uniswapStrategy.approveToken(USDT_ADDRESS, UNISWAP_V2_ADDRESS, type(uint256).max);
 
         address[] memory defaultPath = new address[](2);
         defaultPath[0] = USDT_ADDRESS;

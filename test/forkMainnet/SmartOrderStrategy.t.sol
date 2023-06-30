@@ -71,7 +71,7 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
         assertEq(mockERC20.allowance(address(smartOrderStrategy), target), 0);
         vm.prank(strategyOwner);
         smartOrderStrategy.approveTokens(newTokens, targetList);
-        assertEq(mockERC20.allowance(address(smartOrderStrategy), target), Constant.MAX_UINT);
+        assertEq(mockERC20.allowance(address(smartOrderStrategy), target), type(uint256).max);
     }
 
     function testCannotWithdrawTokensByNotOwner() public {

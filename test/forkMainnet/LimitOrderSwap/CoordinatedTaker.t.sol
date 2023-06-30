@@ -109,7 +109,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         assertEq(mockERC20.allowance(address(coordinatedTaker), target), 0);
         vm.prank(crdTakerOwner);
         coordinatedTaker.approveTokens(newTokens, targetList);
-        assertEq(mockERC20.allowance(address(coordinatedTaker), target), Constant.MAX_UINT);
+        assertEq(mockERC20.allowance(address(coordinatedTaker), target), type(uint256).max);
     }
 
     function testCannotWithdrawTokensByNotOwner() public {

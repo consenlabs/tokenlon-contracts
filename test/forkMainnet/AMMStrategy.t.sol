@@ -8,7 +8,6 @@ import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 
 import { Constant } from "contracts/libraries/Constant.sol";
 import { AMMStrategy } from "contracts/AMMStrategy.sol";
-import { Constant } from "contracts/libraries/Constant.sol";
 
 import { IUniversalRouter } from "contracts/interfaces/IUniswapUniversalRouter.sol";
 import { UniswapCommands } from "test/libraries/UniswapCommands.sol";
@@ -38,7 +37,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
     function setUp() public {
         ammStrategy = new AMMStrategy(strategyAdmin, entryPoint, WETH_ADDRESS, UNISWAP_PERMIT2_ADDRESS, ammList);
         vm.prank(strategyAdmin);
-        ammStrategy.approveTokens(tokenList, ammList, usePermit2InAMMs, Constant.MAX_UINT);
+        ammStrategy.approveTokens(tokenList, ammList, usePermit2InAMMs, type(uint256).max);
         deal(entryPoint, 100 ether);
         for (uint256 i = 0; i < tokenList.length; i++) {
             setERC20Balance(tokenList[i], entryPoint, 100);
