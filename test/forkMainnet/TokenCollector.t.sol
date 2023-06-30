@@ -3,7 +3,6 @@ pragma solidity 0.8.17;
 
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
-import { Constant } from "contracts/libraries/Constant.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { MockERC20Permit } from "test/mocks/MockERC20Permit.sol";
 import { Addresses, computeContractAddress } from "test/utils/Addresses.sol";
@@ -307,7 +306,7 @@ contract TestTokenCollector is Addresses {
         uint256 amount = 1234;
 
         vm.prank(user);
-        token.approve(address(permit2), Constant.MAX_UINT);
+        token.approve(address(permit2), type(uint256).max);
 
         bytes32 permitHash = getPermit2PermitHash(permit);
         bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
@@ -326,7 +325,7 @@ contract TestTokenCollector is Addresses {
         uint256 amount = 1234;
 
         vm.prank(user);
-        token.approve(address(permit2), Constant.MAX_UINT);
+        token.approve(address(permit2), type(uint256).max);
 
         bytes32 permitHash = getPermit2PermitHash(permit);
         bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
