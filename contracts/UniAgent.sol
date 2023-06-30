@@ -5,7 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
-import { Ownable } from "./abstracts/Base.sol";
+import { Ownable } from "./abstracts/Ownable.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { IUniAgent } from "./interfaces/IUniAgent.sol";
 import { Asset } from "./libraries/Asset.sol";
