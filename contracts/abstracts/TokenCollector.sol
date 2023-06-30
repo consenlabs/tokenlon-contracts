@@ -46,21 +46,19 @@ abstract contract TokenCollector {
             (bool success, bytes memory result) = token.call(abi.encodePacked(IERC20Permit.permit.selector, data[1:]));
             if (!success) {
                 assembly {
-                    result := add(result, 0x04)
+                    revert(add(result, 32), returndatasize())
                 }
-                revert(abi.decode(result, (string)));
             }
             return IERC20(token).safeTransferFrom(from, to, amount);
         } else if (src == Source.Permit2AllowanceTransfer) {
             bytes memory permit2Data = data[1:];
             if (permit2Data.length > 0) {
-                (uint48 nonce, uint48 deadline, bytes memory permitSig) = abi.decode(permit2Data, (uint48, uint48, bytes));
-                IUniswapPermit2.PermitSingle memory permit = IUniswapPermit2.PermitSingle({
-                    details: IUniswapPermit2.PermitDetails({ token: token, amount: type(uint160).max, expiration: deadline, nonce: nonce }),
-                    spender: address(this),
-                    sigDeadline: uint256(deadline)
-                });
-                IUniswapPermit2(permit2).permit(from, permit, permitSig);
+                (bool success, bytes memory result) = permit2.call(abi.encodePacked(IUniswapPermit2.permit.selector, permit2Data));
+                if (!success) {
+                    assembly {
+                        revert(add(result, 32), returndatasize())
+                    }
+                }
             }
             return IUniswapPermit2(permit2).transferFrom(from, to, uint160(amount), token);
         } else if (src == Source.Permit2SignatureTransfer) {

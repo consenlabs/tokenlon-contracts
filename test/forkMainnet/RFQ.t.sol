@@ -13,6 +13,7 @@ import { RFQ } from "contracts/RFQ.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { IRFQ } from "contracts/interfaces/IRFQ.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
+import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
 import { RFQTx, getRFQTxHash } from "contracts/libraries/RFQTx.sol";
@@ -76,6 +77,8 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         setTokenBalanceAndApprove(taker, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
         deal(takerWalletContract, 100 ether);
         setTokenBalanceAndApprove(takerWalletContract, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
+        vm.prank(takerWalletContract);
+        IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS).approve(USDT_ADDRESS, address(rfq), type(uint160).max, uint48(block.timestamp + 1 days));
 
         defaultRFQOffer = RFQOffer({
             taker: taker,

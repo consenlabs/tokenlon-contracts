@@ -306,7 +306,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: allowanceTransferPermit, // should be able to transfer without permit data
+            userTokenPermit: allowanceTransferPermit, // should transfer from permit2 allowance directly
             crdParams: defaultCRDParams
         });
     }
