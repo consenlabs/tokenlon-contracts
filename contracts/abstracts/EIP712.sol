@@ -6,9 +6,11 @@ abstract contract EIP712 {
     string public constant EIP191_HEADER = "\x19\x01";
 
     // EIP-712 Domain
-    bytes32 public constant EIP712_HASHED_NAME = keccak256("Tokenlon");
-    bytes32 public constant EIP712_HASHED_VERSION = keccak256("v6");
+    string public constant EIP712_NAME = "Tokenlon";
+    string public constant EIP712_VERSION = "v6";
     bytes32 public constant EIP712_TYPE_HASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 private constant EIP712_HASHED_NAME = keccak256(bytes(EIP712_NAME));
+    bytes32 private constant EIP712_HASHED_VERSION = keccak256(bytes(EIP712_VERSION));
 
     uint256 public immutable originalChainId;
     bytes32 public immutable originalEIP712DomainSeparator;
