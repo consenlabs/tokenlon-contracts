@@ -302,6 +302,25 @@ contract TestTokenCollector is Addresses {
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
     }
 
+    function testCannotCollectByReplayedPermit2AllowanceTransfer() public {
+        IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
+        uint256 amount = 1234;
+
+        vm.prank(user);
+        token.approve(address(permit2), Constant.MAX_UINT);
+
+        bytes32 permitHash = getPermit2PermitHash(permit);
+        bytes memory permitSig = signPermit2(userPrivateKey, permitHash);
+        bytes memory data = encodePermit2Data(permit, permitSig);
+
+        // first time should be success
+        strategy.collect(address(token), user, address(this), amount, data);
+
+        // replayed sig is valid but the nonce value would be incorrect
+        vm.expectRevert(IUniswapPermit2.InvalidNonce.selector);
+        strategy.collect(address(token), user, address(this), amount, data);
+    }
+
     function testCollectByPermit2AllowanceTransfer() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
         uint256 amount = 1234;
