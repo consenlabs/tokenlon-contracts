@@ -39,7 +39,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, Ownable {
     function approveTokens(address[] calldata tokens, address[] calldata spenders) external override onlyOwner {
         for (uint256 i = 0; i < tokens.length; ++i) {
             for (uint256 j = 0; j < spenders.length; ++j) {
-                IERC20(tokens[i]).safeApprove(spenders[j], Constant.MAX_UINT);
+                IERC20(tokens[i]).safeApprove(spenders[j], type(uint256).max);
             }
         }
     }
