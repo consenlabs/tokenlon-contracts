@@ -9,7 +9,6 @@ import { Ownable } from "./abstracts/Ownable.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { IUniAgent } from "./interfaces/IUniAgent.sol";
 import { Asset } from "./libraries/Asset.sol";
-import { Constant } from "./libraries/Constant.sol";
 
 contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
     using Asset for address;
@@ -44,8 +43,8 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
         for (uint256 i = 0; i < tokens.length; ++i) {
             // use low level call to avoid return size check
             // ignore return value and proceed anyway since three calls are independent
-            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v2Router, Constant.MAX_UINT));
-            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v3Router, Constant.MAX_UINT));
+            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v2Router, type(uint256).max));
+            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v3Router, type(uint256).max));
         }
     }
 
@@ -82,7 +81,7 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
         address routerAddr = _getRouterAddress(routerType);
         if (needApprove) {
             // use low level call to avoid return size check
-            (bool apvSuccess, bytes memory apvResult) = inputToken.call(abi.encodeWithSelector(IERC20.approve.selector, routerAddr, Constant.MAX_UINT));
+            (bool apvSuccess, bytes memory apvResult) = inputToken.call(abi.encodeWithSelector(IERC20.approve.selector, routerAddr, type(uint256).max));
             if (!apvSuccess) {
                 assembly {
                     revert(add(apvResult, 32), mload(apvResult))
