@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
-import { Base } from "./abstracts/Base.sol";
+import { AdminManagement } from "./abstracts/AdminManagement.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { ICoordinatedTaker } from "./interfaces/ICoordinatedTaker.sol";
@@ -15,7 +15,7 @@ import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 /// @title CoordinatedTaker Contract
 /// @author imToken Labs
-contract CoordinatedTaker is ICoordinatedTaker, Base, TokenCollector, EIP712 {
+contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector, EIP712 {
     using Asset for address;
 
     IWETH public immutable weth;
@@ -31,7 +31,7 @@ contract CoordinatedTaker is ICoordinatedTaker, Base, TokenCollector, EIP712 {
         IWETH _weth,
         address _coordinator,
         ILimitOrderSwap _limitOrderSwap
-    ) Base(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
+    ) AdminManagement(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
         weth = _weth;
         coordinator = _coordinator;
         limitOrderSwap = _limitOrderSwap;

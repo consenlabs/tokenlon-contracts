@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { Base } from "./abstracts/Base.sol";
+import { AdminManagement } from "./abstracts/AdminManagement.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { Constant } from "./libraries/Constant.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
@@ -11,7 +11,7 @@ import { IUniswapPermit2 } from "./interfaces/IUniswapPermit2.sol";
 import { ISmartOrderStrategy } from "./interfaces/ISmartOrderStrategy.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
 
-contract SmartOrderStrategy is ISmartOrderStrategy, Base {
+contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
     address public immutable weth;
     address public immutable genericSwap;
 
@@ -21,7 +21,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, Base {
         address _owner,
         address _genericSwap,
         address _weth
-    ) Base(_owner) {
+    ) AdminManagement(_owner) {
         genericSwap = _genericSwap;
         weth = _weth;
     }

@@ -8,9 +8,9 @@ import { Ownable } from "./Ownable.sol";
 import { Asset } from "../libraries/Asset.sol";
 import { Constant } from "../libraries/Constant.sol";
 
-/// @title Base Contract
+/// @title AdminManagement Contract
 /// @author imToken Labs
-abstract contract Base is Ownable {
+abstract contract AdminManagement is Ownable {
     using SafeERC20 for IERC20;
 
     constructor(address _owner) Ownable(_owner) {}
