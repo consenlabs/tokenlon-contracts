@@ -93,7 +93,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
 
         defaultMakerSig = _signRFQOffer(makerSignerPrivateKey, defaultRFQOffer);
 
-        defaultTakerPermit = getTokenlonPermit2Data(takerPrivateKey, defaultRFQOffer.takerToken, address(rfq));
+        defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultRFQOffer.takerToken, address(rfq));
 
         vm.label(taker, "taker");
         vm.label(maker, "maker");
@@ -302,7 +302,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         rfqTx.rfqOffer = rfqOffer;
         rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount;
 
-        bytes memory takerPermit = getTokenlonPermit2Data(takerPrivateKey, rfqOffer.takerToken, address(rfq));
+        bytes memory takerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, rfqOffer.takerToken, address(rfq));
 
         vm.prank(rfqOffer.taker, rfqOffer.taker);
         rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, takerPermit);

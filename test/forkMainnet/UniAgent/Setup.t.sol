@@ -44,6 +44,6 @@ contract UniAgentTest is Test, Tokens, BalanceUtil, Permit2Helper {
         deal(user, 100 ether);
         setTokenBalanceAndApprove(user, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
 
-        defaultUserPermit = getTokenlonPermit2Data(userPrivateKey, defaultInputToken, address(uniAgent));
+        defaultUserPermit = getTokenlonPermit2Data(user, userPrivateKey, defaultInputToken, address(uniAgent));
     }
 }

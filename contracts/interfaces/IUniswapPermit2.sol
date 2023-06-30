@@ -54,6 +54,22 @@ interface IUniswapPermit2 {
     /// @dev Uses cached version if chainid and address are unchanged from construction.
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 
+    /// @notice A mapping from owner address to token address to spender address to PackedAllowance struct, which contains details and conditions of the approval.
+    /// @notice The mapping is indexed in the above order see: allowance[ownerAddress][tokenAddress][spenderAddress]
+    /// @dev The packed slot holds the allowed amount, expiration at which the allowed amount is no longer valid, and current nonce thats updated on any signature based approvals.
+    function allowance(
+        address user,
+        address token,
+        address spender
+    )
+        external
+        view
+        returns (
+            uint160 amount,
+            uint48 expiration,
+            uint48 nonce
+        );
+
     /// @notice Permit a spender to a given amount of the owners token via the owner's EIP-712 signature
     /// @dev May fail if the owner's nonce was invalidated in-flight by invalidateNonce
     /// @param owner The owner of the tokens being approved

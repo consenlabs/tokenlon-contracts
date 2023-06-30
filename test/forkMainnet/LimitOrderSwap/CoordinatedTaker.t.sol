@@ -58,7 +58,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
         defaultMakerSig = _signLimitOrder(makerPrivateKey, defaultCrdOrder);
 
-        defaultUserPrmit = getTokenlonPermit2Data(userPrivateKey, defaultCrdOrder.takerToken, address(coordinatedTaker));
+        defaultUserPrmit = getTokenlonPermit2Data(user, userPrivateKey, defaultCrdOrder.takerToken, address(coordinatedTaker));
 
         defaultAllowFill = AllowFill({
             orderHash: getLimitOrderHash(defaultCrdOrder),

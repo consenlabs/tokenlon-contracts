@@ -31,16 +31,20 @@ contract Permit2Helper is Test {
     }
 
     function getTokenlonPermit2Data(
-        uint256 privateKey,
+        address owner,
+        uint256 ownerPrivateKey,
         address token,
         address spender
     ) public view returns (bytes memory) {
+        uint256 expiration = block.timestamp + 1 days;
+        (, , uint48 nonce) = permit2.allowance(owner, token, spender);
+
         IUniswapPermit2.PermitSingle memory permit = IUniswapPermit2.PermitSingle({
-            details: IUniswapPermit2.PermitDetails({ token: token, amount: type(uint160).max, expiration: uint48(block.timestamp + 1 days), nonce: uint48(0) }),
+            details: IUniswapPermit2.PermitDetails({ token: token, amount: type(uint160).max, expiration: uint48(expiration), nonce: nonce }),
             spender: spender,
-            sigDeadline: block.timestamp + 1 days
+            sigDeadline: expiration
         });
-        bytes memory permitSig = signPermitSingle(privateKey, permit);
+        bytes memory permitSig = signPermitSingle(ownerPrivateKey, permit);
         return encodePermit2Data(permit, permitSig);
     }
 }

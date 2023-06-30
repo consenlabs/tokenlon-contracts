@@ -96,7 +96,7 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
         vm.prank(maker);
         IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS).approve(defaultOrder.makerToken, address(limitOrderSwap), type(uint160).max, uint48(block.timestamp + 1 days));
 
-        defaultTakerPermit = getTokenlonPermit2Data(takerPrivateKey, defaultOrder.takerToken, address(limitOrderSwap));
+        defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultOrder.takerToken, address(limitOrderSwap));
 
         defaultTakerParams = ILimitOrderSwap.TakerParams({
             takerTokenAmount: defaultOrder.takerTokenAmount,

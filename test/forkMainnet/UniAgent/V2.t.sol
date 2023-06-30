@@ -103,7 +103,7 @@ contract V2Test is UniAgentTest {
         uint256 outputAmount = amounts[amounts.length - 1];
 
         bytes memory payload = abi.encodeCall(IUniswapRouterV2.swapExactTokensForTokens, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
-        bytes memory userPermit = getTokenlonPermit2Data(userPrivateKey, inputToken, address(uniAgent));
+        bytes memory userPermit = getTokenlonPermit2Data(user, userPrivateKey, inputToken, address(uniAgent));
 
         vm.prank(user);
         uniAgent.approveAndSwap(IUniAgent.RouterType.V2Router, inputToken, defaultInputAmount, payload, userPermit);
@@ -134,7 +134,7 @@ contract V2Test is UniAgentTest {
         uint256 outputAmount = amounts[amounts.length - 1];
 
         bytes memory payload = abi.encodeCall(IUniswapRouterV2.swapExactTokensForTokens, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
-        bytes memory userPermit = getTokenlonPermit2Data(userPrivateKey, inputToken, address(uniAgent));
+        bytes memory userPermit = getTokenlonPermit2Data(user, userPrivateKey, inputToken, address(uniAgent));
 
         // should still succeed even re-approve the token
         vm.startPrank(user);

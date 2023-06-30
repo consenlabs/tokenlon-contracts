@@ -82,7 +82,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
             strategyData: swapData
         });
 
-        defaultTakerPermit = getTokenlonPermit2Data(takerPrivateKey, defaultGSData.takerToken, address(genericSwap));
+        defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultGSData.takerToken, address(genericSwap));
 
         IUniswapRouterV2 router = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
         uint256[] memory amounts = router.getAmountsOut(defaultGSData.takerTokenAmount, defaultPath);
