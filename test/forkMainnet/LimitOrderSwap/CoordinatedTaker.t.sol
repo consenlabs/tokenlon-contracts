@@ -17,6 +17,7 @@ import { MockERC20 } from "test/mocks/MockERC20.sol";
 contract CoordinatedTakerTest is LimitOrderSwapTest {
     using BalanceSnapshot for Snapshot;
 
+    event CoordinatorFill(address indexed user, bytes32 indexed orderHash, bytes32 indexed allowFillHash);
     event SetCoordinator(address newCoordinator);
 
     address crdTakerOwner = makeAddr("crdTakerOwner");
@@ -144,6 +145,13 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         uint256 fee = (defaultCrdOrder.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
 
         vm.expectEmit(true, true, true, true);
+        emit CoordinatorFill(
+            user,
+            getLimitOrderHash(defaultCrdOrder),
+            getEIP712Hash(coordinatedTaker.EIP712_DOMAIN_SEPARATOR(), getAllowFillHash(defaultAllowFill))
+        );
+
+        vm.expectEmit(true, true, true, true);
         emit LimitOrderFilled(
             getLimitOrderHash(defaultCrdOrder),
             address(coordinatedTaker), // taker
@@ -203,6 +211,9 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         });
 
         uint256 fee = (order.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+
+        vm.expectEmit(true, true, true, true);
+        emit CoordinatorFill(user, getLimitOrderHash(order), getEIP712Hash(coordinatedTaker.EIP712_DOMAIN_SEPARATOR(), getAllowFillHash(allowFill)));
 
         vm.expectEmit(true, true, true, true);
         emit LimitOrderFilled(

@@ -91,6 +91,8 @@ contract CoordinatedTaker is ICoordinatedTaker, Ownable, TokenCollector, EIP712 
 
             if (allowFillUsed[allowFillHash]) revert ReusedPermission();
             allowFillUsed[allowFillHash] = true;
+
+            emit CoordinatorFill({ user: msg.sender, orderHash: orderHash, allowFillHash: allowFillHash });
         }
 
         // collect taker token from user (forward to LO contract without validation if taker token is ETH)
