@@ -10,10 +10,9 @@ In Tokenlon V6, multiple schemes of token approval is supported. TokenCollector 
 // ***********************************
 ```
 
-
 Supported scheme:
+
 1. Direct approve Tokenlon's contract
 2. ERC-2612 permit
 3. Tokenlon AllowanceTarget
 4. Uniswap Permit2
-
