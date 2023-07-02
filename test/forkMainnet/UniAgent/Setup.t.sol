@@ -7,6 +7,7 @@ import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
+import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 import { UniAgent } from "contracts/UniAgent.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
@@ -14,7 +15,7 @@ import { Constant } from "contracts/libraries/Constant.sol";
 import { IUniAgent } from "contracts/interfaces/IUniAgent.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
-contract UniAgentTest is Test, Tokens, BalanceUtil {
+contract UniAgentTest is Test, Tokens, BalanceUtil, Permit2Helper {
     uint256 userPrivateKey = uint256(1);
     address user = vm.addr(userPrivateKey);
     address uniAgentOwner = makeAddr("uniAgentOwner");
@@ -41,8 +42,8 @@ contract UniAgentTest is Test, Tokens, BalanceUtil {
         uniAgent.approveTokensToRouters(defaultPath);
 
         deal(user, 100 ether);
-        setTokenBalanceAndApprove(user, address(uniAgent), tokens, 100000);
+        setTokenBalanceAndApprove(user, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
 
-        defaultUserPermit = abi.encodePacked(TokenCollector.Source.Token);
+        defaultUserPermit = getTokenlonPermit2Data(user, userPrivateKey, defaultInputToken, address(uniAgent));
     }
 }

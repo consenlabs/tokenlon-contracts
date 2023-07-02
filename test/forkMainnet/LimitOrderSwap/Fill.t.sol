@@ -110,7 +110,7 @@ contract FillTest is LimitOrderSwapTest {
                 makerTokenAmount: order.makerTokenAmount,
                 recipient: address(mockLimitOrderTaker),
                 extraAction: extraAction,
-                takerTokenPermit: defaultPermit
+                takerTokenPermit: directApprovePermit
             })
         });
 
@@ -203,7 +203,7 @@ contract FillTest is LimitOrderSwapTest {
                 makerTokenAmount: order.makerTokenAmount,
                 recipient: recipient,
                 extraAction: bytes(""),
-                takerTokenPermit: defaultPermit
+                takerTokenPermit: defaultTakerPermit
             })
         });
 
@@ -293,7 +293,7 @@ contract FillTest is LimitOrderSwapTest {
                 makerTokenAmount: traderMakingAmount,
                 recipient: recipient,
                 extraAction: bytes(""),
-                takerTokenPermit: defaultPermit
+                takerTokenPermit: defaultTakerPermit
             })
         });
 
@@ -376,7 +376,7 @@ contract FillTest is LimitOrderSwapTest {
             takerTokenAmount: 1 ether,
             makerToken: DAI_ADDRESS,
             makerTokenAmount: 1000 ether,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: defaultFeeFactor,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -411,7 +411,7 @@ contract FillTest is LimitOrderSwapTest {
                 makerTokenAmount: traderMakingAmount,
                 recipient: recipient,
                 extraAction: bytes(""),
-                takerTokenPermit: defaultPermit
+                takerTokenPermit: defaultTakerPermit
             })
         });
 
@@ -435,7 +435,7 @@ contract FillTest is LimitOrderSwapTest {
                 makerTokenAmount: defaultOrder.makerTokenAmount / 10,
                 recipient: recipient,
                 extraAction: bytes(""),
-                takerTokenPermit: defaultPermit
+                takerTokenPermit: defaultTakerPermit
             })
         });
 
@@ -449,7 +449,7 @@ contract FillTest is LimitOrderSwapTest {
                 makerTokenAmount: defaultOrder.makerTokenAmount / 10,
                 recipient: recipient,
                 extraAction: bytes(""),
-                takerTokenPermit: defaultPermit
+                takerTokenPermit: allowanceTransferPermit
             })
         });
     }
@@ -486,7 +486,7 @@ contract FillTest is LimitOrderSwapTest {
                 makerTokenAmount: defaultOrder.makerTokenAmount,
                 recipient: randomTaker,
                 extraAction: extraAction,
-                takerTokenPermit: defaultPermit
+                takerTokenPermit: directApprovePermit
             })
         });
         vm.stopPrank();
