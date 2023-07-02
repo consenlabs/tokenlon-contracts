@@ -30,7 +30,7 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
 
     receive() external payable {}
 
-    function withdrawTokens(address[] calldata tokens, address recipient) external onlyOwner {
+    function rescueTokens(address[] calldata tokens, address recipient) external onlyOwner {
         for (uint256 i = 0; i < tokens.length; ++i) {
             uint256 selfBalance = Asset.getBalance(tokens[i], address(this));
             if (selfBalance > 0) {

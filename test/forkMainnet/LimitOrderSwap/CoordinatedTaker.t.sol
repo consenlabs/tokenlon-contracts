@@ -113,28 +113,6 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         assertEq(mockERC20.allowance(address(coordinatedTaker), target), type(uint256).max);
     }
 
-    function testCannotWithdrawTokensByNotOwner() public {
-        vm.expectRevert("not owner");
-        coordinatedTaker.withdrawTokens(tokenList, address(this));
-    }
-
-    function testWithdrawTokens() public {
-        uint256 amount = 5678;
-        MockERC20 mockERC20 = new MockERC20("Mock Token", "MKT", 18);
-        mockERC20.mint(address(coordinatedTaker), amount);
-
-        address[] memory withdrawList = new address[](1);
-        withdrawList[0] = address(mockERC20);
-
-        address withdrawTarget = makeAddr("withdrawTarget");
-        Snapshot memory recipientBalance = BalanceSnapshot.take(withdrawTarget, address(mockERC20));
-
-        vm.prank(crdTakerOwner);
-        coordinatedTaker.withdrawTokens(withdrawList, withdrawTarget);
-
-        recipientBalance.assertChange(int256(amount));
-    }
-
     function testFillWithPermission() public {
         Snapshot memory userTakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.takerToken });
         Snapshot memory userMakerToken = BalanceSnapshot.take({ owner: user, token: defaultCrdOrder.makerToken });

@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
-import { Ownable } from "./abstracts/Ownable.sol";
+import { AdminManagement } from "./abstracts/AdminManagement.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { ICoordinatedTaker } from "./interfaces/ICoordinatedTaker.sol";
@@ -17,9 +14,8 @@ import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 /// @title CoordinatedTaker Contract
 /// @author imToken Labs
-contract CoordinatedTaker is ICoordinatedTaker, Ownable, TokenCollector, EIP712 {
+contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector, EIP712 {
     using Asset for address;
-    using SafeERC20 for IERC20;
 
     IWETH public immutable weth;
     ILimitOrderSwap public immutable limitOrderSwap;
@@ -34,7 +30,7 @@ contract CoordinatedTaker is ICoordinatedTaker, Ownable, TokenCollector, EIP712 
         IWETH _weth,
         address _coordinator,
         ILimitOrderSwap _limitOrderSwap
-    ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
+    ) AdminManagement(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
         weth = _weth;
         coordinator = _coordinator;
         limitOrderSwap = _limitOrderSwap;
@@ -47,23 +43,6 @@ contract CoordinatedTaker is ICoordinatedTaker, Ownable, TokenCollector, EIP712 
         coordinator = _newCoordinator;
 
         emit SetCoordinator(_newCoordinator);
-    }
-
-    function approveTokens(address[] calldata tokens, address[] calldata spenders) external onlyOwner {
-        for (uint256 i = 0; i < tokens.length; ++i) {
-            for (uint256 j = 0; j < spenders.length; ++j) {
-                IERC20(tokens[i]).safeApprove(spenders[j], type(uint256).max);
-            }
-        }
-    }
-
-    function withdrawTokens(address[] calldata tokens, address recipient) external onlyOwner {
-        for (uint256 i = 0; i < tokens.length; ++i) {
-            uint256 selfBalance = Asset.getBalance(tokens[i], address(this));
-            if (selfBalance > 0) {
-                Asset.transferTo(tokens[i], payable(recipient), selfBalance);
-            }
-        }
     }
 
     function submitLimitOrderFill(
