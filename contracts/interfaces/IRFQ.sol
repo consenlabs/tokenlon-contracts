@@ -23,12 +23,11 @@ interface IRFQ {
         address indexed user,
         address indexed maker,
         address takerToken,
-        uint256 takerTokenAmount,
+        uint256 takerTokenUserAmount,
         address makerToken,
-        uint256 makerTokenAmount,
+        uint256 makerTokenUserAmount,
         address recipient,
-        uint256 settleAmount,
-        uint256 feeFactor
+        uint256 fee
     );
 
     event CancelRFQOffer(bytes32 indexed rfqOfferHash, address indexed maker);

@@ -147,25 +147,25 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             makerToken.transferTo(_rfqTx.recipient, makerTokenToTaker);
         }
 
-        _emitFilledRFQEvent(rfqOfferHash, _rfqTx, makerTokenToTaker);
+        _emitFilledRFQEvent(rfqOfferHash, _rfqTx, makerTokenToTaker, fee);
     }
 
     function _emitFilledRFQEvent(
         bytes32 _rfqOfferHash,
         RFQTx calldata _rfqTx,
-        uint256 _makerTokenToTaker
+        uint256 _makerTokenToTaker,
+        uint256 fee
     ) internal {
         emit FilledRFQ(
             _rfqOfferHash,
             _rfqTx.rfqOffer.taker,
             _rfqTx.rfqOffer.maker,
             _rfqTx.rfqOffer.takerToken,
-            _rfqTx.rfqOffer.takerTokenAmount,
+            _rfqTx.takerRequestAmount,
             _rfqTx.rfqOffer.makerToken,
-            _rfqTx.rfqOffer.makerTokenAmount,
-            _rfqTx.recipient,
             _makerTokenToTaker,
-            _rfqTx.rfqOffer.feeFactor
+            _rfqTx.recipient,
+            fee
         );
     }
 }

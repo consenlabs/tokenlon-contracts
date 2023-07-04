@@ -28,12 +28,11 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         address indexed user,
         address indexed maker,
         address takerToken,
-        uint256 takerTokenAmount,
+        uint256 takerTokenUserAmount,
         address makerToken,
-        uint256 makerTokenAmount,
+        uint256 makerTokenUserAmount,
         address recipient,
-        uint256 settleAmount,
-        uint256 feeFactor
+        uint256 fee
     );
     event SetFeeCollector(address newFeeCollector);
 
@@ -137,10 +136,9 @@ contract RFQTest is Test, Tokens, BalanceUtil {
             defaultRFQOffer.takerToken,
             defaultRFQOffer.takerTokenAmount,
             defaultRFQOffer.makerToken,
-            defaultRFQOffer.makerTokenAmount,
-            recipient,
             amountAfterFee,
-            defaultFeeFactor
+            recipient,
+            fee
         );
 
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
@@ -188,7 +186,6 @@ contract RFQTest is Test, Tokens, BalanceUtil {
             defaultRFQOffer.makerToken,
             defaultRFQOffer.makerTokenAmount,
             recipient,
-            defaultRFQOffer.makerTokenAmount,
             0
         );
 
@@ -482,10 +479,9 @@ contract RFQTest is Test, Tokens, BalanceUtil {
             defaultRFQOffer.takerToken,
             defaultRFQOffer.takerTokenAmount,
             defaultRFQOffer.makerToken,
-            defaultRFQOffer.makerTokenAmount,
-            recipient,
             amountAfterFee,
-            defaultFeeFactor
+            recipient,
+            fee
         );
 
         vm.prank(txRelayer, txRelayer);
