@@ -7,6 +7,7 @@ import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
+import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 import { MockStrategy } from "test/mocks/MockStrategy.sol";
 import { GenericSwap } from "contracts/GenericSwap.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
@@ -17,7 +18,7 @@ import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapD
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 
-contract GenericSwapTest is Test, Tokens, BalanceUtil {
+contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
     using BalanceSnapshot for Snapshot;
 
     event Swap(
@@ -62,12 +63,11 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         defaultPath[1] = DAI_ADDRESS;
         bytes memory makerSpecificData = abi.encode(defaultExpiry, defaultPath);
         bytes memory swapData = abi.encode(UNISWAP_V2_ADDRESS, makerSpecificData);
-        defaultTakerPermit = abi.encodePacked(TokenCollector.Source.Token);
 
         deal(taker, 100 ether);
-        setTokenBalanceAndApprove(taker, address(genericSwap), tokens, 100000);
+        setTokenBalanceAndApprove(taker, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
         deal(address(mockStrategy), 100 ether);
-        setTokenBalanceAndApprove(address(mockStrategy), address(genericSwap), tokens, 100000);
+        setTokenBalanceAndApprove(address(mockStrategy), UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
 
         defaultGSData = GenericSwapData({
             maker: payable(address(uniswapStrategy)),
@@ -81,6 +81,8 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
             recipient: payable(taker),
             strategyData: swapData
         });
+
+        defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultGSData.takerToken, address(genericSwap));
 
         IUniswapRouterV2 router = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
         uint256[] memory amounts = router.getAmountsOut(defaultGSData.takerTokenAmount, defaultPath);

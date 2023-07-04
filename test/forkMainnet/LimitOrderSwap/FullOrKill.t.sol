@@ -46,7 +46,7 @@ contract FullOrKillTest is LimitOrderSwapTest {
                 makerTokenAmount: traderMakingAmount,
                 recipient: recipient,
                 extraAction: bytes(""),
-                takerTokenPermit: defaultPermit
+                takerTokenPermit: defaultTakerPermit
             })
         });
 
@@ -74,7 +74,7 @@ contract FullOrKillTest is LimitOrderSwapTest {
                 makerTokenAmount: traderMakingAmount,
                 recipient: recipient,
                 extraAction: bytes(""),
-                takerTokenPermit: defaultPermit
+                takerTokenPermit: defaultTakerPermit
             })
         });
     }
@@ -94,7 +94,7 @@ contract FullOrKillTest is LimitOrderSwapTest {
                 makerTokenAmount: traderMakingAmount,
                 recipient: recipient,
                 extraAction: bytes(""),
-                takerTokenPermit: defaultPermit
+                takerTokenPermit: defaultTakerPermit
             })
         });
     }

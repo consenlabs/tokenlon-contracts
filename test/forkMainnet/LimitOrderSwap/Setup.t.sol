@@ -6,15 +6,17 @@ import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
+import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 import { MockLimitOrderTaker } from "test/mocks/MockLimitOrderTaker.sol";
 import { LimitOrderSwap } from "contracts/LimitOrderSwap.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
+import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 
-contract LimitOrderSwapTest is Test, Tokens, BalanceUtil {
+contract LimitOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
     event SetFeeCollector(address newFeeCollector);
     event LimitOrderFilled(
         bytes32 indexed offerHash,
@@ -32,7 +34,8 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil {
     address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
     uint256 makerPrivateKey = uint256(1);
     address payable maker = payable(vm.addr(makerPrivateKey));
-    address taker = makeAddr("taker");
+    uint256 takerPrivateKey = uint256(2);
+    address taker = vm.addr(takerPrivateKey);
     address payable recipient = payable(makeAddr("recipient"));
     address payable feeCollector = payable(makeAddr("feeCollector"));
     address walletOwner = makeAddr("walletOwner");
@@ -41,7 +44,10 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil {
     uint256 defaultFeeFactor = 100;
     LimitOrder defaultOrder;
     bytes defaultMakerSig;
-    bytes defaultPermit;
+    bytes directApprovePermit = abi.encodePacked(TokenCollector.Source.Token);
+    bytes allowanceTransferPermit = abi.encodePacked(TokenCollector.Source.Permit2AllowanceTransfer);
+    bytes defaultMakerPermit = allowanceTransferPermit;
+    bytes defaultTakerPermit;
     ILimitOrderSwap.TakerParams defaultTakerParams;
     MockLimitOrderTaker mockLimitOrderTaker;
     LimitOrderSwap limitOrderSwap;
@@ -59,12 +65,12 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil {
         mockLimitOrderTaker = new MockLimitOrderTaker(walletOwner, UNISWAP_V2_ADDRESS);
 
         deal(maker, 100 ether);
-        setTokenBalanceAndApprove(maker, address(limitOrderSwap), tokens, 100000);
+        setTokenBalanceAndApprove(maker, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
         deal(taker, 100 ether);
-        setTokenBalanceAndApprove(taker, address(limitOrderSwap), tokens, 100000);
+        setTokenBalanceAndApprove(taker, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
         deal(address(mockLimitOrderTaker), 100 ether);
+        // mockLimitOrderTaker approve LO contract directly for convenience
         setTokenBalanceAndApprove(address(mockLimitOrderTaker), address(limitOrderSwap), tokens, 100000);
-        defaultPermit = abi.encodePacked(TokenCollector.Source.Token);
 
         address[] memory tokenList = new address[](2);
         tokenList[0] = DAI_ADDRESS;
@@ -80,18 +86,24 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil {
             takerTokenAmount: 10 * 1e6,
             makerToken: DAI_ADDRESS,
             makerTokenAmount: 10 ether,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: defaultFeeFactor,
             expiry: defaultExpiry,
             salt: defaultSalt
         });
+
+        // maker should call permit2 first independently
+        vm.prank(maker);
+        IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS).approve(defaultOrder.makerToken, address(limitOrderSwap), type(uint160).max, uint48(block.timestamp + 1 days));
+
+        defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultOrder.takerToken, address(limitOrderSwap));
 
         defaultTakerParams = ILimitOrderSwap.TakerParams({
             takerTokenAmount: defaultOrder.takerTokenAmount,
             makerTokenAmount: defaultOrder.makerTokenAmount,
             recipient: recipient,
             extraAction: bytes(""),
-            takerTokenPermit: defaultPermit
+            takerTokenPermit: defaultTakerPermit
         });
 
         defaultMakerSig = _signLimitOrder(makerPrivateKey, defaultOrder);

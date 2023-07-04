@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
+import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
@@ -21,7 +22,19 @@ contract GroupFillTest is LimitOrderSwapTest {
         for (uint256 i = 0; i < makerPrivateKeys.length; ++i) {
             makers[i] = payable(vm.addr(makerPrivateKeys[i]));
             deal(makers[i], 100 ether);
-            setTokenBalanceAndApprove(makers[i], address(limitOrderSwap), tokens, 100000);
+            setTokenBalanceAndApprove(makers[i], UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
+
+            vm.startPrank(makers[i]);
+            for (uint256 j = 0; j < tokens.length; ++j) {
+                // maker should call permit2 first independently
+                IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS).approve(
+                    address(tokens[j]),
+                    address(limitOrderSwap),
+                    type(uint160).max,
+                    uint48(block.timestamp + 1 days)
+                );
+            }
+            vm.stopPrank();
         }
     }
 
@@ -38,7 +51,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 10 * 1e6,
             makerToken: DAI_ADDRESS,
             makerTokenAmount: 10 ether,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -56,7 +69,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 8 ether,
             makerToken: USDT_ADDRESS,
             makerTokenAmount: 10 * 1e6,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -95,7 +108,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 10 * 1e6,
             makerToken: DAI_ADDRESS,
             makerTokenAmount: 10 ether,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -113,7 +126,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 35 * 1e6,
             makerToken: DAI_ADDRESS,
             makerTokenAmount: 35 ether,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -131,7 +144,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 1000 ether,
             makerToken: USDT_ADDRESS,
             makerTokenAmount: 1000 * 1e6,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -169,7 +182,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 2000 * 1e6,
             makerToken: WETH_ADDRESS,
             makerTokenAmount: 1 ether,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -187,7 +200,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 1 ether,
             makerToken: USDT_ADDRESS,
             makerTokenAmount: 2000 * 1e6,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -226,7 +239,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 8000 * 1e6,
             makerToken: WETH_ADDRESS,
             makerTokenAmount: 5 ether,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -244,7 +257,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 1 ether,
             makerToken: USDT_ADDRESS,
             makerTokenAmount: 2000 * 1e6,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -262,7 +275,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 3 ether,
             makerToken: USDT_ADDRESS,
             makerTokenAmount: 6000 * 1e6,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -308,7 +321,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 2000 * 1e6,
             makerToken: WETH_ADDRESS,
             makerTokenAmount: 1 ether,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -326,7 +339,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 1.5 ether,
             makerToken: USDT_ADDRESS,
             makerTokenAmount: 2000 * 1e6,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -368,7 +381,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 10 * 1e6,
             makerToken: USDC_ADDRESS,
             makerTokenAmount: 10 * 1e6,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -386,7 +399,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 10 ether,
             makerToken: USDT_ADDRESS,
             makerTokenAmount: 10 * 1e6,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
@@ -404,7 +417,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             takerTokenAmount: 10 * 1e6,
             makerToken: DAI_ADDRESS,
             makerTokenAmount: 10 ether,
-            makerTokenPermit: defaultPermit,
+            makerTokenPermit: defaultMakerPermit,
             feeFactor: 0,
             expiry: defaultExpiry,
             salt: defaultSalt
