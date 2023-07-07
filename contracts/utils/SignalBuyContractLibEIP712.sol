@@ -33,7 +33,7 @@ library SignalBuyContractLibEIP712 {
             )
         );
     */
-    bytes32 private constant ORDER_TYPEHASH = 0x2f0bead1a08e744d3b433a8d66c0a8f920a802838bc159ace4322e432f51458d;
+    bytes32 private constant ORDER_TYPEHASH = 0xf3ab25d0577fbc8769db2380dba0706d4977c70ca7b697c4677d88bbc972fbce;
 
     function _getOrderStructHash(Order memory _order) internal pure returns (bytes32) {
         return
