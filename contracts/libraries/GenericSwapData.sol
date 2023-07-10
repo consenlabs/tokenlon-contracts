@@ -7,8 +7,7 @@ string constant GS_DATA_TYPESTRING = string(
     )
 );
 
-bytes32 constant GS_DATA_TYPEHASH = 0x1b6f9d7673107802b331a5ab52a40f7d942bdf74fa821744df8b69eead3d26c1;
-// keccak256(GS_DATA_TYPESTRING);
+bytes32 constant GS_DATA_TYPEHASH = keccak256(bytes(GS_DATA_TYPESTRING));
 
 struct GenericSwapData {
     address payable maker;
