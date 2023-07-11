@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/ILimitOrder.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/ISpender.sol";
-import "./interfaces/IWeth.sol";
+import "./interfaces/IWETH.sol";
 import "./utils/StrategyBase.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
