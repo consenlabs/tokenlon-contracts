@@ -27,7 +27,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_V2_ADDRESS,
-            inputToken: address(0),
+            inputToken: defaultInputToken,
             inputRatio: 0, // zero ratio indicate no replacement
             dataOffset: 0,
             value: 0,
@@ -140,7 +140,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](2);
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_V2_ADDRESS,
-            inputToken: address(0),
+            inputToken: defaultInputToken,
             inputRatio: 0, // zero ratio indicate no replacement
             dataOffset: 0,
             value: 0,
@@ -193,7 +193,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](2);
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_V2_ADDRESS,
-            inputToken: address(0),
+            inputToken: USDC_ADDRESS,
             inputRatio: 0, // zero ratio indicate no replacement
             dataOffset: 0,
             value: 0,
@@ -201,7 +201,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         });
         operations[1] = ISmartOrderStrategy.Operation({
             dest: CURVE_TRICRYPTO2_POOL_ADDRESS,
-            inputToken: address(0),
+            inputToken: WETH_ADDRESS,
             inputRatio: 0, // zero ratio indicate no replacement
             dataOffset: 0,
             value: 0,

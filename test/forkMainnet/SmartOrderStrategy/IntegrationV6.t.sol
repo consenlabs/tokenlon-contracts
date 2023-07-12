@@ -36,8 +36,8 @@ contract IntegrationV6Test is SmartOrderStrategyTest {
     function setUp() public override {
         super.setUp();
 
-        rfq = new RFQ(owner, UNISWAP_PERMIT2_ADDRESS, address(0), IWETH(WETH_ADDRESS), payable(owner));
-        limitOrderSwap = new LimitOrderSwap(owner, UNISWAP_PERMIT2_ADDRESS, address(0), IWETH(WETH_ADDRESS), payable(owner));
+        rfq = new RFQ(owner, UNISWAP_PERMIT2_ADDRESS, makeAddr("allowanceTarget"), IWETH(WETH_ADDRESS), payable(owner));
+        limitOrderSwap = new LimitOrderSwap(owner, UNISWAP_PERMIT2_ADDRESS, makeAddr("allowanceTarget"), IWETH(WETH_ADDRESS), payable(owner));
 
         // strategy approves RFQ & LO
         address[] memory spenders = new address[](2);
@@ -72,7 +72,7 @@ contract IntegrationV6Test is SmartOrderStrategyTest {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: address(rfq),
             inputToken: rfqOffer.takerToken,
-            inputRatio: 0,
+            inputRatio: 0, // zero ratio indicate no replacement
             dataOffset: 0,
             value: 0,
             data: rfqData
@@ -117,7 +117,7 @@ contract IntegrationV6Test is SmartOrderStrategyTest {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: address(limitOrderSwap),
             inputToken: order.takerToken,
-            inputRatio: 0,
+            inputRatio: 0, // zero ratio indicate no replacement
             dataOffset: 0,
             value: 0,
             data: loData
