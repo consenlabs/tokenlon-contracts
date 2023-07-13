@@ -5,9 +5,9 @@ pragma abicoder v2;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
-import { ISpender } from "contracts/interfaces/ISpender.sol";
-import { IERC20Permit } from "contracts/interfaces/IERC20Permit.sol";
+import { IUniswapPermit2 } from "../interfaces/IUniswapPermit2.sol";
+import { ISpender } from "../interfaces/ISpender.sol";
+import { IERC20Permit } from "../interfaces/IERC20Permit.sol";
 
 abstract contract TokenCollector {
     using SafeERC20 for IERC20;

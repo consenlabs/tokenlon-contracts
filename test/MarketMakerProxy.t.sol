@@ -4,7 +4,7 @@ pragma abicoder v2;
 
 import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
 import { MarketMakerProxy } from "contracts/MarketMakerProxy.sol";
-import { IWETH } from "contracts/interfaces/IWeth.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { ETH_ADDRESS } from "test/utils/Addresses.sol";

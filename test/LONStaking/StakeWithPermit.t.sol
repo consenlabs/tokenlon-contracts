@@ -32,9 +32,9 @@ contract TestLONStakingStakeWithPermit is TestLONStaking {
 
     function testCannotStakeWhenPermitExpired() public {
         StakeWithPermit memory stakeWithPermit = DEFAULT_STAKEWITHPERMIT;
-        stakeWithPermit.deadline = block.timestamp - 1;
         (uint8 v, bytes32 r, bytes32 s) = _signStakeWithPermit(userPrivateKey, stakeWithPermit);
 
+        vm.warp(stakeWithPermit.deadline + 1);
         vm.expectRevert("permit is expired");
         vm.prank(user);
         lonStaking.stakeWithPermit(stakeWithPermit.value, stakeWithPermit.deadline, v, r, s);

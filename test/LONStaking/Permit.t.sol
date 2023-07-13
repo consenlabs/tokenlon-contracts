@@ -40,9 +40,9 @@ contract TestLONStakingPermit is TestLONStaking {
 
     function testCannotPermitWhenPermitExpired() public {
         Permit memory permit = DEFAULT_PERMIT;
-        permit.deadline = block.timestamp - 1;
         (uint8 v, bytes32 r, bytes32 s) = _signPermit(userPrivateKey, permit);
 
+        vm.warp(permit.deadline + 1);
         vm.expectRevert("permit expired");
         lonStaking.permit(permit.owner, permit.spender, permit.value, permit.deadline, v, r, s);
     }

@@ -16,7 +16,7 @@ import { Offer, getOfferHash } from "contracts/utils/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "contracts/utils/RFQOrder.sol";
 import { LibConstant } from "contracts/utils/LibConstant.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
-import { IWETH } from "contracts/interfaces/IWeth.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 contract RFQTest is StrategySharedSetup {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
