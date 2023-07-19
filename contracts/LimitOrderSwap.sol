@@ -165,6 +165,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         // maker -> taker
         _collect(order.makerToken, order.maker, address(this), makerSpendingAmount, order.makerTokenPermit);
         uint256 fee = (makerSpendingAmount * order.feeFactor) / Constant.BPS_MAX;
+        if (takerParams.recipient == address(0)) revert ZeroAddress();
         order.makerToken.transferTo(payable(takerParams.recipient), makerSpendingAmount - fee);
         // collect fee if present
         order.makerToken.transferTo(feeCollector, fee);
