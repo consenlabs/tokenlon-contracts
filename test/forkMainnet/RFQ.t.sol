@@ -526,6 +526,28 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         rfq.fillRFQ(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, takerSig);
     }
 
+    function testCannotFillIfMakerAmountIsZero() public {
+        // create an offer with an extreme exchange ratio
+        RFQOffer memory rfqOffer = RFQOffer({
+            taker: taker,
+            maker: maker,
+            takerToken: USDT_ADDRESS,
+            takerTokenAmount: 100000 * 1e6,
+            makerToken: LON_ADDRESS,
+            makerTokenAmount: 100,
+            feeFactor: defaultFeeFactor,
+            flags: FLG_ALLOW_PARTIAL_FILL,
+            expiry: defaultExpiry,
+            salt: defaultSalt
+        });
+        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: 1, recipient: payable(recipient) });
+        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
+
+        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        vm.expectRevert(IRFQ.InvalidMakerAmount.selector);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+    }
+
     function _signRFQOffer(uint256 _privateKey, RFQOffer memory _rfqOffer) internal view returns (bytes memory sig) {
         bytes32 rfqOfferHash = getRFQOfferHash(_rfqOffer);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOfferHash);
