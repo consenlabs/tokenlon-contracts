@@ -38,6 +38,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         address payable _feeCollector
     ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
         weth = _weth;
+        if (_feeCollector == address(0)) revert ZeroAddress();
         feeCollector = _feeCollector;
     }
 
