@@ -227,6 +227,15 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil {
         genericSwap.executeSwap(gsData, defaultTakerPermit);
     }
 
+    function testCannotSwapWithZeroRecipient() public {
+        GenericSwapData memory gsData = defaultGSData;
+        gsData.recipient = payable(address(0));
+
+        vm.prank(taker);
+        vm.expectRevert(IGenericSwap.ZeroAddress.selector);
+        genericSwap.executeSwap(gsData, defaultTakerPermit);
+    }
+
     function testGenericSwapRelayed() public {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultGSData.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultGSData.makerToken });
