@@ -7,7 +7,6 @@ import { AdminManagement } from "./abstracts/AdminManagement.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { Constant } from "./libraries/Constant.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
-import { IUniswapPermit2 } from "./interfaces/IUniswapPermit2.sol";
 import { ISmartOrderStrategy } from "./interfaces/ISmartOrderStrategy.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
 

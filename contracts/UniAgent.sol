@@ -4,13 +4,12 @@ pragma solidity 0.8.17;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
-import { EIP712 } from "./abstracts/EIP712.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { IUniAgent } from "./interfaces/IUniAgent.sol";
 import { Asset } from "./libraries/Asset.sol";
 
-contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
+contract UniAgent is IUniAgent, Ownable, TokenCollector {
     using Asset for address;
 
     address private constant v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
