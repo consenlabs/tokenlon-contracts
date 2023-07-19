@@ -36,6 +36,7 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         uint256 feeFactor
     );
     event SetFeeCollector(address newFeeCollector);
+    event CancelRFQOffer(bytes32 indexed rfqOfferHash, address indexed maker);
 
     address rfqOwner = makeAddr("rfqOwner");
     address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
@@ -518,6 +519,29 @@ contract RFQTest is Test, Tokens, BalanceUtil {
         vm.expectRevert(IRFQ.InvalidFeeFactor.selector);
         vm.prank(txRelayer, txRelayer);
         rfq.fillRFQ(rfqTx, defaultMakerSig, defaultPermit, defaultPermit, takerSig);
+    }
+
+    function testCancelRFQOffer() public {
+        vm.prank(defaultRFQOffer.maker, defaultRFQOffer.maker);
+        rfq.cancelRFQOffer(defaultRFQOffer);
+
+        emit CancelRFQOffer(getRFQOfferHash(defaultRFQOffer), defaultRFQOffer.maker);
+    }
+
+    function testCannotCancelRFQOfferIfNotMaker() public {
+        vm.expectRevert(IRFQ.NotOfferMaker.selector);
+        rfq.cancelRFQOffer(defaultRFQOffer);
+    }
+
+    function testCannotCancelRFQOfferIfFilledOrCancelled() public {
+        vm.startPrank(defaultRFQOffer.maker, defaultRFQOffer.maker);
+        rfq.cancelRFQOffer(defaultRFQOffer);
+
+        // cannot cancel an offer twice
+        vm.expectRevert(IRFQ.FilledRFQOffer.selector);
+        rfq.cancelRFQOffer(defaultRFQOffer);
+
+        vm.stopPrank();
     }
 
     function _signRFQOffer(uint256 _privateKey, RFQOffer memory _rfqOffer) internal view returns (bytes memory sig) {
