@@ -91,8 +91,12 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         RFQOffer memory _rfqOffer = _rfqTx.rfqOffer;
         // check the offer deadline and fee factor
         if (_rfqOffer.expiry < block.timestamp) revert ExpiredRFQOffer();
-        if ((_rfqOffer.flags & FLG_ALLOW_CONTRACT_SENDER == 0) && (msg.sender != tx.origin)) revert ForbidContract();
-        if ((_rfqOffer.flags & FLG_ALLOW_PARTIAL_FILL == 0) && (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount)) revert ForbidPartialFill();
+        if (_rfqOffer.flags & FLG_ALLOW_CONTRACT_SENDER == 0) {
+            if (msg.sender != tx.origin) revert ForbidContract();
+        }
+        if (_rfqOffer.flags & FLG_ALLOW_PARTIAL_FILL == 0) {
+            if (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount) revert ForbidPartialFill();
+        }
         if (_rfqOffer.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
         if (_rfqTx.recipient == address(0)) revert ZeroAddress();
         if (_rfqTx.takerRequestAmount > _rfqOffer.takerTokenAmount || _rfqTx.takerRequestAmount == 0) revert InvalidTakerAmount();

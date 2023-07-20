@@ -92,7 +92,9 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
                 if (makingAmount > orderAvailableAmount) revert NotEnoughForFill();
                 takerTokenAmounts[i] = ((makingAmount * order.takerTokenAmount) / order.makerTokenAmount);
 
-                if (makingAmount == 0 && takerTokenAmounts[i] == 0) revert ZeroTokenAmount();
+                if (makingAmount == 0) {
+                    if (takerTokenAmounts[i] == 0) revert ZeroTokenAmount();
+                }
 
                 if (order.takerToken == address(weth)) {
                     wethToPay += takerTokenAmounts[i];
@@ -230,7 +232,9 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         if (_takerTokenAmount < minTakerTokenAmount) revert InvalidTakingAmount();
         takerSpendingAmount = _takerTokenAmount;
 
-        if (takerSpendingAmount == 0 && makerSpendingAmount == 0) revert ZeroTokenAmount();
+        if (takerSpendingAmount == 0) {
+            if (makerSpendingAmount == 0) revert ZeroTokenAmount();
+        }
 
         // record fill amount of this tx
         orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makerSpendingAmount;
@@ -239,7 +243,9 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     function _validateOrder(LimitOrder calldata _order, bytes calldata _makerSignature) private view returns (bytes32, uint256) {
         // validate the constrain of the order
         if (_order.expiry < block.timestamp) revert ExpiredOrder();
-        if (_order.taker != address(0) && msg.sender != _order.taker) revert InvalidTaker();
+        if (_order.taker != address(0)) {
+            if (msg.sender != _order.taker) revert InvalidTaker();
+        }
 
         // validate the status of the order
         bytes32 orderHash = getLimitOrderHash(_order);

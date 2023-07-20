@@ -83,7 +83,9 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
             }
         }
 
-        if (inputToken.isETH() && msg.value != inputAmount) revert InvalidMsgValue();
+        if (inputToken.isETH()) {
+            if (msg.value != inputAmount) revert InvalidMsgValue();
+        }
         if (!inputToken.isETH()) {
             if (msg.value != 0) revert InvalidMsgValue();
 
