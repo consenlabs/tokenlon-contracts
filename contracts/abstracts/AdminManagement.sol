@@ -19,11 +19,11 @@ abstract contract AdminManagement is Ownable {
             for (uint256 j = 0; j < spenders.length; ) {
                 IERC20(tokens[i]).safeApprove(spenders[j], type(uint256).max);
                 unchecked {
-                    ++i;
+                    ++j;
                 }
             }
             unchecked {
-                ++j;
+                ++i;
             }
         }
     }
