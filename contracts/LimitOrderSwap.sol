@@ -81,6 +81,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         // validate orders and calculate takingAmounts
         uint256[] memory takerTokenAmounts = new uint256[](orders.length);
         uint256 wethToPay;
+        address payable _feeCollector = feeCollector;
         for (uint256 i = 0; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
             uint256 makingAmount = makerTokenAmounts[i];
@@ -106,7 +107,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
 
             // transfer fee if present
             uint256 fee = (makingAmount * order.feeFactor) / Constant.BPS_MAX;
-            order.makerToken.transferTo(feeCollector, fee);
+            order.makerToken.transferTo(_feeCollector, fee);
 
             _emitLimitOrderFilled(order, orderHash, takerTokenAmounts[i], makingAmount - fee, fee, address(this));
         }
