@@ -52,9 +52,13 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         }
 
         uint256 opsCount = ops.length;
-        for (uint256 i = 0; i < opsCount; ++i) {
+        for (uint256 i = 0; i < opsCount; ) {
             Operation memory op = ops[i];
             _call(op.dest, op.inputToken, op.inputRatio, op.dataOffset, op.value, op.data);
+
+            unchecked {
+                ++i;
+            }
         }
 
         // transfer output token back to GenericSwap
