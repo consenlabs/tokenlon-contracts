@@ -78,7 +78,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         uint256 _value,
         bytes memory _data
     ) internal {
-        require(_inputRatio <= Constant.BPS_MAX, "invalid BPS");
+        if (_inputRatio > Constant.BPS_MAX) revert InvalidInputRatio();
 
         // replace amount if ratio != 0
         if (_inputRatio != 0) {
