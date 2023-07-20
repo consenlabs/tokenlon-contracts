@@ -129,7 +129,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @inheritdoc ILimitOrderSwap
-    function cancelOrder(LimitOrder calldata order) external override {
+    function cancelOrder(LimitOrder calldata order) external override nonReentrant {
         if (order.expiry < uint64(block.timestamp)) revert ExpiredOrder();
         if (msg.sender != order.maker) revert NotOrderMaker();
         bytes32 orderHash = getLimitOrderHash(order);
