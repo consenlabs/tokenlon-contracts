@@ -74,6 +74,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     function cancelRFQOffer(RFQOffer calldata rfqOffer) external override {
         if (msg.sender != rfqOffer.maker) revert NotOfferMaker();
         bytes32 rfqOfferHash = getRFQOfferHash(rfqOffer);
+        if (filledOffer[rfqOfferHash]) revert FilledRFQOffer();
         filledOffer[rfqOfferHash] = true;
 
         emit CancelRFQOffer(rfqOfferHash, rfqOffer.maker);
