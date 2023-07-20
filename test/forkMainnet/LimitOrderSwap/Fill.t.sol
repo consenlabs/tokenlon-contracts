@@ -565,4 +565,13 @@ contract FillTest is LimitOrderSwapTest {
             takerParams: defaultTakerParams
         });
     }
+
+    function testCannotFillWithZeroRecipient() public {
+        ILimitOrderSwap.TakerParams memory takerParams = defaultTakerParams;
+        takerParams.recipient = address(0);
+
+        vm.expectRevert(ILimitOrderSwap.ZeroAddress.selector);
+        vm.prank(taker);
+        limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: takerParams });
+    }
 }
