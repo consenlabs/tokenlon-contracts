@@ -129,6 +129,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         if (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount) {
             makerSettleAmount = (_rfqTx.takerRequestAmount * _rfqOffer.makerTokenAmount) / _rfqOffer.takerTokenAmount;
         }
+        if (makerSettleAmount == 0) revert InvalidMakerAmount();
         _collect(_rfqOffer.makerToken, _rfqOffer.maker, address(this), makerSettleAmount, _makerTokenPermit);
 
         // calculate maket token settlement amount (sub fee)
