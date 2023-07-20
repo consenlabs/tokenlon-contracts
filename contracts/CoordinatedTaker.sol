@@ -58,7 +58,7 @@ contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector,
         {
             bytes32 orderHash = getLimitOrderHash(order);
 
-            if (crdParams.expiry < uint64(block.timestamp)) revert ExpiredPermission();
+            if (crdParams.expiry < block.timestamp) revert ExpiredPermission();
 
             bytes32 allowFillHash = getEIP712Hash(
                 getAllowFillHash(
