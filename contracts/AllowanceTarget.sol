@@ -7,7 +7,6 @@ import { Pausable } from "@openzeppelin/contracts/security/Pausable.sol";
 
 import { Ownable } from "./abstracts/Ownable.sol";
 import { IAllowanceTarget } from "./interfaces/IAllowanceTarget.sol";
-import { Constant } from "./libraries/Constant.sol";
 
 contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
     using SafeERC20 for IERC20;
