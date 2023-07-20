@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import { IAllowanceTarget } from "contracts/interfaces/IAllowanceTarget.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { MockDeflationaryERC20 } from "test/mocks/MockDeflationaryERC20.sol";
@@ -49,7 +50,7 @@ contract AllowanceTargetTest is BalanceUtil {
     }
 
     function testCannotSpendFromUserByNotAuthorized() public {
-        vm.expectRevert("AllowanceTarget: not authorized");
+        vm.expectRevert(IAllowanceTarget.NotAuthorized.selector);
         allowanceTarget.spendFromUserTo(user, address(mockERC20), recipient, 100);
     }
 

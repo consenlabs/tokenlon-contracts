@@ -36,7 +36,7 @@ contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
         address to,
         uint256 amount
     ) external override whenNotPaused {
-        require(authorized[msg.sender], "AllowanceTarget: not authorized");
+        if (!authorized[msg.sender]) revert NotAuthorized();
         IERC20(token).safeTransferFrom(from, to, amount);
     }
 }
