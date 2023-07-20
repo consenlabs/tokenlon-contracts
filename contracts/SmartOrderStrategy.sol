@@ -51,7 +51,8 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
             if (msg.value != 0) revert InvalidMsgValue();
         }
 
-        for (uint256 i = 0; i < ops.length; ++i) {
+        uint256 opsCount = ops.length;
+        for (uint256 i = 0; i < opsCount; ++i) {
             Operation memory op = ops[i];
             _call(op.dest, op.inputToken, op.inputRatio, op.dataOffset, op.value, op.data);
         }

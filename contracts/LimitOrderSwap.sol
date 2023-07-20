@@ -36,6 +36,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         address payable _feeCollector
     ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
         weth = _weth;
+        if (_feeCollector == address(0)) revert ZeroAddress();
         feeCollector = _feeCollector;
     }
 
@@ -80,6 +81,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         // validate orders and calculate takingAmounts
         uint256[] memory takerTokenAmounts = new uint256[](orders.length);
         uint256 wethToPay;
+        address payable _feeCollector = feeCollector;
         for (uint256 i = 0; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
             uint256 makingAmount = makerTokenAmounts[i];
@@ -105,7 +107,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
 
             // transfer fee if present
             uint256 fee = (makingAmount * order.feeFactor) / Constant.BPS_MAX;
-            order.makerToken.transferTo(feeCollector, fee);
+            order.makerToken.transferTo(_feeCollector, fee);
 
             _emitLimitOrderFilled(order, orderHash, takerTokenAmounts[i], makingAmount - fee, fee, address(this));
         }
@@ -129,7 +131,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @inheritdoc ILimitOrderSwap
-    function cancelOrder(LimitOrder calldata order) external override {
+    function cancelOrder(LimitOrder calldata order) external override nonReentrant {
         if (order.expiry < uint64(block.timestamp)) revert ExpiredOrder();
         if (msg.sender != order.maker) revert NotOrderMaker();
         bytes32 orderHash = getLimitOrderHash(order);
@@ -164,6 +166,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         // maker -> taker
         _collect(order.makerToken, order.maker, address(this), makerSpendingAmount, order.makerTokenPermit);
         uint256 fee = (makerSpendingAmount * order.feeFactor) / Constant.BPS_MAX;
+        if (takerParams.recipient == address(0)) revert ZeroAddress();
         order.makerToken.transferTo(payable(takerParams.recipient), makerSpendingAmount - fee);
         // collect fee if present
         order.makerToken.transferTo(feeCollector, fee);
@@ -255,7 +258,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     function _emitLimitOrderFilled(
-        LimitOrder memory _order,
+        LimitOrder calldata _order,
         bytes32 _orderHash,
         uint256 _takerTokenSettleAmount,
         uint256 _makerTokenSettleAmount,

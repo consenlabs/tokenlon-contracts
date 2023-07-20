@@ -9,6 +9,7 @@ interface IGenericSwap {
     error InsufficientOutput();
     error InvalidSignature();
     error ExpiredOrder();
+    error ZeroAddress();
 
     event Swap(
         bytes32 indexed swapHash,
