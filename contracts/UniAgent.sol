@@ -6,7 +6,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
-import { IWETH } from "./interfaces/IWETH.sol";
 import { IUniAgent } from "./interfaces/IUniAgent.sol";
 import { Asset } from "./libraries/Asset.sol";
 
@@ -17,16 +16,11 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
     address private constant v3Router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address payable private constant universalRouter = payable(0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B);
 
-    IWETH public immutable weth;
-
     constructor(
         address _owner,
         address _uniswapPermit2,
-        address _allowanceTarget,
-        IWETH _weth
-    ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
-        weth = _weth;
-    }
+        address _allowanceTarget
+    ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {}
 
     receive() external payable {}
 

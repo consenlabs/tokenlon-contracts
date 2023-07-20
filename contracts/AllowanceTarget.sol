@@ -15,7 +15,8 @@ contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
     mapping(address => bool) public authorized;
 
     constructor(address _owner, address[] memory trustedCaller) Ownable(_owner) {
-        for (uint256 i = 0; i < trustedCaller.length; ++i) {
+        uint256 callerCount = trustedCaller.length;
+        for (uint256 i = 0; i < callerCount; ++i) {
             authorized[trustedCaller[i]] = true;
         }
     }
