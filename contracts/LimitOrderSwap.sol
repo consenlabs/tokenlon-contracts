@@ -257,7 +257,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     function _emitLimitOrderFilled(
-        LimitOrder memory _order,
+        LimitOrder calldata _order,
         bytes32 _orderHash,
         uint256 _takerTokenSettleAmount,
         uint256 _makerTokenSettleAmount,
