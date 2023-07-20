@@ -10,6 +10,7 @@ import { MockERC1271Wallet } from "test/mocks/MockERC1271Wallet.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
 import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 import { RFQ } from "contracts/RFQ.sol";
+import { Ownable } from "contracts/abstracts/Ownable.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { IRFQ } from "contracts/interfaces/IRFQ.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
@@ -104,7 +105,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
     function testCannotSetFeeCollectorByNotOwner() public {
         address newFeeCollector = makeAddr("newFeeCollector");
         vm.prank(newFeeCollector);
-        vm.expectRevert("not owner");
+        vm.expectRevert(Ownable.NotOwner.selector);
         rfq.setFeeCollector(payable(newFeeCollector));
     }
 

@@ -2,13 +2,14 @@
 pragma solidity 0.8.17;
 
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
+import { Ownable } from "contracts/abstracts/Ownable.sol";
 import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol";
 
 contract ManagementTest is LimitOrderSwapTest {
     function testCannotSetFeeCollectorByNotOwner() public {
         address newFeeCollector = makeAddr("newFeeCollector");
         vm.prank(newFeeCollector);
-        vm.expectRevert("not owner");
+        vm.expectRevert(Ownable.NotOwner.selector);
         limitOrderSwap.setFeeCollector(payable(newFeeCollector));
     }
 

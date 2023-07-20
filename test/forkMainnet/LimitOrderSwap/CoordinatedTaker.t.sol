@@ -10,6 +10,7 @@ import { Constant } from "contracts/libraries/Constant.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 import { AllowFill, getAllowFillHash } from "contracts/libraries/AllowFill.sol";
 import { CoordinatedTaker } from "contracts/CoordinatedTaker.sol";
+import { Ownable } from "contracts/abstracts/Ownable.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
@@ -79,7 +80,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     function testCannotSetCoordinatorByNotOwner() public {
         address newCoordinator = makeAddr("newCoordinator");
         vm.prank(newCoordinator);
-        vm.expectRevert("not owner");
+        vm.expectRevert(Ownable.NotOwner.selector);
         coordinatedTaker.setCoordinator(payable(newCoordinator));
     }
 
@@ -98,7 +99,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     }
 
     function testCannotApproveTokensByNotOwner() public {
-        vm.expectRevert("not owner");
+        vm.expectRevert(Ownable.NotOwner.selector);
         coordinatedTaker.approveTokens(tokenList, ammList);
     }
 

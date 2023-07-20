@@ -6,6 +6,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 import { IAllowanceTarget } from "contracts/interfaces/IAllowanceTarget.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
+import { Ownable } from "contracts/abstracts/Ownable.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { MockDeflationaryERC20 } from "test/mocks/MockDeflationaryERC20.sol";
 import { MockNoReturnERC20 } from "test/mocks/MockNoReturnERC20.sol";
@@ -69,7 +70,7 @@ contract AllowanceTargetTest is BalanceUtil {
     }
 
     function testCannotPauseIfNotOwner() public {
-        vm.expectRevert("not owner");
+        vm.expectRevert(Ownable.NotOwner.selector);
         allowanceTarget.pause();
     }
 
@@ -77,7 +78,7 @@ contract AllowanceTargetTest is BalanceUtil {
         vm.prank(allowanceTargetOwner, allowanceTargetOwner);
         allowanceTarget.pause();
 
-        vm.expectRevert("not owner");
+        vm.expectRevert(Ownable.NotOwner.selector);
         allowanceTarget.unpause();
     }
 
