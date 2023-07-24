@@ -82,7 +82,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         uint256[] memory takerTokenAmounts = new uint256[](orders.length);
         uint256 wethToPay;
         address payable _feeCollector = feeCollector;
-        for (uint256 i = 0; i < orders.length; ) {
+        for (uint256 i = 0; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
             uint256 makingAmount = makerTokenAmounts[i];
 
@@ -110,10 +110,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
             order.makerToken.transferTo(_feeCollector, fee);
 
             _emitLimitOrderFilled(order, orderHash, takerTokenAmounts[i], makingAmount - fee, fee, address(this));
-
-            unchecked {
-                ++i;
-            }
         }
 
         // unwrap extra WETH in order to pay for ETH taker token and profit
@@ -124,23 +120,15 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
             }
         }
 
-        for (uint256 i = 0; i < orders.length; ) {
+        for (uint256 i = 0; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
             order.takerToken.transferTo(order.maker, takerTokenAmounts[i]);
-
-            unchecked {
-                ++i;
-            }
         }
 
         // any token left is considered as profit
-        for (uint256 i = 0; i < profitTokens.length; ) {
+        for (uint256 i = 0; i < profitTokens.length; ++i) {
             uint256 profit = profitTokens[i].getBalance(address(this));
             profitTokens[i].transferTo(payable(msg.sender), profit);
-
-            unchecked {
-                ++i;
-            }
         }
     }
 

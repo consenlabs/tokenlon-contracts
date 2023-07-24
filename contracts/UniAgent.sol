@@ -25,28 +25,20 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
     receive() external payable {}
 
     function rescueTokens(address[] calldata tokens, address recipient) external onlyOwner {
-        for (uint256 i = 0; i < tokens.length; ) {
+        for (uint256 i = 0; i < tokens.length; ++i) {
             uint256 selfBalance = Asset.getBalance(tokens[i], address(this));
             if (selfBalance > 0) {
                 Asset.transferTo(tokens[i], payable(recipient), selfBalance);
-            }
-
-            unchecked {
-                ++i;
             }
         }
     }
 
     function approveTokensToRouters(address[] calldata tokens) external {
-        for (uint256 i = 0; i < tokens.length; ) {
+        for (uint256 i = 0; i < tokens.length; ++i) {
             // use low level call to avoid return size check
             // ignore return value and proceed anyway since three calls are independent
             tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v2Router, type(uint256).max));
             tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v3Router, type(uint256).max));
-
-            unchecked {
-                ++i;
-            }
         }
     }
 
