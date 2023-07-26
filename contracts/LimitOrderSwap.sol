@@ -116,7 +116,9 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         // unwrap extra WETH in order to pay for ETH taker token and profit
         uint256 wethBalance = weth.balanceOf(address(this));
         if (wethBalance > wethToPay) {
-            weth.withdraw(wethBalance - wethToPay);
+            unchecked {
+                weth.withdraw(wethBalance - wethToPay);
+            }
         }
 
         for (uint256 i = 0; i < orders.length; ++i) {
