@@ -36,8 +36,8 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
         for (uint256 i = 0; i < tokens.length; ++i) {
             // use low level call to avoid return size check
             // ignore return value and proceed anyway since three calls are independent
-            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v2Router, type(uint256).max));
-            tokens[i].call(abi.encodeWithSelector(IERC20.approve.selector, v3Router, type(uint256).max));
+            tokens[i].call(abi.encodeCall(IERC20.approve, (v2Router, type(uint256).max)));
+            tokens[i].call(abi.encodeCall(IERC20.approve, (v3Router, type(uint256).max)));
         }
     }
 
