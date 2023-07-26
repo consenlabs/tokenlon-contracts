@@ -15,15 +15,18 @@ abstract contract AdminManagement is Ownable {
     constructor(address _owner) Ownable(_owner) {}
 
     function approveTokens(address[] calldata tokens, address[] calldata spenders) external onlyOwner {
-        for (uint256 i = 0; i < tokens.length; ++i) {
-            for (uint256 j = 0; j < spenders.length; ++j) {
+        uint256 tokensLength = tokens.length;
+        uint256 spendersLength = spenders.length;
+        for (uint256 i = 0; i < tokensLength; ++i) {
+            for (uint256 j = 0; j < spendersLength; ++j) {
                 IERC20(tokens[i]).safeApprove(spenders[j], type(uint256).max);
             }
         }
     }
 
     function rescueTokens(address[] calldata tokens, address recipient) external onlyOwner {
-        for (uint256 i = 0; i < tokens.length; ++i) {
+        uint256 tokensLength = tokens.length;
+        for (uint256 i = 0; i < tokensLength; ++i) {
             uint256 selfBalance = Asset.getBalance(tokens[i], address(this));
             if (selfBalance > 0) {
                 Asset.transferTo(tokens[i], payable(recipient), selfBalance);
