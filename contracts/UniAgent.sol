@@ -24,7 +24,8 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
     receive() external payable {}
 
     function rescueTokens(address[] calldata tokens, address recipient) external onlyOwner {
-        for (uint256 i = 0; i < tokens.length; ++i) {
+        uint256 tokensLength = tokens.length;
+        for (uint256 i = 0; i < tokensLength; ++i) {
             uint256 selfBalance = Asset.getBalance(tokens[i], address(this));
             if (selfBalance > 0) {
                 Asset.transferTo(tokens[i], payable(recipient), selfBalance);
@@ -33,7 +34,8 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
     }
 
     function approveTokensToRouters(address[] calldata tokens) external {
-        for (uint256 i = 0; i < tokens.length; ++i) {
+        uint256 tokensLength = tokens.length;
+        for (uint256 i = 0; i < tokensLength; ++i) {
             // use low level call to avoid return size check
             // ignore return value and proceed anyway since three calls are independent
             tokens[i].call(abi.encodeCall(IERC20.approve, (v2Router, type(uint256).max)));
