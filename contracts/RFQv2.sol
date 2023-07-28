@@ -62,7 +62,7 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
         Offer calldata _offer = order.offer;
         // check the offer deadline and fee factor
         require(_offer.expiry > block.timestamp, "offer expired");
-        require(order.feeFactor < LibConstant.BPS_MAX, "invalid fee factor");
+        require(_offer.feeFactor < LibConstant.BPS_MAX, "invalid fee factor");
         require(order.recipient != address(0), "zero recipient");
 
         // check if the offer is available to be filled
@@ -97,7 +97,7 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
         _collect(_offer.makerToken, _offer.maker, address(this), _offer.makerTokenAmount, makerTokenPermit);
 
         // transfer makerToken to recipient (sub fee)
-        uint256 fee = _offer.makerTokenAmount.mul(order.feeFactor).div(LibConstant.BPS_MAX);
+        uint256 fee = _offer.makerTokenAmount.mul(_offer.feeFactor).div(LibConstant.BPS_MAX);
         uint256 makerTokenToTaker = _offer.makerTokenAmount.sub(fee);
         {
             // determine if WETH unwrap is needed, send out ETH if makerToken is WETH
@@ -133,7 +133,7 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
             _rfqOrder.offer.makerTokenAmount,
             _rfqOrder.recipient,
             _makerTokenToTaker,
-            _rfqOrder.feeFactor
+            _rfqOrder.offer.feeFactor
         );
     }
 }
