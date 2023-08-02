@@ -18,7 +18,7 @@ contract Strategy is TokenCollector {
         address from,
         address to,
         uint256 amount,
-        bytes memory data
+        bytes calldata data
     ) external {
         _collect(token, from, to, amount, data);
     }

@@ -69,7 +69,7 @@ contract RFQTest is StrategySharedSetup {
         setWalletContractBalanceAndApprove({ owner: maker, walletContract: address(marketMakerProxy), tokens: tokens, amount: 100000 });
         deal(taker, 100 ether);
         setEOABalanceAndApprove(taker, tokens, 100000);
-        defaultPermit = abi.encode(TokenCollector.Source.TokenlonSpender, bytes(""));
+        defaultPermit = abi.encodePacked(TokenCollector.Source.TokenlonSpender);
 
         defaultOffer = Offer({
             taker: taker,
@@ -243,7 +243,7 @@ contract RFQTest is StrategySharedSetup {
         marketMakerProxy.setAllowance(tokenAddresses, address(rfq));
         marketMakerProxy.closeAllowance(tokenAddresses, address(allowanceTarget));
         vm.stopPrank();
-        bytes memory makerPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
+        bytes memory makerPermit = abi.encodePacked(TokenCollector.Source.Token);
 
         BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
         BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
@@ -364,7 +364,7 @@ contract RFQTest is StrategySharedSetup {
         approveERC20(tokens, maker, address(rfq));
         // taker approve tokens to RFQv2 contract directly
         approveERC20(tokens, taker, address(rfq));
-        bytes memory tokenPermit = abi.encode(TokenCollector.Source.Token, bytes(""));
+        bytes memory tokenPermit = abi.encodePacked(TokenCollector.Source.Token);
 
         bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, tokenPermit, defaultTakerSig, tokenPermit);
         vm.prank(defaultOffer.taker, defaultOffer.taker);
