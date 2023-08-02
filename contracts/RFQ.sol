@@ -136,9 +136,13 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         if (makerSettleAmount == 0) revert InvalidMakerAmount();
         _collect(_rfqOffer.makerToken, _rfqOffer.maker, address(this), makerSettleAmount, _makerTokenPermit);
 
-        // calculate maket token settlement amount (sub fee)
+        // calculate maker token settlement amount (sub fee)
         uint256 fee = (makerSettleAmount * _rfqOffer.feeFactor) / Constant.BPS_MAX;
-        uint256 makerTokenToTaker = makerSettleAmount - fee;
+        uint256 makerTokenToTaker;
+        unchecked {
+            // feeFactor is ensured <= Constant.BPS_MAX at the beginning so it's safe with unchecked block
+            makerTokenToTaker = makerSettleAmount - fee;
+        }
 
         {
             // determine if WETH unwrap is needed, send out ETH if makerToken is WETH
