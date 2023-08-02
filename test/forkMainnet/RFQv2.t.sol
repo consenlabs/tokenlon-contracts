@@ -7,7 +7,7 @@ import { ECDSA } from "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import { StrategySharedSetup } from "test/utils/StrategySharedSetup.sol";
 import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
-import { getPermitTransferFromStructHash, encodePermitTransferFromData } from "test/utils/Permit2.sol";
+import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 import { RFQv2 } from "contracts/RFQv2.sol";
 import { MarketMakerProxy } from "contracts/MarketMakerProxy.sol";
 import { SignatureValidator } from "contracts/utils/SignatureValidator.sol";
@@ -18,7 +18,7 @@ import { LibConstant } from "contracts/utils/LibConstant.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
-contract RFQTest is StrategySharedSetup {
+contract RFQTest is StrategySharedSetup, Permit2Helper {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     event FilledRFQ(
@@ -47,7 +47,6 @@ contract RFQTest is StrategySharedSetup {
     bytes defaultPermit;
     bytes defaultMakerSig;
     bytes defaultTakerSig;
-    IUniswapPermit2 permit2 = IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS);
     Offer defaultOffer;
     RFQOrder defaultOrder;
     MarketMakerProxy marketMakerProxy;
@@ -381,16 +380,16 @@ contract RFQTest is StrategySharedSetup {
             nonce: 0,
             deadline: block.timestamp + 1 days
         });
-        bytes memory takerPermitSig = _signPermitTransferFrom(takerPrivateKey, takerPermit, address(rfq));
-        bytes memory takerPermitData = encodePermitTransferFromData(takerPermit, takerPermitSig);
+        bytes memory takerPermitSig = signPermitTransferFrom(takerPrivateKey, takerPermit, address(rfq));
+        bytes memory takerPermitData = encodeSignatureTransfer(takerPermit, takerPermitSig);
 
         IUniswapPermit2.PermitTransferFrom memory makerPermit = IUniswapPermit2.PermitTransferFrom({
             permitted: IUniswapPermit2.TokenPermissions({ token: defaultOffer.makerToken, amount: defaultOffer.makerTokenAmount }),
             nonce: 0,
             deadline: block.timestamp + 1 days
         });
-        bytes memory makerPermitSig = _signPermitTransferFrom(makerPrivateKey, makerPermit, address(rfq));
-        bytes memory makerPermitData = encodePermitTransferFromData(makerPermit, makerPermitSig);
+        bytes memory makerPermitSig = signPermitTransferFrom(makerPrivateKey, makerPermit, address(rfq));
+        bytes memory makerPermitData = encodeSignatureTransfer(makerPermit, makerPermitSig);
 
         bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, makerPermitData, defaultTakerSig, takerPermitData);
         vm.prank(defaultOffer.taker, defaultOffer.taker);
@@ -527,16 +526,5 @@ contract RFQTest is StrategySharedSetup {
         bytes memory _takerTokenPermit
     ) private view returns (bytes memory payload) {
         return abi.encodeWithSelector(rfq.fillRFQ.selector, _rfqOrder, _makerSignature, _makerTokenPermit, _takerSignature, _takerTokenPermit);
-    }
-
-    function _signPermitTransferFrom(
-        uint256 privateKey,
-        IUniswapPermit2.PermitTransferFrom memory permit,
-        address spender
-    ) private view returns (bytes memory) {
-        bytes32 permitHash = getPermitTransferFromStructHash(permit, spender);
-        bytes32 EIP712SignDigest = getEIP712Hash(permit2.DOMAIN_SEPARATOR(), permitHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
     }
 }
