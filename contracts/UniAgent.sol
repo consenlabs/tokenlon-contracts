@@ -76,7 +76,7 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
         address routerAddr = _getRouterAddress(routerType);
         if (needApprove) {
             // use low level call to avoid return size check
-            (bool apvSuccess, bytes memory apvResult) = inputToken.call(abi.encodeWithSelector(IERC20.approve.selector, routerAddr, type(uint256).max));
+            (bool apvSuccess, bytes memory apvResult) = inputToken.call(abi.encodeCall(IERC20.approve,( routerAddr, type(uint256).max)));
             if (!apvSuccess) {
                 assembly {
                     revert(add(apvResult, 32), mload(apvResult))
