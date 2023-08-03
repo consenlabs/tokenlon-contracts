@@ -5,8 +5,7 @@ import { Offer, getOfferHash, OFFER_TYPESTRING } from "./Offer.sol";
 
 string constant RFQ_ORDER_TYPESTRING = string(abi.encodePacked("RFQOrder(Offer offer,address recipient)", OFFER_TYPESTRING));
 
-bytes32 constant RFQ_ORDER_TYPEHASH = 0x1f9d9481d60f1cf20fbfc13ea99ded28208ec732cd67ebf09e631efb84af9c5a;
-// keccak256(RFQ_ORDER_TYPESTRING);
+bytes32 constant RFQ_ORDER_TYPEHASH = keccak256(bytes(RFQ_ORDER_TYPESTRING));
 
 struct RFQOrder {
     Offer offer;
