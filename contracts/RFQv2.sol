@@ -82,12 +82,8 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
         // transfer takerToken to maker
         if (_offer.takerToken.isETH()) {
             require(msg.value == _offer.takerTokenAmount, "invalid msg value");
-            Address.sendValue(_offer.maker, _offer.takerTokenAmount);
-        } else if (_offer.takerToken == address(weth)) {
-            require(msg.value == 0, "invalid msg value");
-            _collect(_offer.takerToken, _offer.taker, address(this), _offer.takerTokenAmount, takerTokenPermit);
-            weth.withdraw(_offer.takerTokenAmount);
-            Address.sendValue(_offer.maker, _offer.takerTokenAmount);
+            weth.deposit{ value: msg.value }();
+            weth.transfer(_offer.maker, msg.value);
         } else {
             require(msg.value == 0, "invalid msg value");
             _collect(_offer.takerToken, _offer.taker, _offer.maker, _offer.takerTokenAmount, takerTokenPermit);
