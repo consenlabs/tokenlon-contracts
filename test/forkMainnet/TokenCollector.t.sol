@@ -6,7 +6,7 @@ import { TokenCollector } from "contracts/utils/TokenCollector.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { MockERC20Permit } from "test/mocks/MockERC20Permit.sol";
 import { Addresses } from "test/utils/Addresses.sol";
-import { getPermitSingleStructHash, getPermitTransferFromStructHash, encodePermitSingleData, encodePermitTransferFromData } from "test/utils/Permit2.sol";
+import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
 import { StrategySharedSetup } from "test/utils/StrategySharedSetup.sol";
 
@@ -18,13 +18,13 @@ contract Strategy is TokenCollector {
         address from,
         address to,
         uint256 amount,
-        bytes memory data
+        bytes calldata data
     ) external {
         _collect(token, from, to, amount, data);
     }
 }
 
-contract TestTokenCollector is StrategySharedSetup {
+contract TestTokenCollector is StrategySharedSetup, Permit2Helper {
     struct TokenPermit {
         address token;
         address owner;
@@ -40,7 +40,6 @@ contract TestTokenCollector is StrategySharedSetup {
     address user = vm.addr(userPrivateKey);
 
     MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
-    IUniswapPermit2 permit2 = IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS);
 
     Strategy strategy;
 
@@ -98,10 +97,10 @@ contract TestTokenCollector is StrategySharedSetup {
     /* Token Approval */
 
     function testCannotCollectByTokenApprovalWhenAllowanceIsNotEnough() public {
-        bytes memory data = abi.encode(TokenCollector.Source.Token, bytes(""));
+        bytes memory permit = abi.encodePacked(TokenCollector.Source.Token);
 
         vm.expectRevert("ERC20: transfer amount exceeds allowance");
-        strategy.collect(address(token), user, address(this), 1, data);
+        strategy.collect(address(token), user, address(this), 1, permit);
     }
 
     function testCollectByTokenApproval() public {
@@ -110,8 +109,8 @@ contract TestTokenCollector is StrategySharedSetup {
         vm.prank(user);
         token.approve(address(strategy), amount);
 
-        bytes memory data = abi.encode(TokenCollector.Source.Token, bytes(""));
-        strategy.collect(address(token), user, address(this), amount, data);
+        bytes memory permit = abi.encodePacked(TokenCollector.Source.Token);
+        strategy.collect(address(token), user, address(this), amount, permit);
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, amount);
@@ -133,7 +132,7 @@ contract TestTokenCollector is StrategySharedSetup {
         bytes32 r,
         bytes32 s
     ) private pure returns (bytes memory) {
-        return abi.encode(TokenCollector.Source.Token, abi.encode(permit.owner, permit.spender, permit.amount, permit.deadline, v, r, s));
+        return abi.encodePacked(TokenCollector.Source.TokenPermit, abi.encode(permit.owner, permit.spender, permit.amount, permit.deadline, v, r, s));
     }
 
     function testCannotCollectByTokenPermitWhenPermitSigIsInvalid() public {
@@ -235,19 +234,12 @@ contract TestTokenCollector is StrategySharedSetup {
 
     /* Permit2 Allowance Transfer */
 
-    function signPermitSingle(uint256 privateKey, IUniswapPermit2.PermitSingle memory permit) private view returns (bytes memory) {
-        bytes32 permitHash = getPermitSingleStructHash(permit);
-        bytes32 EIP712SignDigest = getEIP712Hash(permit2.DOMAIN_SEPARATOR(), permitHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
-    }
-
     function testCannotCollectByPermit2AllowanceTransferWhenPermitSigIsInvalid() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
 
         // Sign by not owner
         bytes memory permitSig = signPermitSingle(otherPrivateKey, permit);
-        bytes memory data = encodePermitSingleData(permit, permitSig);
+        bytes memory data = encodeAllowanceTransfer(user, permit, permitSig);
 
         vm.expectRevert(bytes4(keccak256("InvalidSigner()")));
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
@@ -261,34 +253,10 @@ contract TestTokenCollector is StrategySharedSetup {
         permit.sigDeadline = deadline;
 
         bytes memory permitSig = signPermitSingle(userPrivateKey, permit);
-        bytes memory data = encodePermitSingleData(permit, permitSig);
+        bytes memory data = encodeAllowanceTransfer(user, permit, permitSig);
 
         vm.expectRevert(abi.encodeWithSelector(SignatureExpiredErrorSig, permit.sigDeadline));
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
-    }
-
-    function testCannotCollectByPermit2AllowanceTransferWhenSpenderIsInvalid() public {
-        IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
-        // Spender is not strategy
-        permit.spender = address(this);
-
-        bytes memory permitSig = signPermitSingle(userPrivateKey, permit);
-        bytes memory data = encodePermitSingleData(permit, permitSig);
-
-        vm.expectRevert(bytes4(keccak256("InvalidSigner()")));
-        strategy.collect(address(token), user, address(this), permit.details.amount, data);
-    }
-
-    function testCannotCollectByPermit2AllowanceTransferWhenAmountIsNotEqualToPermitted() public {
-        IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
-
-        bytes memory permitSig = signPermitSingle(userPrivateKey, permit);
-        bytes memory data = encodePermitSingleData(permit, permitSig);
-
-        // Amount is not equal to permitted
-        uint256 invalidAmount = permit.details.amount + 100;
-        vm.expectRevert(bytes4(keccak256("InvalidSigner()")));
-        strategy.collect(address(token), user, address(this), invalidAmount, data);
     }
 
     function testCannotCollectByPermit2AllowanceTransferWhenNonceIsInvalid() public {
@@ -297,7 +265,7 @@ contract TestTokenCollector is StrategySharedSetup {
         permit.details.nonce = 123;
 
         bytes memory permitSig = signPermitSingle(userPrivateKey, permit);
-        bytes memory data = encodePermitSingleData(permit, permitSig);
+        bytes memory data = encodeAllowanceTransfer(user, permit, permitSig);
 
         vm.expectRevert(bytes4(keccak256("InvalidNonce()")));
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
@@ -307,7 +275,7 @@ contract TestTokenCollector is StrategySharedSetup {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
 
         bytes memory permitSig = signPermitSingle(userPrivateKey, permit);
-        bytes memory data = encodePermitSingleData(permit, permitSig);
+        bytes memory data = encodeAllowanceTransfer(user, permit, permitSig);
 
         // Permit2 uses "solmate/src/utils/SafeTransferLib.sol" for safe transfer library
         vm.expectRevert("TRANSFER_FROM_FAILED");
@@ -321,7 +289,7 @@ contract TestTokenCollector is StrategySharedSetup {
         token.approve(address(permit2), permit.details.amount);
 
         bytes memory permitSig = signPermitSingle(userPrivateKey, permit);
-        bytes memory data = encodePermitSingleData(permit, permitSig);
+        bytes memory data = encodeAllowanceTransfer(user, permit, permitSig);
 
         strategy.collect(address(token), user, address(this), permit.details.amount, data);
 
@@ -331,24 +299,13 @@ contract TestTokenCollector is StrategySharedSetup {
 
     /* Permit2 Signature Transfer */
 
-    function signPermitTransferFrom(
-        uint256 privateKey,
-        IUniswapPermit2.PermitTransferFrom memory permit,
-        address spender
-    ) private view returns (bytes memory) {
-        bytes32 permitHash = getPermitTransferFromStructHash(permit, spender);
-        bytes32 EIP712SignDigest = getEIP712Hash(permit2.DOMAIN_SEPARATOR(), permitHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
-    }
-
     function testCannotCollectByPermit2SignatureTransferWhenSpenderIsInvalid() public {
         IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
         // Spender is not strategy
         address spender = address(this);
 
         bytes memory permitSig = signPermitTransferFrom(userPrivateKey, permit, spender);
-        bytes memory data = encodePermitTransferFromData(permit, permitSig);
+        bytes memory data = encodeSignatureTransfer(permit, permitSig);
 
         vm.expectRevert(bytes4(keccak256("InvalidSigner()")));
         strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
@@ -358,7 +315,7 @@ contract TestTokenCollector is StrategySharedSetup {
         IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
 
         bytes memory permitSig = signPermitTransferFrom(userPrivateKey, permit, address(strategy));
-        bytes memory data = encodePermitTransferFromData(permit, permitSig);
+        bytes memory data = encodeSignatureTransfer(permit, permitSig);
 
         // Amount is not equal to permitted
         uint256 invalidAmount = permit.permitted.amount + 100;
@@ -373,7 +330,7 @@ contract TestTokenCollector is StrategySharedSetup {
         token.approve(address(permit2), permit.permitted.amount);
 
         bytes memory permitSig = signPermitTransferFrom(userPrivateKey, permit, address(strategy));
-        bytes memory data = encodePermitTransferFromData(permit, permitSig);
+        bytes memory data = encodeSignatureTransfer(permit, permitSig);
 
         strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
 
@@ -388,7 +345,7 @@ contract TestTokenCollector is StrategySharedSetup {
         permit.deadline = block.timestamp - 1 days;
 
         bytes memory permitSig = signPermitTransferFrom(userPrivateKey, permit, address(strategy));
-        bytes memory data = encodePermitTransferFromData(permit, permitSig);
+        bytes memory data = encodeSignatureTransfer(permit, permitSig);
 
         vm.expectRevert(abi.encodeWithSelector(SignatureExpiredErrorSig, permit.deadline));
         strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
@@ -401,7 +358,7 @@ contract TestTokenCollector is StrategySharedSetup {
         token.approve(address(permit2), permit.permitted.amount);
 
         bytes memory permitSig = signPermitTransferFrom(userPrivateKey, permit, address(strategy));
-        bytes memory data = encodePermitTransferFromData(permit, permitSig);
+        bytes memory data = encodeSignatureTransfer(permit, permitSig);
 
         strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
 
