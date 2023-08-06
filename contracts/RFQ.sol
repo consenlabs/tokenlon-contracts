@@ -5,6 +5,8 @@ pragma abicoder v2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import "./interfaces/IRFQ.sol";
 import "./utils/StrategyBase.sol";
@@ -17,6 +19,7 @@ import "./utils/LibConstant.sol";
 /// @author imToken Labs
 contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
     using Address for address;
 
     // Constants do not have storage slot.
@@ -120,7 +123,8 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
             weth.deposit{ value: msg.value }();
             weth.transfer(_order.makerAddr, _order.takerAssetAmount);
         } else {
-            spender.spendFromUserTo(_order.takerAddr, _order.takerAssetAddr, _order.makerAddr, _order.takerAssetAmount);
+            spender.spendFromUser(_order.takerAddr, _order.takerAssetAddr, _order.takerAssetAmount);
+            IERC20(_order.takerAssetAddr).safeTransfer(_order.makerAddr, _order.takerAssetAmount);
         }
 
         // Transfer maker asset to taker, sub fee
@@ -129,19 +133,19 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         if (fee > 0) {
             settleAmount = settleAmount.sub(fee);
         }
+        spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, _order.makerAssetAmount);
 
         // Transfer token/Eth to receiver
         if (_order.makerAssetAddr == address(weth)) {
             // Transfer from maker
-            spender.spendFromUser(_order.makerAddr, _order.makerAssetAddr, settleAmount);
             weth.withdraw(settleAmount);
             payable(_order.receiverAddr).transfer(settleAmount);
         } else {
-            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, _order.receiverAddr, settleAmount);
+            IERC20(_order.makerAssetAddr).safeTransfer(_order.receiverAddr, settleAmount);
         }
         // Collect fee
         if (fee > 0) {
-            spender.spendFromUserTo(_order.makerAddr, _order.makerAssetAddr, feeCollector, fee);
+            IERC20(_order.makerAssetAddr).safeTransfer(feeCollector, fee);
         }
 
         _emitFillOrder(_order, _vars, settleAmount);

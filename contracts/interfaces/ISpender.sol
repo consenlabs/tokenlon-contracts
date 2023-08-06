@@ -17,11 +17,4 @@ interface ISpender {
         address _tokenAddr,
         uint256 _amount
     ) external;
-
-    function spendFromUserTo(
-        address _user,
-        address _tokenAddr,
-        address _receiverAddr,
-        uint256 _amount
-    ) external;
 }
