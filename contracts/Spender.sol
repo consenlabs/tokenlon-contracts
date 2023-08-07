@@ -29,7 +29,6 @@ contract Spender is ISpender, Ownable {
     uint256 public contractDeployedTime;
     uint256 public timelockExpirationTime;
 
-    mapping(address => bool) public consumeGasERC20Tokens;
     mapping(uint256 => address) public pendingAuthorized;
     mapping(address => bool) private authorized;
     mapping(address => bool) private tokenBlacklist;
@@ -46,13 +45,9 @@ contract Spender is ISpender, Ownable {
     /************************************************************
      *              Constructor and init functions               *
      *************************************************************/
-    constructor(address _owner, address[] memory _consumeGasERC20Tokens) Ownable(_owner) {
+    constructor(address _owner) Ownable(_owner) {
         timelockActivated = false;
         contractDeployedTime = block.timestamp;
-
-        for (uint256 i = 0; i < _consumeGasERC20Tokens.length; ++i) {
-            consumeGasERC20Tokens[_consumeGasERC20Tokens[i]] = true;
-        }
     }
 
     function setAllowanceTarget(address _allowanceTarget) external onlyOwner {
@@ -153,17 +148,13 @@ contract Spender is ISpender, Ownable {
         }
     }
 
-    function setConsumeGasERC20Tokens(address[] memory _consumeGasERC20Tokens) external onlyOwner {
-        for (uint256 i = 0; i < _consumeGasERC20Tokens.length; ++i) {
-            consumeGasERC20Tokens[_consumeGasERC20Tokens[i]] = true;
-
-            emit SetConsumeGasERC20Token(_consumeGasERC20Tokens[i]);
-        }
-    }
-
     /************************************************************
      *                   External functions                      *
      *************************************************************/
+    /// @dev Spend tokens on user's behalf. Only an authority can call this.
+    /// @param _user The user to spend token from.
+    /// @param _tokenAddr The address of the token.
+    /// @param _amount Amount to spend.
     /// @dev Spend tokens on user's behalf. Only an authority can call this.
     /// @param _user The user to spend token from.
     /// @param _tokenAddr The address of the token.
@@ -173,57 +164,21 @@ contract Spender is ISpender, Ownable {
         address _tokenAddr,
         uint256 _amount
     ) external override onlyAuthorized {
-        _transferTokenFromUserTo(_user, _tokenAddr, msg.sender, _amount);
-    }
-
-    /// @dev Spend tokens on user's behalf. Only an authority can call this.
-    /// @param _user The user to spend token from.
-    /// @param _tokenAddr The address of the token.
-    /// @param _recipient The receiver of the token.
-    /// @param _amount Amount to spend.
-    function spendFromUserTo(
-        address _user,
-        address _tokenAddr,
-        address _recipient,
-        uint256 _amount
-    ) external override onlyAuthorized {
-        _transferTokenFromUserTo(_user, _tokenAddr, _recipient, _amount);
-    }
-
-    function _transferTokenFromUserTo(
-        address _user,
-        address _tokenAddr,
-        address _recipient,
-        uint256 _amount
-    ) internal {
         require(!tokenBlacklist[_tokenAddr], "Spender: token is blacklisted");
 
-        if (_tokenAddr == LibConstant.ETH_ADDRESS || _tokenAddr == LibConstant.ZERO_ADDRESS) {
-            return;
+        if (_tokenAddr != LibConstant.ETH_ADDRESS && _tokenAddr != LibConstant.ZERO_ADDRESS) {
+            uint256 balanceBefore = IERC20(_tokenAddr).balanceOf(msg.sender);
+            (bool callSucceed, ) = address(allowanceTarget).call(
+                abi.encodeWithSelector(
+                    IAllowanceTarget.executeCall.selector,
+                    _tokenAddr,
+                    abi.encodeWithSelector(IERC20.transferFrom.selector, _user, msg.sender, _amount)
+                )
+            );
+            require(callSucceed, "Spender: ERC20 transferFrom failed");
+            // Check balance
+            uint256 balanceAfter = IERC20(_tokenAddr).balanceOf(msg.sender);
+            require(balanceAfter.sub(balanceBefore) == _amount, "Spender: ERC20 transferFrom result mismatch");
         }
-        // Fix gas stipend for non standard ERC20 transfer in case token contract's SafeMath violation is triggered
-        // and all gas are consumed.
-        uint256 gasStipend = consumeGasERC20Tokens[_tokenAddr] ? 80000 : gasleft();
-        uint256 balanceBefore = IERC20(_tokenAddr).balanceOf(_recipient);
-
-        (bool callSucceed, bytes memory returndata) = address(allowanceTarget).call{ gas: gasStipend }(
-            abi.encodeWithSelector(
-                IAllowanceTarget.executeCall.selector,
-                _tokenAddr,
-                abi.encodeWithSelector(IERC20.transferFrom.selector, _user, _recipient, _amount)
-            )
-        );
-        require(callSucceed, "Spender: ERC20 transferFrom failed");
-
-        bytes memory decodedReturnData = abi.decode(returndata, (bytes));
-        if (decodedReturnData.length > 0) {
-            // Return data is optional
-            // Tokens like ZRX returns false on failed transfer
-            require(abi.decode(decodedReturnData, (bool)), "Spender: ERC20 transferFrom failed");
-        }
-
-        // Check balance
-        uint256 balanceAfter = IERC20(_tokenAddr).balanceOf(_recipient);
-        require(balanceAfter.sub(balanceBefore) == _amount, "Spender: ERC20 transferFrom amount mismatch");
     }
 }

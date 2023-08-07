@@ -47,10 +47,8 @@ contract SpenderTest is BalanceUtil {
     // effectively a "beforeEach" block
     function setUp() public {
         // Deploy
-        spender = new Spender(
-            address(this), // This contract would be the operator
-            new address[](0)
-        );
+        // This contract would be the operator
+        spender = new Spender(address(this));
         allowanceTarget = new AllowanceTarget(address(spender));
         // Setup
         spender.setAllowanceTarget(address(allowanceTarget));
@@ -121,7 +119,7 @@ contract SpenderTest is BalanceUtil {
      ***************************************************/
 
     function testSetNewSpender() public {
-        Spender newSpender = new Spender(address(this), new address[](0));
+        Spender newSpender = new Spender(address(this));
 
         spender.setNewSpender(address(newSpender));
         vm.warp(block.timestamp + 1 days);
@@ -220,14 +218,8 @@ contract SpenderTest is BalanceUtil {
         spender.spendFromUser(user, address(noReturnERC20), userBalance + 1);
     }
 
-    function testCannotSpendFromUserInsufficientBalance_ReturnFalseToken() public {
-        uint256 userBalance = noRevertERC20.balanceOf(user);
-        vm.expectRevert("Spender: ERC20 transferFrom failed");
-        spender.spendFromUser(user, address(noRevertERC20), userBalance + 1);
-    }
-
     function testCannotSpendFromUserWithDeflationaryToken() public {
-        vm.expectRevert("Spender: ERC20 transferFrom amount mismatch");
+        vm.expectRevert("Spender: ERC20 transferFrom result mismatch");
         spender.spendFromUser(user, address(deflationaryERC20), 100);
     }
 
@@ -245,59 +237,5 @@ contract SpenderTest is BalanceUtil {
         spender.spendFromUser(user, address(noReturnERC20), 100);
 
         assertEq(noReturnERC20.balanceOf(address(this)), 100);
-    }
-
-    /*********************************
-     *     Test: spendFromUserTo     *
-     *********************************/
-
-    function testCannotSpendFromUserToByNotAuthorized() public {
-        vm.expectRevert("Spender: not authorized");
-        vm.prank(unauthorized);
-        spender.spendFromUserTo(user, address(mockLON), unauthorized, 100);
-    }
-
-    function testCannotSpendFromUserToWithBlakclistedToken() public {
-        address[] memory blacklistAddress = new address[](1);
-        blacklistAddress[0] = address(mockLON);
-        bool[] memory blacklistBool = new bool[](1);
-        blacklistBool[0] = true;
-        spender.blacklist(blacklistAddress, blacklistBool);
-
-        vm.expectRevert("Spender: token is blacklisted");
-        spender.spendFromUserTo(user, address(mockLON), recipient, 100);
-    }
-
-    function testCannotSpendFromUserToInsufficientBalance_NoReturnValueToken() public {
-        uint256 userBalance = noReturnERC20.balanceOf(user);
-        vm.expectRevert("Spender: ERC20 transferFrom failed");
-        spender.spendFromUserTo(user, address(noReturnERC20), recipient, userBalance + 1);
-    }
-
-    function testCannotSpendFromUserToInsufficientBalance_ReturnFalseToken() public {
-        uint256 userBalance = noRevertERC20.balanceOf(user);
-        vm.expectRevert("Spender: ERC20 transferFrom failed");
-        spender.spendFromUserTo(user, address(noRevertERC20), recipient, userBalance + 1);
-    }
-
-    function testCannotSpendFromUserToWithDeflationaryToken() public {
-        vm.expectRevert("Spender: ERC20 transferFrom amount mismatch");
-        spender.spendFromUserTo(user, address(deflationaryERC20), recipient, 100);
-    }
-
-    function testSpendFromUserTo() public {
-        assertEq(mockLON.balanceOf(recipient), 0);
-
-        spender.spendFromUserTo(user, address(mockLON), recipient, 100);
-
-        assertEq(mockLON.balanceOf(recipient), 100);
-    }
-
-    function testSpendFromUserToWithNoReturnValueToken() public {
-        assertEq(noReturnERC20.balanceOf(recipient), 0);
-
-        spender.spendFromUserTo(user, address(noReturnERC20), recipient, 100);
-
-        assertEq(noReturnERC20.balanceOf(recipient), 100);
     }
 }
