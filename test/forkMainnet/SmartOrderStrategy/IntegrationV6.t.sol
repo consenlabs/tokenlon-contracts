@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.17;
+
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import { SmartOrderStrategyTest } from "./Setup.t.sol";
+import { LimitOrderSwap } from "contracts/LimitOrderSwap.sol";
+import { RFQ } from "contracts/RFQ.sol";
+import { LimitOrderSwap } from "contracts/LimitOrderSwap.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
+import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.sol";
+import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
+import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
+import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
+import { RFQTx } from "contracts/libraries/RFQTx.sol";
+import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
+import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
+import { getEIP712Hash } from "test/utils/Sig.sol";
+
+contract IntegrationV6Test is SmartOrderStrategyTest {
+    using SafeERC20 for IERC20;
+    using BalanceSnapshot for Snapshot;
+
+    bytes4 public constant RFQ_FILL_SELECTOR = 0x6344a774;
+    uint256 private constant FLG_ALLOW_CONTRACT_SENDER = 1 << 255;
+
+    address owner = makeAddr("owner");
+    uint256 makerPrivateKey = uint256(4679);
+    address maker = vm.addr(makerPrivateKey);
+    bytes defaultPermit = abi.encodePacked(TokenCollector.Source.Token);
+    uint256 defaultSalt = 1234;
+    RFQ rfq;
+    LimitOrderSwap limitOrderSwap;
+
+    function setUp() public override {
+        super.setUp();
+
+        rfq = new RFQ(owner, UNISWAP_PERMIT2_ADDRESS, makeAddr("allowanceTarget"), IWETH(WETH_ADDRESS), payable(owner));
+        limitOrderSwap = new LimitOrderSwap(owner, UNISWAP_PERMIT2_ADDRESS, makeAddr("allowanceTarget"), IWETH(WETH_ADDRESS), payable(owner));
+
+        // strategy approves RFQ & LO
+        address[] memory spenders = new address[](2);
+        spenders[0] = address(rfq);
+        spenders[1] = address(limitOrderSwap);
+        vm.prank(strategyOwner);
+        smartOrderStrategy.approveTokens(tokenList, spenders);
+
+        // maker approves RFQ & LO
+        setTokenBalanceAndApprove(maker, address(rfq), tokens, 100000);
+        setTokenBalanceAndApprove(maker, address(limitOrderSwap), tokens, 100000);
+    }
+
+    function testV6RFQIntegration() public {
+        RFQOffer memory rfqOffer = RFQOffer({
+            taker: address(smartOrderStrategy),
+            maker: payable(maker),
+            takerToken: USDT_ADDRESS,
+            takerTokenAmount: 10 * 1e6,
+            makerToken: LON_ADDRESS,
+            makerTokenAmount: 1000 ether,
+            feeFactor: 0,
+            flags: FLG_ALLOW_CONTRACT_SENDER,
+            expiry: defaultExpiry,
+            salt: defaultSalt
+        });
+        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: rfqOffer.takerTokenAmount, recipient: payable(address(smartOrderStrategy)) });
+        bytes memory makerSig = _signRFQOffer(makerPrivateKey, rfqOffer);
+        bytes memory rfqData = abi.encodeWithSelector(RFQ_FILL_SELECTOR, rfqTx, makerSig, defaultPermit, defaultPermit);
+
+        ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
+        operations[0] = ISmartOrderStrategy.Operation({
+            dest: address(rfq),
+            inputToken: rfqOffer.takerToken,
+            inputRatio: 0, // zero ratio indicate no replacement
+            dataOffset: 0,
+            value: 0,
+            data: rfqData
+        });
+        bytes memory opsData = abi.encode(operations);
+
+        vm.startPrank(genericSwap, genericSwap);
+        IERC20(rfqOffer.takerToken).safeTransfer(address(smartOrderStrategy), rfqOffer.takerTokenAmount);
+        Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), rfqOffer.takerToken);
+        Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, rfqOffer.makerToken);
+        smartOrderStrategy.executeStrategy(rfqOffer.takerToken, rfqOffer.makerToken, rfqOffer.takerTokenAmount, opsData);
+        vm.stopPrank();
+
+        sosInputToken.assertChange(-int256(rfqOffer.takerTokenAmount));
+        gsOutputToken.assertChange(int256(rfqOffer.makerTokenAmount));
+    }
+
+    function testV6LOIntegration() public {
+        LimitOrder memory order = LimitOrder({
+            taker: address(0),
+            maker: payable(maker),
+            takerToken: USDT_ADDRESS,
+            takerTokenAmount: 10 * 1e6,
+            makerToken: DAI_ADDRESS,
+            makerTokenAmount: 10 ether,
+            makerTokenPermit: defaultPermit,
+            feeFactor: 0,
+            expiry: defaultExpiry,
+            salt: defaultSalt
+        });
+        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+        ILimitOrderSwap.TakerParams memory takerParams = ILimitOrderSwap.TakerParams({
+            takerTokenAmount: order.takerTokenAmount,
+            makerTokenAmount: order.makerTokenAmount,
+            recipient: address(smartOrderStrategy),
+            extraAction: bytes(""),
+            takerTokenPermit: defaultPermit
+        });
+        bytes memory loData = abi.encodeWithSelector(LimitOrderSwap.fillLimitOrderFullOrKill.selector, order, makerSig, takerParams);
+
+        ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
+        operations[0] = ISmartOrderStrategy.Operation({
+            dest: address(limitOrderSwap),
+            inputToken: order.takerToken,
+            inputRatio: 0, // zero ratio indicate no replacement
+            dataOffset: 0,
+            value: 0,
+            data: loData
+        });
+        bytes memory opsData = abi.encode(operations);
+
+        vm.startPrank(genericSwap, genericSwap);
+        IERC20(order.takerToken).safeTransfer(address(smartOrderStrategy), order.takerTokenAmount);
+        Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), order.takerToken);
+        Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, order.makerToken);
+        smartOrderStrategy.executeStrategy(order.takerToken, order.makerToken, order.takerTokenAmount, opsData);
+        vm.stopPrank();
+
+        sosInputToken.assertChange(-int256(order.takerTokenAmount));
+        gsOutputToken.assertChange(int256(order.makerTokenAmount));
+    }
+
+    function _signRFQOffer(uint256 _privateKey, RFQOffer memory _rfqOffer) internal view returns (bytes memory sig) {
+        bytes32 rfqOfferHash = getRFQOfferHash(_rfqOffer);
+        bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOfferHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _signLimitOrder(uint256 _privateKey, LimitOrder memory _order) internal view returns (bytes memory sig) {
+        bytes32 orderHash = getLimitOrderHash(_order);
+        bytes32 EIP712SignDigest = getEIP712Hash(limitOrderSwap.EIP712_DOMAIN_SEPARATOR(), orderHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
+        return abi.encodePacked(r, s, v);
+    }
+}

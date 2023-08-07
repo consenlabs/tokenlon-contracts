@@ -6,7 +6,7 @@ coverage/
 coverage.json
 
 # Foundry
-artifacts/
+out/
 cache/
 lib/
 
