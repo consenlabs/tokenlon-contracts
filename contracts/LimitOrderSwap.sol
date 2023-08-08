@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
@@ -36,6 +35,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         address payable _feeCollector
     ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
         weth = _weth;
+        if (_feeCollector == address(0)) revert ZeroAddress();
         feeCollector = _feeCollector;
     }
 
@@ -80,6 +80,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         // validate orders and calculate takingAmounts
         uint256[] memory takerTokenAmounts = new uint256[](orders.length);
         uint256 wethToPay;
+        address payable _feeCollector = feeCollector;
         for (uint256 i = 0; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
             uint256 makingAmount = makerTokenAmounts[i];
@@ -90,7 +91,9 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
                 if (makingAmount > orderAvailableAmount) revert NotEnoughForFill();
                 takerTokenAmounts[i] = ((makingAmount * order.takerTokenAmount) / order.makerTokenAmount);
 
-                if (makingAmount == 0 && takerTokenAmounts[i] == 0) revert ZeroTokenAmount();
+                if (makingAmount == 0) {
+                    if (takerTokenAmounts[i] == 0) revert ZeroTokenAmount();
+                }
 
                 if (order.takerToken == address(weth)) {
                     wethToPay += takerTokenAmounts[i];
@@ -105,7 +108,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
 
             // transfer fee if present
             uint256 fee = (makingAmount * order.feeFactor) / Constant.BPS_MAX;
-            order.makerToken.transferTo(feeCollector, fee);
+            order.makerToken.transferTo(_feeCollector, fee);
 
             _emitLimitOrderFilled(order, orderHash, takerTokenAmounts[i], makingAmount - fee, fee, address(this));
         }
@@ -113,7 +116,9 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         // unwrap extra WETH in order to pay for ETH taker token and profit
         uint256 wethBalance = weth.balanceOf(address(this));
         if (wethBalance > wethToPay) {
-            weth.withdraw(wethBalance - wethToPay);
+            unchecked {
+                weth.withdraw(wethBalance - wethToPay);
+            }
         }
 
         for (uint256 i = 0; i < orders.length; ++i) {
@@ -129,7 +134,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @inheritdoc ILimitOrderSwap
-    function cancelOrder(LimitOrder calldata order) external override {
+    function cancelOrder(LimitOrder calldata order) external override nonReentrant {
         if (order.expiry < uint64(block.timestamp)) revert ExpiredOrder();
         if (msg.sender != order.maker) revert NotOrderMaker();
         bytes32 orderHash = getLimitOrderHash(order);
@@ -164,6 +169,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         // maker -> taker
         _collect(order.makerToken, order.maker, address(this), makerSpendingAmount, order.makerTokenPermit);
         uint256 fee = (makerSpendingAmount * order.feeFactor) / Constant.BPS_MAX;
+        if (takerParams.recipient == address(0)) revert ZeroAddress();
         order.makerToken.transferTo(payable(takerParams.recipient), makerSpendingAmount - fee);
         // collect fee if present
         order.makerToken.transferTo(feeCollector, fee);
@@ -227,7 +233,9 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         if (_takerTokenAmount < minTakerTokenAmount) revert InvalidTakingAmount();
         takerSpendingAmount = _takerTokenAmount;
 
-        if (takerSpendingAmount == 0 && makerSpendingAmount == 0) revert ZeroTokenAmount();
+        if (takerSpendingAmount == 0) {
+            if (makerSpendingAmount == 0) revert ZeroTokenAmount();
+        }
 
         // record fill amount of this tx
         orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makerSpendingAmount;
@@ -236,7 +244,9 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     function _validateOrder(LimitOrder calldata _order, bytes calldata _makerSignature) private view returns (bytes32, uint256) {
         // validate the constrain of the order
         if (_order.expiry < block.timestamp) revert ExpiredOrder();
-        if (_order.taker != address(0) && msg.sender != _order.taker) revert InvalidTaker();
+        if (_order.taker != address(0)) {
+            if (msg.sender != _order.taker) revert InvalidTaker();
+        }
 
         // validate the status of the order
         bytes32 orderHash = getLimitOrderHash(_order);
@@ -255,7 +265,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     function _emitLimitOrderFilled(
-        LimitOrder memory _order,
+        LimitOrder calldata _order,
         bytes32 _orderHash,
         uint256 _takerTokenSettleAmount,
         uint256 _makerTokenSettleAmount,

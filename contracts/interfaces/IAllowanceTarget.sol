@@ -4,6 +4,8 @@ pragma solidity >=0.8.0;
 /// @title IAllowanceTarget Interface
 /// @author imToken Labs
 interface IAllowanceTarget {
+    error NotAuthorized();
+
     /// @dev Spend tokens on user's behalf. Only an authority can call this.
     /// @param  from The user to spend token from.
     /// @param  token The address of the token.

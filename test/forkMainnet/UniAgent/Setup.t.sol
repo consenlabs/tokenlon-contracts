@@ -38,7 +38,7 @@ contract UniAgentTest is Test, Tokens, BalanceUtil, Permit2Helper {
         trusted[0] = computeContractAddress(address(this), uint8(vm.getNonce(address(this)) + 1));
         allowanceTarget = new AllowanceTarget(allowanceTargetOwner, trusted);
 
-        uniAgent = new UniAgent(uniAgentOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS));
+        uniAgent = new UniAgent(uniAgentOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget));
         uniAgent.approveTokensToRouters(defaultPath);
 
         deal(user, 100 ether);

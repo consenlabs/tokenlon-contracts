@@ -14,6 +14,7 @@ interface IRFQ {
     error InvalidMsgValue();
     error InvalidSignature();
     error InvalidTakerAmount();
+    error InvalidMakerAmount();
     error ForbidContract();
     error ForbidPartialFill();
     error NotOfferMaker();

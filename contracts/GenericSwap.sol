@@ -60,11 +60,14 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         bytes calldata _takerTokenPermit
     ) private returns (uint256 returnAmount) {
         if (_swapData.expiry < block.timestamp) revert ExpiredOrder();
+        if (_swapData.recipient == address(0)) revert ZeroAddress();
 
         address _inputToken = _swapData.takerToken;
         address _outputToken = _swapData.makerToken;
 
-        if (_inputToken.isETH() && msg.value != _swapData.takerTokenAmount) revert InvalidMsgValue();
+        if (_inputToken.isETH()) {
+            if (msg.value != _swapData.takerTokenAmount) revert InvalidMsgValue();
+        }
 
         if (!_inputToken.isETH()) {
             if (msg.value != 0) revert InvalidMsgValue();

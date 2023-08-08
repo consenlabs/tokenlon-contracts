@@ -10,6 +10,7 @@ import { MockERC1271Wallet } from "test/mocks/MockERC1271Wallet.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
 import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 import { RFQ } from "contracts/RFQ.sol";
+import { Ownable } from "contracts/abstracts/Ownable.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { IRFQ } from "contracts/interfaces/IRFQ.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
@@ -37,6 +38,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         uint256 fee
     );
     event SetFeeCollector(address newFeeCollector);
+    event CancelRFQOffer(bytes32 indexed rfqOfferHash, address indexed maker);
 
     address rfqOwner = makeAddr("rfqOwner");
     address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
@@ -103,7 +105,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
     function testCannotSetFeeCollectorByNotOwner() public {
         address newFeeCollector = makeAddr("newFeeCollector");
         vm.prank(newFeeCollector);
-        vm.expectRevert("not owner");
+        vm.expectRevert(Ownable.NotOwner.selector);
         rfq.setFeeCollector(payable(newFeeCollector));
     }
 
@@ -524,6 +526,51 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         vm.expectRevert(IRFQ.InvalidFeeFactor.selector);
         vm.prank(txRelayer, txRelayer);
         rfq.fillRFQ(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, takerSig);
+    }
+
+    function testCannotFillIfMakerAmountIsZero() public {
+        // create an offer with an extreme exchange ratio
+        RFQOffer memory rfqOffer = RFQOffer({
+            taker: taker,
+            maker: maker,
+            takerToken: USDT_ADDRESS,
+            takerTokenAmount: 100000 * 1e6,
+            makerToken: LON_ADDRESS,
+            makerTokenAmount: 100,
+            feeFactor: defaultFeeFactor,
+            flags: FLG_ALLOW_PARTIAL_FILL,
+            expiry: defaultExpiry,
+            salt: defaultSalt
+        });
+        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: 1, recipient: payable(recipient) });
+        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
+
+        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        vm.expectRevert(IRFQ.InvalidMakerAmount.selector);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+    }
+
+    function testCancelRFQOffer() public {
+        vm.prank(defaultRFQOffer.maker, defaultRFQOffer.maker);
+        rfq.cancelRFQOffer(defaultRFQOffer);
+
+        emit CancelRFQOffer(getRFQOfferHash(defaultRFQOffer), defaultRFQOffer.maker);
+    }
+
+    function testCannotCancelRFQOfferIfNotMaker() public {
+        vm.expectRevert(IRFQ.NotOfferMaker.selector);
+        rfq.cancelRFQOffer(defaultRFQOffer);
+    }
+
+    function testCannotCancelRFQOfferIfFilledOrCancelled() public {
+        vm.startPrank(defaultRFQOffer.maker, defaultRFQOffer.maker);
+        rfq.cancelRFQOffer(defaultRFQOffer);
+
+        // cannot cancel an offer twice
+        vm.expectRevert(IRFQ.FilledRFQOffer.selector);
+        rfq.cancelRFQOffer(defaultRFQOffer);
+
+        vm.stopPrank();
     }
 
     function _signRFQOffer(uint256 _privateKey, RFQOffer memory _rfqOffer) internal view returns (bytes memory sig) {

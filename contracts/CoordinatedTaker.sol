@@ -56,9 +56,9 @@ contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector,
     ) external payable override {
         // validate fill permission
         {
-            bytes32 orderHash = getLimitOrderHash(order);
+            if (crdParams.expiry < block.timestamp) revert ExpiredPermission();
 
-            if (crdParams.expiry < uint64(block.timestamp)) revert ExpiredPermission();
+            bytes32 orderHash = getLimitOrderHash(order);
 
             bytes32 allowFillHash = getEIP712Hash(
                 getAllowFillHash(

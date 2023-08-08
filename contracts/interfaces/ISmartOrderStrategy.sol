@@ -9,6 +9,7 @@ interface ISmartOrderStrategy is IStrategy {
     error ZeroInput();
     error EmptyOps();
     error InvalidMsgValue();
+    error InvalidInputRatio();
     error NotFromGS();
 
     /// @dev The encoded operation list should be passed as `data` when calling `IStrategy.executeStrategy`
