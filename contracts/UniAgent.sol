@@ -15,7 +15,7 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
 
     address private constant v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address private constant v3Router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    address payable private constant universalRouter = payable(0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B);
+    address payable private constant universalRouter = payable(0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD);
 
     IWETH public immutable weth;
 
