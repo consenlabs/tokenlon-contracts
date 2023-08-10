@@ -15,6 +15,7 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
 
     address private constant v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address private constant v3Router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address private constant swapRouter02 = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
     address payable private constant universalRouter = payable(0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD);
 
     IWETH public immutable weth;
@@ -116,6 +117,8 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector, EIP712 {
             return v2Router;
         } else if (routerType == RouterType.V3Router) {
             return v3Router;
+        } else if (routerType == RouterType.SwapRouter02) {
+            return swapRouter02;
         } else if (routerType == RouterType.UniversalRouter) {
             return universalRouter;
         }
