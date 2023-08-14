@@ -7,7 +7,6 @@ import { AdminManagement } from "./abstracts/AdminManagement.sol";
 import { Asset } from "./libraries/Asset.sol";
 import { Constant } from "./libraries/Constant.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
-import { IUniswapPermit2 } from "./interfaces/IUniswapPermit2.sol";
 import { ISmartOrderStrategy } from "./interfaces/ISmartOrderStrategy.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
 
@@ -51,7 +50,8 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
             if (msg.value != 0) revert InvalidMsgValue();
         }
 
-        for (uint256 i = 0; i < ops.length; ++i) {
+        uint256 opsCount = ops.length;
+        for (uint256 i = 0; i < opsCount; ++i) {
             Operation memory op = ops[i];
             _call(op.dest, op.inputToken, op.inputRatio, op.dataOffset, op.value, op.data);
         }
@@ -77,7 +77,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         uint256 _value,
         bytes memory _data
     ) internal {
-        require(_inputRatio <= Constant.BPS_MAX, "invalid BPS");
+        if (_inputRatio > Constant.BPS_MAX) revert InvalidInputRatio();
 
         // replace amount if ratio != 0
         if (_inputRatio != 0) {

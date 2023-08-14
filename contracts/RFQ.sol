@@ -37,6 +37,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         address payable _feeCollector
     ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {
         weth = _weth;
+        if (_feeCollector == address(0)) revert ZeroAddress();
         feeCollector = _feeCollector;
     }
 
@@ -74,6 +75,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     function cancelRFQOffer(RFQOffer calldata rfqOffer) external override {
         if (msg.sender != rfqOffer.maker) revert NotOfferMaker();
         bytes32 rfqOfferHash = getRFQOfferHash(rfqOffer);
+        if (filledOffer[rfqOfferHash]) revert FilledRFQOffer();
         filledOffer[rfqOfferHash] = true;
 
         emit CancelRFQOffer(rfqOfferHash, rfqOffer.maker);
@@ -89,8 +91,12 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         RFQOffer memory _rfqOffer = _rfqTx.rfqOffer;
         // check the offer deadline and fee factor
         if (_rfqOffer.expiry < block.timestamp) revert ExpiredRFQOffer();
-        if ((_rfqOffer.flags & FLG_ALLOW_CONTRACT_SENDER == 0) && (msg.sender != tx.origin)) revert ForbidContract();
-        if ((_rfqOffer.flags & FLG_ALLOW_PARTIAL_FILL == 0) && (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount)) revert ForbidPartialFill();
+        if (_rfqOffer.flags & FLG_ALLOW_CONTRACT_SENDER == 0) {
+            if (msg.sender != tx.origin) revert ForbidContract();
+        }
+        if (_rfqOffer.flags & FLG_ALLOW_PARTIAL_FILL == 0) {
+            if (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount) revert ForbidPartialFill();
+        }
         if (_rfqOffer.feeFactor > Constant.BPS_MAX) revert InvalidFeeFactor();
         if (_rfqTx.recipient == address(0)) revert ZeroAddress();
         if (_rfqTx.takerRequestAmount > _rfqOffer.takerTokenAmount || _rfqTx.takerRequestAmount == 0) revert InvalidTakerAmount();
@@ -127,11 +133,16 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         if (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount) {
             makerSettleAmount = (_rfqTx.takerRequestAmount * _rfqOffer.makerTokenAmount) / _rfqOffer.takerTokenAmount;
         }
+        if (makerSettleAmount == 0) revert InvalidMakerAmount();
         _collect(_rfqOffer.makerToken, _rfqOffer.maker, address(this), makerSettleAmount, _makerTokenPermit);
 
-        // calculate maket token settlement amount (sub fee)
+        // calculate maker token settlement amount (sub fee)
         uint256 fee = (makerSettleAmount * _rfqOffer.feeFactor) / Constant.BPS_MAX;
-        uint256 makerTokenToTaker = makerSettleAmount - fee;
+        uint256 makerTokenToTaker;
+        unchecked {
+            // feeFactor is ensured <= Constant.BPS_MAX at the beginning so it's safe with unchecked block
+            makerTokenToTaker = makerSettleAmount - fee;
+        }
 
         {
             // determine if WETH unwrap is needed, send out ETH if makerToken is WETH

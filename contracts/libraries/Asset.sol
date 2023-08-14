@@ -9,6 +9,8 @@ import { Constant } from "./Constant.sol";
 library Asset {
     using SafeERC20 for IERC20;
 
+    error InsufficientBalance();
+
     function isETH(address addr) internal pure returns (bool) {
         return (addr == Constant.ETH_ADDRESS || addr == Constant.ZERO_ADDRESS);
     }
@@ -31,9 +33,13 @@ library Asset {
         }
         if (isETH(asset)) {
             // @dev forward all available gas and may cause reentrancy
-            require(address(this).balance >= amount, "insufficient balance");
-            (bool success, ) = to.call{ value: amount }("");
-            require(success, "unable to send ETH");
+            if (address(this).balance < amount) revert InsufficientBalance();
+            (bool success, bytes memory result) = to.call{ value: amount }("");
+            if (!success) {
+                assembly {
+                    revert(add(result, 32), mload(result))
+                }
+            }
         } else {
             IERC20(asset).safeTransfer(to, amount);
         }

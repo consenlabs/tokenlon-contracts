@@ -7,7 +7,6 @@ import { Pausable } from "@openzeppelin/contracts/security/Pausable.sol";
 
 import { Ownable } from "./abstracts/Ownable.sol";
 import { IAllowanceTarget } from "./interfaces/IAllowanceTarget.sol";
-import { Constant } from "./libraries/Constant.sol";
 
 contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
     using SafeERC20 for IERC20;
@@ -15,7 +14,8 @@ contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
     mapping(address => bool) public authorized;
 
     constructor(address _owner, address[] memory trustedCaller) Ownable(_owner) {
-        for (uint256 i = 0; i < trustedCaller.length; ++i) {
+        uint256 callerCount = trustedCaller.length;
+        for (uint256 i = 0; i < callerCount; ++i) {
             authorized[trustedCaller[i]] = true;
         }
     }
@@ -35,7 +35,7 @@ contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
         address to,
         uint256 amount
     ) external override whenNotPaused {
-        require(authorized[msg.sender], "AllowanceTarget: not authorized");
+        if (!authorized[msg.sender]) revert NotAuthorized();
         IERC20(token).safeTransferFrom(from, to, amount);
     }
 }
