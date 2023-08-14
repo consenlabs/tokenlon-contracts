@@ -18,6 +18,7 @@ string constant ORDER_TYPESTRING = "Order(address userToken,address dealerToken,
 
 bytes32 constant ORDER_TYPEHASH = keccak256(bytes(ORDER_TYPESTRING));
 
+// solhint-disable-next-line func-visibility
 function getOrderStructHash(Order memory _order) pure returns (bytes32) {
     return
         keccak256(
@@ -49,6 +50,7 @@ string constant FILL_TYPESTRING = "Fill(bytes32 orderHash,address dealer,address
 
 bytes32 constant FILL_TYPEHASH = keccak256(bytes(FILL_TYPESTRING));
 
+// solhint-disable-next-line func-visibility
 function getFillStructHash(Fill memory _fill) pure returns (bytes32) {
     return
         keccak256(
@@ -77,6 +79,7 @@ string constant ALLOW_FILL_TYPESTRING = "AllowFill(bytes32 orderHash,address exe
 
 bytes32 constant ALLOW_FILL_TYPEHASH = keccak256(bytes(ALLOW_FILL_TYPESTRING));
 
+// solhint-disable-next-line func-visibility
 function getAllowFillStructHash(AllowFill memory _allowFill) pure returns (bytes32) {
     return keccak256(abi.encode(ALLOW_FILL_TYPEHASH, _allowFill.orderHash, _allowFill.executor, _allowFill.fillAmount, _allowFill.salt, _allowFill.expiry));
 }
