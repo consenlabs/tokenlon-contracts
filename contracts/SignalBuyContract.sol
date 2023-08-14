@@ -15,7 +15,7 @@ import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
 import "./utils/LibSignalBuyContractOrderStorage.sol";
 import "./utils/Ownable.sol";
-import "./utils/SignalBuyContractLibEIP712.sol";
+import { Order, getOrderStructHash, Fill, getFillStructHash, AllowFill, getAllowFillStructHash } from "./utils/SignalBuyContractLibEIP712.sol";
 import "./utils/SignatureValidator.sol";
 
 /// @title SignalBuy Contract
@@ -143,12 +143,12 @@ contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValida
 
     /// @inheritdoc ISignalBuyContract
     function fillSignalBuy(
-        SignalBuyContractLibEIP712.Order calldata _order,
+        Order calldata _order,
         bytes calldata _orderUserSig,
         TraderParams calldata _params,
         CoordinatorParams calldata _crdParams
     ) external payable override nonReentrant returns (uint256, uint256) {
-        bytes32 orderHash = getEIP712Hash(SignalBuyContractLibEIP712._getOrderStructHash(_order));
+        bytes32 orderHash = getEIP712Hash(getOrderStructHash(_order));
 
         _validateOrder(_order, orderHash, _orderUserSig);
         bytes32 allowFillHash = _validateFillPermission(orderHash, _params.dealerTokenAmount, _params.dealer, _crdParams);
@@ -163,7 +163,7 @@ contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValida
         );
 
         {
-            SignalBuyContractLibEIP712.Fill memory fill = SignalBuyContractLibEIP712.Fill({
+            Fill memory fill = Fill({
                 orderHash: orderHash,
                 dealer: _params.dealer,
                 recipient: _params.recipient,
@@ -204,11 +204,11 @@ contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValida
         return (dealerTokenAmount, userTokenAmount);
     }
 
-    function _validateTraderFill(SignalBuyContractLibEIP712.Fill memory _fill, bytes memory _fillTakerSig) internal {
+    function _validateTraderFill(Fill memory _fill, bytes memory _fillTakerSig) internal {
         require(_fill.expiry > uint64(block.timestamp), "SignalBuyContract: Fill request is expired");
         require(_fill.recipient != address(0), "SignalBuyContract: recipient can not be zero address");
 
-        bytes32 fillHash = getEIP712Hash(SignalBuyContractLibEIP712._getFillStructHash(_fill));
+        bytes32 fillHash = getEIP712Hash(getFillStructHash(_fill));
         require(!LibSignalBuyContractOrderStorage.getStorage().fillSeen[fillHash], "SignalBuyContract: Fill seen before");
         require(isValidSignature(_fill.dealer, fillHash, bytes(""), _fillTakerSig), "SignalBuyContract: Fill is not signed by dealer");
 
@@ -225,14 +225,8 @@ contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValida
         require(_crdParams.expiry > uint64(block.timestamp), "SignalBuyContract: Fill permission is expired");
 
         bytes32 allowFillHash = getEIP712Hash(
-            SignalBuyContractLibEIP712._getAllowFillStructHash(
-                SignalBuyContractLibEIP712.AllowFill({
-                    orderHash: _orderHash,
-                    executor: _executor,
-                    fillAmount: _fillAmount,
-                    salt: _crdParams.salt,
-                    expiry: _crdParams.expiry
-                })
+            getAllowFillStructHash(
+                AllowFill({ orderHash: _orderHash, executor: _executor, fillAmount: _fillAmount, salt: _crdParams.salt, expiry: _crdParams.expiry })
             )
         );
         require(!LibSignalBuyContractOrderStorage.getStorage().fillSeen[allowFillHash], "SignalBuyContract: AllowFill seen before");
@@ -338,16 +332,16 @@ contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValida
     }
 
     /// @inheritdoc ISignalBuyContract
-    function cancelSignalBuy(SignalBuyContractLibEIP712.Order calldata _order, bytes calldata _cancelOrderUserSig) external override nonReentrant {
+    function cancelSignalBuy(Order calldata _order, bytes calldata _cancelOrderUserSig) external override nonReentrant {
         require(_order.expiry > uint64(block.timestamp), "SignalBuyContract: Order is expired");
-        bytes32 orderHash = getEIP712Hash(SignalBuyContractLibEIP712._getOrderStructHash(_order));
+        bytes32 orderHash = getEIP712Hash(getOrderStructHash(_order));
         bool isCancelled = LibSignalBuyContractOrderStorage.getStorage().orderHashToCancelled[orderHash];
         require(!isCancelled, "SignalBuyContract: Order is cancelled already");
         {
-            SignalBuyContractLibEIP712.Order memory cancelledOrder = _order;
+            Order memory cancelledOrder = _order;
             cancelledOrder.minDealerTokenAmount = 0;
 
-            bytes32 cancelledOrderHash = getEIP712Hash(SignalBuyContractLibEIP712._getOrderStructHash(cancelledOrder));
+            bytes32 cancelledOrderHash = getEIP712Hash(getOrderStructHash(cancelledOrder));
             require(
                 isValidSignature(_order.user, cancelledOrderHash, bytes(""), _cancelOrderUserSig),
                 "SignalBuyContract: Cancel request is not signed by user"
@@ -362,7 +356,7 @@ contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValida
     /* order utils */
 
     function _validateOrder(
-        SignalBuyContractLibEIP712.Order memory _order,
+        Order memory _order,
         bytes32 _orderHash,
         bytes memory _orderUserSig
     ) internal view {
@@ -373,14 +367,14 @@ contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValida
         require(isValidSignature(_order.user, _orderHash, bytes(""), _orderUserSig), "SignalBuyContract: Order is not signed by user");
     }
 
-    function _validateOrderTaker(SignalBuyContractLibEIP712.Order memory _order, address _dealer) internal pure {
+    function _validateOrderTaker(Order memory _order, address _dealer) internal pure {
         if (_order.dealer != address(0)) {
             require(_order.dealer == _dealer, "SignalBuyContract: Order cannot be filled by this dealer");
         }
     }
 
     function _quoteOrderFromUserToken(
-        SignalBuyContractLibEIP712.Order memory _order,
+        Order memory _order,
         bytes32 _orderHash,
         uint256 _userTokenAmount
     ) internal view returns (uint256, uint256) {

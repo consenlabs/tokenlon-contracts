@@ -2,7 +2,7 @@
 pragma solidity >=0.7.0;
 pragma abicoder v2;
 
-import "../utils/SignalBuyContractLibEIP712.sol";
+import { Order } from "../utils/SignalBuyContractLibEIP712.sol";
 
 /// @title ISignalBuyContract Interface
 /// @author imToken Labs
@@ -75,7 +75,7 @@ interface ISignalBuyContract {
     /// @param _params Trader specific filling parameters
     /// @param _crdParams Contains details of the fill permit
     function fillSignalBuy(
-        SignalBuyContractLibEIP712.Order calldata _order,
+        Order calldata _order,
         bytes calldata _orderUserSig,
         TraderParams calldata _params,
         CoordinatorParams calldata _crdParams
@@ -85,5 +85,5 @@ interface ISignalBuyContract {
     /// @notice Only user proxy can call
     /// @param _order The order that is going to be cancelled
     /// @param _cancelUserSig The cancelling signature signed by user
-    function cancelSignalBuy(SignalBuyContractLibEIP712.Order calldata _order, bytes calldata _cancelUserSig) external;
+    function cancelSignalBuy(Order calldata _order, bytes calldata _cancelUserSig) external;
 }

@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/SignalBuyContract.sol";
 import "contracts/interfaces/ISignalBuyContract.sol";
 import "contracts/utils/SignatureValidator.sol";
-import "contracts/utils/SignalBuyContractLibEIP712.sol";
+import { Order, getOrderStructHash, Fill, getFillStructHash, AllowFill, getAllowFillStructHash } from "contracts/utils/SignalBuyContractLibEIP712.sol";
 import "contracts/utils/LibConstant.sol";
 
 import "test/mocks/MockERC1271Wallet.sol";
@@ -47,11 +47,11 @@ contract SignalBuyContractTest is BalanceUtil {
     address[] allowanceAddrs;
 
     address[] DEFAULT_AMM_PATH;
-    SignalBuyContractLibEIP712.Order DEFAULT_ORDER;
+    Order DEFAULT_ORDER;
     bytes32 DEFAULT_ORDER_HASH;
     bytes DEFAULT_ORDER_MAKER_SIG;
-    SignalBuyContractLibEIP712.Fill DEFAULT_FILL;
-    SignalBuyContractLibEIP712.AllowFill DEFAULT_ALLOW_FILL;
+    Fill DEFAULT_FILL;
+    AllowFill DEFAULT_ALLOW_FILL;
     uint16 DEFAULT_GAS_FEE_FACTOR = 0;
     uint16 DEFAULT_PIONEX_STRATEGY_FEE_FACTOR = 0;
     ISignalBuyContract.TraderParams DEFAULT_TRADER_PARAMS;
@@ -70,7 +70,7 @@ contract SignalBuyContractTest is BalanceUtil {
         allowanceAddrs = DEFAULT_AMM_PATH;
 
         // Default params
-        DEFAULT_ORDER = SignalBuyContractLibEIP712.Order(
+        DEFAULT_ORDER = Order(
             dai, // userToken
             usdt, // dealerToken
             100 * 1e18, // userTokenAmount
@@ -80,17 +80,9 @@ contract SignalBuyContractTest is BalanceUtil {
             uint256(1001), // salt
             DEADLINE // expiry
         );
-        DEFAULT_ORDER_HASH = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(DEFAULT_ORDER));
+        DEFAULT_ORDER_HASH = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(DEFAULT_ORDER));
         DEFAULT_ORDER_MAKER_SIG = _signOrder(userPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
-        DEFAULT_FILL = SignalBuyContractLibEIP712.Fill(
-            DEFAULT_ORDER_HASH,
-            dealer,
-            receiver,
-            DEFAULT_ORDER.userTokenAmount,
-            DEFAULT_ORDER.minDealerTokenAmount,
-            uint256(1002),
-            DEADLINE
-        );
+        DEFAULT_FILL = Fill(DEFAULT_ORDER_HASH, dealer, receiver, DEFAULT_ORDER.userTokenAmount, DEFAULT_ORDER.minDealerTokenAmount, uint256(1002), DEADLINE);
         DEFAULT_TRADER_PARAMS = ISignalBuyContract.TraderParams(
             dealer, // dealer
             receiver, // recipient
@@ -102,7 +94,7 @@ contract SignalBuyContractTest is BalanceUtil {
             DEADLINE, // expiry
             _signFill(dealerPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712) // dealerSig
         );
-        DEFAULT_ALLOW_FILL = SignalBuyContractLibEIP712.AllowFill(
+        DEFAULT_ALLOW_FILL = AllowFill(
             DEFAULT_ORDER_HASH, // orderHash
             dealer, // executor
             DEFAULT_FILL.dealerTokenAmount, // fillAmount
@@ -295,14 +287,14 @@ contract SignalBuyContractTest is BalanceUtil {
         signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
 
         // Try to fill the default order, should fail
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         fill.dealerSalt = uint256(8001);
 
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
         traderParams.salt = fill.dealerSalt;
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.salt = uint256(8002);
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -314,19 +306,19 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testCannotFillExpiredOrderByTrader() public {
-        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        Order memory order = DEFAULT_ORDER;
         order.expiry = uint64(block.timestamp - 1);
 
-        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -352,20 +344,20 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testCannotFillByTraderWithTakerOtherThanOrderSpecified() public {
-        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        Order memory order = DEFAULT_ORDER;
         // order specify dealer address
         order.dealer = coordinator;
-        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         // dealer try to fill this order
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -376,7 +368,7 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testCannotFillByTraderWithExpiredFill() public {
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         fill.expiry = uint64(block.timestamp - 1);
 
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
@@ -392,7 +384,7 @@ contract SignalBuyContractTest is BalanceUtil {
         signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
 
         // Try to fill with same fill request with differnt allowFill (otherwise will revert by dup allowFill)
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.salt = uint256(9001);
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -408,7 +400,7 @@ contract SignalBuyContractTest is BalanceUtil {
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerTokenAmount = DEFAULT_TRADER_PARAMS.dealerTokenAmount.mul(2);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -427,7 +419,7 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testCannotFillByTraderWithExpiredAllowFill() public {
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.expiry = uint64(block.timestamp - 1);
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -440,7 +432,7 @@ contract SignalBuyContractTest is BalanceUtil {
 
     function testCannotFillByTraderWithAlteredOrderHash() public {
         // Replace orderHash in allowFill
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = bytes32(0);
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -452,7 +444,7 @@ contract SignalBuyContractTest is BalanceUtil {
 
     function testCannotFillByTraderWithAlteredExecutor() public {
         // Set the executor to user (not dealer)
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.executor = user;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -465,7 +457,7 @@ contract SignalBuyContractTest is BalanceUtil {
 
     function testCannotFillByTraderWithAlteredFillAmount() public {
         // Change fill amount in allow fill
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = DEFAULT_ALLOW_FILL.fillAmount.div(2);
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -488,7 +480,7 @@ contract SignalBuyContractTest is BalanceUtil {
         // Fill with default allow fill
         signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         fill.dealerSalt = uint256(8001);
 
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
@@ -507,7 +499,7 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testCannotFillByTraderWithWorseTakerMakerTokenRatio() public {
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         // Increase user token amount so the dealerToken/userToken ratio is worse than order's dealerToken/userToken ratio
         fill.userTokenAmount = DEFAULT_FILL.userTokenAmount.add(1);
 
@@ -542,7 +534,7 @@ contract SignalBuyContractTest is BalanceUtil {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getAllowFillStructHash(DEFAULT_ALLOW_FILL)),
             DEFAULT_TRADER_PARAMS.recipient,
             ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
@@ -579,7 +571,7 @@ contract SignalBuyContractTest is BalanceUtil {
         signalBuyContract.activateFactors();
         vm.stopPrank();
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         // Increase dealer token amount so the dealerToken/userToken ratio is better than order's dealerToken/userToken ratio
         // to account for tokenlon fee
         fill.dealerTokenAmount = DEFAULT_FILL.dealerTokenAmount.mul(115).div(100); // 15% more
@@ -588,7 +580,7 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -599,7 +591,7 @@ contract SignalBuyContractTest is BalanceUtil {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
             ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
@@ -629,7 +621,7 @@ contract SignalBuyContractTest is BalanceUtil {
         BalanceSnapshot.Snapshot memory fcMakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.userToken));
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.dealerToken));
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         // Increase dealer token amount so the dealerToken/userToken ratio is better than order's dealerToken/userToken ratio
         // to account for gas fee and dealer strategy fee
         fill.dealerTokenAmount = DEFAULT_FILL.dealerTokenAmount.mul(11).div(10); // 10% more
@@ -640,7 +632,7 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -651,7 +643,7 @@ contract SignalBuyContractTest is BalanceUtil {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
             ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
@@ -681,7 +673,7 @@ contract SignalBuyContractTest is BalanceUtil {
         BalanceSnapshot.Snapshot memory fcMakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.userToken));
         BalanceSnapshot.Snapshot memory fcTakerAsset = BalanceSnapshot.take(feeCollector, address(DEFAULT_ORDER.dealerToken));
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         // Increase dealer token amount so the dealerToken/userToken ratio is better than order's dealerToken/userToken ratio
         fill.dealerTokenAmount = DEFAULT_FILL.dealerTokenAmount.mul(11).div(10); // 10% more
 
@@ -689,7 +681,7 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -700,7 +692,7 @@ contract SignalBuyContractTest is BalanceUtil {
             DEFAULT_ORDER_HASH,
             DEFAULT_ORDER.user,
             dealer,
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getAllowFillStructHash(allowFill)),
             traderParams.recipient,
             ISignalBuyContract.FillReceipt(
                 address(DEFAULT_ORDER.userToken),
@@ -724,14 +716,14 @@ contract SignalBuyContractTest is BalanceUtil {
 
     function testFullyFillByContractWalletTrader() public {
         // Contract mockERC1271Wallet as dealer which always return valid ERC-1271 magic value no matter what.
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         fill.dealer = address(mockERC1271Wallet);
 
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealer = address(mockERC1271Wallet);
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.WalletBytes32);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.executor = address(mockERC1271Wallet);
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -741,19 +733,19 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testFillBySpecificTaker() public {
-        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        Order memory order = DEFAULT_ORDER;
         // order specify dealer address
         order.dealer = dealer;
-        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -763,19 +755,19 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testFillBySpecificTakerWithOldEIP712Method() public {
-        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        Order memory order = DEFAULT_ORDER;
         // order specify dealer address
         order.dealer = dealer;
-        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        bytes32 orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         bytes memory orderMakerSig = _signOrderWithOldEIP712Method(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerSig = _signFillWithOldEIP712Method(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -790,7 +782,7 @@ contract SignalBuyContractTest is BalanceUtil {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.dealerToken));
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.userToken));
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         // set the fill amount to 2x of order quota
         fill.userTokenAmount = DEFAULT_ORDER.userTokenAmount.mul(2);
         fill.dealerTokenAmount = DEFAULT_ORDER.minDealerTokenAmount.mul(2);
@@ -800,7 +792,7 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = fill.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -821,7 +813,7 @@ contract SignalBuyContractTest is BalanceUtil {
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.dealerToken));
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.userToken));
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
+        Fill memory fill = DEFAULT_FILL;
         // set the fill amount to 2x of order quota
         fill.userTokenAmount = DEFAULT_ORDER.userTokenAmount.mul(2);
         fill.dealerTokenAmount = DEFAULT_ORDER.minDealerTokenAmount.mul(2).mul(11).div(10); // 10% more
@@ -831,7 +823,7 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = fill.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -853,7 +845,7 @@ contract SignalBuyContractTest is BalanceUtil {
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.userToken));
 
         // First fill amount : 9 USDT
-        SignalBuyContractLibEIP712.Fill memory fill1 = DEFAULT_FILL;
+        Fill memory fill1 = DEFAULT_FILL;
         fill1.userTokenAmount = 10 * 1e18;
         fill1.dealerTokenAmount = 9 * 1e6;
         ISignalBuyContract.TraderParams memory traderParams1 = DEFAULT_TRADER_PARAMS;
@@ -861,7 +853,7 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams1.dealerTokenAmount = fill1.dealerTokenAmount;
         traderParams1.dealerSig = _signFill(dealerPrivateKey, fill1, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
         allowFill1.fillAmount = fill1.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams1 = DEFAULT_CRD_PARAMS;
@@ -870,7 +862,7 @@ contract SignalBuyContractTest is BalanceUtil {
         signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
 
         // Second fill amount : 36 USDT
-        SignalBuyContractLibEIP712.Fill memory fill2 = DEFAULT_FILL;
+        Fill memory fill2 = DEFAULT_FILL;
         fill2.userTokenAmount = 40 * 1e18;
         fill2.dealerTokenAmount = 36 * 1e6;
 
@@ -879,7 +871,7 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams2.dealerTokenAmount = fill2.dealerTokenAmount;
         traderParams2.dealerSig = _signFill(dealerPrivateKey, fill2, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
         allowFill2.fillAmount = fill2.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams2 = DEFAULT_CRD_PARAMS;
@@ -901,7 +893,7 @@ contract SignalBuyContractTest is BalanceUtil {
         BalanceSnapshot.Snapshot memory userMakerAsset = BalanceSnapshot.take(user, address(DEFAULT_ORDER.userToken));
 
         // First fill amount : 9 USDT and same dealerToken/userToken ratio
-        SignalBuyContractLibEIP712.Fill memory fill1 = DEFAULT_FILL;
+        Fill memory fill1 = DEFAULT_FILL;
         fill1.userTokenAmount = 10 * 1e18;
         fill1.dealerTokenAmount = 9 * 1e6;
         ISignalBuyContract.TraderParams memory traderParams1 = DEFAULT_TRADER_PARAMS;
@@ -909,7 +901,7 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams1.dealerTokenAmount = fill1.dealerTokenAmount;
         traderParams1.dealerSig = _signFill(dealerPrivateKey, fill1, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
         allowFill1.fillAmount = fill1.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams1 = DEFAULT_CRD_PARAMS;
@@ -918,7 +910,7 @@ contract SignalBuyContractTest is BalanceUtil {
         signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
 
         // Second fill amount : 36 USDT and better dealerToken/userToken ratio
-        SignalBuyContractLibEIP712.Fill memory fill2 = DEFAULT_FILL;
+        Fill memory fill2 = DEFAULT_FILL;
         fill2.userTokenAmount = 40 * 1e18;
         fill2.dealerTokenAmount = uint256(36 * 1e6).mul(11).div(10); // 10% more
 
@@ -927,7 +919,7 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams2.dealerTokenAmount = fill2.dealerTokenAmount;
         traderParams2.dealerSig = _signFill(dealerPrivateKey, fill2, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
+        AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
         allowFill2.fillAmount = fill2.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams2 = DEFAULT_CRD_PARAMS;
@@ -955,21 +947,21 @@ contract SignalBuyContractTest is BalanceUtil {
     ETHandWETHAssetSnapshot assetSnapshots;
 
     function testSettlementETHToETHWithNoFee() public {
-        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        Order memory order = DEFAULT_ORDER;
         order.dealerToken = IERC20(LibConstant.ETH_ADDRESS);
         order.minDealerTokenAmount = 1e18;
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
-        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        Fill memory fill = DEFAULT_FILL;
+        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         fill.dealerTokenAmount = order.minDealerTokenAmount;
 
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -988,10 +980,10 @@ contract SignalBuyContractTest is BalanceUtil {
         // Case 2: Tx succeeded
         vm.expectEmit(true, true, true, true);
         emit SignalBuyFilledByTrader(
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order)),
             order.user,
             dealer,
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
             ISignalBuyContract.FillReceipt(
                 address(order.userToken),
@@ -1013,21 +1005,21 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testSettlementWETHToWETHWithNoFee() public {
-        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        Order memory order = DEFAULT_ORDER;
         order.dealerToken = weth;
         order.minDealerTokenAmount = 1e18;
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
-        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        Fill memory fill = DEFAULT_FILL;
+        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         fill.dealerTokenAmount = order.minDealerTokenAmount;
 
         ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -1046,10 +1038,10 @@ contract SignalBuyContractTest is BalanceUtil {
         // Case 2: Tx succeeded
         vm.expectEmit(true, true, true, true);
         emit SignalBuyFilledByTrader(
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order)),
             order.user,
             dealer,
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
             ISignalBuyContract.FillReceipt(
                 address(order.userToken),
@@ -1078,13 +1070,13 @@ contract SignalBuyContractTest is BalanceUtil {
         signalBuyContract.activateFactors();
         vm.stopPrank();
 
-        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        Order memory order = DEFAULT_ORDER;
         order.dealerToken = weth;
         order.minDealerTokenAmount = 1e18;
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
-        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        Fill memory fill = DEFAULT_FILL;
+        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         // Increase dealer token amount so the dealerToken/userToken ratio is better than order's dealerToken/userToken ratio
         // to account for tokenlon fee
         fill.dealerTokenAmount = order.minDealerTokenAmount.mul(115).div(100); // 15% more
@@ -1093,8 +1085,8 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -1113,10 +1105,10 @@ contract SignalBuyContractTest is BalanceUtil {
         // Case 2: Tx succeeded
         vm.expectEmit(true, true, true, true);
         emit SignalBuyFilledByTrader(
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order)),
             order.user,
             dealer,
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
             ISignalBuyContract.FillReceipt(
                 address(order.userToken),
@@ -1138,13 +1130,13 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testSettlementWETHToETHWithAddedGasFeeAndStrategyFee() public {
-        SignalBuyContractLibEIP712.Order memory order = DEFAULT_ORDER;
+        Order memory order = DEFAULT_ORDER;
         order.dealerToken = IERC20(LibConstant.ETH_ADDRESS);
         order.minDealerTokenAmount = 1e18;
         bytes memory orderMakerSig = _signOrder(userPrivateKey, order, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.Fill memory fill = DEFAULT_FILL;
-        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        Fill memory fill = DEFAULT_FILL;
+        fill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         // Increase dealer token amount so the dealerToken/userToken ratio is better than order's dealerToken/userToken ratio
         // to account for gas fee and dealer strategy fee
         fill.dealerTokenAmount = order.minDealerTokenAmount.mul(11).div(10); // 10% more
@@ -1155,8 +1147,8 @@ contract SignalBuyContractTest is BalanceUtil {
         traderParams.dealerTokenAmount = fill.dealerTokenAmount;
         traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
 
-        SignalBuyContractLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
-        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order));
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.orderHash = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order));
         allowFill.fillAmount = traderParams.dealerTokenAmount;
 
         ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
@@ -1175,10 +1167,10 @@ contract SignalBuyContractTest is BalanceUtil {
         // Case 2: Tx succeeded
         vm.expectEmit(true, true, true, true);
         emit SignalBuyFilledByTrader(
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getOrderStructHash(order)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getOrderStructHash(order)),
             order.user,
             dealer,
-            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill)),
+            getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), getAllowFillStructHash(allowFill)),
             DEFAULT_TRADER_PARAMS.recipient,
             ISignalBuyContract.FillReceipt(
                 address(order.userToken),
@@ -1204,7 +1196,7 @@ contract SignalBuyContractTest is BalanceUtil {
      *********************************/
 
     function testCannotFillCanceledOrder() public {
-        SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
+        Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
         bytes memory cancelSig = _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712);
 
@@ -1215,7 +1207,7 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testCannotCancelIfNotMaker() public {
-        SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
+        Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
         bytes memory cancelSig = _signOrder(dealerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712);
 
@@ -1224,7 +1216,7 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testCannotCancelExpiredOrder() public {
-        SignalBuyContractLibEIP712.Order memory expiredOrder = DEFAULT_ORDER;
+        Order memory expiredOrder = DEFAULT_ORDER;
         expiredOrder.expiry = 0;
         bytes memory cancelSig = _signOrder(userPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712);
 
@@ -1233,7 +1225,7 @@ contract SignalBuyContractTest is BalanceUtil {
     }
 
     function testCannotCancelTwice() public {
-        SignalBuyContractLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
+        Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.minDealerTokenAmount = 0;
         bytes memory cancelSig = _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712);
 
@@ -1245,9 +1237,9 @@ contract SignalBuyContractTest is BalanceUtil {
     function _signOrderEIP712(
         address limitOrderAddr,
         uint256 privateKey,
-        SignalBuyContractLibEIP712.Order memory order
+        Order memory order
     ) internal returns (bytes memory sig) {
-        bytes32 orderHash = SignalBuyContractLibEIP712._getOrderStructHash(order);
+        bytes32 orderHash = getOrderStructHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
@@ -1256,9 +1248,9 @@ contract SignalBuyContractTest is BalanceUtil {
     function _signFillEIP712(
         address limitOrderAddr,
         uint256 privateKey,
-        SignalBuyContractLibEIP712.Fill memory fill
+        Fill memory fill
     ) internal returns (bytes memory sig) {
-        bytes32 fillHash = SignalBuyContractLibEIP712._getFillStructHash(fill);
+        bytes32 fillHash = getFillStructHash(fill);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), fillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
@@ -1267,9 +1259,9 @@ contract SignalBuyContractTest is BalanceUtil {
     function _signAllowFillEIP712(
         address limitOrderAddr,
         uint256 privateKey,
-        SignalBuyContractLibEIP712.AllowFill memory allowFill
+        AllowFill memory allowFill
     ) internal returns (bytes memory sig) {
-        bytes32 allowFillHash = SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill);
+        bytes32 allowFillHash = getAllowFillStructHash(allowFill);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), allowFillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
@@ -1302,10 +1294,10 @@ contract SignalBuyContractTest is BalanceUtil {
 
     function _signOrder(
         uint256 privateKey,
-        SignalBuyContractLibEIP712.Order memory order,
+        Order memory order,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 orderHash = SignalBuyContractLibEIP712._getOrderStructHash(order);
+        bytes32 orderHash = getOrderStructHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
         if (sigType == SignatureValidator.SignatureType.EIP712) {
@@ -1321,10 +1313,10 @@ contract SignalBuyContractTest is BalanceUtil {
 
     function _signOrderWithOldEIP712Method(
         uint256 privateKey,
-        SignalBuyContractLibEIP712.Order memory order,
+        Order memory order,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 orderHash = SignalBuyContractLibEIP712._getOrderStructHash(order);
+        bytes32 orderHash = getOrderStructHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), orderHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -1333,10 +1325,10 @@ contract SignalBuyContractTest is BalanceUtil {
 
     function _signFill(
         uint256 privateKey,
-        SignalBuyContractLibEIP712.Fill memory fill,
+        Fill memory fill,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 fillHash = SignalBuyContractLibEIP712._getFillStructHash(fill);
+        bytes32 fillHash = getFillStructHash(fill);
         bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), fillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
@@ -1344,10 +1336,10 @@ contract SignalBuyContractTest is BalanceUtil {
 
     function _signFillWithOldEIP712Method(
         uint256 privateKey,
-        SignalBuyContractLibEIP712.Fill memory fill,
+        Fill memory fill,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 fillHash = SignalBuyContractLibEIP712._getFillStructHash(fill);
+        bytes32 fillHash = getFillStructHash(fill);
         bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), fillHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -1356,10 +1348,10 @@ contract SignalBuyContractTest is BalanceUtil {
 
     function _signAllowFill(
         uint256 privateKey,
-        SignalBuyContractLibEIP712.AllowFill memory allowFill,
+        AllowFill memory allowFill,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 allowFillHash = SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill);
+        bytes32 allowFillHash = getAllowFillStructHash(allowFill);
         bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, uint8(sigType));
@@ -1367,10 +1359,10 @@ contract SignalBuyContractTest is BalanceUtil {
 
     function _signAllowFillWithOldEIP712Method(
         uint256 privateKey,
-        SignalBuyContractLibEIP712.AllowFill memory allowFill,
+        AllowFill memory allowFill,
         SignatureValidator.SignatureType sigType
     ) internal returns (bytes memory sig) {
-        bytes32 allowFillHash = SignalBuyContractLibEIP712._getAllowFillStructHash(allowFill);
+        bytes32 allowFillHash = getAllowFillStructHash(allowFill);
         bytes32 EIP712SignDigest = getEIP712Hash(signalBuyContract.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
         require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
