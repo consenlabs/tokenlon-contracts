@@ -9,9 +9,10 @@ contract PermanentStorageTest is Test {
     event TransferOwnership(address newOperator);
     event SetPermission(bytes32 storageId, address role, bool enabled);
     event UpgradeAMMWrapper(address newAMMWrapper);
+    event UpgradePMM(address newPMM);
     event UpgradeRFQ(address newRFQ);
+    event UpgradeRFQv2(address newRFQv2);
     event UpgradeLimitOrder(address newLimitOrder);
-    event UpgradeL2Deposit(address newL2Deposit);
     event UpgradeWETH(address newWETH);
     event SetCurvePoolInfo(address makerAddr, address[] underlyingCoins, address[] coins, bool supportGetD);
     event SetRelayerValid(address relayer, bool valid);
@@ -52,15 +53,32 @@ contract PermanentStorageTest is Test {
      *    Test: transferOwnership    *
      *********************************/
 
-    function testCannotTransferOwnershipToZeroAddress() public {
+    function testCannotNominateOpeatorToZeroAddress() public {
         vm.expectRevert("PermanentStorage: operator can not be zero address");
-        permanentStorage.transferOwnership(address(0));
+        permanentStorage.nominateNewOperator(address(0));
     }
 
-    function testCannotTransferOwnershipByNotOperator() public {
+    function testCannotNominateOpeatorByNotOperator() public {
         vm.expectRevert("PermanentStorage: not the operator");
         vm.prank(user);
-        permanentStorage.transferOwnership(user);
+        permanentStorage.nominateNewOperator(user);
+    }
+
+    function testCannotAccpetOwnershipByNotNominated() public {
+        address newOperator = makeAddr("newOperator");
+        permanentStorage.nominateNewOperator(newOperator);
+
+        vm.expectRevert("PermanentStorage: not nominated");
+        permanentStorage.acceptOwnership();
+    }
+
+    function testTransferOwnership() public {
+        address newOperator = makeAddr("newOperator");
+        permanentStorage.nominateNewOperator(newOperator);
+
+        vm.prank(newOperator);
+        permanentStorage.acceptOwnership();
+        assertEq(permanentStorage.operator(), newOperator);
     }
 
     /*********************************
@@ -100,6 +118,20 @@ contract PermanentStorageTest is Test {
         assertEq(permanentStorage.ammWrapperAddr(), strategy);
     }
 
+    function testCannotUpgradePMMByNotOperator() public {
+        vm.expectRevert("PermanentStorage: not the operator");
+        vm.prank(user);
+        permanentStorage.upgradePMM(strategy);
+    }
+
+    function testUpgradePMM() public {
+        assertEq(permanentStorage.pmmAddr(), address(0));
+        vm.expectEmit(true, true, true, true);
+        emit UpgradePMM(strategy);
+        permanentStorage.upgradePMM(strategy);
+        assertEq(permanentStorage.pmmAddr(), strategy);
+    }
+
     function testCannotUpgradeRFQByNotOperator() public {
         vm.expectRevert("PermanentStorage: not the operator");
         vm.prank(user);
@@ -114,6 +146,20 @@ contract PermanentStorageTest is Test {
         assertEq(permanentStorage.rfqAddr(), strategy);
     }
 
+    function testCannotUpgradeRFQv2ByNotOperator() public {
+        vm.expectRevert("PermanentStorage: not the operator");
+        vm.prank(user);
+        permanentStorage.upgradeRFQv2(strategy);
+    }
+
+    function testUpgradeRFQv2() public {
+        assertEq(permanentStorage.rfqv2Addr(), address(0));
+        vm.expectEmit(true, true, true, true);
+        emit UpgradeRFQv2(strategy);
+        permanentStorage.upgradeRFQv2(strategy);
+        assertEq(permanentStorage.rfqv2Addr(), strategy);
+    }
+
     function testCannotUpgradeLimitOrderByNotOperator() public {
         vm.expectRevert("PermanentStorage: not the operator");
         vm.prank(user);
@@ -126,20 +172,6 @@ contract PermanentStorageTest is Test {
         emit UpgradeLimitOrder(strategy);
         permanentStorage.upgradeLimitOrder(strategy);
         assertEq(permanentStorage.limitOrderAddr(), strategy);
-    }
-
-    function testCannotUpgradeL2DepositByNotOperator() public {
-        vm.expectRevert("PermanentStorage: not the operator");
-        vm.prank(user);
-        permanentStorage.upgradeL2Deposit(strategy);
-    }
-
-    function testUpgradeL2Deposit() public {
-        assertEq(permanentStorage.l2DepositAddr(), address(0));
-        vm.expectEmit(true, true, true, true);
-        emit UpgradeL2Deposit(strategy);
-        permanentStorage.upgradeL2Deposit(strategy);
-        assertEq(permanentStorage.l2DepositAddr(), strategy);
     }
 
     function testCannotUpgradeWETHByNotOperator() public {
@@ -238,6 +270,27 @@ contract PermanentStorageTest is Test {
         vm.stopPrank();
     }
 
+    function testCannotSetRFQv2OfferFilledWithoutPermission() public {
+        vm.expectRevert("PermanentStorage: has no permission");
+        vm.prank(user);
+        permanentStorage.setRFQOfferFilled(DEFAULT_TRANSACION_HASH);
+    }
+
+    function testSetRFQv2OfferFilled() public {
+        permanentStorage.upgradeRFQv2(strategy);
+        bytes32 storageId = permanentStorage.transactionSeenStorageId();
+        permanentStorage.setPermission(storageId, strategy, true);
+
+        vm.startPrank(strategy);
+        assertFalse(permanentStorage.isRFQOfferFilled(DEFAULT_TRANSACION_HASH));
+        permanentStorage.setRFQOfferFilled(DEFAULT_TRANSACION_HASH);
+        assertTrue(permanentStorage.isRFQOfferFilled(DEFAULT_TRANSACION_HASH));
+
+        vm.expectRevert("PermanentStorage: offer already filled");
+        permanentStorage.setRFQOfferFilled(DEFAULT_TRANSACION_HASH);
+        vm.stopPrank();
+    }
+
     function testCannotSetLimitOrderTransactionSeenWithoutPermission() public {
         vm.expectRevert("PermanentStorage: has no permission");
         vm.prank(user);
@@ -256,27 +309,6 @@ contract PermanentStorageTest is Test {
 
         vm.expectRevert("PermanentStorage: transaction seen before");
         permanentStorage.setLimitOrderTransactionSeen(DEFAULT_TRANSACION_HASH);
-        vm.stopPrank();
-    }
-
-    function testCannotSetL2DepositSeenWithoutPermission() public {
-        vm.expectRevert("PermanentStorage: has no permission");
-        vm.prank(user);
-        permanentStorage.setL2DepositSeen(DEFAULT_TRANSACION_HASH);
-    }
-
-    function testSetSetL2DepositSeen() public {
-        permanentStorage.upgradeL2Deposit(strategy);
-        bytes32 storageId = permanentStorage.l2DepositSeenStorageId();
-        permanentStorage.setPermission(storageId, strategy, true);
-
-        vm.startPrank(strategy);
-        assertFalse(permanentStorage.isL2DepositSeen(DEFAULT_TRANSACION_HASH));
-        permanentStorage.setL2DepositSeen(DEFAULT_TRANSACION_HASH);
-        assertTrue(permanentStorage.isL2DepositSeen(DEFAULT_TRANSACION_HASH));
-
-        vm.expectRevert("PermanentStorage: L2 deposit seen before");
-        permanentStorage.setL2DepositSeen(DEFAULT_TRANSACION_HASH);
         vm.stopPrank();
     }
 

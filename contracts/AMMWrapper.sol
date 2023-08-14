@@ -11,7 +11,7 @@ import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ICurveFi.sol";
 import "./interfaces/ICurveFiV2.sol";
 import "./interfaces/IAMMWrapper.sol";
-import "./interfaces/IWeth.sol";
+import "./interfaces/IWETH.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./utils/StrategyBase.sol";
 import "./utils/AMMLibEIP712.sol";

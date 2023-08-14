@@ -8,7 +8,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { TokenCollector } from "./utils/TokenCollector.sol";
 import { BaseLibEIP712 } from "./utils/BaseLibEIP712.sol";
 import { Asset } from "./utils/Asset.sol";
-import { Offer, getOfferHash } from "./utils/Offer.sol";
+import { Offer } from "./utils/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "./utils/RFQOrder.sol";
 import { LibConstant } from "./utils/LibConstant.sol";
 import { SignatureValidator } from "./utils/SignatureValidator.sol";
@@ -59,73 +59,64 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
         bytes calldata takerSignature,
         bytes calldata takerTokenPermit
     ) external payable override onlyUserProxy {
-        _fillRFQ(order, makerSignature, makerTokenPermit, takerSignature, takerTokenPermit);
-    }
-
-    function _fillRFQ(
-        RFQOrder memory _rfqOrder,
-        bytes memory _makerSignature,
-        bytes memory _makerTokenPermit,
-        bytes memory _takerSignature,
-        bytes memory _takerTokenPermit
-    ) private {
-        Offer memory _offer = _rfqOrder.offer;
+        Offer calldata _offer = order.offer;
         // check the offer deadline and fee factor
-        require(_offer.expiry >= block.timestamp, "offer expired");
-        require(_rfqOrder.feeFactor <= LibConstant.BPS_MAX, "invalid fee factor");
+        require(_offer.expiry > block.timestamp, "offer expired");
+        require(_offer.feeFactor < LibConstant.BPS_MAX, "invalid fee factor");
+        require(order.recipient != address(0), "zero recipient");
 
         // check if the offer is available to be filled
-        (bytes32 offerHash, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
+        (bytes32 offerHash, bytes32 rfqOrderHash) = getRFQOrderHash(order);
 
         // check and set
         permStorage.setRFQOfferFilled(offerHash);
 
         // check maker signature
-        require(isValidSignature(_offer.maker, getEIP712Hash(offerHash), bytes(""), _makerSignature), "invalid signature");
+        require(isValidSignature(_offer.maker, getEIP712Hash(offerHash), bytes(""), makerSignature), "invalid signature");
 
         // check taker signature if needed
         if (_offer.taker != msg.sender) {
-            require(isValidSignature(_offer.taker, getEIP712Hash(rfqOrderHash), bytes(""), _takerSignature), "invalid signature");
+            require(isValidSignature(_offer.taker, getEIP712Hash(rfqOrderHash), bytes(""), takerSignature), "invalid signature");
         }
 
         // transfer takerToken to maker
         if (_offer.takerToken.isETH()) {
             require(msg.value == _offer.takerTokenAmount, "invalid msg value");
-            Address.sendValue(_offer.maker, _offer.takerTokenAmount);
-        } else if (_offer.takerToken == address(weth)) {
-            _collect(_offer.takerToken, _offer.taker, address(this), _offer.takerTokenAmount, _takerTokenPermit);
-            weth.withdraw(_offer.takerTokenAmount);
-            Address.sendValue(_offer.maker, _offer.takerTokenAmount);
+            weth.deposit{ value: msg.value }();
+            weth.transfer(_offer.maker, msg.value);
         } else {
-            _collect(_offer.takerToken, _offer.taker, _offer.maker, _offer.takerTokenAmount, _takerTokenPermit);
+            require(msg.value == 0, "invalid msg value");
+            _collect(_offer.takerToken, _offer.taker, _offer.maker, _offer.takerTokenAmount, takerTokenPermit);
         }
 
         // collect makerToken from maker to this
-        _collect(_offer.makerToken, _offer.maker, address(this), _offer.makerTokenAmount, _makerTokenPermit);
+        _collect(_offer.makerToken, _offer.maker, address(this), _offer.makerTokenAmount, makerTokenPermit);
 
         // transfer makerToken to recipient (sub fee)
-        uint256 fee = _offer.makerTokenAmount.mul(_rfqOrder.feeFactor).div(LibConstant.BPS_MAX);
-        // determine if WETH unwrap is needed, send out ETH if makerToken is WETH
-        address makerToken = _offer.makerToken;
-        if (makerToken == address(weth)) {
-            weth.withdraw(_offer.makerTokenAmount);
-            makerToken = LibConstant.ETH_ADDRESS;
-        }
+        uint256 fee = _offer.makerTokenAmount.mul(_offer.feeFactor).div(LibConstant.BPS_MAX);
         uint256 makerTokenToTaker = _offer.makerTokenAmount.sub(fee);
+        {
+            // determine if WETH unwrap is needed, send out ETH if makerToken is WETH
+            address makerToken = _offer.makerToken;
+            if (makerToken == address(weth)) {
+                weth.withdraw(_offer.makerTokenAmount);
+                makerToken = LibConstant.ETH_ADDRESS;
+            }
 
-        // collect fee if present
-        if (fee > 0) {
-            makerToken.transferTo(feeCollector, fee);
+            // collect fee if present
+            if (fee > 0) {
+                makerToken.transferTo(feeCollector, fee);
+            }
+
+            makerToken.transferTo(order.recipient, makerTokenToTaker);
         }
 
-        makerToken.transferTo(_rfqOrder.recipient, makerTokenToTaker);
-
-        _emitFilledRFQEvent(offerHash, _rfqOrder, makerTokenToTaker);
+        _emitFilledRFQEvent(offerHash, order, makerTokenToTaker);
     }
 
     function _emitFilledRFQEvent(
         bytes32 _offerHash,
-        RFQOrder memory _rfqOrder,
+        RFQOrder calldata _rfqOrder,
         uint256 _makerTokenToTaker
     ) internal {
         emit FilledRFQ(
@@ -138,7 +129,7 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
             _rfqOrder.offer.makerTokenAmount,
             _rfqOrder.recipient,
             _makerTokenToTaker,
-            _rfqOrder.feeFactor
+            _rfqOrder.offer.feeFactor
         );
     }
 }

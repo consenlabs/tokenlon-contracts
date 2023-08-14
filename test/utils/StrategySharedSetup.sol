@@ -76,7 +76,7 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
             _setupDeployedStrategy();
         } else {
             // Deploy
-            spender = new Spender(tokenlonOperator, new address[](1));
+            spender = new Spender(tokenlonOperator);
             allowanceTarget = new AllowanceTarget(address(spender));
             _deployTokenlonAndUserProxy();
             _deployPermanentStorageAndProxy();

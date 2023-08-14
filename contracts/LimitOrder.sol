@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/ILimitOrder.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/ISpender.sol";
-import "./interfaces/IWeth.sol";
+import "./interfaces/IWETH.sol";
 import "./utils/StrategyBase.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
@@ -236,18 +236,19 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         uint256 makerTokenForTrader = _settlement.makerTokenAmount.sub(makerTokenFee);
 
         // trader -> maker
-        _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _settlement.maker, takerTokenForMaker);
-
-        // maker -> recipient
-        _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _settlement.recipient, makerTokenForTrader);
-
+        _spender.spendFromUser(_settlement.trader, address(_settlement.takerToken), _settlement.takerTokenAmount);
+        _settlement.takerToken.safeTransfer(_settlement.maker, takerTokenForMaker);
         // Collect maker fee (charged in taker token)
         if (takerTokenFee > 0) {
-            _spender.spendFromUserTo(_settlement.trader, address(_settlement.takerToken), _feeCollector, takerTokenFee);
+            _settlement.takerToken.safeTransfer(_feeCollector, takerTokenFee);
         }
+
+        // maker -> recipient
+        _spender.spendFromUser(_settlement.maker, address(_settlement.makerToken), _settlement.makerTokenAmount);
+        _settlement.makerToken.safeTransfer(_settlement.recipient, makerTokenForTrader);
         // Collect taker fee (charged in maker token)
         if (makerTokenFee > 0) {
-            _spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), _feeCollector, makerTokenFee);
+            _settlement.makerToken.safeTransfer(_feeCollector, makerTokenFee);
         }
 
         // bypass stack too deep error
@@ -347,7 +348,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         require(_settlement.profitRecipient != address(0), "LimitOrder: profitRecipient can not be zero address");
 
         // Collect maker token from maker in order to swap through protocol
-        spender.spendFromUserTo(_settlement.maker, address(_settlement.makerToken), address(this), _settlement.makerTokenAmount);
+        spender.spendFromUser(_settlement.maker, address(_settlement.makerToken), _settlement.makerTokenAmount);
 
         uint256 takerTokenOut = _swapByProtocol(_settlement);
 

@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./interfaces/IUniswapRouterV2.sol";
 import "./interfaces/ICurveFi.sol";
 import "./interfaces/ICurveFiV2.sol";
-import "./interfaces/IWeth.sol";
+import "./interfaces/IWETH.sol";
 import "./interfaces/IPermanentStorage.sol";
 import "./interfaces/IUniswapV3Quoter.sol";
 import "./interfaces/IBalancerV2Vault.sol";

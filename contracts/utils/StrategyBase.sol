@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import "./Ownable.sol";
 import "./LibConstant.sol";
-import "../interfaces/IWeth.sol";
+import "../interfaces/IWETH.sol";
 import "../interfaces/IStrategyBase.sol";
 import "../interfaces/ISpender.sol";
 import "../interfaces/IPermanentStorage.sol";

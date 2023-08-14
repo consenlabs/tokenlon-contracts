@@ -12,19 +12,21 @@ contract UserProxy is Multicall {
     // Below are the variables which consume storage slots.
     address public operator;
     string public version; // Current version of the contract
+    address private nominatedOperator;
 
     // Operator events
-    event TransferOwnership(address newOperator);
+    event OperatorNominated(address indexed newOperator);
+    event OperatorChanged(address indexed oldOperator, address indexed newOperator);
     event SetAMMStatus(bool enable);
     event UpgradeAMMWrapper(address newAMMWrapper);
+    event SetPMMStatus(bool enable);
+    event UpgradePMM(address newPMM);
     event SetRFQStatus(bool enable);
     event UpgradeRFQ(address newRFQ);
     event SetRFQv2Status(bool enable);
     event UpgradeRFQv2(address newRFQv2);
     event SetLimitOrderStatus(bool enable);
     event UpgradeLimitOrder(address newLimitOrder);
-    event SetL2DepositStatus(bool enable);
-    event UpgradeL2Deposit(address newL2Deposit);
 
     receive() external payable {}
 
@@ -36,11 +38,19 @@ contract UserProxy is Multicall {
         _;
     }
 
-    function transferOwnership(address _newOperator) external onlyOperator {
+    function nominateNewOperator(address _newOperator) external onlyOperator {
         require(_newOperator != address(0), "UserProxy: operator can not be zero address");
-        operator = _newOperator;
+        nominatedOperator = _newOperator;
 
-        emit TransferOwnership(_newOperator);
+        emit OperatorNominated(_newOperator);
+    }
+
+    function acceptOwnership() external {
+        require(msg.sender == nominatedOperator, "UserProxy: not nominated");
+        emit OperatorChanged(operator, nominatedOperator);
+
+        operator = nominatedOperator;
+        nominatedOperator = address(0);
     }
 
     /************************************************************
@@ -67,6 +77,14 @@ contract UserProxy is Multicall {
         return AMMWrapperStorage.getStorage().isEnabled;
     }
 
+    function pmmAddr() public view returns (address) {
+        return PMMStorage.getStorage().pmmAddr;
+    }
+
+    function isPMMEnabled() public view returns (bool) {
+        return PMMStorage.getStorage().isEnabled;
+    }
+
     function rfqAddr() public view returns (address) {
         return RFQStorage.getStorage().rfqAddr;
     }
@@ -91,14 +109,6 @@ contract UserProxy is Multicall {
         return LimitOrderStorage.getStorage().isEnabled;
     }
 
-    function l2DepositAddr() public view returns (address) {
-        return L2DepositStorage.getStorage().l2DepositAddr;
-    }
-
-    function isL2DepositEnabled() public view returns (bool) {
-        return L2DepositStorage.getStorage().isEnabled;
-    }
-
     /************************************************************
      *           Management functions for Operator               *
      *************************************************************/
@@ -114,6 +124,20 @@ contract UserProxy is Multicall {
 
         emit UpgradeAMMWrapper(_newAMMWrapperAddr);
         emit SetAMMStatus(_enable);
+    }
+
+    function setPMMStatus(bool _enable) public onlyOperator {
+        PMMStorage.getStorage().isEnabled = _enable;
+
+        emit SetPMMStatus(_enable);
+    }
+
+    function upgradePMM(address _newPMMAddr, bool _enable) external onlyOperator {
+        PMMStorage.getStorage().pmmAddr = _newPMMAddr;
+        PMMStorage.getStorage().isEnabled = _enable;
+
+        emit UpgradePMM(_newPMMAddr);
+        emit SetPMMStatus(_enable);
     }
 
     function setRFQStatus(bool _enable) public onlyOperator {
@@ -158,20 +182,6 @@ contract UserProxy is Multicall {
         emit SetLimitOrderStatus(_enable);
     }
 
-    function setL2DepositStatus(bool _enable) public onlyOperator {
-        L2DepositStorage.getStorage().isEnabled = _enable;
-
-        emit SetL2DepositStatus(_enable);
-    }
-
-    function upgradeL2Deposit(address _newL2DepositAddr, bool _enable) external onlyOperator {
-        L2DepositStorage.getStorage().l2DepositAddr = _newL2DepositAddr;
-        L2DepositStorage.getStorage().isEnabled = _enable;
-
-        emit UpgradeL2Deposit(_newL2DepositAddr);
-        emit SetL2DepositStatus(_enable);
-    }
-
     /************************************************************
      *                   External functions                      *
      *************************************************************/
@@ -182,6 +192,25 @@ contract UserProxy is Multicall {
         require(isAMMEnabled(), "UserProxy: AMM is disabled");
 
         (bool callSucceed, ) = ammWrapperAddr().call{ value: msg.value }(_payload);
+        if (!callSucceed) {
+            // revert with data from last call
+            assembly {
+                let ptr := mload(0x40)
+                let size := returndatasize()
+                returndatacopy(ptr, 0, size)
+                revert(ptr, size)
+            }
+        }
+    }
+
+    /**
+     * @dev proxy the call to PMM
+     */
+    function toPMM(bytes calldata _payload) external payable {
+        require(isPMMEnabled(), "UserProxy: PMM is disabled");
+        require(msg.sender == tx.origin, "UserProxy: only EOA");
+
+        (bool callSucceed, ) = pmmAddr().call{ value: msg.value }(_payload);
         if (!callSucceed) {
             // revert with data from last call
             assembly {
@@ -239,24 +268,6 @@ contract UserProxy is Multicall {
         require(msg.sender == tx.origin, "UserProxy: only EOA");
 
         (bool callSucceed, ) = limitOrderAddr().call(_payload);
-        if (!callSucceed) {
-            // revert with data from last call
-            assembly {
-                let ptr := mload(0x40)
-                let size := returndatasize()
-                returndatacopy(ptr, 0, size)
-                revert(ptr, size)
-            }
-        }
-    }
-
-    /**
-     * @dev proxy the call to L2Deposit
-     */
-    function toL2Deposit(bytes calldata _payload) external payable {
-        require(isL2DepositEnabled(), "UserProxy: L2 Deposit is disabled");
-
-        (bool callSucceed, ) = l2DepositAddr().call{ value: msg.value }(_payload);
         if (!callSucceed) {
             // revert with data from last call
             assembly {
