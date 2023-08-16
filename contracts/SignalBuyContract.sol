@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "./interfaces/ISignalBuyContract.sol";
-import "./interfaces/IWeth.sol";
+import "./interfaces/IWETH.sol";
 import { Asset } from "./utils/Asset.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
