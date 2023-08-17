@@ -2,9 +2,7 @@
 pragma solidity ^0.8.0;
 
 string constant GS_DATA_TYPESTRING = string(
-    abi.encodePacked(
-        "GenericSwapData(address maker,address takerToken,uint256 takerTokenAmount,address makerToken,uint256 makerTokenAmount,uint256 minMakerTokenAmount,uint256 expiry,uint256 salt,address recipient,bytes strategyData)"
-    )
+    "GenericSwapData(address maker,address takerToken,uint256 takerTokenAmount,address makerToken,uint256 makerTokenAmount,uint256 minMakerTokenAmount,uint256 expiry,uint256 salt,address recipient,bytes strategyData)"
 );
 
 bytes32 constant GS_DATA_TYPEHASH = keccak256(bytes(GS_DATA_TYPESTRING));
