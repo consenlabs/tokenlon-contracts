@@ -13,7 +13,8 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
 
     address private constant v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address private constant v3Router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    address payable private constant universalRouter = payable(0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B);
+    address private constant swapRouter02 = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
+    address payable private constant universalRouter = payable(0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD);
 
     constructor(
         address _owner,
@@ -38,6 +39,7 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
             // ignore return value and proceed anyway since three calls are independent
             tokens[i].call(abi.encodeCall(IERC20.approve, (v2Router, type(uint256).max)));
             tokens[i].call(abi.encodeCall(IERC20.approve, (v3Router, type(uint256).max)));
+            tokens[i].call(abi.encodeCall(IERC20.approve, (swapRouter02, type(uint256).max)));
         }
     }
 
@@ -92,7 +94,7 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
                 // deposit directly into router if it's universal router
                 _collect(inputToken, msg.sender, universalRouter, inputAmount, userPermit);
             } else {
-                // v2 v3 use transferFrom
+                // v2, v3, swapRouter02 use transferFrom
                 _collect(inputToken, msg.sender, address(this), inputAmount, userPermit);
             }
         }
@@ -111,6 +113,8 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
             return v2Router;
         } else if (routerType == RouterType.V3Router) {
             return v3Router;
+        } else if (routerType == RouterType.SwapRouter02) {
+            return swapRouter02;
         } else if (routerType == RouterType.UniversalRouter) {
             return universalRouter;
         }
