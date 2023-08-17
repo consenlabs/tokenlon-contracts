@@ -17,6 +17,7 @@ interface IUniAgent {
     enum RouterType {
         V2Router,
         V3Router,
+        SwapRouter02,
         UniversalRouter
     }
 
