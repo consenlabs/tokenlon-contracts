@@ -1,0 +1,15 @@
+{
+    "taker": "0x2EEbb4c77295B2198B25Bafa8b92A95C70b8F731",
+    "maker": "0xa3E88cB78a7811E5a857Afd4368C48e83a94159F",
+    "takerToken": "0xB33d0483f15b26647a70b21431aB26F293Db167e",
+    "takerTokenAmount": 100,
+    "makerToken": "0x796589415024E86c2CcDFBe3bF223125693e4355",
+    "makerTokenAmount": 100,
+    "makerTokenPermit": "0x1f7e92833ef023605925fc3aab300b6f16e14a6e7036784d8ff568a22cc54629872e757f4c0dba2b082e09e99717be32a12bd92af42f13ea086c2ac7fa43cb27d2d4920e",
+    "feeFactor": 10,
+    "expiry": 3376656000,
+    "salt": 123,
+    "expectedSig": "0x130a5cf7c0d682dff8715c3e9202b7a986483cbf086647082c98604f730c78ff76fc3c93b0eac5d9985d48d5a4651e3e69145bdfeed7f12b4d7d09d43c14f0c01c",
+    "signingKey": "0x4508583063a716d923e03a837baa5ef4edd1a9719830a96632c45d9f5023fc0b",
+    "verifyingContract": "0x53377C5397B61f4257818214C19FA2Dd418B160D"
+}
