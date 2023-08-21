@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import { Test } from "forge-std/Test.sol";
 import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
-import { getEIP712Hash } from "test/utils/Sig.sol";
+import { SigHelper } from "test/utils/SigHelper.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
 import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 import { MockLimitOrderTaker } from "test/mocks/MockLimitOrderTaker.sol";
@@ -16,7 +16,7 @@ import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 
-contract LimitOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
+contract LimitOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
     event SetFeeCollector(address newFeeCollector);
     event LimitOrderFilled(
         bytes32 indexed offerHash,
@@ -106,17 +106,10 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
             takerTokenPermit: defaultTakerPermit
         });
 
-        defaultMakerSig = _signLimitOrder(makerPrivateKey, defaultOrder);
+        defaultMakerSig = signLimitOrder(makerPrivateKey, defaultOrder, address(limitOrderSwap));
 
         vm.label(address(limitOrderSwap), "limitOrderSwap");
         vm.label(taker, "taker");
         vm.label(maker, "maker");
-    }
-
-    function _signLimitOrder(uint256 _privateKey, LimitOrder memory _order) internal view returns (bytes memory sig) {
-        bytes32 orderHash = getLimitOrderHash(_order);
-        bytes32 EIP712SignDigest = getEIP712Hash(limitOrderSwap.EIP712_DOMAIN_SEPARATOR(), orderHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
     }
 }

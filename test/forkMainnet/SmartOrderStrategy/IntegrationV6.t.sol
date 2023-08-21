@@ -16,9 +16,9 @@ import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
 import { RFQTx } from "contracts/libraries/RFQTx.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
-import { getEIP712Hash } from "test/utils/Sig.sol";
+import { SigHelper } from "test/utils/SigHelper.sol";
 
-contract IntegrationV6Test is SmartOrderStrategyTest {
+contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
     using SafeERC20 for IERC20;
     using BalanceSnapshot for Snapshot;
 
@@ -65,7 +65,7 @@ contract IntegrationV6Test is SmartOrderStrategyTest {
             salt: defaultSalt
         });
         RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: rfqOffer.takerTokenAmount, recipient: payable(address(smartOrderStrategy)) });
-        bytes memory makerSig = _signRFQOffer(makerPrivateKey, rfqOffer);
+        bytes memory makerSig = signRFQOffer(makerPrivateKey, rfqOffer, address(rfq));
         bytes memory rfqData = abi.encodeWithSelector(RFQ_FILL_SELECTOR, rfqTx, makerSig, defaultPermit, defaultPermit);
 
         ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
@@ -103,7 +103,7 @@ contract IntegrationV6Test is SmartOrderStrategyTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+        bytes memory makerSig = signLimitOrder(makerPrivateKey, order, address(limitOrderSwap));
         ILimitOrderSwap.TakerParams memory takerParams = ILimitOrderSwap.TakerParams({
             takerTokenAmount: order.takerTokenAmount,
             makerTokenAmount: order.makerTokenAmount,
@@ -133,19 +133,5 @@ contract IntegrationV6Test is SmartOrderStrategyTest {
 
         sosInputToken.assertChange(-int256(order.takerTokenAmount));
         gsOutputToken.assertChange(int256(order.makerTokenAmount));
-    }
-
-    function _signRFQOffer(uint256 _privateKey, RFQOffer memory _rfqOffer) internal view returns (bytes memory sig) {
-        bytes32 rfqOfferHash = getRFQOfferHash(_rfqOffer);
-        bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOfferHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function _signLimitOrder(uint256 _privateKey, LimitOrder memory _order) internal view returns (bytes memory sig) {
-        bytes32 orderHash = getLimitOrderHash(_order);
-        bytes32 EIP712SignDigest = getEIP712Hash(limitOrderSwap.EIP712_DOMAIN_SEPARATOR(), orderHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
     }
 }

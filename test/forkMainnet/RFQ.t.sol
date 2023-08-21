@@ -5,10 +5,10 @@ import { Test } from "forge-std/Test.sol";
 import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
-import { getEIP712Hash } from "test/utils/Sig.sol";
 import { MockERC1271Wallet } from "test/mocks/MockERC1271Wallet.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
 import { Permit2Helper } from "test/utils/Permit2Helper.sol";
+import { SigHelper } from "test/utils/SigHelper.sol";
 import { RFQ } from "contracts/RFQ.sol";
 import { Ownable } from "contracts/abstracts/Ownable.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
@@ -20,7 +20,7 @@ import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
 import { RFQTx, getRFQTxHash } from "contracts/libraries/RFQTx.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 
-contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
+contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
     using BalanceSnapshot for Snapshot;
 
     uint256 private constant FLG_ALLOW_CONTRACT_SENDER = 1 << 255;
@@ -93,7 +93,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         });
         defaultRFQTx = RFQTx({ rfqOffer: defaultRFQOffer, takerRequestAmount: defaultRFQOffer.takerTokenAmount, recipient: payable(recipient) });
 
-        defaultMakerSig = _signRFQOffer(makerSignerPrivateKey, defaultRFQOffer);
+        defaultMakerSig = signRFQOffer(makerSignerPrivateKey, defaultRFQOffer, address(rfq));
 
         defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultRFQOffer.takerToken, address(rfq));
 
@@ -180,7 +180,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         rfqOffer.feeFactor = 0;
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.rfqOffer = rfqOffer;
-        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqTx.rfqOffer);
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqTx.rfqOffer, address(rfq));
 
         vm.expectEmit(true, true, true, true);
         emit FilledRFQ(
@@ -212,7 +212,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         rfqOffer.takerToken = Constant.ZERO_ADDRESS;
         rfqOffer.takerTokenAmount = 1 ether;
 
-        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
 
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.makerToken });
@@ -248,7 +248,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         rfqOffer.makerToken = WETH_ADDRESS;
         rfqOffer.makerTokenAmount = 1 ether;
 
-        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
 
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.makerToken });
@@ -284,7 +284,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         rfqOffer.takerToken = WETH_ADDRESS;
         rfqOffer.takerTokenAmount = 1 ether;
 
-        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
 
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.makerToken });
@@ -320,7 +320,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         RFQOffer memory rfqOffer = defaultRFQOffer;
         rfqOffer.flags |= FLG_ALLOW_CONTRACT_SENDER;
         rfqOffer.taker = takerWalletContract;
-        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
 
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.rfqOffer = rfqOffer;
@@ -338,7 +338,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         RFQOffer memory rfqOffer = defaultRFQOffer;
         rfqOffer.flags |= FLG_ALLOW_PARTIAL_FILL;
 
-        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
 
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.makerToken });
@@ -383,7 +383,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         RFQOffer memory rfqOffer = defaultRFQOffer;
         rfqOffer.flags |= FLG_ALLOW_PARTIAL_FILL;
 
-        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
 
         // case : takerRequestAmount > offer.takerTokenAmount
         RFQTx memory rfqTx = defaultRFQTx;
@@ -421,7 +421,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
 
     function testCannotFillRFQWithIncorrectMakerSig() public {
         uint256 randomPrivateKey = 5677;
-        bytes memory randomMakerSig = _signRFQOffer(randomPrivateKey, defaultRFQOffer);
+        bytes memory randomMakerSig = signRFQOffer(randomPrivateKey, defaultRFQOffer, address(rfq));
 
         vm.expectRevert(IRFQ.InvalidSignature.selector);
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
@@ -450,7 +450,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.rfqOffer = rfqOffer;
         rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount;
-        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
 
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.InvalidMsgValue.selector);
@@ -463,7 +463,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         RFQTx memory rfqTx1 = defaultRFQTx;
         rfqTx1.rfqOffer = rfqOffer1;
         rfqTx1.takerRequestAmount = rfqOffer1.takerTokenAmount;
-        bytes memory makerSig1 = _signRFQOffer(makerSignerPrivateKey, rfqOffer1);
+        bytes memory makerSig1 = signRFQOffer(makerSignerPrivateKey, rfqOffer1, address(rfq));
 
         vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.InvalidMsgValue.selector);
@@ -479,7 +479,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultRFQOffer.makerToken });
         Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultRFQOffer.makerToken });
 
-        bytes memory takerSig = _signRFQTx(takerPrivateKey, defaultRFQTx);
+        bytes memory takerSig = signRFQTx(takerPrivateKey, defaultRFQTx, address(rfq));
 
         uint256 fee = (defaultRFQOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
         uint256 amountAfterFee = defaultRFQOffer.makerTokenAmount - fee;
@@ -511,7 +511,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
 
     function testCannotFillRFQByIncorrectTakerSig() public {
         uint256 randomPrivateKey = 5677;
-        bytes memory randomSig = _signRFQTx(randomPrivateKey, defaultRFQTx);
+        bytes memory randomSig = signRFQTx(randomPrivateKey, defaultRFQTx, address(rfq));
 
         vm.expectRevert(IRFQ.InvalidSignature.selector);
         vm.prank(txRelayer, txRelayer);
@@ -521,7 +521,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
     function testCannotFillWithInvalidFeeFactor() public {
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.rfqOffer.feeFactor = Constant.BPS_MAX + 1;
-        bytes memory takerSig = _signRFQTx(takerPrivateKey, rfqTx);
+        bytes memory takerSig = signRFQTx(takerPrivateKey, rfqTx, address(rfq));
 
         vm.expectRevert(IRFQ.InvalidFeeFactor.selector);
         vm.prank(txRelayer, txRelayer);
@@ -543,7 +543,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
             salt: defaultSalt
         });
         RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: 1, recipient: payable(recipient) });
-        bytes memory makerSig = _signRFQOffer(makerSignerPrivateKey, rfqOffer);
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
 
         vm.prank(rfqOffer.taker, rfqOffer.taker);
         vm.expectRevert(IRFQ.InvalidMakerAmount.selector);
@@ -571,19 +571,5 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         rfq.cancelRFQOffer(defaultRFQOffer);
 
         vm.stopPrank();
-    }
-
-    function _signRFQOffer(uint256 _privateKey, RFQOffer memory _rfqOffer) internal view returns (bytes memory sig) {
-        bytes32 rfqOfferHash = getRFQOfferHash(_rfqOffer);
-        bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOfferHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function _signRFQTx(uint256 _privateKey, RFQTx memory _rfqTx) internal view returns (bytes memory sig) {
-        (, bytes32 rfqTxHash) = getRFQTxHash(_rfqTx);
-        bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqTxHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
     }
 }
