@@ -93,7 +93,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
-        rfq = new RFQv2(rfqOwner, address(userProxy), address(weth), address(permanentStorage), address(spender), UNISWAP_PERMIT2_ADDRESS, feeCollector);
+        rfq = RFQv2(payable(_readDeployedAddr("$.RFQv2_ADDRESS")));
 
         // Setup
         vm.startPrank(tokenlonOperator, tokenlonOperator);

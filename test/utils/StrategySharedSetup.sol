@@ -77,13 +77,13 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
 
             upgradeAdmin = 0x74C3cA9431C009dC35587591Dc90780078174f8a;
             // upgrade userProxy
-            UserProxy newUP = new UserProxy();
+            UserProxy newUP = UserProxy(0x0B9F13fFAB8448089f50073Cf24BBE5C7Bd8675A);
             vm.startPrank(upgradeAdmin);
             Tokenlon(address(userProxy)).upgradeTo(address(newUP));
             vm.stopPrank();
 
             // upgrade pstorage
-            PermanentStorage newPS = new PermanentStorage();
+            PermanentStorage newPS = PermanentStorage(0x32c1f83D729E4a2e01398841465920B1fd42c274);
             vm.startPrank(upgradeAdmin);
             ProxyPermanentStorage(payable(address(permanentStorage))).upgradeTo(address(newPS));
             vm.stopPrank();
