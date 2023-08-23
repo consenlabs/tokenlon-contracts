@@ -40,14 +40,22 @@ contract SigHelper is Test {
         return EIP712_DOMAIN_SEPARATOR;
     }
 
-    function signAllowFill(uint256 _privateKey, AllowFill memory _allowFill, bytes32 domainSeperator) internal pure returns (bytes memory sig) {
+    function signAllowFill(
+        uint256 _privateKey,
+        AllowFill memory _allowFill,
+        bytes32 domainSeperator
+    ) internal pure returns (bytes memory sig) {
         bytes32 allowFillHash = getAllowFillHash(_allowFill);
         bytes32 EIP712SignDigest = getEIP712Hash(domainSeperator, allowFillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signAllowFill(uint256 _privateKey, AllowFill memory _allowFill, address verifyingContract) internal view returns (bytes memory sig) {
+    function signAllowFill(
+        uint256 _privateKey,
+        AllowFill memory _allowFill,
+        address verifyingContract
+    ) internal view returns (bytes memory sig) {
         bytes32 allowFillHash = getAllowFillHash(_allowFill);
         bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(block.chainid, verifyingContract), allowFillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
@@ -66,14 +74,22 @@ contract SigHelper is Test {
         return abi.encodePacked(r, s, v);
     }
 
-    function signGenericSwap(uint256 _privateKey, GenericSwapData memory _swapData, bytes32 domainSeperator) internal pure returns (bytes memory sig) {
+    function signGenericSwap(
+        uint256 _privateKey,
+        GenericSwapData memory _swapData,
+        bytes32 domainSeperator
+    ) internal pure returns (bytes memory sig) {
         bytes32 swapHash = getGSDataHash(_swapData);
         bytes32 EIP712SignDigest = getEIP712Hash(domainSeperator, swapHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signGenericSwap(uint256 _privateKey, GenericSwapData memory _swapData, address verifyingContract) internal view returns (bytes memory sig) {
+    function signGenericSwap(
+        uint256 _privateKey,
+        GenericSwapData memory _swapData,
+        address verifyingContract
+    ) internal view returns (bytes memory sig) {
         bytes32 swapHash = getGSDataHash(_swapData);
         bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(block.chainid, verifyingContract), swapHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
@@ -92,14 +108,22 @@ contract SigHelper is Test {
         return abi.encodePacked(r, s, v);
     }
 
-    function signLimitOrder(uint256 _privateKey, LimitOrder memory _order, bytes32 domainSeperator) internal pure returns (bytes memory sig) {
+    function signLimitOrder(
+        uint256 _privateKey,
+        LimitOrder memory _order,
+        bytes32 domainSeperator
+    ) internal pure returns (bytes memory sig) {
         bytes32 orderHash = getLimitOrderHash(_order);
         bytes32 EIP712SignDigest = getEIP712Hash(domainSeperator, orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signLimitOrder(uint256 _privateKey, LimitOrder memory _order, address verifyingContract) internal view returns (bytes memory sig) {
+    function signLimitOrder(
+        uint256 _privateKey,
+        LimitOrder memory _order,
+        address verifyingContract
+    ) internal view returns (bytes memory sig) {
         bytes32 orderHash = getLimitOrderHash(_order);
         bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(block.chainid, verifyingContract), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
@@ -118,42 +142,68 @@ contract SigHelper is Test {
         return abi.encodePacked(r, s, v);
     }
 
-    function signRFQOffer(uint256 _privateKey, RFQOffer memory _rfqOffer, bytes32 domainSeperator) internal pure returns (bytes memory sig) {
+    function signRFQOffer(
+        uint256 _privateKey,
+        RFQOffer memory _rfqOffer,
+        bytes32 domainSeperator
+    ) internal pure returns (bytes memory sig) {
         bytes32 rfqOfferHash = getRFQOfferHash(_rfqOffer);
         bytes32 EIP712SignDigest = getEIP712Hash(domainSeperator, rfqOfferHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signRFQOffer(uint256 _privateKey, RFQOffer memory _rfqOffer, address verifyingContract) internal view returns (bytes memory sig) {
+    function signRFQOffer(
+        uint256 _privateKey,
+        RFQOffer memory _rfqOffer,
+        address verifyingContract
+    ) internal view returns (bytes memory sig) {
         bytes32 rfqOfferHash = getRFQOfferHash(_rfqOffer);
         bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(block.chainid, verifyingContract), rfqOfferHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signRFQOffer(uint256 _privateKey, RFQOffer memory _rfqOffer, uint256 chainId, address verifyingContract) internal pure returns (bytes memory sig) {
+    function signRFQOffer(
+        uint256 _privateKey,
+        RFQOffer memory _rfqOffer,
+        uint256 chainId,
+        address verifyingContract
+    ) internal pure returns (bytes memory sig) {
         bytes32 rfqOfferHash = getRFQOfferHash(_rfqOffer);
         bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(chainId, verifyingContract), rfqOfferHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signRFQTx(uint256 _privateKey, RFQTx memory _rfqTx, bytes32 domainSeperator) internal pure returns (bytes memory sig) {
+    function signRFQTx(
+        uint256 _privateKey,
+        RFQTx memory _rfqTx,
+        bytes32 domainSeperator
+    ) internal pure returns (bytes memory sig) {
         (, bytes32 rfqTxHash) = getRFQTxHash(_rfqTx);
         bytes32 EIP712SignDigest = getEIP712Hash(domainSeperator, rfqTxHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signRFQTx(uint256 _privateKey, RFQTx memory _rfqTx, address verifyingContract) internal view returns (bytes memory sig) {
+    function signRFQTx(
+        uint256 _privateKey,
+        RFQTx memory _rfqTx,
+        address verifyingContract
+    ) internal view returns (bytes memory sig) {
         (, bytes32 rfqTxHash) = getRFQTxHash(_rfqTx);
         bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(block.chainid, verifyingContract), rfqTxHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signRFQTx(uint256 _privateKey, RFQTx memory _rfqTx, uint256 chainId, address verifyingContract) internal pure returns (bytes memory sig) {
+    function signRFQTx(
+        uint256 _privateKey,
+        RFQTx memory _rfqTx,
+        uint256 chainId,
+        address verifyingContract
+    ) internal pure returns (bytes memory sig) {
         (, bytes32 rfqTxHash) = getRFQTxHash(_rfqTx);
         bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(chainId, verifyingContract), rfqTxHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
