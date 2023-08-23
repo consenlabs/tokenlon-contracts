@@ -8,7 +8,7 @@ optimizer_runs = 1000 # the number of optimizer runs
 verbosity = 3 # The verbosity of tests
 fs_permissions = [
     { access = "read", path = "./test/utils/config/" },
-    { access = "read", path = "./test/forkGoerli/config/" },
+    { access = "read", path = "./test/utils/payload/" },
 ]
 
 [profile.ci]
