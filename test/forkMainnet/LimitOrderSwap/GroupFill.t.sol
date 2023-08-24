@@ -56,7 +56,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[0] = _signLimitOrder(makerPrivateKeys[0], orders[0]);
+        makerSigs[0] = signLimitOrder(makerPrivateKeys[0], orders[0], address(limitOrderSwap));
         makerTokenAmounts[0] = orders[0].makerTokenAmount;
         Snapshot memory maker0TakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].takerToken });
         Snapshot memory maker0MakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].makerToken });
@@ -74,7 +74,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[1] = _signLimitOrder(makerPrivateKeys[1], orders[1]);
+        makerSigs[1] = signLimitOrder(makerPrivateKeys[1], orders[1], address(limitOrderSwap));
         makerTokenAmounts[1] = orders[1].makerTokenAmount;
         Snapshot memory maker1TakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].takerToken });
         Snapshot memory maker1MakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].makerToken });
@@ -113,7 +113,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[0] = _signLimitOrder(makerPrivateKeys[0], orders[0]);
+        makerSigs[0] = signLimitOrder(makerPrivateKeys[0], orders[0], address(limitOrderSwap));
         makerTokenAmounts[0] = orders[0].makerTokenAmount;
         Snapshot memory maker0TakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].takerToken });
         Snapshot memory maker0MakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].makerToken });
@@ -131,7 +131,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[1] = _signLimitOrder(makerPrivateKeys[1], orders[1]);
+        makerSigs[1] = signLimitOrder(makerPrivateKeys[1], orders[1], address(limitOrderSwap));
         makerTokenAmounts[1] = orders[1].makerTokenAmount;
         Snapshot memory maker1TakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].takerToken });
         Snapshot memory maker1MakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].makerToken });
@@ -149,7 +149,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[2] = _signLimitOrder(makerPrivateKeys[2], orders[2]);
+        makerSigs[2] = signLimitOrder(makerPrivateKeys[2], orders[2], address(limitOrderSwap));
         makerTokenAmounts[2] = orders[0].takerTokenAmount + orders[1].takerTokenAmount;
         Snapshot memory maker2TakerToken = BalanceSnapshot.take({ owner: orders[2].maker, token: orders[2].takerToken });
         Snapshot memory maker2MakerToken = BalanceSnapshot.take({ owner: orders[2].maker, token: orders[2].makerToken });
@@ -187,7 +187,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[0] = _signLimitOrder(makerPrivateKeys[0], orders[0]);
+        makerSigs[0] = signLimitOrder(makerPrivateKeys[0], orders[0], address(limitOrderSwap));
         makerTokenAmounts[0] = orders[0].makerTokenAmount;
         Snapshot memory maker0TakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].takerToken });
         Snapshot memory maker0MakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].makerToken });
@@ -205,7 +205,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[1] = _signLimitOrder(makerPrivateKeys[1], orders[1]);
+        makerSigs[1] = signLimitOrder(makerPrivateKeys[1], orders[1], address(limitOrderSwap));
         makerTokenAmounts[1] = orders[1].makerTokenAmount;
         Snapshot memory maker1TakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].takerToken });
         Snapshot memory maker1MakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].makerToken });
@@ -244,7 +244,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[0] = _signLimitOrder(makerPrivateKeys[0], orders[0]);
+        makerSigs[0] = signLimitOrder(makerPrivateKeys[0], orders[0], address(limitOrderSwap));
         makerTokenAmounts[0] = orders[0].makerTokenAmount;
         Snapshot memory maker0TakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].takerToken });
         Snapshot memory maker0MakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].makerToken });
@@ -262,7 +262,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[1] = _signLimitOrder(makerPrivateKeys[1], orders[1]);
+        makerSigs[1] = signLimitOrder(makerPrivateKeys[1], orders[1], address(limitOrderSwap));
         makerTokenAmounts[1] = orders[1].makerTokenAmount;
         Snapshot memory maker1TakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].takerToken });
         Snapshot memory maker1MakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].makerToken });
@@ -280,7 +280,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[2] = _signLimitOrder(makerPrivateKeys[2], orders[2]);
+        makerSigs[2] = signLimitOrder(makerPrivateKeys[2], orders[2], address(limitOrderSwap));
         makerTokenAmounts[2] = orders[2].makerTokenAmount;
         Snapshot memory maker2TakerToken = BalanceSnapshot.take({ owner: orders[2].maker, token: orders[2].takerToken });
         Snapshot memory maker2MakerToken = BalanceSnapshot.take({ owner: orders[2].maker, token: orders[2].makerToken });
@@ -326,7 +326,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[0] = _signLimitOrder(makerPrivateKeys[0], orders[0]);
+        makerSigs[0] = signLimitOrder(makerPrivateKeys[0], orders[0], address(limitOrderSwap));
         makerTokenAmounts[0] = orders[0].makerTokenAmount;
         Snapshot memory maker0TakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].takerToken });
         Snapshot memory maker0MakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].makerToken });
@@ -344,7 +344,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[1] = _signLimitOrder(makerPrivateKeys[1], orders[1]);
+        makerSigs[1] = signLimitOrder(makerPrivateKeys[1], orders[1], address(limitOrderSwap));
         makerTokenAmounts[1] = orders[1].makerTokenAmount;
         Snapshot memory maker1TakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].takerToken });
         Snapshot memory maker1MakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].makerToken });
@@ -386,7 +386,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[0] = _signLimitOrder(makerPrivateKeys[0], orders[0]);
+        makerSigs[0] = signLimitOrder(makerPrivateKeys[0], orders[0], address(limitOrderSwap));
         makerTokenAmounts[0] = orders[0].makerTokenAmount;
         Snapshot memory maker0TakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].takerToken });
         Snapshot memory maker0MakerToken = BalanceSnapshot.take({ owner: orders[0].maker, token: orders[0].makerToken });
@@ -404,7 +404,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[1] = _signLimitOrder(makerPrivateKeys[1], orders[1]);
+        makerSigs[1] = signLimitOrder(makerPrivateKeys[1], orders[1], address(limitOrderSwap));
         makerTokenAmounts[1] = orders[1].makerTokenAmount;
         Snapshot memory maker1TakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].takerToken });
         Snapshot memory maker1MakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].makerToken });
@@ -422,7 +422,7 @@ contract GroupFillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        makerSigs[2] = _signLimitOrder(makerPrivateKeys[2], orders[2]);
+        makerSigs[2] = signLimitOrder(makerPrivateKeys[2], orders[2], address(limitOrderSwap));
         makerTokenAmounts[2] = orders[2].makerTokenAmount;
         Snapshot memory maker2TakerToken = BalanceSnapshot.take({ owner: orders[2].maker, token: orders[2].takerToken });
         Snapshot memory maker2MakerToken = BalanceSnapshot.take({ owner: orders[2].maker, token: orders[2].makerToken });

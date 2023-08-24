@@ -1,17 +1,20 @@
 [profile.default]
-src = 'contracts'                                             # the source directory
-cache = true                                                  # whether to cache builds or not
-force = false                                                 # whether to ignore the cache (clean build)
+src = 'contracts' # the source directory
+cache = true # whether to cache builds or not
+force = false # whether to ignore the cache (clean build)
 solc_version = "0.8.17"
-optimizer = true                                              # enable or disable the solc optimizer
-optimizer_runs = 1000                                         # the number of optimizer runs
-verbosity = 3                                                 # The verbosity of tests
-fs_permissions = [{ access = "read", path = "./test/utils/config/"}]
+optimizer = true # enable or disable the solc optimizer
+optimizer_runs = 1000 # the number of optimizer runs
+verbosity = 3 # The verbosity of tests
+fs_permissions = [
+    { access = "read", path = "./test/utils/config/" },
+    { access = "read", path = "./test/utils/payload/" },
+]
 
 [profile.ci]
-force = false                                                 # whether to ignore the cache (clean build)
+force = false # whether to ignore the cache (clean build)
 
 [fuzz]
-runs = 1000                                                   # the number of fuzz runs for tests
+runs = 1000 # the number of fuzz runs for tests
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

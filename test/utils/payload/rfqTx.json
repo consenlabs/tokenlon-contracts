@@ -1,0 +1,21 @@
+{
+  "recipient": "0xd81b10C4ac637F5f30792f072735a1641D6f17eA",
+  "takerRequestAmount": 150,
+  "rfqOffer": {
+    "taker": "0x76f364AA90A9B07df04F4d3c421eC62193609437",
+    "maker": "0xEA203F3514D3cd0a1ba4c8Cd4Edb547B2B712730",
+    "takerToken": "0x3145a41B0f5d97c9c46ee1Fe05D2866DE3C03eC2",
+    "takerTokenAmount": 100,
+    "makerToken": "0x22ffAc760e03Ac246333851CC442de495640fC00",
+    "makerTokenAmount": 100,
+    "feeFactor": 100,
+    "flags": 25,
+    "expiry": 3376656000,
+    "salt": 123
+  },
+  "expectedSig": "0xa8811e02822fef427f734036fb78a8d56a95f5eea30d9d8ba871285676d76e1a02a8e3f073d18546760468218d7f350b6d2569eaeb08851f98accca64443b3e91c",
+  "signingKey": "0x5cc7d299b2b71c5cacf7deb5f10080d328745db3e9f58d44d9006507e6d35406",
+  "chainId": 5,
+  "verifyingContract": "0xf8C41D071ABCCd22d7DDb22CBE3Bf3599ECfDc7C",
+  "typehash": "0x97972dc666c2aa8c659018f15b9a82f6ef40f271eebb1ab163a310eca758f29f"
+}

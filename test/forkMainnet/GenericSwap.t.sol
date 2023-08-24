@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import { Test } from "forge-std/Test.sol";
 import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
-import { getEIP712Hash } from "test/utils/Sig.sol";
+import { SigHelper } from "test/utils/SigHelper.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
 import { Permit2Helper } from "test/utils/Permit2Helper.sol";
@@ -18,7 +18,7 @@ import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapD
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 
-contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
+contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
     using BalanceSnapshot for Snapshot;
 
     event Swap(
@@ -254,7 +254,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
             defaultGSData.makerTokenAmount
         );
 
-        bytes memory takerSig = _signGenericSwap(takerPrivateKey, defaultGSData);
+        bytes memory takerSig = signGenericSwap(takerPrivateKey, defaultGSData, address(genericSwap));
         genericSwap.executeSwap(defaultGSData, defaultTakerPermit, taker, takerSig);
 
         takerTakerToken.assertChange(-int256(defaultGSData.takerTokenAmount));
@@ -264,7 +264,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
 
     function testSwapRelayedWithInvalidSig() public {
         uint256 randomPrivateKey = 5677;
-        bytes memory randomSig = _signGenericSwap(randomPrivateKey, defaultGSData);
+        bytes memory randomSig = signGenericSwap(randomPrivateKey, defaultGSData, address(genericSwap));
 
         vm.expectRevert(IGenericSwap.InvalidSignature.selector);
         // submit with user address as expected signer
@@ -272,17 +272,10 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
     }
 
     function testCannotReplayGenericSwapSig() public {
-        bytes memory takerSig = _signGenericSwap(takerPrivateKey, defaultGSData);
+        bytes memory takerSig = signGenericSwap(takerPrivateKey, defaultGSData, address(genericSwap));
         genericSwap.executeSwap(defaultGSData, defaultTakerPermit, taker, takerSig);
 
         vm.expectRevert(IGenericSwap.AlreadyFilled.selector);
         genericSwap.executeSwap(defaultGSData, defaultTakerPermit, taker, takerSig);
-    }
-
-    function _signGenericSwap(uint256 _privateKey, GenericSwapData memory _swapData) internal view returns (bytes memory sig) {
-        bytes32 swapHash = getGSDataHash(_swapData);
-        bytes32 EIP712SignDigest = getEIP712Hash(genericSwap.EIP712_DOMAIN_SEPARATOR(), swapHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
     }
 }
