@@ -81,20 +81,12 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         // Setup
         setUpSystemContracts();
 
-        vm.startPrank(tokenlonOperator, tokenlonOperator);
-        address[] memory authListAddress = new address[](1);
-        authListAddress[0] = address(rfq);
-        spender.authorize(authListAddress);
-        vm.warp(block.timestamp + 2 days);
-        spender.completeAuthorize();
-        vm.stopPrank();
-
         defaultExpiry = block.timestamp + 1 days;
 
         // Update token list (keep tokens used in this test only)
         tokens = [weth, usdt, lon, usdc, dai, wbtc];
 
-        recipient = payable(address(rfq));
+        recipient = payable(makeAddr("recipient"));
 
         marketMakerProxy = new MarketMakerProxy(maker, maker, IWETH(address(weth)));
 
@@ -129,14 +121,12 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
     }
 
     function _deployStrategyAndUpgrade() internal override returns (address) {
-        rfq = new RFQv2(rfqOwner, address(userProxy), address(weth), address(permanentStorage), address(spender), UNISWAP_PERMIT2_ADDRESS, feeCollector);
+        rfq = RFQv2(payable(_readDeployedAddr("$.RFQv2_ADDRESS")));
+        rfqOwner = rfq.owner();
+        feeCollector = rfq.feeCollector();
 
-        // Setup
-        vm.startPrank(tokenlonOperator, tokenlonOperator);
-        userProxy.upgradeRFQv2(address(rfq), true);
-        permanentStorage.upgradeRFQv2(address(rfq));
-        permanentStorage.setPermission(permanentStorage.transactionSeenStorageId(), address(rfq), true);
-        vm.stopPrank();
+        vm.warp(block.timestamp + 1 days);
+        spender.completeAuthorize();
 
         return address(rfq);
     }
