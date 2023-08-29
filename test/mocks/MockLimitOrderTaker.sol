@@ -18,12 +18,7 @@ contract MockLimitOrderTaker is IStrategy, MockERC1271Wallet {
         uniswapV2Router = IUniswapRouterV2(_uniswapV2Router);
     }
 
-    function executeStrategy(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        bytes calldata data
-    ) external payable override {
+    function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable override {
         (address routerAddr, bytes memory makerSpecificData) = abi.decode(data, (address, bytes));
         require(routerAddr == address(uniswapV2Router), "non supported protocol");
 
@@ -32,20 +27,12 @@ contract MockLimitOrderTaker is IStrategy, MockERC1271Wallet {
         _tradeUniswapV2TokenToToken(inputAmount, deadline, path);
     }
 
-    function _tradeUniswapV2TokenToToken(
-        uint256 _inputAmount,
-        uint256 _deadline,
-        address[] memory _path
-    ) internal returns (uint256) {
+    function _tradeUniswapV2TokenToToken(uint256 _inputAmount, uint256 _deadline, address[] memory _path) internal returns (uint256) {
         uint256[] memory amounts = uniswapV2Router.swapExactTokensForTokens(_inputAmount, 0, _path, address(this), _deadline);
         return amounts[amounts.length - 1];
     }
 
-    function _validateAMMPath(
-        address _inputToken,
-        address _outputToken,
-        address[] memory _path
-    ) internal pure {
+    function _validateAMMPath(address _inputToken, address _outputToken, address[] memory _path) internal pure {
         require(_path.length >= 2, "path length must be at least two");
         require(_path[0] == _inputToken, "invalid path");
         require(_path[_path.length - 1] == _outputToken, "invalid path");

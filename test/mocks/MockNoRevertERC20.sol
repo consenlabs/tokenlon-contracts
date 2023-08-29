@@ -17,11 +17,7 @@ contract MockNoRevertERC20 is MockERC20 {
         return true;
     }
 
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) public override returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         if (balanceOf(msg.sender) < amount || allowance(sender, msg.sender) < amount) {
             return false;
         }

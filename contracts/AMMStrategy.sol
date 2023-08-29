@@ -22,13 +22,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
 
     receive() external payable {}
 
-    constructor(
-        address _owner,
-        address _entryPoint,
-        address _weth,
-        address _permit2,
-        address[] memory _ammAddrs
-    ) Ownable(_owner) {
+    constructor(address _owner, address _entryPoint, address _weth, address _permit2, address[] memory _ammAddrs) Ownable(_owner) {
         entryPoint = _entryPoint;
         weth = _weth;
         permit2 = _permit2;
@@ -82,12 +76,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
     }
 
     /// @inheritdoc IStrategy
-    function executeStrategy(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        bytes calldata data
-    ) external payable override onlyEntryPoint {
+    function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable override onlyEntryPoint {
         Operation[] memory ops = abi.decode(data, (Operation[]));
         require(ops.length > 0, "empty operations");
         require(inputAmount > 0, "empty inputAmount");
@@ -107,11 +96,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
      * @dev internal function of `executeStrategy`.
      * Allow arbitrary call to allowed amms in swap
      */
-    function _call(
-        address _dest,
-        uint256 _value,
-        bytes memory _data
-    ) internal returns (bytes4 selector) {
+    function _call(address _dest, uint256 _value, bytes memory _data) internal returns (bytes4 selector) {
         require(ammMapping[_dest], "invalid op dest");
 
         if (_data.length >= 4) {
@@ -133,11 +118,7 @@ contract AMMStrategy is IAMMStrategy, Ownable {
      * @dev internal function of `executeStrategy`.
      * Allow the spender to use Permit2 for the token.
      */
-    function _permit2Approve(
-        address _token,
-        address _spender,
-        uint256 _amount
-    ) internal {
+    function _permit2Approve(address _token, address _spender, uint256 _amount) internal {
         if (IERC20(_token).allowance(address(this), permit2) == 0) {
             IERC20(_token).safeApprove(permit2, type(uint256).max);
         }

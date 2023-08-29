@@ -14,11 +14,7 @@ contract UniswapStrategy is IStrategy, Ownable {
     address public genericSwap;
     IUniswapRouterV2 public immutable uniswapV2Router;
 
-    constructor(
-        address _owner,
-        address _genericSwap,
-        address _uniswapV2Router
-    ) Ownable(_owner) {
+    constructor(address _owner, address _genericSwap, address _uniswapV2Router) Ownable(_owner) {
         genericSwap = _genericSwap;
         uniswapV2Router = IUniswapRouterV2(_uniswapV2Router);
     }
@@ -28,20 +24,11 @@ contract UniswapStrategy is IStrategy, Ownable {
         _;
     }
 
-    function approveToken(
-        address token,
-        address spender,
-        uint256 amount
-    ) external onlyOwner {
+    function approveToken(address token, address spender, uint256 amount) external onlyOwner {
         IERC20(token).safeApprove(spender, amount);
     }
 
-    function executeStrategy(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        bytes calldata data
-    ) external payable override onlyGenericSwap {
+    function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable override onlyGenericSwap {
         (address routerAddr, bytes memory makerSpecificData) = abi.decode(data, (address, bytes));
         require(routerAddr == address(uniswapV2Router), "non supported protocol");
 
@@ -51,20 +38,12 @@ contract UniswapStrategy is IStrategy, Ownable {
         IERC20(outputToken).safeTransfer(genericSwap, receivedAmount);
     }
 
-    function _tradeUniswapV2TokenToToken(
-        uint256 _inputAmount,
-        uint256 _deadline,
-        address[] memory _path
-    ) internal returns (uint256) {
+    function _tradeUniswapV2TokenToToken(uint256 _inputAmount, uint256 _deadline, address[] memory _path) internal returns (uint256) {
         uint256[] memory amounts = uniswapV2Router.swapExactTokensForTokens(_inputAmount, 0, _path, address(this), _deadline);
         return amounts[amounts.length - 1];
     }
 
-    function _validateAMMPath(
-        address _inputToken,
-        address _outputToken,
-        address[] memory _path
-    ) internal pure {
+    function _validateAMMPath(address _inputToken, address _outputToken, address[] memory _path) internal pure {
         require(_path.length >= 2, "path length must be at least two");
         require(_path[0] == _inputToken, "invalid path");
         require(_path[_path.length - 1] == _outputToken, "invalid path");

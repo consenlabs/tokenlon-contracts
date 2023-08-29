@@ -34,12 +34,7 @@ interface IAMMStrategy is IStrategy {
     /// @param spenders The address list of approved amms
     /// @param usePermit2InSpenders Indicate whether spender uses Permit2
     /// @param amount The approved asset amount
-    function approveTokens(
-        address[] calldata tokens,
-        address[] calldata spenders,
-        bool[] calldata usePermit2InSpenders,
-        uint256 amount
-    ) external;
+    function approveTokens(address[] calldata tokens, address[] calldata spenders, bool[] calldata usePermit2InSpenders, uint256 amount) external;
 
     /// @notice Only owner can call
     /// There may be some tokens left after swap while the order has been filled

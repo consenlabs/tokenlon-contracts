@@ -23,11 +23,7 @@ library Asset {
         }
     }
 
-    function transferTo(
-        address asset,
-        address payable to,
-        uint256 amount
-    ) internal {
+    function transferTo(address asset, address payable to, uint256 amount) internal {
         if (to == address(this) || amount == 0) {
             return;
         }

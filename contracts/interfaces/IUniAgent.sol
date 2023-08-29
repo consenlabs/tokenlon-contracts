@@ -26,13 +26,7 @@ interface IUniAgent {
     /// @param inputAmount The input amount of the swap.
     /// @param payload The execution payload for uniswap router.
     /// @param userPermit The permit of user for token transfering.
-    function approveAndSwap(
-        RouterType routerType,
-        address inputToken,
-        uint256 inputAmount,
-        bytes calldata payload,
-        bytes calldata userPermit
-    ) external payable;
+    function approveAndSwap(RouterType routerType, address inputToken, uint256 inputAmount, bytes calldata payload, bytes calldata userPermit) external payable;
 
     /// @notice Execute a swap
     /// @param routerType The type of uniswap router should be used.
@@ -40,11 +34,5 @@ interface IUniAgent {
     /// @param inputAmount The input amount of the swap.
     /// @param payload The execution payload for uniswap router.
     /// @param userPermit The permit of user for token transfering.
-    function swap(
-        RouterType routerType,
-        address inputToken,
-        uint256 inputAmount,
-        bytes calldata payload,
-        bytes calldata userPermit
-    ) external payable;
+    function swap(RouterType routerType, address inputToken, uint256 inputAmount, bytes calldata payload, bytes calldata userPermit) external payable;
 }

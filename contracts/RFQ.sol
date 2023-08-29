@@ -161,12 +161,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         _emitFilledRFQEvent(rfqOfferHash, _rfqTx, makerTokenToTaker, fee);
     }
 
-    function _emitFilledRFQEvent(
-        bytes32 _rfqOfferHash,
-        RFQTx calldata _rfqTx,
-        uint256 _makerTokenToTaker,
-        uint256 fee
-    ) internal {
+    function _emitFilledRFQEvent(bytes32 _rfqOfferHash, RFQTx calldata _rfqTx, uint256 _makerTokenToTaker, uint256 fee) internal {
         emit FilledRFQ(
             _rfqOfferHash,
             _rfqTx.rfqOffer.taker,

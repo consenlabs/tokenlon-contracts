@@ -18,65 +18,23 @@ interface ICurveFi {
         uint256 min_mint_amount
     ) external;
 
-    function get_dx(
-        int128 i,
-        int128 j,
-        uint256 dy
-    ) external view returns (uint256 out);
+    function get_dx(int128 i, int128 j, uint256 dy) external view returns (uint256 out);
 
-    function get_dx_underlying(
-        int128 i,
-        int128 j,
-        uint256 dy
-    ) external view returns (uint256 out);
+    function get_dx_underlying(int128 i, int128 j, uint256 dy) external view returns (uint256 out);
 
-    function get_dy(
-        int128 i,
-        int128 j,
-        uint256 dx
-    ) external view returns (uint256 out);
+    function get_dy(int128 i, int128 j, uint256 dx) external view returns (uint256 out);
 
-    function get_dy_underlying(
-        int128 i,
-        int128 j,
-        uint256 dx
-    ) external view returns (uint256 out);
+    function get_dy_underlying(int128 i, int128 j, uint256 dx) external view returns (uint256 out);
 
-    function exchange(
-        int128 i,
-        int128 j,
-        uint256 dx,
-        uint256 min_dy
-    ) external payable;
+    function exchange(int128 i, int128 j, uint256 dx, uint256 min_dy) external payable;
 
-    function exchange(
-        int128 i,
-        int128 j,
-        uint256 dx,
-        uint256 min_dy,
-        uint256 deadline
-    ) external payable;
+    function exchange(int128 i, int128 j, uint256 dx, uint256 min_dy, uint256 deadline) external payable;
 
-    function exchange_underlying(
-        int128 i,
-        int128 j,
-        uint256 dx,
-        uint256 min_dy
-    ) external payable;
+    function exchange_underlying(int128 i, int128 j, uint256 dx, uint256 min_dy) external payable;
 
-    function exchange_underlying(
-        int128 i,
-        int128 j,
-        uint256 dx,
-        uint256 min_dy,
-        uint256 deadline
-    ) external payable;
+    function exchange_underlying(int128 i, int128 j, uint256 dx, uint256 min_dy, uint256 deadline) external payable;
 
-    function remove_liquidity(
-        uint256 _amount,
-        uint256 deadline,
-        uint256[2] calldata min_amounts
-    ) external;
+    function remove_liquidity(uint256 _amount, uint256 deadline, uint256[2] calldata min_amounts) external;
 
     function remove_liquidity_imbalance(uint256[2] calldata amounts, uint256 deadline) external;
 
@@ -88,11 +46,7 @@ interface ICurveFi {
 
     function remove_liquidity(uint256 _amount, uint256[4] calldata amounts) external;
 
-    function commit_new_parameters(
-        int128 amplification,
-        int128 new_fee,
-        int128 new_admin_fee
-    ) external;
+    function commit_new_parameters(int128 amplification, int128 new_fee, int128 new_admin_fee) external;
 
     function apply_new_parameters() external;
 

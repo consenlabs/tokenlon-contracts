@@ -20,11 +20,7 @@ contract SignatureValidatorTest is Test {
     // this is a workaround for library contract tesets
     // assertion may not working for library internal functions
     // https://github.com/foundry-rs/foundry/issues/4405
-    function _isValidSignatureWrap(
-        address _signerAddress,
-        bytes32 _hash,
-        bytes memory _signature
-    ) public view returns (bool) {
+    function _isValidSignatureWrap(address _signerAddress, bytes32 _hash, bytes memory _signature) public view returns (bool) {
         return SignatureValidator.isValidSignature(_signerAddress, _hash, _signature);
     }
 

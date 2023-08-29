@@ -7,11 +7,7 @@ contract MockWETH is MockERC20 {
     event Deposit(address indexed dst, uint256 wad);
     event Withdrawal(address indexed src, uint256 wad);
 
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        uint8 _decimals
-    ) MockERC20(_name, _symbol, _decimals) {}
+    constructor(string memory _name, string memory _symbol, uint8 _decimals) MockERC20(_name, _symbol, _decimals) {}
 
     receive() external payable {
         deposit();

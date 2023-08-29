@@ -28,19 +28,11 @@ library UniswapV2 {
         return amounts[amounts.length - 1];
     }
 
-    function getAmountsOut(
-        address _uniswapV2Router,
-        uint256 _amountIn,
-        address[] memory _path
-    ) internal view returns (uint256[] memory amounts) {
+    function getAmountsOut(address _uniswapV2Router, uint256 _amountIn, address[] memory _path) internal view returns (uint256[] memory amounts) {
         return IUniswapRouterV2(_uniswapV2Router).getAmountsOut(_amountIn, _path);
     }
 
-    function _validatePath(
-        address[] memory _path,
-        address _tokenIn,
-        address _tokenOut
-    ) internal pure {
+    function _validatePath(address[] memory _path, address _tokenIn, address _tokenOut) internal pure {
         require(_path.length >= 2, "UniswapV2: Path length must be at least two");
         require(_path[0] == _tokenIn, "UniswapV2: First element of path must match token in");
         require(_path[_path.length - 1] == _tokenOut, "UniswapV2: Last element of path must match token out");
