@@ -125,9 +125,6 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         rfqOwner = rfq.owner();
         feeCollector = rfq.feeCollector();
 
-        vm.warp(block.timestamp + 1 days);
-        spender.completeAuthorize();
-
         return address(rfq);
     }
 
