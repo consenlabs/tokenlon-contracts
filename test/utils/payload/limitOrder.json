@@ -1,0 +1,17 @@
+{
+  "taker": "0x78DcE5A2DB5e1Dd8d32F70C2B4fab7Bd05Fd2bC9",
+  "maker": "0xFccfF50598D10cfF2837a13528EE4122F6efDE33",
+  "takerToken": "0x4f78Faa9730f09835119a40f799e44C7c15a4EF4",
+  "takerTokenAmount": 100,
+  "makerToken": "0xF9bDcEfa26A6d4BefD3D81a75a3cBB77884d2534",
+  "makerTokenAmount": 100,
+  "makerTokenPermit": "0x89029e70cabda8270807351cc02c47be30c6863500e607412c0ed20af991a73ce1a768b7910a68f947fc25a72cab6bc7923d536039b28d1d5aa182247b51a4b351563c16",
+  "feeFactor": 10,
+  "expiry": 3376656000,
+  "salt": 123,
+  "expectedSig": "0x75b69a6f4fa873e36403274be5f86fdf26da76155d05fda911f23cff3722c7673e9f0838536d6c449dddf8c74c0846d5e072c53100a676d6f64655b814dcd8d41c",
+  "signingKey": "0x8c6c7cfaac6ec519b14b703bab7a6ebf80bb2139bfbdf898cdaf7d39f484a998",
+  "chainId": 5,
+  "verifyingContract": "0xA910B11B0Bff3b8A5d77e5361deCE447020B88e4",
+  "typehash": "0x793a151d40717ec9661de4a7eba1a45e7313a08e4184d5383e3f9ff838fbcab6"
+}

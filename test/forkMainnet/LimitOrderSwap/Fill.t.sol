@@ -79,7 +79,7 @@ contract FillTest is LimitOrderSwapTest {
             order.takerTokenAmount = amounts[amounts.length - 1];
         }
 
-        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+        bytes memory makerSig = signLimitOrder(makerPrivateKey, order, address(limitOrderSwap));
 
         bytes memory extraAction;
         {
@@ -177,7 +177,7 @@ contract FillTest is LimitOrderSwapTest {
         order.takerToken = Constant.ETH_ADDRESS;
         order.takerTokenAmount = 1 ether;
 
-        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+        bytes memory makerSig = signLimitOrder(makerPrivateKey, order, address(limitOrderSwap));
 
         uint256 fee = (order.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
 
@@ -381,7 +381,7 @@ contract FillTest is LimitOrderSwapTest {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
-        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+        bytes memory makerSig = signLimitOrder(makerPrivateKey, order, address(limitOrderSwap));
 
         // keep the same ratio but double the amount
         uint256 traderMakingAmount = order.makerTokenAmount * 2;
@@ -503,7 +503,7 @@ contract FillTest is LimitOrderSwapTest {
     function testCannotFillByNotSpecifiedTaker() public {
         LimitOrder memory order = defaultOrder;
         order.taker = makeAddr("specialTaker");
-        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+        bytes memory makerSig = signLimitOrder(makerPrivateKey, order, address(limitOrderSwap));
 
         vm.expectRevert(ILimitOrderSwap.InvalidTaker.selector);
         vm.prank(makeAddr("randomTaker"));
@@ -521,7 +521,7 @@ contract FillTest is LimitOrderSwapTest {
 
     function testCannotFillWithIncorrectMakerSig() public {
         uint256 randomPrivateKey = 5677;
-        bytes memory makerSig = _signLimitOrder(randomPrivateKey, defaultOrder);
+        bytes memory makerSig = signLimitOrder(randomPrivateKey, defaultOrder, address(limitOrderSwap));
 
         vm.expectRevert(ILimitOrderSwap.InvalidSignature.selector);
         vm.prank(taker);
@@ -545,7 +545,7 @@ contract FillTest is LimitOrderSwapTest {
 
         LimitOrder memory order = defaultOrder;
         order.takerToken = Constant.ETH_ADDRESS;
-        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+        bytes memory makerSig = signLimitOrder(makerPrivateKey, order, address(limitOrderSwap));
 
         // case2 : takerToken is ETH but msg.value > takingAmount
         vm.expectRevert(ILimitOrderSwap.InvalidMsgValue.selector);

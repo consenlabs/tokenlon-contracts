@@ -1,0 +1,12 @@
+{
+  "orderHash": "0x0953626525aef0cff2a0a7078e4444cd0dcad46af0e0a58ddac72ff757235ada",
+  "taker": "0x9d774D30019C5Fc766D032c1690b1087B8476AD4",
+  "fillAmount": 100,
+  "expiry": 3376656000,
+  "salt": 123,
+  "expectedSig": "0x5a085c54691b5092e2fbaac87a18c015c4ca6191e50d0a31a7ec835f12ab5a0048de3f1024ffeeabbf46b5bcd170594f11f7d166d3d8d1722262aa9a2a1d89491c",
+  "signingKey": "0xb870b26aa28f19b6c1b196cad92e2e2c00d3b8f1d9c3cfe4cc83a1436edc689c",
+  "chainId": 5,
+  "verifyingContract": "0x90136D945bFFEAAe631bA2375E3996f083A65107",
+  "typehash": "0xeccdf497641b27c43d174b4b41badb5c6cf370f3fd99e9a47c8fb62724bd0d49"
+}

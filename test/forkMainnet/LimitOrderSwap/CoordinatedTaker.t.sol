@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { getEIP712Hash } from "test/utils/Sig.sol";
 import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { ICoordinatedTaker } from "contracts/interfaces/ICoordinatedTaker.sol";
@@ -58,7 +57,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         defaultCrdOrder = defaultOrder;
         defaultCrdOrder.taker = address(coordinatedTaker);
 
-        defaultMakerSig = _signLimitOrder(makerPrivateKey, defaultCrdOrder);
+        defaultMakerSig = signLimitOrder(makerPrivateKey, defaultCrdOrder, address(limitOrderSwap));
 
         defaultUserPrmit = getTokenlonPermit2Data(user, userPrivateKey, defaultCrdOrder.takerToken, address(coordinatedTaker));
 
@@ -71,7 +70,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         });
 
         defaultCRDParams = ICoordinatedTaker.CoordinatorParams({
-            sig: _signAllowFill(crdPrivateKey, defaultAllowFill),
+            sig: signAllowFill(crdPrivateKey, defaultAllowFill, address(coordinatedTaker)),
             expiry: defaultAllowFill.expiry,
             salt: defaultAllowFill.salt
         });
@@ -177,7 +176,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         order.takerToken = Constant.ETH_ADDRESS;
         order.takerTokenAmount = 1 ether;
 
-        bytes memory makerSig = _signLimitOrder(makerPrivateKey, order);
+        bytes memory makerSig = signLimitOrder(makerPrivateKey, order, address(limitOrderSwap));
 
         AllowFill memory allowFill = AllowFill({
             orderHash: getLimitOrderHash(order),
@@ -188,7 +187,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
         });
 
         ICoordinatedTaker.CoordinatorParams memory crdParams = ICoordinatedTaker.CoordinatorParams({
-            sig: _signAllowFill(crdPrivateKey, allowFill),
+            sig: signAllowFill(crdPrivateKey, allowFill, address(coordinatedTaker)),
             expiry: allowFill.expiry,
             salt: allowFill.salt
         });
@@ -247,7 +246,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
     function testCannotFillWithIncorrectCoordinatorSig() public {
         uint256 randomPrivateKey = 5677;
-        bytes memory randomAllowFillSig = _signAllowFill(randomPrivateKey, defaultAllowFill);
+        bytes memory randomAllowFillSig = signAllowFill(randomPrivateKey, defaultAllowFill, address(coordinatedTaker));
 
         ICoordinatedTaker.CoordinatorParams memory crdParams = defaultCRDParams;
         crdParams.sig = randomAllowFillSig;
@@ -302,12 +301,5 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             userTokenPermit: defaultUserPrmit,
             crdParams: defaultCRDParams
         });
-    }
-
-    function _signAllowFill(uint256 _privateKey, AllowFill memory _allowFill) internal view returns (bytes memory sig) {
-        bytes32 allowFillHash = getAllowFillHash(_allowFill);
-        bytes32 EIP712SignDigest = getEIP712Hash(coordinatedTaker.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
-        return abi.encodePacked(r, s, v);
     }
 }

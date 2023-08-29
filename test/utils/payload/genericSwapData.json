@@ -1,0 +1,17 @@
+{
+  "maker": "0x15314FA3b8E8B99F0954bec851A1aA9ef63a1C44",
+  "takerToken": "0xA2C3bf2C5C78f3822Ae2Cb7d5Edd14722E3BC88C",
+  "takerTokenAmount": 100,
+  "makerToken": "0xfD7391c3eA2792F4341E07A523CF9276AF1f215A",
+  "makerTokenAmount": 100,
+  "minMakerTokenAmount": 50,
+  "expiry": 3376656000,
+  "salt": 123,
+  "recipient": "0xdf5621f59CcD4A58cF487E0C4E3fCDd6Db67E4dA",
+  "strategyData": "0xcbe324dfbf8d48a7ad9ef3cb0c2bdd411129db5238371b8609272f14921736fb0ab28dcede4f2e1e41393d575ffec60002e565bfbf5eaf896bc490a965c8452d08d9b71b",
+  "expectedSig": "0xdfe4e0414baa9b0ac4edcefc1d8ceb18dc21230f6b93a83c91188a105d1d7ece7809ca3c67db499fd497e35ba271a0a6689f7683d41b5d4602a5bb7895537a2d1c",
+  "signingKey": "0x1dc4f07f92fa1783042350ffe685439f857a8fdd837589c00c5299e287c4afcb",
+  "chainId": 5,
+  "verifyingContract": "0x49eA36C04c109a8c62C9b48fd8C4d13b3EA98B27",
+  "typehash": "0x1b6f9d7673107802b331a5ab52a40f7d942bdf74fa821744df8b69eead3d26c1"
+}
