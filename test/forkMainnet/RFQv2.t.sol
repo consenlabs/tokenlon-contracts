@@ -39,7 +39,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
     address payable maker = payable(vm.addr(makerPrivateKey));
     uint256 takerPrivateKey = uint256(1);
     address taker = vm.addr(takerPrivateKey);
-    address payable recipient;
+    address payable recipient = payable(makeAddr("recipient"));
     address payable feeCollector = payable(makeAddr("feeCollector"));
     uint256 defaultExpiry = block.timestamp + 1;
     uint256 defaultSalt = 1234;
@@ -57,8 +57,6 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         setUpSystemContracts();
         // Update token list (keep tokens used in this test only)
         tokens = [weth, usdt, lon];
-
-        recipient = payable(address(rfq));
 
         marketMakerProxy = new MarketMakerProxy(maker, maker, IWETH(address(weth)));
 
