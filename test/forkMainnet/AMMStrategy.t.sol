@@ -10,7 +10,7 @@ import { Constant } from "contracts/libraries/Constant.sol";
 import { AMMStrategy } from "contracts/AMMStrategy.sol";
 
 import { IUniversalRouter } from "contracts/interfaces/IUniswapUniversalRouter.sol";
-import { UniswapCommands } from "test/libraries/UniswapCommands.sol";
+import { UniswapCommands } from "test/utils/UniswapCommands.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { IAMMStrategy } from "contracts/interfaces/IAMMStrategy.sol";
 import { IStrategy } from "contracts/interfaces/IStrategy.sol";
@@ -353,7 +353,12 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         _baseTest(inputToken, outputToken, inputAmount, data);
     }
 
-    function _baseTest(address inputToken, address outputToken, uint256 inputAmount, bytes memory data) internal {
+    function _baseTest(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        bytes memory data
+    ) internal {
         Snapshot memory inputTokenBalance = BalanceSnapshot.take(entryPoint, inputToken);
         Snapshot memory outputTokenBalance = BalanceSnapshot.take(entryPoint, outputToken);
 
@@ -368,7 +373,11 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         outputTokenBalance.assertChangeGt(0);
     }
 
-    function _buildBalancerV2Limits(address[] memory _path, int256 inputAmount, int256 _minOutputAmount) internal pure returns (int256[] memory) {
+    function _buildBalancerV2Limits(
+        address[] memory _path,
+        int256 inputAmount,
+        int256 _minOutputAmount
+    ) internal pure returns (int256[] memory) {
         int256[] memory limits = new int256[](_path.length);
         // amount swapped in to balancer will denoted with positive sign
         limits[0] = inputAmount;
