@@ -16,11 +16,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
 
     receive() external payable {}
 
-    constructor(
-        address _owner,
-        address _genericSwap,
-        address _weth
-    ) AdminManagement(_owner) {
+    constructor(address _owner, address _genericSwap, address _weth) AdminManagement(_owner) {
         genericSwap = _genericSwap;
         weth = _weth;
     }
@@ -31,12 +27,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
     }
 
     /// @inheritdoc IStrategy
-    function executeStrategy(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        bytes calldata data
-    ) external payable override onlyGenericSwap {
+    function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable override onlyGenericSwap {
         if (inputAmount == 0) revert ZeroInput();
 
         Operation[] memory ops = abi.decode(data, (Operation[]));
@@ -69,14 +60,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         Asset.transferTo(outputToken, payable(genericSwap), selfBalance);
     }
 
-    function _call(
-        address _dest,
-        address _inputToken,
-        uint128 _inputRatio,
-        uint128 _dataOffset,
-        uint256 _value,
-        bytes memory _data
-    ) internal {
+    function _call(address _dest, address _inputToken, uint128 _inputRatio, uint128 _dataOffset, uint256 _value, bytes memory _data) internal {
         if (_inputRatio > Constant.BPS_MAX) revert InvalidInputRatio();
 
         // replace amount if ratio != 0

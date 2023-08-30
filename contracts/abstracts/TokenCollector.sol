@@ -29,13 +29,7 @@ abstract contract TokenCollector {
         allowanceTarget = _allowanceTarget;
     }
 
-    function _collect(
-        address token,
-        address from,
-        address to,
-        uint256 amount,
-        bytes calldata data
-    ) internal {
+    function _collect(address token, address from, address to, uint256 amount, bytes calldata data) internal {
         Source src = Source(uint8(data[0]));
 
         if (src == Source.TokenlonAllowanceTarget) {

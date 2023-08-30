@@ -12,7 +12,7 @@ contract MockERC1271Wallet is IERC1271Wallet {
 
     // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
     bytes4 internal constant ERC1271_MAGICVALUE = 0x1626ba7e;
-    uint256 private constant MAX_UINT = 2**256 - 1;
+    uint256 private constant MAX_UINT = 2 ** 256 - 1;
 
     address public operator;
 

@@ -11,10 +11,5 @@ interface IAllowanceTarget {
     /// @param  token The address of the token.
     /// @param  to The recipient of the trasnfer.
     /// @param  amount Amount to spend.
-    function spendFromUserTo(
-        address from,
-        address token,
-        address to,
-        uint256 amount
-    ) external;
+    function spendFromUserTo(address from, address token, address to, uint256 amount) external;
 }

@@ -51,11 +51,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @inheritdoc ILimitOrderSwap
-    function fillLimitOrder(
-        LimitOrder calldata order,
-        bytes calldata makerSignature,
-        TakerParams calldata takerParams
-    ) external payable override nonReentrant {
+    function fillLimitOrder(LimitOrder calldata order, bytes calldata makerSignature, TakerParams calldata takerParams) external payable override nonReentrant {
         _fillLimitOrder(order, makerSignature, takerParams, false);
     }
 
@@ -152,12 +148,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         return (orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0;
     }
 
-    function _fillLimitOrder(
-        LimitOrder calldata order,
-        bytes calldata makerSignature,
-        TakerParams calldata takerParams,
-        bool fullOrKill
-    ) private {
+    function _fillLimitOrder(LimitOrder calldata order, bytes calldata makerSignature, TakerParams calldata takerParams, bool fullOrKill) private {
         (bytes32 orderHash, uint256 takerSpendingAmount, uint256 makerSpendingAmount) = _validateOrderAndQuote(
             order,
             makerSignature,
@@ -202,14 +193,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         uint256 _takerTokenAmount,
         uint256 _makerTokenAmount,
         bool _fullOrKill
-    )
-        internal
-        returns (
-            bytes32 orderHash,
-            uint256 takerSpendingAmount,
-            uint256 makerSpendingAmount
-        )
-    {
+    ) internal returns (bytes32 orderHash, uint256 takerSpendingAmount, uint256 makerSpendingAmount) {
         uint256 orderFilledAmount;
         (orderHash, orderFilledAmount) = _validateOrder(_order, _makerSignature);
 

@@ -15,11 +15,7 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
     address private constant v3Router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address payable private constant universalRouter = payable(0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B);
 
-    constructor(
-        address _owner,
-        address _uniswapPermit2,
-        address _allowanceTarget
-    ) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {}
+    constructor(address _owner, address _uniswapPermit2, address _allowanceTarget) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {}
 
     receive() external payable {}
 
@@ -53,13 +49,7 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
     }
 
     /// @inheritdoc IUniAgent
-    function swap(
-        RouterType routerType,
-        address inputToken,
-        uint256 inputAmount,
-        bytes calldata payload,
-        bytes calldata userPermit
-    ) external payable override {
+    function swap(RouterType routerType, address inputToken, uint256 inputAmount, bytes calldata payload, bytes calldata userPermit) external payable override {
         _swap(routerType, false, inputToken, inputAmount, payload, userPermit);
     }
 
