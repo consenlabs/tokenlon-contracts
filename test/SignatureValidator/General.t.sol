@@ -13,7 +13,7 @@ contract TestGeneral is TestSignatureValidator {
 
     function testZeroAddressSigner() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
-        bytes memory signature = abi.encodePacked(r, s, v, uint8(8));
+        bytes memory signature = abi.encodePacked(r, s, v, uint8(SignatureType.EIP712));
         vm.expectRevert("SignatureValidator#isValidSignature: invalid signer");
         isValidSignature(address(0), digest, bytes(""), signature);
     }
