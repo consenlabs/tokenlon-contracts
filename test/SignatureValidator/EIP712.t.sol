@@ -29,9 +29,27 @@ contract TestEIP712 is TestSignatureValidator {
         isValidSignature(vm.addr(userPrivateKey), digest, bytes(""), signature);
     }
 
+    /// @dev old contracts still assert sigLength == 97 so has to support this format
+    /// @dev the extra bytes32 is not used at all
+    function testEIP712With97BytesSig() public {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v, bytes32(0), sigType);
+        // standard ECDSA signature : 65 bytes
+        // extra bytes32 : 32 bytes
+        // signatureType : 1 byte
+        // total : 98 bytes
+        assertEq(signature.length, 98);
+        assertTrue(isValidSignature(vm.addr(userPrivateKey), digest, bytes(""), signature));
+    }
+
+    /// @dev standard ECDSA signature format
     function testEIP712() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v, sigType);
+        // standard ECDSA signature : 65 bytes
+        // signatureType : 1 byte
+        // total : 66 bytes
+        assertEq(signature.length, 66);
         assertTrue(isValidSignature(vm.addr(userPrivateKey), digest, bytes(""), signature));
     }
 }
