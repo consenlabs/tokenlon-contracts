@@ -6,7 +6,7 @@ import { IUniswapV3Quoter } from "contracts/interfaces/IUniswapV3Quoter.sol";
 import { IUniversalRouter } from "contracts/interfaces/IUniswapUniversalRouter.sol";
 import { IUniAgent } from "contracts/interfaces/IUniAgent.sol";
 import { UniswapV3 } from "contracts/libraries/UniswapV3.sol";
-import { UniswapCommands } from "test/libraries/UniswapCommands.sol";
+import { UniswapCommands } from "test/utils/UniswapCommands.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { UniAgentTest } from "test/forkMainnet/UniAgent/Setup.t.sol";
 

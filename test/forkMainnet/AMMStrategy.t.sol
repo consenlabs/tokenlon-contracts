@@ -10,7 +10,7 @@ import { Constant } from "contracts/libraries/Constant.sol";
 import { AMMStrategy } from "contracts/AMMStrategy.sol";
 
 import { IUniversalRouter } from "contracts/interfaces/IUniswapUniversalRouter.sol";
-import { UniswapCommands } from "test/libraries/UniswapCommands.sol";
+import { UniswapCommands } from "test/utils/UniswapCommands.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { IAMMStrategy } from "contracts/interfaces/IAMMStrategy.sol";
 import { IStrategy } from "contracts/interfaces/IStrategy.sol";
