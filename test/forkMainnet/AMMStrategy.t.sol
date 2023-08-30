@@ -353,12 +353,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         _baseTest(inputToken, outputToken, inputAmount, data);
     }
 
-    function _baseTest(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        bytes memory data
-    ) internal {
+    function _baseTest(address inputToken, address outputToken, uint256 inputAmount, bytes memory data) internal {
         Snapshot memory inputTokenBalance = BalanceSnapshot.take(entryPoint, inputToken);
         Snapshot memory outputTokenBalance = BalanceSnapshot.take(entryPoint, outputToken);
 
@@ -373,11 +368,7 @@ contract AMMStrategyTest is Test, Tokens, BalanceUtil {
         outputTokenBalance.assertChangeGt(0);
     }
 
-    function _buildBalancerV2Limits(
-        address[] memory _path,
-        int256 inputAmount,
-        int256 _minOutputAmount
-    ) internal pure returns (int256[] memory) {
+    function _buildBalancerV2Limits(address[] memory _path, int256 inputAmount, int256 _minOutputAmount) internal pure returns (int256[] memory) {
         int256[] memory limits = new int256[](_path.length);
         // amount swapped in to balancer will denoted with positive sign
         limits[0] = inputAmount;
