@@ -29,8 +29,8 @@ contract TestEIP712 is TestSignatureValidator {
         isValidSignature(vm.addr(userPrivateKey), digest, bytes(""), signature);
     }
 
-    /// @dev old contracts still assert sigLength == 97 so has to support this format
-    /// @dev the extra bytes32 is not used at all
+    /// @dev Old contracts still assert sigLength == 97 so has to support this format,
+    ///            and the extra bytes32 is not used at all.
     function testEIP712With97BytesSig() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v, bytes32(0), sigType);
