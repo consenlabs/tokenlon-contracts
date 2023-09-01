@@ -52,7 +52,7 @@ contract TestWallet is TestSignatureValidator {
         bytes
             memory rawSig = hex"1cc59b2744dde0eee0d8f7e45e664fea0118ec0a632e1cc8f38928e183fe7c0b2c247c9d657aad49730573226fab25aa7689e4d199adbd3210c20e4e9e7e29946be88ba07ed95488553c0fd946f9f1445875b5c9b80012";
         bytes memory signature = abi.encodePacked(rawSig, sigType);
-        assertTrue(isValidSignature(partnerWallet, dataHash, signature));
+        assertTrue(sv.isValidSignature(partnerWallet, dataHash, bytes(""), signature));
     }
 
     // regression test using known valid signature data, may failed if signer changed
@@ -62,6 +62,6 @@ contract TestWallet is TestSignatureValidator {
         bytes
             memory rawSig = hex"1b87437e2fcf5c46939b8ca861efe0a5b3966fd5aeaf22bee708b4edaa9476b9493a85a56f1e2d7c1297e9a4dc15ec2863d278c2c5d7272f9b60d4197a4a5c7fd2c810943ab2035be0fef0b0859883677e26a19910000a";
         bytes memory signature = abi.encodePacked(rawSig, sigType);
-        assertTrue(isValidSignature(BTCDealerWallet, dataHash, signature));
+        assertTrue(sv.isValidSignature(BTCDealerWallet, dataHash, bytes(""), signature));
     }
 }
