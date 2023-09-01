@@ -44,4 +44,24 @@ contract TestWallet is TestSignatureValidator {
         bytes memory signature = abi.encodePacked(r, s, v, sigType);
         assertTrue(sv.isValidSignature(address(mockZX1271Wallet), digest, bytes(""), signature));
     }
+
+    // regression test using known valid signature data, may failed if signer changed
+    function testPartnerWallet() public {
+        address partnerWallet = 0xB3C839dbde6B96D37C56ee4f9DAd3390D49310Aa;
+        bytes32 dataHash = hex"25509214720fa604326a244c278f72a5c5cf3ddc0d182921f6ad97c2dc65ab16";
+        bytes
+            memory rawSig = hex"1cc59b2744dde0eee0d8f7e45e664fea0118ec0a632e1cc8f38928e183fe7c0b2c247c9d657aad49730573226fab25aa7689e4d199adbd3210c20e4e9e7e29946be88ba07ed95488553c0fd946f9f1445875b5c9b80012";
+        bytes memory signature = abi.encodePacked(rawSig, sigType);
+        assertTrue(isValidSignature(partnerWallet, dataHash, signature));
+    }
+
+    // regression test using known valid signature data, may failed if signer changed
+    function testBTCDealerWallet() public {
+        address BTCDealerWallet = 0x3b938E9525e14361091ee464D8AceC291b3caE50;
+        bytes32 dataHash = hex"acf81582c20f1545dda4144cb51d3418f472667770a23d889673a07d8df4f0b7";
+        bytes
+            memory rawSig = hex"1b87437e2fcf5c46939b8ca861efe0a5b3966fd5aeaf22bee708b4edaa9476b9493a85a56f1e2d7c1297e9a4dc15ec2863d278c2c5d7272f9b60d4197a4a5c7fd2c810943ab2035be0fef0b0859883677e26a19910000a";
+        bytes memory signature = abi.encodePacked(rawSig, sigType);
+        assertTrue(isValidSignature(BTCDealerWallet, dataHash, signature));
+    }
 }
