@@ -94,7 +94,7 @@ contract UniAgent is IUniAgent, Ownable, TokenCollector {
                 // deposit directly into router if it's universal router
                 _collect(inputToken, msg.sender, universalRouter, inputAmount, userPermit);
             } else {
-                // v2 v3 use transferFrom
+                // v2, v3, swapRouter02 use transferFrom
                 _collect(inputToken, msg.sender, address(this), inputAmount, userPermit);
             }
         }
