@@ -239,7 +239,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
         // validate maker signature only once per order
         if (orderFilledAmount == 0) {
-            if (!SignatureValidator.isValidSignature(_order.maker, getEIP712Hash(orderHash), _makerSignature)) revert InvalidSignature();
+            if (!SignatureValidator.validateSignature(_order.maker, getEIP712Hash(orderHash), _makerSignature)) revert InvalidSignature();
         }
 
         if ((orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0) revert CanceledOrder();

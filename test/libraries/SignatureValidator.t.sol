@@ -21,26 +21,26 @@ contract SignatureValidatorTest is Test {
     // assertion may not working for library internal functions
     // https://github.com/foundry-rs/foundry/issues/4405
     function _isValidSignatureWrap(address _signerAddress, bytes32 _hash, bytes memory _signature) public view returns (bool) {
-        return SignatureValidator.isValidSignature(_signerAddress, _hash, _signature);
+        return SignatureValidator.validateSignature(_signerAddress, _hash, _signature);
     }
 
     function testEIP712Signature() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
-        assertTrue(SignatureValidator.isValidSignature(vm.addr(userPrivateKey), digest, signature));
+        assertTrue(SignatureValidator.validateSignature(vm.addr(userPrivateKey), digest, signature));
     }
 
     function testEIP712WithDifferentSigner() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
-        assertFalse(SignatureValidator.isValidSignature(vm.addr(walletAdminPrivateKey), digest, signature));
+        assertFalse(SignatureValidator.validateSignature(vm.addr(walletAdminPrivateKey), digest, signature));
     }
 
     function testEIP712WithWrongHash() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
         bytes32 otherDigest = keccak256("other data other data");
-        assertFalse(SignatureValidator.isValidSignature(vm.addr(walletAdminPrivateKey), otherDigest, signature));
+        assertFalse(SignatureValidator.validateSignature(vm.addr(walletAdminPrivateKey), otherDigest, signature));
     }
 
     function testEIP712WithWrongSignatureLength() public {
@@ -51,26 +51,26 @@ contract SignatureValidatorTest is Test {
         bytes memory signature = abi.encodePacked(r, s, v);
         // will be reverted in OZ ECDSA lib
         vm.expectRevert("ECDSA: invalid signature length");
-        SignatureValidator.isValidSignature(vm.addr(userPrivateKey), digest, signature);
+        SignatureValidator.validateSignature(vm.addr(userPrivateKey), digest, signature);
     }
 
     function testEIP712WithEmptySignature() public {
         bytes memory signature;
         // will be reverted in OZ ECDSA lib
         vm.expectRevert("ECDSA: invalid signature length");
-        SignatureValidator.isValidSignature(vm.addr(userPrivateKey), digest, signature);
+        SignatureValidator.validateSignature(vm.addr(userPrivateKey), digest, signature);
     }
 
     function testEIP1271Signature() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(walletAdminPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
-        assertTrue(SignatureValidator.isValidSignature(address(mockERC1271Wallet), digest, signature));
+        assertTrue(SignatureValidator.validateSignature(address(mockERC1271Wallet), digest, signature));
     }
 
     function testEIP1271WithDifferentSigner() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
-        assertFalse(SignatureValidator.isValidSignature(address(mockERC1271Wallet), digest, signature));
+        assertFalse(SignatureValidator.validateSignature(address(mockERC1271Wallet), digest, signature));
     }
 
     function testEIP1271WithZeroAddressSigner() public {
@@ -87,14 +87,14 @@ contract SignatureValidatorTest is Test {
         NonStandard1271Wallet nonWallet = new NonStandard1271Wallet();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(walletAdminPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
-        assertFalse(SignatureValidator.isValidSignature(address(nonWallet), digest, signature));
+        assertFalse(SignatureValidator.validateSignature(address(nonWallet), digest, signature));
     }
 
     function testEIP1271WithNon1271Wallet() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(walletAdminPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
         vm.expectRevert();
-        SignatureValidator.isValidSignature(address(this), digest, signature);
+        SignatureValidator.validateSignature(address(this), digest, signature);
     }
 }
 
