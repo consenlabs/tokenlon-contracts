@@ -118,7 +118,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         // transfer takerToken to maker
         if (_rfqOffer.takerToken.isETH()) {
             if (msg.value != _rfqTx.takerRequestAmount) revert InvalidMsgValue();
-            _collecETHAndSend(_rfqOffer.maker, _rfqTx.takerRequestAmount, _takerTokenPermit, ((_rfqOffer.flags & FLG_MAKER_RECEIVES_WETH) != 0));
+            _collecETHAndSend(_rfqOffer.maker, _rfqTx.takerRequestAmount, ((_rfqOffer.flags & FLG_MAKER_RECEIVES_WETH) != 0));
         } else if (_rfqOffer.takerToken == address(weth)) {
             if (msg.value != 0) revert InvalidMsgValue();
             _collecWETHAndSend(
@@ -181,7 +181,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     }
 
     // Only used when taker token is ETH
-    function _collecETHAndSend(address to, uint256 amount, bytes calldata data, bool makerReceivesWETH) internal {
+    function _collecETHAndSend(address to, uint256 amount, bool makerReceivesWETH) internal {
         if (makerReceivesWETH) {
             weth.deposit{ value: amount }();
             weth.transfer(to, amount); // NOTE: data not used, is this an issue?
