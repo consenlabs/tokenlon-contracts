@@ -25,6 +25,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
 
     uint256 private constant FLG_ALLOW_CONTRACT_SENDER = 1 << 255;
     uint256 private constant FLG_ALLOW_PARTIAL_FILL = 1 << 254;
+    uint256 private constant FLG_MAKER_RECEIVES_WETH = 1 << 253;
 
     event FilledRFQ(
         bytes32 indexed rfqOfferHash,
@@ -242,6 +243,44 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         fcMakerToken.assertChange(int256(fee));
     }
 
+    function testFillRFQWithRawETHAndRecieveWETH() public {
+        // case : taker token is ETH
+        RFQOffer memory rfqOffer = defaultRFQOffer;
+        rfqOffer.takerToken = Constant.ZERO_ADDRESS;
+        rfqOffer.takerTokenAmount = 1 ether;
+        rfqOffer.flags |= FLG_MAKER_RECEIVES_WETH;
+
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
+
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.makerToken });
+        // maker should receive WETH
+        Snapshot memory makerWETHToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: address(weth) });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: rfqOffer.makerToken });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.takerToken });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
+
+        uint256 fee = (rfqOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+        uint256 amountAfterFee = rfqOffer.makerTokenAmount - fee;
+
+        RFQTx memory rfqTx = defaultRFQTx;
+        rfqTx.rfqOffer = rfqOffer;
+        rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount;
+
+        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        rfq.fillRFQ{ value: rfqOffer.takerTokenAmount }(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+
+        takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerWETHToken.assertChange(int256(rfqOffer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(rfqOffer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        // recipient gets less than original makerTokenAmount because of the fee
+        recMakerToken.assertChange(int256(amountAfterFee));
+        fcMakerToken.assertChange(int256(fee));
+    }
+
     function testFillRFQTakerGetRawETH() public {
         // case : maker token is WETH
         RFQOffer memory rfqOffer = defaultRFQOffer;
@@ -310,6 +349,45 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
         makerTakerToken.assertChange(int256(rfqOffer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(rfqOffer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(amountAfterFee));
+        fcMakerToken.assertChange(int256(fee));
+    }
+
+    function testFillRFQWithWETHAndRecieveWETH() public {
+        // case : taker token is WETH
+        RFQOffer memory rfqOffer = defaultRFQOffer;
+        rfqOffer.takerToken = WETH_ADDRESS;
+        rfqOffer.takerTokenAmount = 1 ether;
+        rfqOffer.flags |= FLG_MAKER_RECEIVES_WETH;
+
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
+
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.makerToken });
+        // maker should receive WETH
+        Snapshot memory makerWETHToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: address(weth) });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: rfqOffer.makerToken });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.takerToken });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
+
+        uint256 fee = (rfqOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+        uint256 amountAfterFee = rfqOffer.makerTokenAmount - fee;
+
+        RFQTx memory rfqTx = defaultRFQTx;
+        rfqTx.rfqOffer = rfqOffer;
+        rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount;
+
+        bytes memory takerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, rfqOffer.takerToken, address(rfq));
+
+        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, takerPermit);
+
+        takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerWETHToken.assertChange(int256(rfqOffer.takerTokenAmount));
         makerMakerToken.assertChange(-int256(rfqOffer.makerTokenAmount));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(amountAfterFee));

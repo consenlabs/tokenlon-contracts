@@ -19,6 +19,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
 
     uint256 private constant FLG_ALLOW_CONTRACT_SENDER = 1 << 255;
     uint256 private constant FLG_ALLOW_PARTIAL_FILL = 1 << 254;
+    uint256 private constant FLG_MAKER_RECEIVES_WETH = 1 << 253;
 
     IWETH public immutable weth;
     address payable public feeCollector;
@@ -117,12 +118,16 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         // transfer takerToken to maker
         if (_rfqOffer.takerToken.isETH()) {
             if (msg.value != _rfqTx.takerRequestAmount) revert InvalidMsgValue();
-            Address.sendValue(_rfqOffer.maker, _rfqTx.takerRequestAmount);
+            _collecETHAndSend(_rfqOffer.maker, _rfqTx.takerRequestAmount, ((_rfqOffer.flags & FLG_MAKER_RECEIVES_WETH) != 0));
         } else if (_rfqOffer.takerToken == address(weth)) {
             if (msg.value != 0) revert InvalidMsgValue();
-            _collect(_rfqOffer.takerToken, _rfqOffer.taker, address(this), _rfqTx.takerRequestAmount, _takerTokenPermit);
-            weth.withdraw(_rfqTx.takerRequestAmount);
-            Address.sendValue(_rfqOffer.maker, _rfqTx.takerRequestAmount);
+            _collecWETHAndSend(
+                _rfqOffer.taker,
+                _rfqOffer.maker,
+                _rfqTx.takerRequestAmount,
+                _takerTokenPermit,
+                ((_rfqOffer.flags & FLG_MAKER_RECEIVES_WETH) != 0)
+            );
         } else {
             if (msg.value != 0) revert InvalidMsgValue();
             _collect(_rfqOffer.takerToken, _rfqOffer.taker, _rfqOffer.maker, _rfqTx.takerRequestAmount, _takerTokenPermit);
@@ -173,5 +178,26 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             _rfqTx.recipient,
             fee
         );
+    }
+
+    // Only used when taker token is ETH
+    function _collecETHAndSend(address payable to, uint256 amount, bool makerReceivesWETH) internal {
+        if (makerReceivesWETH) {
+            weth.deposit{ value: amount }();
+            weth.transfer(to, amount);
+        } else {
+            Address.sendValue(to, amount);
+        }
+    }
+
+    // Only used when taker token is WETH
+    function _collecWETHAndSend(address from, address payable to, uint256 amount, bytes calldata data, bool makerReceivesWETH) internal {
+        if (makerReceivesWETH) {
+            _collect(address(weth), from, to, amount, data);
+        } else {
+            _collect(address(weth), from, address(this), amount, data);
+            weth.withdraw(amount);
+            Address.sendValue(to, amount);
+        }
     }
 }
