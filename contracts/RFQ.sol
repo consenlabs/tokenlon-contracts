@@ -181,23 +181,23 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     }
 
     // Only used when taker token is ETH
-    function _collecETHAndSend(address to, uint256 amount, bool makerReceivesWETH) internal {
+    function _collecETHAndSend(address payable to, uint256 amount, bool makerReceivesWETH) internal {
         if (makerReceivesWETH) {
             weth.deposit{ value: amount }();
-            weth.transfer(to, amount); // NOTE: data not used, is this an issue?
+            weth.transfer(to, amount);
         } else {
-            Address.sendValue(payable(to), amount);
+            Address.sendValue(to, amount);
         }
     }
 
     // Only used when taker token is WETH
-    function _collecWETHAndSend(address from, address to, uint256 amount, bytes calldata data, bool makerReceivesWETH) internal {
+    function _collecWETHAndSend(address from, address payable to, uint256 amount, bytes calldata data, bool makerReceivesWETH) internal {
         if (makerReceivesWETH) {
             _collect(address(weth), from, to, amount, data);
         } else {
             _collect(address(weth), from, address(this), amount, data);
             weth.withdraw(amount);
-            Address.sendValue(payable(to), amount);
+            Address.sendValue(to, amount);
         }
     }
 }
