@@ -48,7 +48,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         bytes32 gs712Hash = getEIP712Hash(swapHash);
         if (filledSwap[swapHash]) revert AlreadyFilled();
         filledSwap[swapHash] = true;
-        if (!SignatureValidator.isValidSignature(taker, gs712Hash, takerSig)) revert InvalidSignature();
+        if (!SignatureValidator.validateSignature(taker, gs712Hash, takerSig)) revert InvalidSignature();
 
         returnAmount = _executeSwap(swapData, taker, takerTokenPermit);
         emit Swap(swapHash, swapData.maker, taker, swapData.recipient, swapData.takerToken, swapData.takerTokenAmount, swapData.makerToken, returnAmount);

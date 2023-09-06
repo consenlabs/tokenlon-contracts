@@ -65,7 +65,7 @@ contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector,
                     AllowFill({ orderHash: orderHash, taker: msg.sender, fillAmount: makerTokenAmount, salt: crdParams.salt, expiry: crdParams.expiry })
                 )
             );
-            if (!SignatureValidator.isValidSignature(coordinator, allowFillHash, crdParams.sig)) revert InvalidSignature();
+            if (!SignatureValidator.validateSignature(coordinator, allowFillHash, crdParams.sig)) revert InvalidSignature();
 
             if (allowFillUsed[allowFillHash]) revert ReusedPermission();
             allowFillUsed[allowFillHash] = true;

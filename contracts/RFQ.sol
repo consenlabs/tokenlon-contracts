@@ -108,11 +108,11 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         filledOffer[rfqOfferHash] = true;
 
         // check maker signature
-        if (!SignatureValidator.isValidSignature(_rfqOffer.maker, getEIP712Hash(rfqOfferHash), _makerSignature)) revert InvalidSignature();
+        if (!SignatureValidator.validateSignature(_rfqOffer.maker, getEIP712Hash(rfqOfferHash), _makerSignature)) revert InvalidSignature();
 
         // check taker signature if needed
         if (_rfqOffer.taker != msg.sender) {
-            if (!SignatureValidator.isValidSignature(_rfqOffer.taker, getEIP712Hash(rfqTxHash), _takerSignature)) revert InvalidSignature();
+            if (!SignatureValidator.validateSignature(_rfqOffer.taker, getEIP712Hash(rfqTxHash), _takerSignature)) revert InvalidSignature();
         }
 
         // transfer takerToken to maker
