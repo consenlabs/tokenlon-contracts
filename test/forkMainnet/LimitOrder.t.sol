@@ -684,7 +684,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.taker = address(mockERC1271Wallet);
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.WalletBytes32);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.Standard1271);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.executor = address(mockERC1271Wallet);
@@ -1387,7 +1387,7 @@ contract LimitOrderTest is StrategySharedSetup {
         if (sigType == SignatureValidator.SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
             sig = abi.encodePacked(r, s, v, uint8(sigType));
-        } else if (sigType == SignatureValidator.SignatureType.Wallet) {
+        } else if (sigType == SignatureValidator.SignatureType.ZX1271) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
             sig = abi.encodePacked(v, r, s, uint8(sigType));
         } else {

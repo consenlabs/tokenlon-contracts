@@ -7,7 +7,7 @@ import { SignatureValidator } from "contracts/utils/SignatureValidator.sol";
 import { MockZX1271Wallet } from "test/mocks/MockZX1271Wallet.sol";
 
 contract TestWallet is TestSignatureValidator {
-    uint8 public constant sigType = uint8(SignatureValidator.SignatureType.Wallet);
+    uint8 public constant sigType = uint8(SignatureValidator.SignatureType.ZX1271);
 
     uint256 walletAdminPrivateKey = 5678;
     MockZX1271Wallet mockZX1271Wallet;

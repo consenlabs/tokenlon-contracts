@@ -37,8 +37,8 @@ contract SignatureValidator {
         EIP712, // 0x02
         EthSign, // 0x03
         WalletBytes, // 0x04  standard 1271 wallet type
-        WalletBytes32, // 0x05  standard 1271 wallet type
-        Wallet, // 0x06  0x wallet type for signature compatibility
+        Standard1271, // 0x05  standard 1271 wallet type
+        ZX1271, // 0x06  0x wallet type for signature compatibility
         NSignatureTypes // 0x07, number of signature types. Always leave at end.
     }
 
@@ -115,10 +115,10 @@ contract SignatureValidator {
             return isValid;
 
             // Signature verified by wallet contract without data validation.
-        } else if (signatureType == SignatureType.WalletBytes32) {
+        } else if (signatureType == SignatureType.Standard1271) {
             isValid = ERC1271_MAGICVALUE_BYTES32 == IERC1271Wallet(_signerAddress).isValidSignature(_hash, _sig);
             return isValid;
-        } else if (signatureType == SignatureType.Wallet) {
+        } else if (signatureType == SignatureType.ZX1271) {
             isValid = isValidWalletSignature(_hash, _signerAddress, _sig);
             return isValid;
         }

@@ -258,7 +258,7 @@ contract RFQTest is StrategySharedSetup {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         // Taker is an EOA but user signs a Wallet type fill
-        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.Standard1271 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         vm.expectRevert(); // No revert string in this case
@@ -322,7 +322,7 @@ contract RFQTest is StrategySharedSetup {
         order.takerAssetAddr = address(weth);
         order.takerAssetAmount = 1 ether;
         order.makerAddr = address(marketMakerProxy);
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.Standard1271 });
         bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
@@ -346,8 +346,8 @@ contract RFQTest is StrategySharedSetup {
         order.makerAddr = address(marketMakerProxy);
         order.makerAssetAddr = address(weth);
         order.makerAssetAmount = 1 ether;
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
-        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.Standard1271 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.Standard1271 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take({ owner: address(mockERC1271Wallet), token: order.takerAssetAddr });
@@ -503,10 +503,10 @@ contract RFQTest is StrategySharedSetup {
         if (sigType == SignatureValidator.SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
             sig = abi.encodePacked(r, s, v, uint8(sigType));
-        } else if (sigType == SignatureValidator.SignatureType.Wallet) {
+        } else if (sigType == SignatureValidator.SignatureType.ZX1271) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
             sig = abi.encodePacked(r, s, v, uint8(sigType));
-        } else if (sigType == SignatureValidator.SignatureType.WalletBytes || sigType == SignatureValidator.SignatureType.WalletBytes32) {
+        } else if (sigType == SignatureValidator.SignatureType.WalletBytes || sigType == SignatureValidator.SignatureType.Standard1271) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
             sig = abi.encodePacked(r, s, v, uint8(sigType));
         } else {
