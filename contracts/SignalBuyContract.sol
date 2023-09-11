@@ -229,7 +229,7 @@ contract SignalBuyContract is ISignalBuyContract, BaseLibEIP712, SignatureValida
                 AllowFill({ orderHash: _orderHash, executor: _executor, fillAmount: _fillAmount, salt: _crdParams.salt, expiry: _crdParams.expiry })
             )
         );
-        require(!LibSignalBuyContractOrderStorage.getStorage().fillSeen[allowFillHash], "SignalBuyContract: AllowFill seen before");
+        require(!LibSignalBuyContractOrderStorage.getStorage().allowFillSeen[allowFillHash], "SignalBuyContract: AllowFill seen before");
         require(isValidSignature(coordinator, allowFillHash, bytes(""), _crdParams.sig), "SignalBuyContract: AllowFill is not signed by coordinator");
 
         // Set allow fill seen to avoid replay attack
