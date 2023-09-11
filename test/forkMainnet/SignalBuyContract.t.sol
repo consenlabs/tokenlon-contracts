@@ -480,14 +480,23 @@ contract SignalBuyContractTest is BalanceUtil {
         // Fill with default allow fill
         signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
 
-        Fill memory fill = DEFAULT_FILL;
-        fill.dealerSalt = uint256(8001);
+        vm.expectRevert("SignalBuyContract: AllowFill seen before");
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
+    }
 
-        ISignalBuyContract.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.dealerSig = _signFill(dealerPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+    function testCannotFillByTraderWithReplayedFill() public {
+        // Fill with default allow fill
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
+
+        AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.salt = allowFill.salt + 1;
+
+        ISignalBuyContract.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.salt = allowFill.salt;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
 
         vm.expectRevert("SignalBuyContract: Fill seen before");
-        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
+        signalBuyContract.fillSignalBuy(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
     }
 
     function testCannotFillByZeroTrader() public {

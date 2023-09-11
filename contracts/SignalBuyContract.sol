@@ -2,21 +2,21 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
-import "@openzeppelin/contracts/math/Math.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { Math } from "@openzeppelin/contracts/math/Math.sol";
+import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import "./interfaces/ISignalBuyContract.sol";
-import "./interfaces/IWETH.sol";
+import { ISignalBuyContract } from "./interfaces/ISignalBuyContract.sol";
+import { IWETH } from "./interfaces/IWETH.sol";
 import { Asset } from "./utils/Asset.sol";
-import "./utils/BaseLibEIP712.sol";
-import "./utils/LibConstant.sol";
-import "./utils/LibSignalBuyContractOrderStorage.sol";
-import "./utils/Ownable.sol";
+import { BaseLibEIP712 } from "./utils/BaseLibEIP712.sol";
+import { LibConstant } from "./utils/LibConstant.sol";
+import { LibSignalBuyContractOrderStorage } from "./utils/LibSignalBuyContractOrderStorage.sol";
+import { Ownable } from "./utils/Ownable.sol";
 import { Order, getOrderStructHash, Fill, getFillStructHash, AllowFill, getAllowFillStructHash } from "./utils/SignalBuyContractLibEIP712.sol";
-import "./utils/SignatureValidator.sol";
+import { SignatureValidator } from "./utils/SignatureValidator.sol";
 
 /// @title SignalBuy Contract
 /// @notice Order can be filled as long as the provided dealerToken/userToken ratio is better than or equal to user's specfied dealerToken/userToken ratio.
