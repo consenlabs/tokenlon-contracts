@@ -17,9 +17,9 @@ import "./utils/StrategyBase.sol";
 import "./utils/AMMLibEIP712.sol";
 import "./utils/BaseLibEIP712.sol";
 import "./utils/LibConstant.sol";
-import "./utils/SignatureValidator.sol";
+import { validateSignature } from "./utils/SignatureValidator.sol";
 
-contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712, SignatureValidator {
+contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712 {
     using SafeMath for uint16;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -229,7 +229,7 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
         // Verify user signature
         transactionHash = AMMLibEIP712._getOrderHash(_order);
         bytes32 EIP712SignDigest = getEIP712Hash(transactionHash);
-        require(isValidSignature(_order.userAddr, EIP712SignDigest, bytes(""), _sig), "AMMWrapper: invalid user signature");
+        require(validateSignature(_order.userAddr, EIP712SignDigest, _sig), "AMMWrapper: invalid user signature");
         // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
         permStorage.setAMMTransactionSeen(transactionHash);
     }

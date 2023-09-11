@@ -1,187 +1,91 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
 
-import "../interfaces/IERC1271Wallet.sol";
-import "./LibBytes.sol";
+import { IERC1271Wallet } from "../interfaces/IERC1271Wallet.sol";
+import { LibBytes } from "./LibBytes.sol";
+import { ECDSA } from "@openzeppelin/contracts/cryptography/ECDSA.sol";
+
+// 0x1626ba7e
+bytes4 constant ERC1271_MAGICVALUE = bytes4(keccak256("isValidSignature(bytes32,bytes)"));
+
+// 0xb0671381
+bytes4 constant ZX1271_MAGICVALUE = bytes4(keccak256("isValidWalletSignature(bytes32,address,bytes)"));
+
+enum SignatureType {
+    Illegal, // 0x00, default as illegal
+    Invalid, // 0x01
+    EIP712, // 0x02 standard EIP-712 signature
+    EthSign, // 0x03 signed using web3.eth_sign() or Ethers wallet.signMessage()
+    WalletBytes, // 0x04 DEPRECATED, never used
+    Standard1271, // 0x05 standard EIP-1271 wallet type
+    ZX1271 // 0x06 zero ex non-standard 1271 version
+}
 
 /**
- * @dev Contains logic for signature validation.
- * Signatures from wallet contracts assume ERC-1271 support (https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1271.md)
- * Notes: Methods are strongly inspired by contracts in https://github.com/0xProject/0x-monorepo/blob/development/
+ * @dev Verifies that a hash has been signed by the given signer.
+ * @param _signerAddress  Address that should have signed the given hash.
+ * @param _hash           Hash of the data.
+ * @param _sig            Proof that the hash has been signed by signer.
+ * @return isValid        True if the address recovered from the provided signature matches the input signer address.
  */
-contract SignatureValidator {
-    using LibBytes for bytes;
+// solhint-disable-next-line func-visibility
+function validateSignature(
+    address _signerAddress,
+    bytes32 _hash,
+    bytes memory _sig
+) view returns (bool isValid) {
+    require(_sig.length > 0, "SignatureValidator: length greater than 0 required");
+    require(_signerAddress != address(0), "SignatureValidator: invalid signer");
 
-    /***********************************|
-  |             Variables             |
-  |__________________________________*/
+    // Pop last byte off of signature byte array.
+    uint8 signatureTypeRaw = uint8(LibBytes.popLastByte(_sig));
 
-    // bytes4(keccak256("isValidSignature(bytes,bytes)"))
-    bytes4 internal constant ERC1271_MAGICVALUE = 0x20c13b0b;
+    // Ensure signature is supported
+    require(signatureTypeRaw <= uint8(SignatureType.ZX1271), "SignatureValidator: unsupported signature");
 
-    // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
-    bytes4 internal constant ERC1271_MAGICVALUE_BYTES32 = 0x1626ba7e;
+    // Extract signature type
+    SignatureType signatureType = SignatureType(signatureTypeRaw);
 
-    // Allowed signature types.
-    enum SignatureType {
-        Illegal, // 0x00, default value
-        Invalid, // 0x01
-        EIP712, // 0x02
-        EthSign, // 0x03
-        WalletBytes, // 0x04  standard 1271 wallet type
-        Standard1271, // 0x05  standard 1271 wallet type
-        ZX1271, // 0x06  0x wallet type for signature compatibility
-        NSignatureTypes // 0x07, number of signature types. Always leave at end.
-    }
-
-    /***********************************|
-  |        Signature Functions        |
-  |__________________________________*/
-
-    /**
-     * @dev Verifies that a hash has been signed by the given signer.
-     * @param _signerAddress  Address that should have signed the given hash.
-     * @param _hash           Hash of the EIP-712 encoded data
-     * @param _data           Full EIP-712 data structure that was hashed and signed
-     * @param _sig            Proof that the hash has been signed by signer.
-     *      For non wallet signatures, _sig is expected to be an array tightly encoded as
-     *      (bytes32 r, bytes32 s, uint8 v, uint256 nonce, SignatureType sigType)
-     * @return isValid True if the address recovered from the provided signature matches the input signer address.
-     */
-    function isValidSignature(
-        address _signerAddress,
-        bytes32 _hash,
-        bytes memory _data,
-        bytes memory _sig
-    ) public view returns (bool isValid) {
-        require(_sig.length > 0, "SignatureValidator#isValidSignature: length greater than 0 required");
-
-        require(_signerAddress != address(0x0), "SignatureValidator#isValidSignature: invalid signer");
-
-        // Pop last byte off of signature byte array.
-        uint8 signatureTypeRaw = uint8(_sig.popLastByte());
-
-        // Ensure signature is supported
-        require(signatureTypeRaw < uint8(SignatureType.NSignatureTypes), "SignatureValidator#isValidSignature: unsupported signature");
-
-        // Extract signature type
-        SignatureType signatureType = SignatureType(signatureTypeRaw);
-
-        // Variables are not scoped in Solidity.
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-        address recovered;
-
+    if (signatureType == SignatureType.Illegal) {
         // Always illegal signature.
         // This is always an implicit option since a signer can create a
         // signature array with invalid type or length. We may as well make
         // it an explicit option. This aids testing and analysis. It is
         // also the initialization value for the enum type.
-        if (signatureType == SignatureType.Illegal) {
-            revert("SignatureValidator#isValidSignature: illegal signature");
 
-            // Signature using EIP712
-        } else if (signatureType == SignatureType.EIP712) {
-            require(_sig.length == 65 || _sig.length == 97, "SignatureValidator#isValidSignature: length 65 or 97 required");
-            r = _sig.readBytes32(0);
-            s = _sig.readBytes32(32);
-            v = uint8(_sig[64]);
-            recovered = ecrecover(_hash, v, r, s);
-            isValid = _signerAddress == recovered;
-            return isValid;
+        revert("SignatureValidator#isValidSignature: illegal signature");
+    } else if (signatureType == SignatureType.EIP712) {
+        // In ealier version, an extra bytes32 is packed with (v,r,s) but the field was never used.
+        // So the _sig was in 97 bytes before.
+        // In order to support standard 65 bytes ECDSA signature and legacy format, still spliting _sig here
+        // instead of passing _sig directly to OZ ECDSA lib.
 
-            // Signed using web3.eth_sign() or Ethers wallet.signMessage()
-        } else if (signatureType == SignatureType.EthSign) {
-            require(_sig.length == 65 || _sig.length == 97, "SignatureValidator#isValidSignature: length 65 or 97 required");
-            r = _sig.readBytes32(0);
-            s = _sig.readBytes32(32);
-            v = uint8(_sig[64]);
-            recovered = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _hash)), v, r, s);
-            isValid = _signerAddress == recovered;
-            return isValid;
+        bytes32 r = LibBytes.readBytes32(_sig, 0);
+        bytes32 s = LibBytes.readBytes32(_sig, 32);
+        uint8 v = uint8(_sig[64]);
+        address recovered = ECDSA.recover(_hash, v, r, s);
+        return _signerAddress == recovered;
+    } else if (signatureType == SignatureType.EthSign) {
+        // In ealier version, an extra bytes32 is packed with (v,r,s) but the field was never used.
+        // So the _sig was in 97 bytes before.
+        // In order to support standard 65 bytes ECDSA signature and legacy format, still spliting _sig here
+        // instead of passing _sig directly to OZ ECDSA lib.
 
-            // Signature verified by wallet contract with data validation.
-        } else if (signatureType == SignatureType.WalletBytes) {
-            isValid = ERC1271_MAGICVALUE == IERC1271Wallet(_signerAddress).isValidSignature(_data, _sig);
-            return isValid;
-
-            // Signature verified by wallet contract without data validation.
-        } else if (signatureType == SignatureType.Standard1271) {
-            isValid = ERC1271_MAGICVALUE_BYTES32 == IERC1271Wallet(_signerAddress).isValidSignature(_hash, _sig);
-            return isValid;
-        } else if (signatureType == SignatureType.ZX1271) {
-            isValid = isValidWalletSignature(_hash, _signerAddress, _sig);
-            return isValid;
-        }
-
-        // Anything else is illegal (We do not return false because
-        // the signature may actually be valid, just not in a format
-        // that we currently support. In this case returning false
-        // may lead the caller to incorrectly believe that the
-        // signature was invalid.)
-        revert("SignatureValidator#isValidSignature: unsupported signature");
+        bytes32 r = LibBytes.readBytes32(_sig, 0);
+        bytes32 s = LibBytes.readBytes32(_sig, 32);
+        uint8 v = uint8(_sig[64]);
+        address recovered = ECDSA.recover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _hash)), v, r, s);
+        return _signerAddress == recovered;
+    } else if (signatureType == SignatureType.Standard1271) {
+        return ERC1271_MAGICVALUE == IERC1271Wallet(_signerAddress).isValidSignature(_hash, _sig);
+    } else if (signatureType == SignatureType.ZX1271) {
+        return ZX1271_MAGICVALUE == IERC1271Wallet(_signerAddress).isValidSignature(_hash, _sig);
     }
 
-    /// @dev Verifies signature using logic defined by Wallet contract.
-    /// @param hash Any 32 byte hash.
-    /// @param walletAddress Address that should have signed the given hash
-    ///                      and defines its own signature verification method.
-    /// @param signature Proof that the hash has been signed by signer.
-    /// @return isValid True if signature is valid for given wallet..
-    function isValidWalletSignature(
-        bytes32 hash,
-        address walletAddress,
-        bytes memory signature
-    ) internal view returns (bool isValid) {
-        bytes memory _calldata = abi.encodeWithSelector(IWallet(walletAddress).isValidSignature.selector, hash, signature);
-        bytes32 magic_salt = bytes32(bytes4(keccak256("isValidWalletSignature(bytes32,address,bytes)")));
-        assembly {
-            if iszero(extcodesize(walletAddress)) {
-                // Revert with `Error("WALLET_ERROR")`
-                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
-                mstore(32, 0x0000002000000000000000000000000000000000000000000000000000000000)
-                mstore(64, 0x0000000c57414c4c45545f4552524f5200000000000000000000000000000000)
-                mstore(96, 0)
-                revert(0, 100)
-            }
-
-            let cdStart := add(_calldata, 32)
-            let success := staticcall(
-                gas(), // forward all gas
-                walletAddress, // address of Wallet contract
-                cdStart, // pointer to start of input
-                mload(_calldata), // length of input
-                cdStart, // write output over input
-                32 // output size is 32 bytes
-            )
-
-            if iszero(eq(returndatasize(), 32)) {
-                // Revert with `Error("WALLET_ERROR")`
-                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
-                mstore(32, 0x0000002000000000000000000000000000000000000000000000000000000000)
-                mstore(64, 0x0000000c57414c4c45545f4552524f5200000000000000000000000000000000)
-                mstore(96, 0)
-                revert(0, 100)
-            }
-
-            switch success
-            case 0 {
-                // Revert with `Error("WALLET_ERROR")`
-                mstore(0, 0x08c379a000000000000000000000000000000000000000000000000000000000)
-                mstore(32, 0x0000002000000000000000000000000000000000000000000000000000000000)
-                mstore(64, 0x0000000c57414c4c45545f4552524f5200000000000000000000000000000000)
-                mstore(96, 0)
-                revert(0, 100)
-            }
-            case 1 {
-                // Signature is valid if call did not revert and returned true
-                isValid := eq(
-                    and(mload(cdStart), 0xffffffff00000000000000000000000000000000000000000000000000000000),
-                    and(magic_salt, 0xffffffff00000000000000000000000000000000000000000000000000000000)
-                )
-            }
-        }
-        return isValid;
-    }
+    // Anything else is illegal (We do not return false because
+    // the signature may actually be valid, just not in a format
+    // that we currently support. In this case returning false
+    // may lead the caller to incorrectly believe that the
+    // signature was invalid.)
+    revert("SignatureValidator: unsupported signature");
 }

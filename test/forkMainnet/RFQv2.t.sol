@@ -10,7 +10,7 @@ import { getEIP712Hash } from "test/utils/Sig.sol";
 import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 import { RFQv2 } from "contracts/RFQv2.sol";
 import { MarketMakerProxy } from "contracts/MarketMakerProxy.sol";
-import { SignatureValidator } from "contracts/utils/SignatureValidator.sol";
+import { SignatureType } from "contracts/utils/SignatureValidator.sol";
 import { TokenCollector } from "contracts/utils/TokenCollector.sol";
 import { Offer, getOfferHash } from "contracts/utils/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "contracts/utils/RFQOrder.sol";
@@ -80,10 +80,10 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
             salt: defaultSalt
         });
 
-        defaultMakerSig = _signOffer(makerPrivateKey, defaultOffer, SignatureValidator.SignatureType.EIP712);
+        defaultMakerSig = _signOffer(makerPrivateKey, defaultOffer, SignatureType.EIP712);
 
         defaultOrder = RFQOrder({ offer: defaultOffer, recipient: payable(recipient) });
-        defaultTakerSig = _signRFQOrder(takerPrivateKey, defaultOrder, SignatureValidator.SignatureType.EIP712);
+        defaultTakerSig = _signRFQOrder(takerPrivateKey, defaultOrder, SignatureType.EIP712);
 
         vm.label(taker, "taker");
         vm.label(maker, "maker");
@@ -233,8 +233,8 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         offer.feeFactor = 0;
         RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient) });
 
-        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.Standard1271);
-        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureType.Standard1271);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureType.EIP712);
 
         address[] memory tokenAddresses = new address[](1);
         tokenAddresses[0] = offer.makerToken;
@@ -271,8 +271,8 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         offer.feeFactor = 0;
         RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient) });
 
-        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
-        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureType.EIP712);
 
         BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
         BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
@@ -302,8 +302,8 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         offer.feeFactor = 0;
         RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient) });
 
-        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
-        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureType.EIP712);
 
         BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
         BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
@@ -333,8 +333,8 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         offer.feeFactor = 0;
         RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient) });
 
-        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
-        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureType.EIP712);
 
         BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
         BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
@@ -413,8 +413,8 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         offer.feeFactor = 0;
         RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient) });
 
-        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
-        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureType.EIP712);
 
         bytes memory payload1 = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
         vm.prank(offer.taker, offer.taker);
@@ -443,7 +443,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
 
     function testCannotFillRFQByIncorrectMakerSig() public {
         uint256 randomPrivateKey = 5677;
-        bytes memory randomMakerSig = _signOffer(randomPrivateKey, defaultOffer, SignatureValidator.SignatureType.EIP712);
+        bytes memory randomMakerSig = _signOffer(randomPrivateKey, defaultOffer, SignatureType.EIP712);
 
         vm.expectRevert("invalid signature");
         bytes memory payload = _genFillRFQPayload(defaultOrder, randomMakerSig, defaultPermit, defaultTakerSig, defaultPermit);
@@ -454,7 +454,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
     function testCannotFillRFQByIncorrectTakerSig() public {
         RFQOrder memory rfqOrder = RFQOrder({ offer: defaultOffer, recipient: payable(defaultOffer.taker) });
         uint256 randomPrivateKey = 5677;
-        bytes memory randomSig = _signRFQOrder(randomPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+        bytes memory randomSig = _signRFQOrder(randomPrivateKey, rfqOrder, SignatureType.EIP712);
 
         vm.expectRevert("invalid signature");
         bytes memory payload = _genFillRFQPayload(rfqOrder, defaultMakerSig, defaultPermit, randomSig, defaultPermit);
@@ -466,8 +466,8 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         Offer memory offer = defaultOffer;
         offer.feeFactor = LibConstant.BPS_MAX;
         RFQOrder memory newRFQOrder = RFQOrder({ offer: offer, recipient: payable(defaultOffer.taker) });
-        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
-        bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder, SignatureType.EIP712);
 
         vm.expectRevert("invalid fee factor");
         bytes memory payload = _genFillRFQPayload(newRFQOrder, makerSig, defaultPermit, takerSig, defaultPermit);
@@ -477,7 +477,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
 
     function testCannotFillWithZeroRecipient() public {
         RFQOrder memory newRFQOrder = RFQOrder({ offer: defaultOffer, recipient: address(0) });
-        bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder, SignatureValidator.SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, newRFQOrder, SignatureType.EIP712);
 
         vm.expectRevert("zero recipient");
         bytes memory payload = _genFillRFQPayload(newRFQOrder, defaultMakerSig, defaultPermit, takerSig, defaultPermit);
@@ -488,7 +488,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
     function _signOffer(
         uint256 _privateKey,
         Offer memory _offer,
-        SignatureValidator.SignatureType _sigType
+        SignatureType _sigType
     ) private view returns (bytes memory sig) {
         bytes32 offerHash = getOfferHash(_offer);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), offerHash);
@@ -498,7 +498,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
     function _signRFQOrder(
         uint256 _privateKey,
         RFQOrder memory _rfqOrder,
-        SignatureValidator.SignatureType _sigType
+        SignatureType _sigType
     ) private view returns (bytes memory sig) {
         (, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOrderHash);
@@ -508,16 +508,12 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
     function _signEIP712Digest(
         uint256 _privateKey,
         bytes32 _digest,
-        SignatureValidator.SignatureType _sigType
+        SignatureType _sigType
     ) internal pure returns (bytes memory) {
-        if (
-            _sigType == SignatureValidator.SignatureType.EIP712 ||
-            _sigType == SignatureValidator.SignatureType.WalletBytes ||
-            _sigType == SignatureValidator.SignatureType.Standard1271
-        ) {
+        if (_sigType == SignatureType.EIP712 || _sigType == SignatureType.WalletBytes || _sigType == SignatureType.Standard1271) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, _digest);
             return abi.encodePacked(r, s, v, uint8(_sigType));
-        } else if (_sigType == SignatureValidator.SignatureType.ZX1271) {
+        } else if (_sigType == SignatureType.ZX1271) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, ECDSA.toEthSignedMessageHash(_digest));
             return abi.encodePacked(r, s, v, uint8(_sigType));
         } else {
