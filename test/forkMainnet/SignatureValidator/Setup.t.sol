@@ -21,9 +21,4 @@ contract NonStandard1271Wallet is IERC1271Wallet {
         ECDSA.recover(_hash, _signature);
         return WRONG_MAGIC;
     }
-
-    function isValidSignature(bytes calldata _data, bytes calldata _signature) external view override returns (bytes4 magicValue) {
-        ECDSA.recover(keccak256(_data), _signature);
-        return WRONG_MAGIC;
-    }
 }

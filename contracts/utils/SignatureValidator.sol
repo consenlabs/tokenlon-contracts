@@ -4,14 +4,6 @@ pragma solidity 0.7.6;
 import "../interfaces/IERC1271Wallet.sol";
 import "./LibBytes.sol";
 
-interface IWallet {
-    /// @dev Verifies that a signature is valid.
-    /// @param hash Message hash that is signed.
-    /// @param signature Proof of signing.
-    /// @return isValid Validity of order signature.
-    function isValidSignature(bytes32 hash, bytes memory signature) external view returns (bool isValid);
-}
-
 /**
  * @dev Contains logic for signature validation.
  * Signatures from wallet contracts assume ERC-1271 support (https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1271.md)

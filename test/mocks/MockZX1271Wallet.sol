@@ -13,11 +13,6 @@ contract MockZX1271Wallet is IERC1271Wallet {
         operator = _operator;
     }
 
-    function isValidSignature(bytes calldata _data, bytes calldata _signature) external view override returns (bytes4 magicValue) {
-        require(operator == ECDSA.recover(keccak256(_data), _signature), "MockERC1271Wallet: invalid signature");
-        return ZX1271_MAGICVALUE;
-    }
-
     function isValidSignature(bytes32 _hash, bytes calldata _signature) external view override returns (bytes4 magicValue) {
         require(operator == ECDSA.recover(_hash, _signature), "MockZX1271Wallet: invalid signature");
         return ZX1271_MAGICVALUE;
