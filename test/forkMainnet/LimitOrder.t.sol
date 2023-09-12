@@ -684,7 +684,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.taker = address(mockERC1271Wallet);
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureType.Standard1271);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureType.EIP1271);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.executor = address(mockERC1271Wallet);

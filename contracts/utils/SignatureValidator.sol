@@ -17,7 +17,7 @@ enum SignatureType {
     EIP712, // 0x02 standard EIP-712 signature
     EthSign, // 0x03 signed using web3.eth_sign() or Ethers wallet.signMessage()
     WalletBytes, // 0x04 DEPRECATED, never used
-    Standard1271, // 0x05 standard EIP-1271 wallet type
+    EIP1271, // 0x05 standard EIP-1271 wallet type
     ZX1271 // 0x06 zero ex non-standard 1271 version
 }
 
@@ -76,7 +76,7 @@ function validateSignature(
         uint8 v = uint8(_sig[64]);
         address recovered = ECDSA.recover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _hash)), v, r, s);
         return _signerAddress == recovered;
-    } else if (signatureType == SignatureType.Standard1271) {
+    } else if (signatureType == SignatureType.EIP1271) {
         return ERC1271_MAGICVALUE == IERC1271Wallet(_signerAddress).isValidSignature(_hash, _sig);
     } else if (signatureType == SignatureType.ZX1271) {
         return ZX1271_MAGICVALUE == IERC1271Wallet(_signerAddress).isValidSignature(_hash, _sig);

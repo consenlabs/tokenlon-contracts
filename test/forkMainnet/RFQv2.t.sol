@@ -233,7 +233,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         offer.feeFactor = 0;
         RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient) });
 
-        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureType.Standard1271);
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureType.EIP1271);
         bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureType.EIP712);
 
         address[] memory tokenAddresses = new address[](1);
@@ -510,7 +510,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         bytes32 _digest,
         SignatureType _sigType
     ) internal pure returns (bytes memory) {
-        if (_sigType == SignatureType.EIP712 || _sigType == SignatureType.WalletBytes || _sigType == SignatureType.Standard1271) {
+        if (_sigType == SignatureType.EIP712 || _sigType == SignatureType.WalletBytes || _sigType == SignatureType.EIP1271) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, _digest);
             return abi.encodePacked(r, s, v, uint8(_sigType));
         } else if (_sigType == SignatureType.ZX1271) {

@@ -7,7 +7,7 @@ import { validateSignature, SignatureType } from "contracts/utils/SignatureValid
 import { MockERC1271Wallet } from "test/mocks/MockERC1271Wallet.sol";
 
 contract TestWalletBytes32 is TestSignatureValidator {
-    uint8 public constant sigType = uint8(SignatureType.Standard1271);
+    uint8 public constant sigType = uint8(SignatureType.EIP1271);
 
     uint256 walletAdminPrivateKey = 5678;
     MockERC1271Wallet mockERC1271Wallet;
