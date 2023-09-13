@@ -34,27 +34,19 @@ function validateSignature(
     bytes32 _hash,
     bytes memory _sig
 ) view returns (bool isValid) {
-    require(_sig.length > 0, "SignatureValidator: length greater than 0 required");
-    require(_signerAddress != address(0), "SignatureValidator: invalid signer");
+    require(_sig.length > 0, "length greater than 0 required");
+    require(_signerAddress != address(0), "invalid signer");
 
     // Pop last byte off of signature byte array.
     uint8 signatureTypeRaw = uint8(LibBytes.popLastByte(_sig));
 
     // Ensure signature is supported
-    require(signatureTypeRaw <= uint8(SignatureType.ZX1271), "SignatureValidator: unsupported signature");
+    require(signatureTypeRaw <= uint8(SignatureType.ZX1271), "unsupported signature type");
 
     // Extract signature type
     SignatureType signatureType = SignatureType(signatureTypeRaw);
 
-    if (signatureType == SignatureType.Illegal) {
-        // Always illegal signature.
-        // This is always an implicit option since a signer can create a
-        // signature array with invalid type or length. We may as well make
-        // it an explicit option. This aids testing and analysis. It is
-        // also the initialization value for the enum type.
-
-        revert("SignatureValidator#isValidSignature: illegal signature");
-    } else if (signatureType == SignatureType.EIP712) {
+    if (signatureType == SignatureType.EIP712) {
         // To be backward compatible with previous signature format which has an extra 32 bytes padded in the end, here we just extract the (r,s,v) from the signature and ignore the rest.
 
         bytes32 r = LibBytes.readBytes32(_sig, 0);
@@ -76,10 +68,10 @@ function validateSignature(
         return ZX1271_MAGICVALUE == IERC1271Wallet(_signerAddress).isValidSignature(_hash, _sig);
     }
 
-    // Anything else is illegal (We do not return false because
+    // Anything else is incorrect (We do not return false because
     // the signature may actually be valid, just not in a format
-    // that we currently support. In this case returning false
+    // that we currently handled. In this case returning false
     // may lead the caller to incorrectly believe that the
     // signature was invalid.)
-    revert("SignatureValidator: unsupported signature");
+    revert("incorrect signature type");
 }
