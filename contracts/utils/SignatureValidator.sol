@@ -55,10 +55,7 @@ function validateSignature(
 
         revert("SignatureValidator#isValidSignature: illegal signature");
     } else if (signatureType == SignatureType.EIP712) {
-        // In ealier version, an extra bytes32 is packed with (v,r,s) but the field was never used.
-        // So the _sig was in 97 bytes before.
-        // In order to support standard 65 bytes ECDSA signature and legacy format, still spliting _sig here
-        // instead of passing _sig directly to OZ ECDSA lib.
+        // To be backward compatible with previous signature format which has an extra 32 bytes padded in the end, here we just extract the (r,s,v) from the signature and ignore the rest.
 
         bytes32 r = LibBytes.readBytes32(_sig, 0);
         bytes32 s = LibBytes.readBytes32(_sig, 32);
@@ -66,10 +63,7 @@ function validateSignature(
         address recovered = ECDSA.recover(_hash, v, r, s);
         return _signerAddress == recovered;
     } else if (signatureType == SignatureType.EthSign) {
-        // In ealier version, an extra bytes32 is packed with (v,r,s) but the field was never used.
-        // So the _sig was in 97 bytes before.
-        // In order to support standard 65 bytes ECDSA signature and legacy format, still spliting _sig here
-        // instead of passing _sig directly to OZ ECDSA lib.
+        // To be backward compatible with previous signature format which has an extra 32 bytes padded in the end, here we just extract the (r,s,v) from the signature and ignore the rest.
 
         bytes32 r = LibBytes.readBytes32(_sig, 0);
         bytes32 s = LibBytes.readBytes32(_sig, 32);
