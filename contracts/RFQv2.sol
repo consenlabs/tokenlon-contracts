@@ -11,13 +11,13 @@ import { Asset } from "./utils/Asset.sol";
 import { Offer } from "./utils/Offer.sol";
 import { RFQOrder, getRFQOrderHash } from "./utils/RFQOrder.sol";
 import { LibConstant } from "./utils/LibConstant.sol";
-import { SignatureValidator } from "./utils/SignatureValidator.sol";
+import { validateSignature } from "./utils/SignatureValidator.sol";
 import { StrategyBase } from "./utils/StrategyBase.sol";
 import { IRFQv2 } from "./interfaces/IRFQv2.sol";
 
 /// @title RFQv2 Contract
 /// @author imToken Labs
-contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, BaseLibEIP712 {
+contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, BaseLibEIP712 {
     using SafeMath for uint256;
     using Asset for address;
 
@@ -72,11 +72,11 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
         permStorage.setRFQOfferFilled(offerHash);
 
         // check maker signature
-        require(isValidSignature(_offer.maker, getEIP712Hash(offerHash), bytes(""), makerSignature), "invalid signature");
+        require(validateSignature(_offer.maker, getEIP712Hash(offerHash), makerSignature), "invalid signature");
 
         // check taker signature if needed
         if (_offer.taker != msg.sender) {
-            require(isValidSignature(_offer.taker, getEIP712Hash(rfqOrderHash), bytes(""), takerSignature), "invalid signature");
+            require(validateSignature(_offer.taker, getEIP712Hash(rfqOrderHash), takerSignature), "invalid signature");
         }
 
         // transfer takerToken to maker

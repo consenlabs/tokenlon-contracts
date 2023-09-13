@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "contracts/LimitOrder.sol";
 import "contracts/interfaces/ILimitOrder.sol";
-import "contracts/utils/SignatureValidator.sol";
+import { SignatureType } from "contracts/utils/SignatureValidator.sol";
 import "contracts/utils/LimitOrderLibEIP712.sol";
 import "contracts/utils/LibConstant.sol";
 
@@ -91,7 +91,7 @@ contract LimitOrderTest is StrategySharedSetup {
             DEADLINE // expiry
         );
         DEFAULT_ORDER_HASH = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(DEFAULT_ORDER));
-        DEFAULT_ORDER_MAKER_SIG = _signOrder(makerPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
+        DEFAULT_ORDER_MAKER_SIG = _signOrder(makerPrivateKey, DEFAULT_ORDER, SignatureType.EIP712);
         DEFAULT_FILL = LimitOrderLibEIP712.Fill(DEFAULT_ORDER_HASH, user, receiver, DEFAULT_ORDER.takerTokenAmount, uint256(1002), DEADLINE);
         DEFAULT_TRADER_PARAMS = ILimitOrder.TraderParams(
             user, // taker
@@ -99,7 +99,7 @@ contract LimitOrderTest is StrategySharedSetup {
             DEFAULT_FILL.takerTokenAmount, // takerTokenAmount
             DEFAULT_FILL.takerSalt, // salt
             DEADLINE, // expiry
-            _signFill(userPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712) // takerSig
+            _signFill(userPrivateKey, DEFAULT_FILL, SignatureType.EIP712) // takerSig
         );
         DEFAULT_PROTOCOL_PARAMS = ILimitOrder.ProtocolParams(
             ILimitOrder.Protocol.UniswapV3, // protocol
@@ -117,7 +117,7 @@ contract LimitOrderTest is StrategySharedSetup {
             DEADLINE // expiry
         );
         DEFAULT_CRD_PARAMS = ILimitOrder.CoordinatorParams(
-            _signAllowFill(coordinatorPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712),
+            _signAllowFill(coordinatorPrivateKey, DEFAULT_ALLOW_FILL, SignatureType.EIP712),
             DEFAULT_ALLOW_FILL.salt,
             DEFAULT_ALLOW_FILL.expiry
         );
@@ -389,14 +389,14 @@ contract LimitOrderTest is StrategySharedSetup {
         fill.takerSalt = uint256(8001);
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureType.EIP712);
         traderParams.salt = fill.takerSalt;
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.salt = uint256(8002);
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
         crdParams.salt = allowFill.salt;
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
@@ -410,19 +410,19 @@ contract LimitOrderTest is StrategySharedSetup {
         order.expiry = uint64(block.timestamp - 1);
 
         bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Order is expired");
@@ -431,7 +431,7 @@ contract LimitOrderTest is StrategySharedSetup {
     }
 
     function testCannotFillByTraderWithWrongMakerSig() public {
-        bytes memory wrongMakerSig = _signOrder(userPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
+        bytes memory wrongMakerSig = _signOrder(userPrivateKey, DEFAULT_ORDER, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, wrongMakerSig, DEFAULT_TRADER_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Order is not signed by maker");
@@ -441,7 +441,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
     function testCannotFillByTraderWithWrongTakerSig() public {
         ILimitOrder.TraderParams memory wrongTraderParams = DEFAULT_TRADER_PARAMS;
-        wrongTraderParams.takerSig = _signFill(makerPrivateKey, DEFAULT_FILL, SignatureValidator.SignatureType.EIP712);
+        wrongTraderParams.takerSig = _signFill(makerPrivateKey, DEFAULT_FILL, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, wrongTraderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Fill is not signed by taker");
@@ -454,20 +454,20 @@ contract LimitOrderTest is StrategySharedSetup {
         // order specify taker address
         order.taker = coordinator;
         bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         // user try to fill this order
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Order cannot be filled by this taker");
@@ -480,7 +480,7 @@ contract LimitOrderTest is StrategySharedSetup {
         fill.expiry = uint64(block.timestamp - 1);
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureType.EIP712);
         traderParams.expiry = fill.expiry;
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
@@ -500,7 +500,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.salt = uint256(9001);
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
         crdParams.salt = allowFill.salt;
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
@@ -518,7 +518,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.fillAmount = traderParams.takerTokenAmount;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.expectRevert("LimitOrder: Fill is not signed by taker");
@@ -541,7 +541,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.expiry = uint64(block.timestamp - 1);
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
         crdParams.expiry = allowFill.expiry;
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
@@ -556,7 +556,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.orderHash = bytes32(0);
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
@@ -570,7 +570,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.executor = maker;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         // Fill order using user (not executor)
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
@@ -585,7 +585,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.fillAmount = DEFAULT_ALLOW_FILL.fillAmount.div(2);
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
@@ -596,7 +596,7 @@ contract LimitOrderTest is StrategySharedSetup {
     function testCannotFillByTraderWithAllowFillNotSignedByCoordinator() public {
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         // Sign allow fill using user's private key
-        crdParams.sig = _signAllowFill(userPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(userPrivateKey, DEFAULT_ALLOW_FILL, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, DEFAULT_TRADER_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: AllowFill is not signed by coordinator");
@@ -614,7 +614,7 @@ contract LimitOrderTest is StrategySharedSetup {
         fill.takerSalt = uint256(8001);
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureType.EIP712);
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, DEFAULT_CRD_PARAMS);
         vm.expectRevert("PermanentStorage: allow fill seen before");
@@ -684,13 +684,13 @@ contract LimitOrderTest is StrategySharedSetup {
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.taker = address(mockERC1271Wallet);
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.WalletBytes32);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureType.EIP1271);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.executor = address(mockERC1271Wallet);
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.prank(user, user); // Only EOA
@@ -702,19 +702,19 @@ contract LimitOrderTest is StrategySharedSetup {
         // order specify taker address
         order.taker = user;
         bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
         vm.prank(user, user); // Only EOA
@@ -726,19 +726,19 @@ contract LimitOrderTest is StrategySharedSetup {
         // order specify taker address
         order.taker = user;
         bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerSig = _signOrderWithOldEIP712Method(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory orderMakerSig = _signOrderWithOldEIP712Method(makerPrivateKey, order, SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
-        traderParams.takerSig = _signFillWithOldEIP712Method(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFillWithOldEIP712Method(userPrivateKey, fill, SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFillWithOldEIP712Method(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFillWithOldEIP712Method(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(order, orderMakerSig, traderParams, crdParams);
         vm.prank(user, user); // Only EOA
@@ -757,13 +757,13 @@ contract LimitOrderTest is StrategySharedSetup {
 
         ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
         traderParams.takerTokenAmount = fill.takerTokenAmount;
-        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.fillAmount = fill.takerTokenAmount;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.prank(user, user); // Only EOA
@@ -787,13 +787,13 @@ contract LimitOrderTest is StrategySharedSetup {
         fill1.takerTokenAmount = 9 * 1e6;
         ILimitOrder.TraderParams memory traderParams1 = DEFAULT_TRADER_PARAMS;
         traderParams1.takerTokenAmount = fill1.takerTokenAmount;
-        traderParams1.takerSig = _signFill(userPrivateKey, fill1, SignatureValidator.SignatureType.EIP712);
+        traderParams1.takerSig = _signFill(userPrivateKey, fill1, SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill1 = DEFAULT_ALLOW_FILL;
         allowFill1.fillAmount = fill1.takerTokenAmount;
 
         ILimitOrder.CoordinatorParams memory crdParams1 = DEFAULT_CRD_PARAMS;
-        crdParams1.sig = _signAllowFill(coordinatorPrivateKey, allowFill1, SignatureValidator.SignatureType.EIP712);
+        crdParams1.sig = _signAllowFill(coordinatorPrivateKey, allowFill1, SignatureType.EIP712);
 
         bytes memory payload1 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams1, crdParams1);
         vm.prank(user, user); // Only EOA
@@ -805,13 +805,13 @@ contract LimitOrderTest is StrategySharedSetup {
 
         ILimitOrder.TraderParams memory traderParams2 = DEFAULT_TRADER_PARAMS;
         traderParams2.takerTokenAmount = fill2.takerTokenAmount;
-        traderParams2.takerSig = _signFill(userPrivateKey, fill2, SignatureValidator.SignatureType.EIP712);
+        traderParams2.takerSig = _signFill(userPrivateKey, fill2, SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill2 = DEFAULT_ALLOW_FILL;
         allowFill2.fillAmount = fill2.takerTokenAmount;
 
         ILimitOrder.CoordinatorParams memory crdParams2 = DEFAULT_CRD_PARAMS;
-        crdParams2.sig = _signAllowFill(coordinatorPrivateKey, allowFill2, SignatureValidator.SignatureType.EIP712);
+        crdParams2.sig = _signAllowFill(coordinatorPrivateKey, allowFill2, SignatureType.EIP712);
 
         bytes memory payload2 = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams2, crdParams2);
         vm.prank(user, user); // Only EOA
@@ -878,7 +878,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.salt = uint256(8002);
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
         crdParams.salt = allowFill.salt;
 
         vm.startPrank(user, user);
@@ -893,7 +893,7 @@ contract LimitOrderTest is StrategySharedSetup {
         order.expiry = uint64(block.timestamp - 1);
 
         bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureType.EIP712);
 
         LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
         fill.orderHash = orderHash;
@@ -902,7 +902,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.orderHash = orderHash;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         bytes memory payload = _genFillByProtocolPayload(order, orderMakerSig, DEFAULT_PROTOCOL_PARAMS, crdParams);
         vm.expectRevert("LimitOrder: Order is expired");
@@ -911,7 +911,7 @@ contract LimitOrderTest is StrategySharedSetup {
     }
 
     function testCannotFillByProtocolWithWrongMakerSig() public {
-        bytes memory wrongMakerSig = _signOrder(userPrivateKey, DEFAULT_ORDER, SignatureValidator.SignatureType.EIP712);
+        bytes memory wrongMakerSig = _signOrder(userPrivateKey, DEFAULT_ORDER, SignatureType.EIP712);
 
         bytes memory payload = _genFillByProtocolPayload(DEFAULT_ORDER, wrongMakerSig, DEFAULT_PROTOCOL_PARAMS, DEFAULT_CRD_PARAMS);
         vm.expectRevert("LimitOrder: Order is not signed by maker");
@@ -924,13 +924,13 @@ contract LimitOrderTest is StrategySharedSetup {
         // order specify taker address
         order.taker = SUSHISWAP_ADDRESS;
         bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(order, orderMakerSig, DEFAULT_PROTOCOL_PARAMS, crdParams);
@@ -957,13 +957,13 @@ contract LimitOrderTest is StrategySharedSetup {
         order.takerTokenAmount = 9000 * 1e6;
 
         bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory orderMakerSig = _signOrder(makerPrivateKey, order, SignatureType.EIP712);
 
         LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
         allowFill.orderHash = orderHash;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         vm.startPrank(user, user);
         bytes memory payload = _genFillByProtocolPayload(order, orderMakerSig, DEFAULT_PROTOCOL_PARAMS, crdParams);
@@ -978,7 +978,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.executor = maker;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         // Fill order using user (not executor)
         vm.startPrank(user, user);
@@ -994,7 +994,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.orderHash = bytes32(0);
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         // Allow fill is bound by tx.origin in protocol case.
         vm.startPrank(user, user);
@@ -1010,7 +1010,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.executor = maker;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         // Fill order using user (not executor)
         vm.startPrank(user, user);
@@ -1026,7 +1026,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.fillAmount = DEFAULT_ALLOW_FILL.fillAmount.div(2);
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         // Allow fill is bound by tx.origin in protocol case.
         vm.startPrank(user, user);
@@ -1039,7 +1039,7 @@ contract LimitOrderTest is StrategySharedSetup {
     function testCannotFillByProtocolWithAllowFillNotSignedByCoordinator() public {
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
         // Sign allow fill using user's private key
-        crdParams.sig = _signAllowFill(userPrivateKey, DEFAULT_ALLOW_FILL, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(userPrivateKey, DEFAULT_ALLOW_FILL, SignatureType.EIP712);
 
         vm.startPrank(user, user);
 
@@ -1137,7 +1137,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerTokenAmount = 1 * 1e6;
         bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
-        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory makerSig = _signOrder(makerPrivateKey, order, SignatureType.EIP712);
 
         // update protocolParams
         ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
@@ -1152,7 +1152,7 @@ contract LimitOrderTest is StrategySharedSetup {
 
         // update crdParams
         ILimitOrder.CoordinatorParams memory crdParams = ILimitOrder.CoordinatorParams(
-            _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712),
+            _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712),
             allowFill.salt,
             allowFill.expiry
         );
@@ -1209,7 +1209,7 @@ contract LimitOrderTest is StrategySharedSetup {
         uint256 profit = amountOuts[amountOuts.length - 1].sub(order.takerTokenAmount);
 
         bytes32 orderHash = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), LimitOrderLibEIP712._getOrderStructHash(order));
-        bytes memory orderMakerHash = _signOrder(makerPrivateKey, order, SignatureValidator.SignatureType.EIP712);
+        bytes memory orderMakerHash = _signOrder(makerPrivateKey, order, SignatureType.EIP712);
 
         ILimitOrder.ProtocolParams memory protocolParams = DEFAULT_PROTOCOL_PARAMS;
         protocolParams.protocol = ILimitOrder.Protocol.Sushiswap;
@@ -1221,7 +1221,7 @@ contract LimitOrderTest is StrategySharedSetup {
         allowFill.fillAmount = protocolParams.takerTokenAmount;
 
         ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
-        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureType.EIP712);
 
         // Allow fill is bound by tx.origin in protocol case.
         vm.startPrank(user, user);
@@ -1243,10 +1243,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.takerTokenAmount = 0;
 
-        bytes memory cancelPayload = _genCancelLimitOrderPayload(
-            DEFAULT_ORDER,
-            _signOrder(makerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712)
-        );
+        bytes memory cancelPayload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(makerPrivateKey, zeroOrder, SignatureType.EIP712));
         vm.prank(user, user); // Only EOA
         userProxy.toLimitOrder(cancelPayload);
 
@@ -1260,7 +1257,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.takerTokenAmount = 0;
 
-        bytes memory cancelPayload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
+        bytes memory cancelPayload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(userPrivateKey, zeroOrder, SignatureType.EIP712));
         vm.expectRevert("LimitOrder: Cancel request is not signed by maker");
         vm.prank(user, user); // Only EOA
         userProxy.toLimitOrder(cancelPayload);
@@ -1270,7 +1267,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory expiredOrder = DEFAULT_ORDER;
         expiredOrder.expiry = 0;
 
-        bytes memory payload = _genCancelLimitOrderPayload(expiredOrder, _signOrder(userPrivateKey, expiredOrder, SignatureValidator.SignatureType.EIP712));
+        bytes memory payload = _genCancelLimitOrderPayload(expiredOrder, _signOrder(userPrivateKey, expiredOrder, SignatureType.EIP712));
         vm.expectRevert("LimitOrder: Order is expired");
         vm.prank(user, user); // Only EOA
         userProxy.toLimitOrder(payload);
@@ -1280,7 +1277,7 @@ contract LimitOrderTest is StrategySharedSetup {
         LimitOrderLibEIP712.Order memory zeroOrder = DEFAULT_ORDER;
         zeroOrder.takerTokenAmount = 0;
 
-        bytes memory payload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(makerPrivateKey, zeroOrder, SignatureValidator.SignatureType.EIP712));
+        bytes memory payload = _genCancelLimitOrderPayload(DEFAULT_ORDER, _signOrder(makerPrivateKey, zeroOrder, SignatureType.EIP712));
         vm.prank(user, user); // Only EOA
         userProxy.toLimitOrder(payload);
         vm.expectRevert("LimitOrder: Order is cancelled already");
@@ -1379,15 +1376,15 @@ contract LimitOrderTest is StrategySharedSetup {
     function _signOrder(
         uint256 privateKey,
         LimitOrderLibEIP712.Order memory order,
-        SignatureValidator.SignatureType sigType
+        SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = LimitOrderLibEIP712._getOrderStructHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
-        if (sigType == SignatureValidator.SignatureType.EIP712) {
+        if (sigType == SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
             sig = abi.encodePacked(r, s, v, uint8(sigType));
-        } else if (sigType == SignatureValidator.SignatureType.Wallet) {
+        } else if (sigType == SignatureType.ZX1271) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
             sig = abi.encodePacked(v, r, s, uint8(sigType));
         } else {
@@ -1398,11 +1395,11 @@ contract LimitOrderTest is StrategySharedSetup {
     function _signOrderWithOldEIP712Method(
         uint256 privateKey,
         LimitOrderLibEIP712.Order memory order,
-        SignatureValidator.SignatureType sigType
+        SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = LimitOrderLibEIP712._getOrderStructHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), orderHash);
-        require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
+        require(sigType == SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
@@ -1410,7 +1407,7 @@ contract LimitOrderTest is StrategySharedSetup {
     function _signFill(
         uint256 privateKey,
         LimitOrderLibEIP712.Fill memory fill,
-        SignatureValidator.SignatureType sigType
+        SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 fillHash = LimitOrderLibEIP712._getFillStructHash(fill);
         bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), fillHash);
@@ -1421,11 +1418,11 @@ contract LimitOrderTest is StrategySharedSetup {
     function _signFillWithOldEIP712Method(
         uint256 privateKey,
         LimitOrderLibEIP712.Fill memory fill,
-        SignatureValidator.SignatureType sigType
+        SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 fillHash = LimitOrderLibEIP712._getFillStructHash(fill);
         bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), fillHash);
-        require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
+        require(sigType == SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
@@ -1433,7 +1430,7 @@ contract LimitOrderTest is StrategySharedSetup {
     function _signAllowFill(
         uint256 privateKey,
         LimitOrderLibEIP712.AllowFill memory allowFill,
-        SignatureValidator.SignatureType sigType
+        SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 allowFillHash = LimitOrderLibEIP712._getAllowFillStructHash(allowFill);
         bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
@@ -1444,11 +1441,11 @@ contract LimitOrderTest is StrategySharedSetup {
     function _signAllowFillWithOldEIP712Method(
         uint256 privateKey,
         LimitOrderLibEIP712.AllowFill memory allowFill,
-        SignatureValidator.SignatureType sigType
+        SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 allowFillHash = LimitOrderLibEIP712._getAllowFillStructHash(allowFill);
         bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), allowFillHash);
-        require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
+        require(sigType == SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }

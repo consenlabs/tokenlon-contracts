@@ -12,12 +12,12 @@ import "./interfaces/IRFQ.sol";
 import "./utils/StrategyBase.sol";
 import "./utils/RFQLibEIP712.sol";
 import "./utils/BaseLibEIP712.sol";
-import "./utils/SignatureValidator.sol";
+import { validateSignature } from "./utils/SignatureValidator.sol";
 import "./utils/LibConstant.sol";
 
 /// @title RFQ Contract
 /// @author imToken Labs
-contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLibEIP712 {
+contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, BaseLibEIP712 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using Address for address;
@@ -83,9 +83,9 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
 
         // Validate signatures
         vars.orderHash = RFQLibEIP712._getOrderHash(_order);
-        require(isValidSignature(_order.makerAddr, getEIP712Hash(vars.orderHash), bytes(""), _mmSignature), "RFQ: invalid MM signature");
+        require(validateSignature(_order.makerAddr, getEIP712Hash(vars.orderHash), _mmSignature), "RFQ: invalid MM signature");
         vars.transactionHash = RFQLibEIP712._getTransactionHash(_order);
-        require(isValidSignature(_order.takerAddr, getEIP712Hash(vars.transactionHash), bytes(""), _userSignature), "RFQ: invalid user signature");
+        require(validateSignature(_order.takerAddr, getEIP712Hash(vars.transactionHash), _userSignature), "RFQ: invalid user signature");
 
         // Set transaction as seen, PermanentStorage would throw error if transaction already seen.
         permStorage.setRFQTransactionSeen(vars.transactionHash);

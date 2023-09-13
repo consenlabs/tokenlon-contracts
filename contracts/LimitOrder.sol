@@ -19,11 +19,11 @@ import "./utils/LibUniswapV2.sol";
 import "./utils/LibUniswapV3.sol";
 import "./utils/LibOrderStorage.sol";
 import "./utils/LimitOrderLibEIP712.sol";
-import "./utils/SignatureValidator.sol";
+import { validateSignature } from "./utils/SignatureValidator.sol";
 
 /// @title LimitOrder Contract
 /// @author imToken Labs
-contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValidator, ReentrancyGuard {
+contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -173,7 +173,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         require(_fill.recipient != address(0), "LimitOrder: recipient can not be zero address");
 
         bytes32 fillHash = getEIP712Hash(LimitOrderLibEIP712._getFillStructHash(_fill));
-        require(isValidSignature(_fill.taker, fillHash, bytes(""), _fillTakerSig), "LimitOrder: Fill is not signed by taker");
+        require(validateSignature(_fill.taker, fillHash, _fillTakerSig), "LimitOrder: Fill is not signed by taker");
 
         // Set fill seen to avoid replay attack.
         // PermanentStorage would throw error if fill is already seen.
@@ -199,7 +199,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
                 })
             )
         );
-        require(isValidSignature(coordinator, allowFillHash, bytes(""), _crdParams.sig), "LimitOrder: AllowFill is not signed by coordinator");
+        require(validateSignature(coordinator, allowFillHash, _crdParams.sig), "LimitOrder: AllowFill is not signed by coordinator");
 
         // Set allow fill seen to avoid replay attack
         // PermanentStorage would throw error if allow fill is already seen.
@@ -445,7 +445,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
             cancelledOrder.takerTokenAmount = 0;
 
             bytes32 cancelledOrderHash = getEIP712Hash(LimitOrderLibEIP712._getOrderStructHash(cancelledOrder));
-            require(isValidSignature(_order.maker, cancelledOrderHash, bytes(""), _cancelOrderMakerSig), "LimitOrder: Cancel request is not signed by maker");
+            require(validateSignature(_order.maker, cancelledOrderHash, _cancelOrderMakerSig), "LimitOrder: Cancel request is not signed by maker");
         }
 
         // Set cancelled state to storage
@@ -464,7 +464,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         bool isCancelled = LibOrderStorage.getStorage().orderHashToCancelled[_orderHash];
         require(!isCancelled, "LimitOrder: Order is cancelled");
 
-        require(isValidSignature(_order.maker, _orderHash, bytes(""), _orderMakerSig), "LimitOrder: Order is not signed by maker");
+        require(validateSignature(_order.maker, _orderHash, _orderMakerSig), "LimitOrder: Order is not signed by maker");
     }
 
     function _validateOrderTaker(LimitOrderLibEIP712.Order memory _order, address _taker) internal pure {

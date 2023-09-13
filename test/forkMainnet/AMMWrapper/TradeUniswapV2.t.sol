@@ -3,6 +3,7 @@ pragma solidity 0.7.6;
 
 import "test/forkMainnet/AMMWrapper/Setup.t.sol";
 import "test/utils/BalanceSnapshot.sol";
+import { SignatureType } from "contracts/utils/SignatureValidator.sol";
 
 contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
@@ -109,6 +110,6 @@ contract TestAMMWrapperTradeUniswapV2 is TestAMMWrapper {
         bytes32 orderHash = AMMLibEIP712._getOrderHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(ammWrapper.EIP712_DOMAIN_SEPARATOR(), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
-        sig = abi.encodePacked(r, s, v, bytes32(0), uint8(SignatureValidator.SignatureType.EIP712));
+        sig = abi.encodePacked(r, s, v, bytes32(0), uint8(SignatureType.EIP712));
     }
 }

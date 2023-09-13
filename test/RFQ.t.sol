@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "contracts/MarketMakerProxy.sol";
 import "contracts/RFQ.sol";
-import "contracts/utils/SignatureValidator.sol";
+import { SignatureType } from "contracts/utils/SignatureValidator.sol";
 import "test/mocks/MockERC1271Wallet.sol";
 import "test/utils/BalanceSnapshot.sol";
 import "test/utils/StrategySharedSetup.sol";
@@ -234,8 +234,8 @@ contract RFQTest is StrategySharedSetup {
     function testCannotFillWithExpiredOrder() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         order.deadline = block.timestamp - 1;
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
-        bytes memory userSig = _signFill({ privateKey: otherPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: otherPrivateKey, order: order, sigType: SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         vm.expectRevert("RFQ: expired order");
@@ -245,8 +245,8 @@ contract RFQTest is StrategySharedSetup {
 
     function testCannotFillWithInvalidUserSig() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
-        bytes memory userSig = _signFill({ privateKey: otherPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: otherPrivateKey, order: order, sigType: SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         vm.expectRevert("RFQ: invalid user signature");
@@ -256,9 +256,9 @@ contract RFQTest is StrategySharedSetup {
 
     function testCannotFillWithInvalidUserWallet() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureType.EIP712 });
         // Taker is an EOA but user signs a Wallet type fill
-        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureType.EIP1271 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         vm.expectRevert(); // No revert string in this case
@@ -268,8 +268,8 @@ contract RFQTest is StrategySharedSetup {
 
     function testCannotFillWithInvalidMakerSig() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder({ privateKey: otherPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
-        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory makerSig = _signOrder({ privateKey: otherPrivateKey, order: order, sigType: SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         vm.expectRevert("RFQ: invalid MM signature");
@@ -279,8 +279,8 @@ contract RFQTest is StrategySharedSetup {
 
     function testFillDAIToUSDT_EOAUserAndEOAMaker() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
-        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: order.takerAssetAddr });
@@ -299,8 +299,8 @@ contract RFQTest is StrategySharedSetup {
 
     function testFillDAIToUSDT_EOAUserAndEOAMaker_WithOldEIP712Method() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrderWithOldEIP712Method({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
-        bytes memory userSig = _signFillWithOldEIP712Method({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory makerSig = _signOrderWithOldEIP712Method({ privateKey: makerPrivateKey, order: order, sigType: SignatureType.EIP712 });
+        bytes memory userSig = _signFillWithOldEIP712Method({ privateKey: userPrivateKey, order: order, sigType: SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: order.takerAssetAddr });
@@ -322,8 +322,8 @@ contract RFQTest is StrategySharedSetup {
         order.takerAssetAddr = address(weth);
         order.takerAssetAmount = 1 ether;
         order.makerAddr = address(marketMakerProxy);
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
-        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureType.EIP1271 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: ETH_ADDRESS });
@@ -346,8 +346,8 @@ contract RFQTest is StrategySharedSetup {
         order.makerAddr = address(marketMakerProxy);
         order.makerAssetAddr = address(weth);
         order.makerAssetAmount = 1 ether;
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
-        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureType.EIP1271 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureType.EIP1271 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         BalanceSnapshot.Snapshot memory userWalletTakerAsset = BalanceSnapshot.take({ owner: address(mockERC1271Wallet), token: order.takerAssetAddr });
@@ -367,8 +367,8 @@ contract RFQTest is StrategySharedSetup {
     function testFillAccrueFeeToFeeCollector() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         order.feeFactor = 1000; // 10% fee
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
-        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: order.takerAssetAddr });
@@ -389,8 +389,8 @@ contract RFQTest is StrategySharedSetup {
 
     function testCannotFillWithSamePayloadAgain() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
-        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         vm.prank(user, user); // Only EOA
@@ -425,8 +425,8 @@ contract RFQTest is StrategySharedSetup {
 
     function testEmitSwappedEvent() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
-        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
-        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureType.EIP712 });
         bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
 
         _expectEvent(order);
@@ -495,18 +495,18 @@ contract RFQTest is StrategySharedSetup {
     function _signOrder(
         uint256 privateKey,
         RFQLibEIP712.Order memory order,
-        SignatureValidator.SignatureType sigType
+        SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = RFQLibEIP712._getOrderHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
-        if (sigType == SignatureValidator.SignatureType.EIP712) {
+        if (sigType == SignatureType.EIP712) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
             sig = abi.encodePacked(r, s, v, uint8(sigType));
-        } else if (sigType == SignatureValidator.SignatureType.Wallet) {
+        } else if (sigType == SignatureType.ZX1271) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ECDSA.toEthSignedMessageHash(EIP712SignDigest));
             sig = abi.encodePacked(r, s, v, uint8(sigType));
-        } else if (sigType == SignatureValidator.SignatureType.WalletBytes || sigType == SignatureValidator.SignatureType.WalletBytes32) {
+        } else if (sigType == SignatureType.WalletBytes || sigType == SignatureType.EIP1271) {
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
             sig = abi.encodePacked(r, s, v, uint8(sigType));
         } else {
@@ -517,12 +517,12 @@ contract RFQTest is StrategySharedSetup {
     function _signOrderWithOldEIP712Method(
         uint256 privateKey,
         RFQLibEIP712.Order memory order,
-        SignatureValidator.SignatureType sigType
+        SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 orderHash = RFQLibEIP712._getOrderHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
-        require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
+        require(sigType == SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
@@ -530,7 +530,7 @@ contract RFQTest is StrategySharedSetup {
     function _signFill(
         uint256 privateKey,
         RFQLibEIP712.Order memory order,
-        SignatureValidator.SignatureType sigType
+        SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), transactionHash);
@@ -541,12 +541,12 @@ contract RFQTest is StrategySharedSetup {
     function _signFillWithOldEIP712Method(
         uint256 privateKey,
         RFQLibEIP712.Order memory order,
-        SignatureValidator.SignatureType sigType
+        SignatureType sigType
     ) internal returns (bytes memory sig) {
         bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), transactionHash);
 
-        require(sigType == SignatureValidator.SignatureType.EIP712, "Invalid signature type");
+        require(sigType == SignatureType.EIP712, "Invalid signature type");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
