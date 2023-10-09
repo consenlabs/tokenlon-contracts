@@ -1,6 +1,6 @@
 # AMMWrapper
 
-The `AMMWrapper` contract is a portal for user to interact with multiple AMM protocols. A user can specify any pair in any size with a suppported AMM protocol address as an order and submit it to Tokenlon. The first step is transferring tokens from user in order to swap with AMM. After the swap, the result is then compared with the original order. If the result does not meet the requirement specified in the order, then the transaction is reverted. The `AMMWrapperWithPath` is a newer version of `AMMWrapper` which allows user to speicfy swapping path.
+The `AMMWrapper` contract is a portal for user to interact with multiple AMM protocols. A user can specify any pair in any size with a supported AMM protocol address as an order and submit it to Tokenlon. The first step is transferring tokens from user in order to swap with AMM. After the swap, the result is then compared with the original order. If the result does not meet the requirement specified in the order, then the transaction is reverted. The `AMMWrapperWithPath` is a newer version of `AMMWrapper` which allows user to specify swapping path.
 
 Currently `AMMWrapperWithPath` supports following AMM protocols:
 
