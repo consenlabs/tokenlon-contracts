@@ -27,7 +27,6 @@ contract Tokens is Addresses {
             dai = new MockERC20("DAI", "DAI", 18);
             wbtc = new MockERC20("WBTC", "WBTC", 18);
             lon = new MockERC20("LON", "LON", 18);
-            ankreth = new MockERC20("ANKRETH", "ANKRETH", 18);
         } else {
             // forked mainnet, load ERC20s using constant address
             weth = IERC20(WETH_ADDRESS);
@@ -36,10 +35,9 @@ contract Tokens is Addresses {
             dai = IERC20(DAI_ADDRESS);
             wbtc = IERC20(WBTC_ADDRESS);
             lon = IERC20(LON_ADDRESS);
-            ankreth = IERC20(ANKRETH_ADDRESS);
         }
 
-        tokens = [weth, usdt, usdc, dai, wbtc, lon, ankreth];
+        tokens = [weth, usdt, usdc, dai, wbtc, lon];
 
         vm.label(address(weth), "WETH");
         vm.label(address(usdt), "USDT");
