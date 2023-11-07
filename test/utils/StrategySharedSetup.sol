@@ -17,6 +17,8 @@ import { RegisterCurveIndexes } from "test/utils/RegisterCurveIndexes.sol";
 contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
     using SafeERC20 for IERC20;
 
+    address constant zxProxy = 0x95E6F48254609A6ee006F7D493c8e5fB97094ceF;
+
     string private constant filePath = "test/utils/config/deployedContracts.json";
 
     address tokenlonOperator = makeAddr("tokenlonOperator");
@@ -89,6 +91,7 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
             spender.authorize(authListAddress);
             vm.stopPrank();
         }
+
         vm.startPrank(tokenlonOperator, tokenlonOperator);
         permanentStorage.setPermission(permanentStorage.relayerValidStorageId(), tokenlonOperator, true);
         permanentStorage.setPermission(permanentStorage.curveTokenIndexStorageId(), tokenlonOperator, true);
@@ -122,6 +125,7 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
         for (uint256 i = 0; i < tokens.length; i++) {
             setERC20Balance(address(tokens[i]), eoa, amount);
             tokens[i].safeApprove(address(allowanceTarget), type(uint256).max);
+            tokens[i].safeApprove(zxProxy, type(uint256).max);
         }
         vm.stopPrank();
     }
