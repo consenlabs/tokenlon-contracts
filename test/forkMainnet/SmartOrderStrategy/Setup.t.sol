@@ -16,8 +16,9 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
     uint256 defaultExpiry = block.timestamp + 100;
     bytes defaultOpsData;
     address[] defaultUniV2Path = [USDC_ADDRESS, WETH_ADDRESS];
-    address[] tokenList = [USDT_ADDRESS, USDC_ADDRESS, cUSDC_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
-    address[] ammList = [UNISWAP_V2_ADDRESS, SUSHISWAP_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS, CURVE_TRICRYPTO2_POOL_ADDRESS];
+    address[] tokenList = [USDT_ADDRESS, USDC_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
+    address[] ammList = [UNISWAP_V2_ADDRESS, SUSHISWAP_ADDRESS, CURVE_TRICRYPTO2_POOL_ADDRESS];
+
     SmartOrderStrategy smartOrderStrategy;
 
     function setUp() public virtual {
