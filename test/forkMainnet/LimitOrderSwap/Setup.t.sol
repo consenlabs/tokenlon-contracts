@@ -62,7 +62,7 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelp
         allowanceTarget = new AllowanceTarget(allowanceTargetOwner, trusted);
 
         limitOrderSwap = new LimitOrderSwap(limitOrderOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS), feeCollector);
-        mockLimitOrderTaker = new MockLimitOrderTaker(walletOwner, UNISWAP_V2_ADDRESS);
+        mockLimitOrderTaker = new MockLimitOrderTaker(walletOwner, UNISWAP_SWAP_ROUTER_02_ADDRESS);
 
         deal(maker, 100 ether);
         setTokenBalanceAndApprove(maker, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
@@ -76,7 +76,7 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelp
         tokenList[0] = DAI_ADDRESS;
         tokenList[1] = USDT_ADDRESS;
         vm.startPrank(walletOwner);
-        mockLimitOrderTaker.setAllowance(tokenList, UNISWAP_V2_ADDRESS);
+        mockLimitOrderTaker.setAllowance(tokenList, UNISWAP_SWAP_ROUTER_02_ADDRESS);
         vm.stopPrank();
 
         defaultOrder = LimitOrder({

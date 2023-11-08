@@ -1,29 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { IUniswapRouterV2 } from "contracts//interfaces/IUniswapRouterV2.sol";
 import { IUniAgent } from "contracts/interfaces/IUniAgent.sol";
+import { IUniswapV2Router } from "contracts/interfaces/IUniswapV2Router.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
+import { UniswapV2Library } from "test/utils/UniswapV2Library.sol";
 import { UniAgentTest } from "test/forkMainnet/UniAgent/Setup.t.sol";
 
 contract V2Test is UniAgentTest {
     using BalanceSnapshot for Snapshot;
 
-    IUniswapRouterV2 v2Router;
     uint256 defaultOutputAmount;
     bytes defaultRouterPayload;
 
     function setUp() public override {
         super.setUp();
 
-        v2Router = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
-        uint256[] memory amounts = v2Router.getAmountsOut(defaultInputAmount, defaultPath);
+        uint256[] memory amounts = UniswapV2Library.getAmountsOut(defaultInputAmount, defaultPath);
         defaultOutputAmount = amounts[amounts.length - 1];
         uint256 minOutputAmount = (defaultOutputAmount * 95) / 100; // default 5% slippage tolerance
 
         defaultRouterPayload = abi.encodeCall(
-            IUniswapRouterV2.swapExactTokensForTokens,
+            IUniswapV2Router.swapExactTokensForTokens,
             (defaultInputAmount, minOutputAmount, defaultPath, recipient, defaultExpiry)
         );
     }
@@ -52,10 +51,10 @@ contract V2Test is UniAgentTest {
         Snapshot memory userInputToken = BalanceSnapshot.take({ owner: user, token: inputToken });
         Snapshot memory recvOutputToken = BalanceSnapshot.take({ owner: recipient, token: path[1] });
 
-        uint256[] memory amounts = v2Router.getAmountsOut(defaultInputAmount, path);
+        uint256[] memory amounts = UniswapV2Library.getAmountsOut(defaultInputAmount, path);
         uint256 outputAmount = amounts[amounts.length - 1];
 
-        bytes memory payload = abi.encodeCall(IUniswapRouterV2.swapExactETHForTokens, (outputAmount, path, recipient, defaultExpiry));
+        bytes memory payload = abi.encodeCall(IUniswapV2Router.swapExactETHForTokens, (outputAmount, path, recipient, defaultExpiry));
 
         vm.prank(user);
         uniAgent.swap{ value: defaultInputAmount }(IUniAgent.RouterType.V2Router, inputToken, defaultInputAmount, payload, defaultUserPermit);
@@ -76,10 +75,10 @@ contract V2Test is UniAgentTest {
         Snapshot memory userInputToken = BalanceSnapshot.take({ owner: user, token: path[0] });
         Snapshot memory recvOutputToken = BalanceSnapshot.take({ owner: recipient, token: outputToken });
 
-        uint256[] memory amounts = v2Router.getAmountsOut(defaultInputAmount, path);
+        uint256[] memory amounts = UniswapV2Library.getAmountsOut(defaultInputAmount, path);
         uint256 outputAmount = amounts[amounts.length - 1];
 
-        bytes memory payload = abi.encodeCall(IUniswapRouterV2.swapExactTokensForETH, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
+        bytes memory payload = abi.encodeCall(IUniswapV2Router.swapExactTokensForETH, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
 
         vm.prank(user);
         uniAgent.swap(IUniAgent.RouterType.V2Router, path[0], defaultInputAmount, payload, defaultUserPermit);
@@ -99,10 +98,10 @@ contract V2Test is UniAgentTest {
         path[0] = inputToken;
         path[1] = defaultOutputToken;
 
-        uint256[] memory amounts = v2Router.getAmountsOut(defaultInputAmount, path);
+        uint256[] memory amounts = UniswapV2Library.getAmountsOut(defaultInputAmount, path);
         uint256 outputAmount = amounts[amounts.length - 1];
 
-        bytes memory payload = abi.encodeCall(IUniswapRouterV2.swapExactTokensForTokens, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
+        bytes memory payload = abi.encodeCall(IUniswapV2Router.swapExactTokensForTokens, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
         bytes memory userPermit = getTokenlonPermit2Data(user, userPrivateKey, inputToken, address(uniAgent));
 
         vm.prank(user);
@@ -130,10 +129,10 @@ contract V2Test is UniAgentTest {
         path[0] = inputToken;
         path[1] = defaultOutputToken;
 
-        uint256[] memory amounts = v2Router.getAmountsOut(defaultInputAmount, path);
+        uint256[] memory amounts = UniswapV2Library.getAmountsOut(defaultInputAmount, path);
         uint256 outputAmount = amounts[amounts.length - 1];
 
-        bytes memory payload = abi.encodeCall(IUniswapRouterV2.swapExactTokensForTokens, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
+        bytes memory payload = abi.encodeCall(IUniswapV2Router.swapExactTokensForTokens, (defaultInputAmount, outputAmount, path, recipient, defaultExpiry));
         bytes memory userPermit = getTokenlonPermit2Data(user, userPrivateKey, inputToken, address(uniAgent));
 
         // should still succeed even re-approve the token
