@@ -4,11 +4,11 @@ pragma solidity 0.8.17;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
+import { UniswapV2Library } from "test/utils/UniswapV2Library.sol";
 import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol";
 import { MockStrategy } from "test/mocks/MockStrategy.sol";
 
@@ -74,8 +74,7 @@ contract FillTest is LimitOrderSwapTest {
         uint256 fee = (order.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
         {
             // update order takerTokenAmount by AMM quote
-            IUniswapRouterV2 router = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
-            uint256[] memory amounts = router.getAmountsOut(defaultOrder.makerTokenAmount - fee, defaultAMMPath);
+            uint256[] memory amounts = UniswapV2Library.getAmountsOut(defaultOrder.makerTokenAmount - fee, defaultAMMPath);
             order.takerTokenAmount = amounts[amounts.length - 1];
         }
 
@@ -83,8 +82,8 @@ contract FillTest is LimitOrderSwapTest {
 
         bytes memory extraAction;
         {
-            bytes memory makerSpecificData = abi.encode(defaultExpiry, defaultAMMPath);
-            bytes memory strategyData = abi.encode(UNISWAP_V2_ADDRESS, makerSpecificData);
+            bytes memory makerSpecificData = abi.encode(defaultAMMPath);
+            bytes memory strategyData = abi.encode(UNISWAP_SWAP_ROUTER_02_ADDRESS, makerSpecificData);
             extraAction = abi.encode(address(mockLimitOrderTaker), strategyData);
         }
 

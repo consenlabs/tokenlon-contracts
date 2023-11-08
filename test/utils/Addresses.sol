@@ -17,9 +17,9 @@ contract Addresses is Test {
 
     address CURVE_TRICRYPTO2_POOL_ADDRESS = abi.decode(vm.parseJson(file, "$.CURVE_TRICRYPTO2_POOL_ADDRESS"), (address));
     address SUSHISWAP_ADDRESS = abi.decode(vm.parseJson(file, "$.SUSHISWAP_ADDRESS"), (address));
-    address UNISWAP_V2_ADDRESS = abi.decode(vm.parseJson(file, "$.UNISWAP_V2_ADDRESS"), (address));
     address UNISWAP_V3_QUOTER_ADDRESS = abi.decode(vm.parseJson(file, "$.UNISWAP_V3_QUOTER_ADDRESS"), (address));
     address UNISWAP_PERMIT2_ADDRESS = abi.decode(vm.parseJson(file, "$.UNISWAP_PERMIT2_ADDRESS"), (address));
+    address UNISWAP_SWAP_ROUTER_02_ADDRESS = abi.decode(vm.parseJson(file, "$.UNISWAP_SWAP_ROUTER_02_ADDRESS"), (address));
     address UNISWAP_UNIVERSAL_ROUTER_ADDRESS = abi.decode(vm.parseJson(file, "$.UNISWAP_UNIVERSAL_ROUTER_ADDRESS"), (address));
 
     function getChainId() internal view returns (uint256 chainId) {

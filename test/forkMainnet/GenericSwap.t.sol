@@ -12,11 +12,14 @@ import { MockStrategy } from "test/mocks/MockStrategy.sol";
 import { GenericSwap } from "contracts/GenericSwap.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
-import { UniswapStrategy } from "contracts/UniswapStrategy.sol";
+import { SmartOrderStrategy } from "contracts/SmartOrderStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
+import { UniswapV3 } from "contracts/libraries/UniswapV3.sol";
 import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
-import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
+import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.sol";
+import { IUniswapV3Quoter } from "contracts/interfaces/IUniswapV3Quoter.sol";
+import { IUniswapSwapRouter02 } from "contracts/interfaces/IUniswapSwapRouter02.sol";
 
 contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
     using BalanceSnapshot for Snapshot;
@@ -37,8 +40,13 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
     uint256 takerPrivateKey = uint256(1);
     address taker = vm.addr(takerPrivateKey);
     uint256 defaultExpiry = block.timestamp + 1;
+    address defaultInputToken = USDT_ADDRESS;
+    uint256 defaultInputAmount = 10 * 1e6;
+    address defaultOutputToken = DAI_ADDRESS;
+    address[] defaultPath = [defaultInputToken, defaultOutputToken];
+    uint24[] defaultV3Fees = [3000];
     bytes defaultTakerPermit;
-    UniswapStrategy uniswapStrategy;
+    SmartOrderStrategy smartStrategy;
     GenericSwap genericSwap;
     GenericSwapData defaultGSData;
     MockStrategy mockStrategy;
@@ -53,16 +61,43 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         allowanceTarget = new AllowanceTarget(allowanceTargetOwner, trusted);
 
         genericSwap = new GenericSwap(UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget));
-        uniswapStrategy = new UniswapStrategy(strategyAdmin, address(genericSwap), UNISWAP_V2_ADDRESS);
+        smartStrategy = new SmartOrderStrategy(strategyAdmin, address(genericSwap), WETH_ADDRESS);
         mockStrategy = new MockStrategy();
         vm.prank(strategyAdmin);
-        uniswapStrategy.approveToken(USDT_ADDRESS, UNISWAP_V2_ADDRESS, type(uint256).max);
+        address[] memory tokenList = new address[](1);
+        tokenList[0] = USDT_ADDRESS;
+        address[] memory ammList = new address[](1);
+        ammList[0] = UNISWAP_SWAP_ROUTER_02_ADDRESS;
+        smartStrategy.approveTokens(tokenList, ammList);
 
-        address[] memory defaultPath = new address[](2);
-        defaultPath[0] = USDT_ADDRESS;
-        defaultPath[1] = DAI_ADDRESS;
-        bytes memory makerSpecificData = abi.encode(defaultExpiry, defaultPath);
-        bytes memory swapData = abi.encode(UNISWAP_V2_ADDRESS, makerSpecificData);
+        IUniswapV3Quoter v3Quoter = IUniswapV3Quoter(UNISWAP_V3_QUOTER_ADDRESS);
+        bytes memory encodedPath = UniswapV3.encodePath(defaultPath, defaultV3Fees);
+        uint256 expectedOut = v3Quoter.quoteExactInput(encodedPath, defaultInputAmount);
+        uint256 minOutputAmount = (expectedOut * 95) / 100; // default 5% slippage tolerance
+        bytes memory routerPayload = abi.encodeCall(
+            IUniswapSwapRouter02.exactInputSingle,
+            (
+                IUniswapSwapRouter02.ExactInputSingleParams({
+                    tokenIn: defaultInputToken,
+                    tokenOut: defaultOutputToken,
+                    fee: defaultV3Fees[0],
+                    recipient: address(smartStrategy),
+                    amountIn: defaultInputAmount,
+                    amountOutMinimum: minOutputAmount,
+                    sqrtPriceLimitX96: 0
+                })
+            )
+        );
+        ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
+        operations[0] = ISmartOrderStrategy.Operation({
+            dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
+            inputToken: defaultInputToken,
+            inputRatio: 0, // zero ratio indicate no replacement
+            dataOffset: 0,
+            value: 0,
+            data: routerPayload
+        });
+        bytes memory swapData = abi.encode(operations);
 
         deal(taker, 100 ether);
         setTokenBalanceAndApprove(taker, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
@@ -70,12 +105,12 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         setTokenBalanceAndApprove(address(mockStrategy), UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
 
         defaultGSData = GenericSwapData({
-            maker: payable(address(uniswapStrategy)),
-            takerToken: USDT_ADDRESS,
-            takerTokenAmount: 10 * 1e6,
-            makerToken: DAI_ADDRESS,
-            makerTokenAmount: 0, // to be filled later
-            minMakerTokenAmount: 0, // to be filled later
+            maker: payable(address(smartStrategy)),
+            takerToken: defaultInputToken,
+            takerTokenAmount: defaultInputAmount,
+            makerToken: defaultOutputToken,
+            makerTokenAmount: expectedOut,
+            minMakerTokenAmount: minOutputAmount,
             expiry: defaultExpiry,
             salt: 5678,
             recipient: payable(taker),
@@ -83,13 +118,6 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         });
 
         defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultGSData.takerToken, address(genericSwap));
-
-        IUniswapRouterV2 router = IUniswapRouterV2(UNISWAP_V2_ADDRESS);
-        uint256[] memory amounts = router.getAmountsOut(defaultGSData.takerTokenAmount, defaultPath);
-        uint256 expectedOut = amounts[amounts.length - 1];
-        // update defaultGSData
-        defaultGSData.makerTokenAmount = expectedOut;
-        defaultGSData.minMakerTokenAmount = (expectedOut * 95) / 100; // default 5% slippage tolerance
     }
 
     function testGenericSwapWithUniswap() public {

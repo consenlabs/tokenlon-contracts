@@ -17,7 +17,7 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
     bytes defaultOpsData;
     address[] defaultUniV2Path = [USDC_ADDRESS, WETH_ADDRESS];
     address[] tokenList = [USDT_ADDRESS, USDC_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
-    address[] ammList = [UNISWAP_V2_ADDRESS, SUSHISWAP_ADDRESS, CURVE_TRICRYPTO2_POOL_ADDRESS];
+    address[] ammList = [UNISWAP_SWAP_ROUTER_02_ADDRESS, SUSHISWAP_ADDRESS, CURVE_TRICRYPTO2_POOL_ADDRESS];
 
     SmartOrderStrategy smartOrderStrategy;
 
