@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { IUniswapRouterV2 } from "contracts/interfaces/IUniswapRouterV2.sol";
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { ICoordinatedTaker } from "contracts/interfaces/ICoordinatedTaker.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
@@ -25,7 +24,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
     address user = vm.addr(userPrivateKey);
 
     address[] tokenList = [USDC_ADDRESS, USDT_ADDRESS, DAI_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
-    address[] ammList = [UNISWAP_V2_ADDRESS, SUSHISWAP_ADDRESS, BALANCER_V2_ADDRESS, CURVE_USDT_POOL_ADDRESS];
+    address[] ammList = [UNISWAP_SWAP_ROUTER_02_ADDRESS, SUSHISWAP_ADDRESS];
 
     uint256 crdPrivateKey = uint256(2);
     address coordinator = vm.addr(crdPrivateKey);
