@@ -7,7 +7,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { SmartOrderStrategyTest } from "./Setup.t.sol";
 import { ICurveFiV2 } from "contracts/interfaces/ICurveFiV2.sol";
 import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.sol";
-import { IUniswapSwapRouter02 } from "contracts/interfaces/IUniswapSwapRouter02.sol";
+import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { UniswapV2Library } from "test/utils/UniswapV2Library.sol";

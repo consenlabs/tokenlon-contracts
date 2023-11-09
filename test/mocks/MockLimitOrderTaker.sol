@@ -6,7 +6,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 import { Ownable } from "contracts/abstracts/Ownable.sol";
 import { IStrategy } from "contracts/interfaces/IStrategy.sol";
-import { IUniswapSwapRouter02 } from "contracts/interfaces/IUniswapSwapRouter02.sol";
+import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
 import { MockERC1271Wallet } from "./MockERC1271Wallet.sol";
 
 contract MockLimitOrderTaker is IStrategy, MockERC1271Wallet {

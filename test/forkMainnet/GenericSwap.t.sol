@@ -8,18 +8,18 @@ import { SigHelper } from "test/utils/SigHelper.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { computeContractAddress } from "test/utils/Addresses.sol";
 import { Permit2Helper } from "test/utils/Permit2Helper.sol";
+import { UniswapV3 } from "test/utils/UniswapV3.sol";
+import { IUniswapV3Quoter } from "test/utils/IUniswapV3Quoter.sol";
+import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
 import { MockStrategy } from "test/mocks/MockStrategy.sol";
 import { GenericSwap } from "contracts/GenericSwap.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { SmartOrderStrategy } from "contracts/SmartOrderStrategy.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
-import { UniswapV3 } from "contracts/libraries/UniswapV3.sol";
 import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
 import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.sol";
-import { IUniswapV3Quoter } from "contracts/interfaces/IUniswapV3Quoter.sol";
-import { IUniswapSwapRouter02 } from "contracts/interfaces/IUniswapSwapRouter02.sol";
 
 contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
     using BalanceSnapshot for Snapshot;

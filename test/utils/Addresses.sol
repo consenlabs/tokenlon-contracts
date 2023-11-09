@@ -38,6 +38,8 @@ function readAddresses(Vm vm) view returns (string memory data) {
     string memory fileName;
     if (chainId == 1) {
         fileName = "test/utils/config/mainnet.json";
+    } else if (chainId == 137) {
+        fileName = "test/utils/config/polygon.json";
     } else if (chainId == 5) {
         fileName = "test/utils/config/goerli.json";
     } else if (chainId == 42161) {
