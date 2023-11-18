@@ -5,25 +5,34 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { SmartOrderStrategyTest } from "./Setup.t.sol";
-import { ICurveFiV2 } from "contracts/interfaces/ICurveFiV2.sol";
+import { ICurveFiV2 } from "test/utils/ICurveFiV2.sol";
 import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.sol";
-import { IUniswapSwapRouter02 } from "contracts/interfaces/IUniswapSwapRouter02.sol";
+import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { UniswapV2Library } from "test/utils/UniswapV2Library.sol";
+import { UniswapV3 } from "test/utils/UniswapV3.sol";
 
 contract AMMsTest is SmartOrderStrategyTest {
     using SafeERC20 for IERC20;
     using BalanceSnapshot for Snapshot;
 
-    function testUniswapV2WithoutAmountReplace() public {
-        bytes memory uniswapData = abi.encodeWithSelector(
-            IUniswapSwapRouter02.swapExactTokensForTokens.selector,
-            defaultInputAmount,
-            0, // minOutputAmount
-            defaultUniV2Path,
-            address(smartOrderStrategy)
+    function testUniswapV3WithoutAmountReplace() public {
+        bytes memory uniswapData = abi.encodeCall(
+            IUniswapSwapRouter02.exactInputSingle,
+            (
+                IUniswapSwapRouter02.ExactInputSingleParams({
+                    tokenIn: defaultInputToken,
+                    tokenOut: defaultOutputToken,
+                    fee: defaultFee,
+                    recipient: address(smartOrderStrategy),
+                    amountIn: defaultInputAmount,
+                    amountOutMinimum: 0,
+                    sqrtPriceLimitX96: 0
+                })
+            )
         );
+
         ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
@@ -36,8 +45,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         bytes memory data = abi.encode(operations);
 
         // get the exact quote from uniswap
-        uint256[] memory amounts = UniswapV2Library.getAmountsOut(defaultInputAmount, defaultUniV2Path);
-        uint256 expectedOut = amounts[amounts.length - 1];
+        uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, defaultInputAmount);
 
         vm.startPrank(genericSwap, genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), defaultInputAmount);
@@ -50,20 +58,27 @@ contract AMMsTest is SmartOrderStrategyTest {
         gsOutputToken.assertChange(int256(expectedOut));
     }
 
-    function testUniswapV2WithAmountReplace() public {
-        bytes memory uniswapData = abi.encodeWithSelector(
-            IUniswapSwapRouter02.swapExactTokensForTokens.selector,
-            defaultInputAmount,
-            0,
-            defaultUniV2Path,
-            address(smartOrderStrategy)
+    function testUniswapV3WithAmountReplace() public {
+        bytes memory uniswapData = abi.encodeCall(
+            IUniswapSwapRouter02.exactInputSingle,
+            (
+                IUniswapSwapRouter02.ExactInputSingleParams({
+                    tokenIn: defaultInputToken,
+                    tokenOut: defaultOutputToken,
+                    fee: defaultFee,
+                    recipient: address(smartOrderStrategy),
+                    amountIn: defaultInputAmount,
+                    amountOutMinimum: 0,
+                    sqrtPriceLimitX96: 0
+                })
+            )
         );
         ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
             inputToken: defaultInputToken,
             inputRatio: defaultInputRatio,
-            dataOffset: uint128(4 + 32), // add 32 bytes of length prefix
+            dataOffset: uint128(4 + 32 + 128), // add 32 bytes of length prefix
             value: 0,
             data: uniswapData
         });
@@ -71,8 +86,7 @@ contract AMMsTest is SmartOrderStrategyTest {
 
         // get the exact quote from uniswap
         uint256 inputAmountAfterRatio = (defaultInputAmount * defaultInputRatio) / Constant.BPS_MAX;
-        uint256[] memory amounts = UniswapV2Library.getAmountsOut(inputAmountAfterRatio, defaultUniV2Path);
-        uint256 expectedOut = amounts[amounts.length - 1];
+        uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, inputAmountAfterRatio);
 
         vm.startPrank(genericSwap, genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), defaultInputAmount);
@@ -85,20 +99,27 @@ contract AMMsTest is SmartOrderStrategyTest {
         gsOutputToken.assertChange(int256(expectedOut));
     }
 
-    function testUniswapV2WithMaxAmountReplace() public {
-        bytes memory uniswapData = abi.encodeWithSelector(
-            IUniswapSwapRouter02.swapExactTokensForTokens.selector,
-            defaultInputAmount,
-            0,
-            defaultUniV2Path,
-            address(smartOrderStrategy)
+    function testUniswapV3WithMaxAmountReplace() public {
+        bytes memory uniswapData = abi.encodeCall(
+            IUniswapSwapRouter02.exactInputSingle,
+            (
+                IUniswapSwapRouter02.ExactInputSingleParams({
+                    tokenIn: defaultInputToken,
+                    tokenOut: defaultOutputToken,
+                    fee: defaultFee,
+                    recipient: address(smartOrderStrategy),
+                    amountIn: defaultInputAmount,
+                    amountOutMinimum: 0,
+                    sqrtPriceLimitX96: 0
+                })
+            )
         );
         ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
             inputToken: defaultInputToken,
             inputRatio: Constant.BPS_MAX, // BPS_MAX indicate the input amount will be replaced by the actual balance
-            dataOffset: uint128(4 + 32), // add 32 bytes of length prefix
+            dataOffset: uint128(4 + 32 + 128), // add 32 bytes of length prefix
             value: 0,
             data: uniswapData
         });
@@ -108,8 +129,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         uint256 actualInputAmount = 5678;
 
         // get the exact quote from uniswap
-        uint256[] memory amounts = UniswapV2Library.getAmountsOut(actualInputAmount, defaultUniV2Path);
-        uint256 expectedOut = amounts[amounts.length - 1];
+        uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, actualInputAmount);
 
         vm.startPrank(genericSwap, genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), actualInputAmount);
@@ -124,14 +144,21 @@ contract AMMsTest is SmartOrderStrategyTest {
     }
 
     function testUniswapV2WithWETHUnwrap() public {
-        bytes memory uniswapData = abi.encodeWithSelector(
-            IUniswapSwapRouter02.swapExactTokensForTokens.selector,
-            defaultInputAmount,
-            0, // minOutputAmount
-            defaultUniV2Path,
-            address(smartOrderStrategy)
+        bytes memory uniswapData = abi.encodeCall(
+            IUniswapSwapRouter02.exactInputSingle,
+            (
+                IUniswapSwapRouter02.ExactInputSingleParams({
+                    tokenIn: defaultInputToken,
+                    tokenOut: defaultOutputToken,
+                    fee: defaultFee,
+                    recipient: address(smartOrderStrategy),
+                    amountIn: defaultInputAmount,
+                    amountOutMinimum: 0,
+                    sqrtPriceLimitX96: 0
+                })
+            )
         );
-        ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](2);
+        ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
             inputToken: defaultInputToken,
@@ -143,8 +170,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         bytes memory data = abi.encode(operations);
 
         // get the exact quote from uniswap
-        uint256[] memory amounts = UniswapV2Library.getAmountsOut(defaultInputAmount, defaultUniV2Path);
-        uint256 expectedOut = amounts[amounts.length - 1];
+        uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, defaultInputAmount);
 
         // set output token as ETH
         address outputToken = Constant.ETH_ADDRESS;
@@ -160,20 +186,26 @@ contract AMMsTest is SmartOrderStrategyTest {
     }
 
     function testMultipleAMMs() public {
-        // (USDC -> USDT) via UniswapV2 + Curve
+        // (USDC -> USDT) via UniswapV3 + Curve
         // UniswapV2 : USDC -> WETH
         // Curve : WETH -> USDT
 
         // get the exact quote from uniswap
-        uint256[] memory amounts = UniswapV2Library.getAmountsOut(defaultInputAmount, defaultUniV2Path);
-        uint256 uniOut = amounts[amounts.length - 1];
+        uint256 uniOut = v3Quoter.quoteExactInput(encodedUniv3Path, defaultInputAmount);
 
-        bytes memory uniswapData = abi.encodeWithSelector(
-            IUniswapSwapRouter02.swapExactTokensForTokens.selector,
-            defaultInputAmount,
-            0, // minOutputAmount
-            defaultUniV2Path,
-            address(smartOrderStrategy)
+        bytes memory uniswapData = abi.encodeCall(
+            IUniswapSwapRouter02.exactInputSingle,
+            (
+                IUniswapSwapRouter02.ExactInputSingleParams({
+                    tokenIn: defaultInputToken,
+                    tokenOut: defaultOutputToken,
+                    fee: defaultFee,
+                    recipient: address(smartOrderStrategy),
+                    amountIn: defaultInputAmount,
+                    amountOutMinimum: 0,
+                    sqrtPriceLimitX96: 0
+                })
+            )
         );
 
         // exhange function selector : 0x5b41b908

@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import { IUniAgent } from "contracts/interfaces/IUniAgent.sol";
-import { IUniswapV2Router } from "contracts/interfaces/IUniswapV2Router.sol";
+import { IUniswapV2Router } from "test/utils/IUniswapV2Router.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { UniswapV2Library } from "test/utils/UniswapV2Library.sol";

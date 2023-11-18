@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { IUniswapV3Quoter } from "contracts/interfaces/IUniswapV3Quoter.sol";
-import { IUniversalRouter } from "contracts/interfaces/IUniswapUniversalRouter.sol";
+import { IUniswapV3Quoter } from "test/utils/IUniswapV3Quoter.sol";
+import { IUniversalRouter } from "test/utils/IUniswapUniversalRouter.sol";
 import { IUniAgent } from "contracts/interfaces/IUniAgent.sol";
-import { UniswapV3 } from "contracts/libraries/UniswapV3.sol";
+import { UniswapV3 } from "test/utils/UniswapV3.sol";
 import { UniswapCommands } from "test/utils/UniswapCommands.sol";
 import { UniswapV2Library } from "test/utils/UniswapV2Library.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";

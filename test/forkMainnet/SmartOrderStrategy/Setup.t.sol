@@ -5,6 +5,8 @@ import { Test } from "forge-std/Test.sol";
 import { SmartOrderStrategy } from "contracts/SmartOrderStrategy.sol";
 import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
+import { IUniswapV3Quoter } from "test/utils/IUniswapV3Quoter.sol";
+import { UniswapV3 } from "test/utils/UniswapV3.sol";
 
 contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
     address strategyOwner = makeAddr("strategyOwner");
@@ -15,11 +17,16 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
     uint128 defaultInputRatio = 5000;
     uint256 defaultExpiry = block.timestamp + 100;
     bytes defaultOpsData;
-    address[] defaultUniV2Path = [USDC_ADDRESS, WETH_ADDRESS];
+    bytes encodedUniv3Path;
+    address[] defaultUniV2Path = [defaultInputToken, defaultOutputToken];
     address[] tokenList = [USDT_ADDRESS, USDC_ADDRESS, WETH_ADDRESS, WBTC_ADDRESS];
-    address[] ammList = [UNISWAP_SWAP_ROUTER_02_ADDRESS, SUSHISWAP_ADDRESS, CURVE_TRICRYPTO2_POOL_ADDRESS];
+    address[] ammList = [UNISWAP_SWAP_ROUTER_02_ADDRESS, CURVE_TRICRYPTO2_POOL_ADDRESS];
+
+    uint24 defaultFee = 3000;
+    uint24[] v3Fees = [defaultFee];
 
     SmartOrderStrategy smartOrderStrategy;
+    IUniswapV3Quoter v3Quoter;
 
     function setUp() public virtual {
         // Deploy and setup SmartOrderStrategy
@@ -35,6 +42,9 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
 
         SmartOrderStrategy.Operation[] memory operations = new SmartOrderStrategy.Operation[](1);
         defaultOpsData = abi.encode(operations);
+
+        v3Quoter = IUniswapV3Quoter(UNISWAP_V3_QUOTER_ADDRESS);
+        encodedUniv3Path = UniswapV3.encodePath(defaultUniV2Path, v3Fees);
 
         vm.label(UNISWAP_UNIVERSAL_ROUTER_ADDRESS, "UniswapUniversalRouter");
     }
