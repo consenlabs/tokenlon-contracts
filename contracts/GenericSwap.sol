@@ -38,7 +38,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     /// @param taker Claimed taker address
     /// @param takerSig Taker signature
     /// @return returnAmount Output amount of the swap
-    function executeSwap(
+    function executeSwapWithSig(
         GenericSwapData calldata swapData,
         bytes calldata takerTokenPermit,
         address taker,

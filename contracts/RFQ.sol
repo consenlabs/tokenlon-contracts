@@ -63,7 +63,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         _fillRFQ(rfqTx, makerSignature, makerTokenPermit, takerTokenPermit, bytes(""));
     }
 
-    function fillRFQ(
+    function fillRFQWithSig(
         RFQTx calldata rfqTx,
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,
