@@ -46,6 +46,9 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         vm.prank(strategyOwner);
         smartOrderStrategy.approveTokens(tokenList, spenders);
 
+        deal(LON_ADDRESS, address(smartOrderStrategy), 1 wei);
+        deal(DAI_ADDRESS, address(smartOrderStrategy), 1 wei);
+
         // maker approves RFQ & LO
         setTokenBalanceAndApprove(maker, address(rfq), tokens, 100000);
         setTokenBalanceAndApprove(maker, address(limitOrderSwap), tokens, 100000);

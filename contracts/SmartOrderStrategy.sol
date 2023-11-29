@@ -57,6 +57,11 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
             }
         }
         uint256 selfBalance = Asset.getBalance(outputToken, address(this));
+        if (selfBalance > 1) {
+            unchecked {
+                --selfBalance;
+            }
+        }
         Asset.transferTo(outputToken, payable(genericSwap), selfBalance);
     }
 
@@ -65,7 +70,13 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
 
         // replace amount if ratio != 0
         if (_inputRatio != 0) {
+            // leave one wei
             uint256 inputTokenBalance = IERC20(_inputToken).balanceOf(address(this));
+            if (inputTokenBalance > 1) {
+                unchecked {
+                    --inputTokenBalance;
+                }
+            }
 
             // calculate input amount if ratio should be applied
             if (_inputRatio != Constant.BPS_MAX) {
