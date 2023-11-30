@@ -35,7 +35,7 @@ interface IRFQ {
 
     function fillRFQ(RFQTx calldata rfqTx, bytes calldata makerSignature, bytes calldata makerTokenPermit, bytes calldata takerTokenPermit) external payable;
 
-    function fillRFQ(
+    function fillRFQWithSig(
         RFQTx calldata rfqTx,
         bytes calldata makerSignature,
         bytes calldata makerTokenPermit,

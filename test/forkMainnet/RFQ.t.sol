@@ -575,7 +575,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         );
 
         vm.prank(txRelayer, txRelayer);
-        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, takerSig);
+        rfq.fillRFQWithSig(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, takerSig);
 
         takerTakerToken.assertChange(-int256(defaultRFQOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -593,7 +593,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
 
         vm.expectRevert(IRFQ.InvalidSignature.selector);
         vm.prank(txRelayer, txRelayer);
-        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, randomSig);
+        rfq.fillRFQWithSig(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, randomSig);
     }
 
     function testCannotFillWithInvalidFeeFactor() public {
@@ -603,7 +603,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
 
         vm.expectRevert(IRFQ.InvalidFeeFactor.selector);
         vm.prank(txRelayer, txRelayer);
-        rfq.fillRFQ(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, takerSig);
+        rfq.fillRFQWithSig(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, takerSig);
     }
 
     function testCannotFillIfMakerAmountIsZero() public {

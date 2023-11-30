@@ -283,7 +283,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         );
 
         bytes memory takerSig = signGenericSwap(takerPrivateKey, defaultGSData, address(genericSwap));
-        genericSwap.executeSwap(defaultGSData, defaultTakerPermit, taker, takerSig);
+        genericSwap.executeSwapWithSig(defaultGSData, defaultTakerPermit, taker, takerSig);
 
         takerTakerToken.assertChange(-int256(defaultGSData.takerTokenAmount));
         // the makerTokenAmount in the defaultGSData is the exact quote from strategy
@@ -296,14 +296,14 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
 
         vm.expectRevert(IGenericSwap.InvalidSignature.selector);
         // submit with user address as expected signer
-        genericSwap.executeSwap(defaultGSData, defaultTakerPermit, taker, randomSig);
+        genericSwap.executeSwapWithSig(defaultGSData, defaultTakerPermit, taker, randomSig);
     }
 
     function testCannotReplayGenericSwapSig() public {
         bytes memory takerSig = signGenericSwap(takerPrivateKey, defaultGSData, address(genericSwap));
-        genericSwap.executeSwap(defaultGSData, defaultTakerPermit, taker, takerSig);
+        genericSwap.executeSwapWithSig(defaultGSData, defaultTakerPermit, taker, takerSig);
 
         vm.expectRevert(IGenericSwap.AlreadyFilled.selector);
-        genericSwap.executeSwap(defaultGSData, defaultTakerPermit, taker, takerSig);
+        genericSwap.executeSwapWithSig(defaultGSData, defaultTakerPermit, taker, takerSig);
     }
 }

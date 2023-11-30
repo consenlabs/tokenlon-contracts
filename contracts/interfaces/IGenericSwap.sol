@@ -24,7 +24,7 @@ interface IGenericSwap {
 
     function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable returns (uint256 returnAmount);
 
-    function executeSwap(
+    function executeSwapWithSig(
         GenericSwapData calldata swapData,
         bytes calldata takerTokenPermit,
         address taker,
