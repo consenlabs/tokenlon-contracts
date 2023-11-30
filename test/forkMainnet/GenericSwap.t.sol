@@ -63,7 +63,10 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         genericSwap = new GenericSwap(UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget));
         smartStrategy = new SmartOrderStrategy(strategyAdmin, address(genericSwap), WETH_ADDRESS);
 
+        // deposit 1 wei in SOR and GS
         deal(DAI_ADDRESS, address(smartStrategy), 1 wei);
+        deal(DAI_ADDRESS, address(genericSwap), 1 wei);
+        deal(address(genericSwap), 1 wei);
 
         mockStrategy = new MockStrategy();
         vm.prank(strategyAdmin);

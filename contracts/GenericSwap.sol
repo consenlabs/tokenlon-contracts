@@ -67,9 +67,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
 
         if (_inputToken.isETH()) {
             if (msg.value != _swapData.takerTokenAmount) revert InvalidMsgValue();
-        }
-
-        if (!_inputToken.isETH()) {
+        } else {
             if (msg.value != 0) revert InvalidMsgValue();
             _collect(_inputToken, _authorizedUser, _swapData.maker, _swapData.takerTokenAmount, _takerTokenPermit);
         }
@@ -77,6 +75,11 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         IStrategy(_swapData.maker).executeStrategy{ value: msg.value }(_inputToken, _outputToken, _swapData.takerTokenAmount, _swapData.strategyData);
 
         returnAmount = _outputToken.getBalance(address(this));
+        if (returnAmount > 1) {
+            unchecked {
+                --returnAmount;
+            }
+        }
         if (returnAmount < _swapData.minMakerTokenAmount) revert InsufficientOutput();
 
         _outputToken.transferTo(_swapData.recipient, returnAmount);
