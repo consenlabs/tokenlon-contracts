@@ -46,6 +46,7 @@ contract AMMsTest is SmartOrderStrategyTest {
 
         // get the exact quote from uniswap
         uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, defaultInputAmount);
+        uint256 realChangedInGS = expectedOut - 1;
 
         vm.startPrank(genericSwap, genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), defaultInputAmount);
@@ -55,7 +56,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         vm.stopPrank();
 
         sosInputToken.assertChange(-int256(defaultInputAmount));
-        gsOutputToken.assertChange(int256(expectedOut));
+        gsOutputToken.assertChange(int256(realChangedInGS));
     }
 
     function testUniswapV3WithAmountReplace() public {
@@ -85,18 +86,16 @@ contract AMMsTest is SmartOrderStrategyTest {
         bytes memory data = abi.encode(operations);
 
         // get the exact quote from uniswap
-        uint256 inputAmountAfterRatio = (defaultInputAmount * defaultInputRatio) / Constant.BPS_MAX;
+        uint256 inputAmountAfterRatio = ((defaultInputAmount - 1) * defaultInputRatio) / Constant.BPS_MAX;
         uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, inputAmountAfterRatio);
-
         vm.startPrank(genericSwap, genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), defaultInputAmount);
         Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), defaultInputToken);
         Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, defaultOutputToken);
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, data);
         vm.stopPrank();
-
         sosInputToken.assertChange(-int256(inputAmountAfterRatio));
-        gsOutputToken.assertChange(int256(expectedOut));
+        gsOutputToken.assertChange(int256(expectedOut - 1));
     }
 
     function testUniswapV3WithMaxAmountReplace() public {
@@ -129,7 +128,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         uint256 actualInputAmount = 5678;
 
         // get the exact quote from uniswap
-        uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, actualInputAmount);
+        uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, actualInputAmount - 1);
 
         vm.startPrank(genericSwap, genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), actualInputAmount);
@@ -139,8 +138,8 @@ contract AMMsTest is SmartOrderStrategyTest {
         vm.stopPrank();
 
         // the amount change will be the actual balance at the moment
-        sosInputToken.assertChange(-int256(actualInputAmount));
-        gsOutputToken.assertChange(int256(expectedOut));
+        sosInputToken.assertChange(-int256(actualInputAmount - 1)); // leaving 1 wei in SOS
+        gsOutputToken.assertChange(int256(expectedOut - 1)); // leaving 1 wei in GS
     }
 
     function testUniswapV2WithWETHUnwrap() public {
@@ -171,6 +170,7 @@ contract AMMsTest is SmartOrderStrategyTest {
 
         // get the exact quote from uniswap
         uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, defaultInputAmount);
+        uint256 realChangedInGS = expectedOut - 1;
 
         // set output token as ETH
         address outputToken = Constant.ETH_ADDRESS;
@@ -182,7 +182,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         vm.stopPrank();
 
         sosInputToken.assertChange(-int256(defaultInputAmount));
-        gsOutputToken.assertChange(int256(expectedOut));
+        gsOutputToken.assertChange(int256(realChangedInGS));
     }
 
     function testMultipleAMMs() public {
@@ -212,6 +212,7 @@ contract AMMsTest is SmartOrderStrategyTest {
         bytes memory curveData = abi.encodeWithSelector(0x5b41b908, 2, 0, uniOut, 0);
         ICurveFiV2 curvePool = ICurveFiV2(CURVE_TRICRYPTO2_POOL_ADDRESS);
         uint256 curveOut = curvePool.get_dy(2, 0, uniOut);
+        uint256 realChangedInGS = curveOut - 1;
 
         ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](2);
         operations[0] = ISmartOrderStrategy.Operation({
@@ -240,6 +241,6 @@ contract AMMsTest is SmartOrderStrategyTest {
         vm.stopPrank();
 
         sosInputToken.assertChange(-int256(defaultInputAmount));
-        gsOutputToken.assertChange(int256(curveOut));
+        gsOutputToken.assertChange(int256(realChangedInGS));
     }
 }

@@ -46,9 +46,6 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         vm.prank(strategyOwner);
         smartOrderStrategy.approveTokens(tokenList, spenders);
 
-        deal(LON_ADDRESS, address(smartOrderStrategy), 1 wei);
-        deal(DAI_ADDRESS, address(smartOrderStrategy), 1 wei);
-
         // maker approves RFQ & LO
         setTokenBalanceAndApprove(maker, address(rfq), tokens, 100000);
         setTokenBalanceAndApprove(maker, address(limitOrderSwap), tokens, 100000);
@@ -67,6 +64,9 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
+
+        uint256 realChangedInGS = rfqOffer.makerTokenAmount - 1; // leaving 1 wei in GS
+
         RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: rfqOffer.takerTokenAmount, recipient: payable(address(smartOrderStrategy)) });
         bytes memory makerSig = signRFQOffer(makerPrivateKey, rfqOffer, address(rfq));
         bytes memory rfqData = abi.encodeWithSelector(RFQ_FILL_SELECTOR, rfqTx, makerSig, defaultPermit, defaultPermit);
@@ -90,7 +90,7 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         vm.stopPrank();
 
         sosInputToken.assertChange(-int256(rfqOffer.takerTokenAmount));
-        gsOutputToken.assertChange(int256(rfqOffer.makerTokenAmount));
+        gsOutputToken.assertChange(int256(realChangedInGS));
     }
 
     function testV6LOIntegration() public {
@@ -106,6 +106,9 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
             expiry: defaultExpiry,
             salt: defaultSalt
         });
+
+        uint256 realChangedInGS = order.makerTokenAmount - 1; // leaving 1 wei in GS
+
         bytes memory makerSig = signLimitOrder(makerPrivateKey, order, address(limitOrderSwap));
         ILimitOrderSwap.TakerParams memory takerParams = ILimitOrderSwap.TakerParams({
             takerTokenAmount: order.takerTokenAmount,
@@ -135,6 +138,6 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         vm.stopPrank();
 
         sosInputToken.assertChange(-int256(order.takerTokenAmount));
-        gsOutputToken.assertChange(int256(order.makerTokenAmount));
+        gsOutputToken.assertChange(int256(realChangedInGS));
     }
 }

@@ -40,11 +40,6 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
             setERC20Balance(tokenList[i], genericSwap, 10000);
         }
 
-        deal(USDC_ADDRESS, address(smartOrderStrategy), 1 wei);
-        deal(USDT_ADDRESS, address(smartOrderStrategy), 1 wei);
-        deal(WETH_ADDRESS, address(smartOrderStrategy), 1 wei);
-        deal(WBTC_ADDRESS, address(smartOrderStrategy), 1 wei);
-
         SmartOrderStrategy.Operation[] memory operations = new SmartOrderStrategy.Operation[](1);
         defaultOpsData = abi.encode(operations);
 

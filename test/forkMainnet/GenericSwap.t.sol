@@ -63,11 +63,6 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         genericSwap = new GenericSwap(UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget));
         smartStrategy = new SmartOrderStrategy(strategyAdmin, address(genericSwap), WETH_ADDRESS);
 
-        // deposit 1 wei in SOR and GS
-        deal(DAI_ADDRESS, address(smartStrategy), 1 wei);
-        deal(DAI_ADDRESS, address(genericSwap), 1 wei);
-        deal(address(genericSwap), 1 wei);
-
         mockStrategy = new MockStrategy();
         vm.prank(strategyAdmin);
         address[] memory tokenList = new address[](1);
@@ -78,7 +73,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
 
         IUniswapV3Quoter v3Quoter = IUniswapV3Quoter(UNISWAP_V3_QUOTER_ADDRESS);
         bytes memory encodedPath = UniswapV3.encodePath(defaultPath, defaultV3Fees);
-        uint256 expectedOut = v3Quoter.quoteExactInput(encodedPath, defaultInputAmount);
+        uint256 expectedOut = v3Quoter.quoteExactInput(encodedPath, defaultInputAmount) - 2; // leaving 1 wei in GS and SOS separately
         uint256 minOutputAmount = (expectedOut * 95) / 100; // default 5% slippage tolerance
         bytes memory routerPayload = abi.encodeCall(
             IUniswapSwapRouter02.exactInputSingle,
@@ -162,16 +157,17 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: address(mockStrategy), token: gsData.makerToken });
 
         uint256 actualOutput = 900;
+        uint256 realChangedInGas = actualOutput - 1;
 
         // 800 < 900 < 1000
         mockStrategy.setOutputAmountAndRecipient(actualOutput, payable(address(genericSwap)));
         vm.expectEmit(true, true, true, true);
-        emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, actualOutput);
+        emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, realChangedInGas);
         vm.prank(taker);
         genericSwap.executeSwap(gsData, defaultTakerPermit);
 
         takerTakerToken.assertChange(-int256(gsData.takerTokenAmount));
-        takerMakerToken.assertChange(int256(actualOutput));
+        takerMakerToken.assertChange(int256(realChangedInGas));
         makerTakerToken.assertChange(int256(gsData.takerTokenAmount));
         makerMakerToken.assertChange(-int256(actualOutput));
     }
@@ -189,12 +185,21 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
 
         mockStrategy.setOutputAmountAndRecipient(gsData.makerTokenAmount, payable(address(genericSwap)));
         vm.expectEmit(true, true, true, true);
-        emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, gsData.makerTokenAmount);
+        emit Swap(
+            getGSDataHash(gsData),
+            gsData.maker,
+            taker,
+            taker,
+            gsData.takerToken,
+            gsData.takerTokenAmount,
+            gsData.makerToken,
+            gsData.makerTokenAmount - 1
+        );
         vm.prank(taker);
         genericSwap.executeSwap{ value: gsData.takerTokenAmount }(gsData, defaultTakerPermit);
 
         takerTakerToken.assertChange(-int256(gsData.takerTokenAmount));
-        takerMakerToken.assertChange(int256(gsData.makerTokenAmount));
+        takerMakerToken.assertChange(int256(gsData.makerTokenAmount - 1)); // leaving 1 wei in GS
         makerTakerToken.assertChange(int256(gsData.takerTokenAmount));
         makerMakerToken.assertChange(-int256(gsData.makerTokenAmount));
     }
@@ -213,12 +218,21 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
 
         mockStrategy.setOutputAmountAndRecipient(gsData.makerTokenAmount, payable(address(genericSwap)));
         vm.expectEmit(true, true, true, true);
-        emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, gsData.makerTokenAmount);
+        emit Swap(
+            getGSDataHash(gsData),
+            gsData.maker,
+            taker,
+            taker,
+            gsData.takerToken,
+            gsData.takerTokenAmount,
+            gsData.makerToken,
+            gsData.makerTokenAmount - 1
+        );
         vm.prank(taker);
         genericSwap.executeSwap(gsData, defaultTakerPermit);
 
         takerTakerToken.assertChange(-int256(gsData.takerTokenAmount));
-        takerMakerToken.assertChange(int256(gsData.makerTokenAmount));
+        takerMakerToken.assertChange(int256(gsData.makerTokenAmount - 1)); // leaving 1 wei in GS
         makerTakerToken.assertChange(int256(gsData.takerTokenAmount));
         makerMakerToken.assertChange(-int256(gsData.makerTokenAmount));
     }
