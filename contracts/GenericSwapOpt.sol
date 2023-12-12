@@ -9,7 +9,7 @@ import { GenericSwapData, getGSDataHash } from "./libraries/GenericSwapData.sol"
 import { Asset } from "./libraries/Asset.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
-contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
+contract GenericSwapOpt is IGenericSwap, TokenCollector, EIP712 {
     using Asset for address;
 
     mapping(bytes32 => bool) private filledSwap;
@@ -75,6 +75,11 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         IStrategy(_swapData.maker).executeStrategy{ value: msg.value }(_inputToken, _outputToken, _swapData.takerTokenAmount, _swapData.strategyData);
 
         returnAmount = _outputToken.getBalance(address(this));
+        if (returnAmount > 1) {
+            unchecked {
+                --returnAmount;
+            }
+        }
         if (returnAmount < _swapData.minMakerTokenAmount) revert InsufficientOutput();
 
         _outputToken.transferTo(_swapData.recipient, returnAmount);
