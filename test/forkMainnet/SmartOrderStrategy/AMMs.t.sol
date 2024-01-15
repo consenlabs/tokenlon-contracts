@@ -208,7 +208,7 @@ contract AMMsTest is SmartOrderStrategyTest {
             )
         );
 
-        // exhange function selector : 0x5b41b908
+        // exchange function selector : 0x5b41b908
         bytes memory curveData = abi.encodeWithSelector(0x5b41b908, 2, 0, uniOut, 0);
         ICurveFiV2 curvePool = ICurveFiV2(CURVE_TRICRYPTO2_POOL_ADDRESS);
         uint256 curveOut = curvePool.get_dy(2, 0, uniOut);

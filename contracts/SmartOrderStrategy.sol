@@ -70,8 +70,8 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
 
         // replace amount if ratio != 0
         if (_inputRatio != 0) {
-            // leave one wei
             uint256 inputTokenBalance = IERC20(_inputToken).balanceOf(address(this));
+            // leaving one wei for gas optimization
             if (inputTokenBalance > 1) {
                 unchecked {
                     --inputTokenBalance;
