@@ -6,15 +6,14 @@ import { ConOrder } from "../libraries/ConditionalOrder.sol";
 interface IConditionalSwap {
     // error
     error ExpiredOrder();
-    error FilledOrder();
-    error ZeroAddress();
+    error InsufficientTimePassed();
     error ZeroTokenAmount();
-    error InvalidMsgValue();
     error InvalidSignature();
-    error InvalidTaker();
     error InvalidTakingAmount();
+    error InvalidMakingAmount();
     error InvalidRecipient();
     error NotOrderMaker();
+    error InsufficientOutput();
 
     // event
     event ConditionalOrderFilled(
@@ -28,8 +27,12 @@ interface IConditionalSwap {
         address recipient
     );
 
-    // struct
-
     // function
-    function fillOrder(ConOrder calldata cd, bytes calldata userSig, uint256 userAmount, uint256 makerAmount, bytes calldata settlementData) external;
+    function fillConOrder(
+        ConOrder calldata order,
+        bytes calldata takerSignature,
+        uint256 takerTokenAmount,
+        uint256 makerTokenAmount,
+        bytes calldata settlementData
+    ) external payable;
 }
