@@ -82,8 +82,11 @@ contract ConditionalSwap is IConditionalSwap, Ownable, TokenCollector, EIP712 {
         bytes1 settlementType = settlementData[0];
         bytes memory strategyData = settlementData[1:];
 
+        uint256 returnedAmount;
         if (settlementType == 0x0) {
             // direct settlement type
+            returnedAmount = makerTokenAmount;
+
             _collect(order.takerToken, order.taker, msg.sender, takerTokenAmount, order.takerTokenPermit);
             _collect(order.makerToken, msg.sender, order.recipient, makerTokenAmount, order.takerTokenPermit);
         } else if (settlementType == 0x01) {
@@ -94,13 +97,15 @@ contract ConditionalSwap is IConditionalSwap, Ownable, TokenCollector, EIP712 {
             uint256 makerTokenBalanceBefore = order.makerToken.getBalance(address(this));
             //@todo Create a separate strategy contract specifically for conditionalSwap
             IStrategy(strategy).executeStrategy(order.takerToken, order.makerToken, takerTokenAmount, data);
-            uint256 returnedAmount = order.makerToken.getBalance(address(this)) - makerTokenBalanceBefore;
+            returnedAmount = order.makerToken.getBalance(address(this)) - makerTokenBalanceBefore;
 
+            // We only compare returnedAmount with makerTokenAmount here
+            // because we ensure that makerTokenAmount is greater than minMakerTokenAmount before
             if (returnedAmount < makerTokenAmount) revert InsufficientOutput();
             order.makerToken.transferTo(order.recipient, returnedAmount);
         } else revert InvalidSettlementType();
 
-        _emitConOrderFilled(order, orderHash, takerTokenAmount, makerTokenAmount);
+        _emitConOrderFilled(order, orderHash, takerTokenAmount, returnedAmount);
     }
 
     function _emitConOrderFilled(ConOrder calldata order, bytes32 orderHash, uint256 takerTokenSettleAmount, uint256 makerTokenSettleAmount) internal {

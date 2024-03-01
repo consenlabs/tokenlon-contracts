@@ -35,7 +35,7 @@ contract ConditionalOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, S
     uint256 public defaultExpiry = block.timestamp + 1 days;
     uint256 public defaultSalt = 1234;
     bytes public defaultTakerPermit;
-    bytes public defaultTakerSig;
+    bytes public takerSig;
     bytes public defaultSettlementData;
 
     // mask for triggering different business logic (e.g. BestBuy, Repayment, DCA)
