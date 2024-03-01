@@ -82,29 +82,25 @@ contract ConditionalSwap is IConditionalSwap, Ownable, TokenCollector, EIP712 {
         bytes1 settlementType = settlementData[0];
         bytes memory strategyData = settlementData[1:];
 
-        uint256 returnedAmount;
         if (settlementType == 0x0) {
             // direct settlement type
             _collect(order.takerToken, order.taker, msg.sender, takerTokenAmount, order.takerTokenPermit);
             _collect(order.makerToken, msg.sender, order.recipient, makerTokenAmount, order.takerTokenPermit);
         } else if (settlementType == 0x01) {
             // strategy settlement type
-
             (address strategy, bytes memory data) = abi.decode(strategyData, (address, bytes));
             _collect(order.takerToken, order.taker, strategy, takerTokenAmount, order.takerTokenPermit);
 
             uint256 makerTokenBalanceBefore = order.makerToken.getBalance(address(this));
             //@todo Create a separate strategy contract specifically for conditionalSwap
             IStrategy(strategy).executeStrategy(order.takerToken, order.makerToken, takerTokenAmount, data);
-            returnedAmount = order.makerToken.getBalance(address(this)) - makerTokenBalanceBefore;
+            uint256 returnedAmount = order.makerToken.getBalance(address(this)) - makerTokenBalanceBefore;
 
-            if (returnedAmount < minMakerTokenAmount) revert InsufficientOutput();
+            if (returnedAmount < makerTokenAmount) revert InsufficientOutput();
             order.makerToken.transferTo(order.recipient, returnedAmount);
-        } else {
-            revert(); // specific the error message1
-        }
+        } else revert InvalidSettlementType();
 
-        _emitConOrderFilled(order, orderHash, takerTokenAmount, returnedAmount);
+        _emitConOrderFilled(order, orderHash, takerTokenAmount, makerTokenAmount);
     }
 
     function _emitConOrderFilled(ConOrder calldata order, bytes32 orderHash, uint256 takerTokenSettleAmount, uint256 makerTokenSettleAmount) internal {

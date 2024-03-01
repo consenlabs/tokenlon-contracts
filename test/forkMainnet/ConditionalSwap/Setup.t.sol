@@ -2,11 +2,9 @@
 pragma solidity 0.8.17;
 
 import { Test } from "forge-std/Test.sol";
-import { IWETH } from "contracts/interfaces/IWETH.sol";
-import { IConditionalSwap } from "contracts/interfaces/IConditionalSwap.sol";
 import { ConditionalSwap } from "contracts/ConditionalSwap.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
-import { ConOrder, getConOrderHash } from "contracts/libraries/ConditionalOrder.sol";
+import { ConOrder } from "contracts/libraries/ConditionalOrder.sol";
 import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { SigHelper } from "test/utils/SigHelper.sol";
@@ -14,6 +12,17 @@ import { computeContractAddress } from "test/utils/Addresses.sol";
 import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 
 contract ConditionalOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
+    event ConditionalOrderFilled(
+        bytes32 indexed orderHash,
+        address indexed taker,
+        address indexed maker,
+        address takerToken,
+        uint256 takerTokenFilledAmount,
+        address makerToken,
+        uint256 makerTokenSettleAmount,
+        address recipient
+    );
+
     // role
     address public conditionalOrderOwner = makeAddr("conditionalOrderOwner");
     address public allowanceTargetOwner = makeAddr("allowanceTargetOwner");
@@ -28,6 +37,11 @@ contract ConditionalOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, S
     bytes public defaultTakerPermit;
     bytes public defaultTakerSig;
     bytes public defaultSettlementData;
+
+    // mask for triggering different business logic (e.g. BestBuy, Repayment, DCA)
+    uint256 public constant FLG_SINGLE_AMOUNT_CAP_MASK = 1 << 255; // ConOrder.amount is the cap of single execution, not total cap
+    uint256 public constant FLG_PERIODIC_MASK = 1 << 254; // ConOrder can be executed periodically
+    uint256 public constant FLG_PARTIAL_FILL_MASK = 1 << 253; // ConOrder can be fill partially
 
     ConditionalSwap conditionalSwap;
     AllowanceTarget allowanceTarget;

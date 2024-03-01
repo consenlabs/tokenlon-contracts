@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import { IConditionalSwap } from "contracts/interfaces/IConditionalSwap.sol";
+import { getConOrderHash } from "contracts/libraries/ConditionalOrder.sol";
 import { ConditionalOrderSwapTest } from "test/forkMainnet/ConditionalSwap/Setup.t.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 
@@ -21,10 +22,22 @@ contract ConFillTest is ConditionalOrderSwapTest {
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
 
         // craft the `flagAndPeriod` of the defaultOrder for BestBuy case
-        uint256 flags = 1 << 253;
+        uint256 flags = FLG_PARTIAL_FILL_MASK;
         defaultOrder.flagsAndPeriod = flags;
 
         defaultTakerSig = signConOrder(takerPrivateKey, defaultOrder, address(conditionalSwap));
+
+        vm.expectEmit(true, true, true, true);
+        emit ConditionalOrderFilled(
+            getConOrderHash(defaultOrder),
+            defaultOrder.taker,
+            defaultOrder.maker,
+            defaultOrder.takerToken,
+            defaultOrder.takerTokenAmount,
+            defaultOrder.makerToken,
+            defaultOrder.makerTokenAmount,
+            recipient
+        );
 
         vm.startPrank(maker);
         conditionalSwap.fillConOrder(defaultOrder, defaultTakerSig, defaultOrder.takerTokenAmount, defaultOrder.makerTokenAmount, defaultSettlementData);
@@ -38,7 +51,7 @@ contract ConFillTest is ConditionalOrderSwapTest {
         recMakerToken.assertChange(int256(defaultOrder.makerTokenAmount));
     }
 
-    function testRepayment() external {
+    function testRepaymentOrDCAOrder() external {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.makerToken });
         Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: maker, token: defaultOrder.takerToken });
@@ -47,12 +60,26 @@ contract ConFillTest is ConditionalOrderSwapTest {
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOrder.makerToken });
 
         // craft the `flagAndPeriod` of the defaultOrder for BestBuy case
-        uint256 flags = 7 << 253;
+        uint256 flags = FLG_SINGLE_AMOUNT_CAP_MASK | FLG_PERIODIC_MASK | FLG_PARTIAL_FILL_MASK;
         uint256 period = 12 hours;
-        uint256 numberOfCycles = (defaultExpiry - block.timestamp) / period;
         defaultOrder.flagsAndPeriod = flags | period;
 
+        uint256 numberOfCycles = (defaultExpiry - block.timestamp) / period;
+
         defaultTakerSig = signConOrder(takerPrivateKey, defaultOrder, address(conditionalSwap));
+
+        vm.expectEmit(true, true, true, true);
+        emit ConditionalOrderFilled(
+            getConOrderHash(defaultOrder),
+            defaultOrder.taker,
+            defaultOrder.maker,
+            defaultOrder.takerToken,
+            defaultOrder.takerTokenAmount,
+            defaultOrder.makerToken,
+            defaultOrder.makerTokenAmount,
+            recipient
+        );
+
         vm.startPrank(maker);
         for (uint256 i; i < numberOfCycles; ++i) {
             conditionalSwap.fillConOrder(defaultOrder, defaultTakerSig, defaultOrder.takerTokenAmount, defaultOrder.makerTokenAmount, defaultSettlementData);
@@ -66,14 +93,6 @@ contract ConFillTest is ConditionalOrderSwapTest {
         makerMakerToken.assertChange(-int256(defaultOrder.makerTokenAmount) * int256(numberOfCycles));
         recTakerToken.assertChange(int256(0));
         recMakerToken.assertChange(int256(defaultOrder.makerTokenAmount) * int256(numberOfCycles));
-    }
-
-    function testDCAOrder() public {
-        // craft the `flagAndPeriod` of the defaultOrder for BestBuy case
-        uint256 flags = 7 << 253;
-        uint256 period = 1 days;
-
-        defaultOrder.flagsAndPeriod = flags | period;
     }
 
     function testCannotFillExpiredOrder() public {
@@ -103,7 +122,7 @@ contract ConFillTest is ConditionalOrderSwapTest {
 
     function testCannotFillOrderWithInvalidTotalTakerTokenAmount() public {
         // craft the `flagAndPeriod` of the defaultOrder for BestBuy case
-        uint256 flags = 1 << 253;
+        uint256 flags = FLG_PARTIAL_FILL_MASK;
         defaultOrder.flagsAndPeriod = flags;
 
         defaultTakerSig = signConOrder(takerPrivateKey, defaultOrder, address(conditionalSwap));
@@ -120,7 +139,7 @@ contract ConFillTest is ConditionalOrderSwapTest {
 
     function testCannotFillOrderWithInvalidSingleTakerTokenAmount() public {
         // craft the `flagAndPeriod` of the defaultOrder for BestBuy case
-        uint256 flags = 7 << 253;
+        uint256 flags = FLG_SINGLE_AMOUNT_CAP_MASK | FLG_PERIODIC_MASK | FLG_PARTIAL_FILL_MASK;
         uint256 period = 12 hours;
         defaultOrder.flagsAndPeriod = flags | period;
 
@@ -153,7 +172,7 @@ contract ConFillTest is ConditionalOrderSwapTest {
 
     function testCannotFillOrderWithinSamePeriod() public {
         // craft the `flagAndPeriod` of the defaultOrder for BestBuy case
-        uint256 flags = 7 << 253;
+        uint256 flags = FLG_SINGLE_AMOUNT_CAP_MASK | FLG_PERIODIC_MASK | FLG_PARTIAL_FILL_MASK;
         uint256 period = 12 hours;
         defaultOrder.flagsAndPeriod = flags | period;
 
@@ -163,6 +182,26 @@ contract ConFillTest is ConditionalOrderSwapTest {
         vm.warp(block.timestamp + 1);
         vm.expectRevert(IConditionalSwap.InsufficientTimePassed.selector);
         conditionalSwap.fillConOrder(defaultOrder, defaultTakerSig, defaultOrder.takerTokenAmount, defaultOrder.makerTokenAmount, defaultSettlementData);
+        vm.stopPrank();
+    }
+
+    function testCannotFillOrderWithInvalidSettlementType() public {
+        bytes memory settlementData = hex"02";
+
+        defaultTakerSig = signConOrder(takerPrivateKey, defaultOrder, address(conditionalSwap));
+
+        vm.expectRevert(IConditionalSwap.InvalidSettlementType.selector);
+        vm.startPrank(maker);
+        conditionalSwap.fillConOrder(defaultOrder, defaultTakerSig, defaultOrder.takerTokenAmount, defaultOrder.makerTokenAmount, settlementData);
+        vm.stopPrank();
+    }
+
+    function testCannotFillOrderWithInvalidMakingAmount() public {
+        defaultTakerSig = signConOrder(takerPrivateKey, defaultOrder, address(conditionalSwap));
+
+        vm.expectRevert(IConditionalSwap.InvalidMakingAmount.selector);
+        vm.startPrank(maker);
+        conditionalSwap.fillConOrder(defaultOrder, defaultTakerSig, defaultOrder.takerTokenAmount, defaultOrder.makerTokenAmount - 1, defaultSettlementData);
         vm.stopPrank();
     }
 }

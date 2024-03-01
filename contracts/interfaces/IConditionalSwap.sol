@@ -4,18 +4,18 @@ pragma solidity 0.8.17;
 import { ConOrder } from "../libraries/ConditionalOrder.sol";
 
 interface IConditionalSwap {
-    // error
     error ExpiredOrder();
     error InsufficientTimePassed();
-    error ZeroTokenAmount();
     error InvalidSignature();
+    error ZeroTokenAmount();
     error InvalidTakingAmount();
     error InvalidMakingAmount();
-    error InvalidRecipient();
-    error NotOrderMaker();
     error InsufficientOutput();
+    error NotOrderMaker();
+    error InvalidRecipient();
+    error InvalidSettlementType();
 
-    // event
+    /// @notice Emitted when a conditional order is filled
     event ConditionalOrderFilled(
         bytes32 indexed orderHash,
         address indexed taker,
