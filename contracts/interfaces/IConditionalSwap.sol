@@ -11,7 +11,7 @@ interface IConditionalSwap {
     error InvalidTakingAmount();
     error InvalidMakingAmount();
     error InsufficientOutput();
-    error NotOrderMaker();
+    error NotOrderExecutor();
     error InvalidRecipient();
     error InvalidSettlementType();
 
@@ -26,6 +26,10 @@ interface IConditionalSwap {
         uint256 makerTokenSettleAmount,
         address recipient
     );
+
+    event AddRelayer(address indexed maker, address indexed relayer);
+
+    event RemoveRelayer(address indexed maker, address indexed relayer);
 
     // function
     function fillConOrder(

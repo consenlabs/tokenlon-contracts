@@ -28,8 +28,10 @@ contract ConditionalOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, S
     address public allowanceTargetOwner = makeAddr("allowanceTargetOwner");
     uint256 public takerPrivateKey = uint256(1);
     uint256 public makerPrivateKey = uint256(2);
+    uint256 public relayerPrivateKey = uint256(3);
     address public taker = vm.addr(takerPrivateKey);
     address payable public maker = payable(vm.addr(makerPrivateKey));
+    address payable public relayer = payable(vm.addr(relayerPrivateKey));
     address payable public recipient = payable(makeAddr("recipient"));
 
     uint256 public defaultExpiry = block.timestamp + 1 days;
@@ -59,8 +61,10 @@ contract ConditionalOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, S
 
         deal(maker, 100 ether);
         deal(taker, 100 ether);
+        deal(relayer, 100 ether);
         setTokenBalanceAndApprove(maker, address(conditionalSwap), tokens, 100000);
         setTokenBalanceAndApprove(taker, address(conditionalSwap), tokens, 100000);
+        setTokenBalanceAndApprove(relayer, address(conditionalSwap), tokens, 100000);
 
         defaultTakerPermit = hex"01";
         defaultSettlementData = hex"00";

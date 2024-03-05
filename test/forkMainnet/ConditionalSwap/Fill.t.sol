@@ -191,6 +191,57 @@ contract ConFillTest is ConditionalOrderSwapTest {
         recMakerToken.assertChange(int256(partialMakerTokenAmount) * int256(numberOfCycles));
     }
 
+    function testExecuteOrderWithRelayer() external {
+        ConOrder memory order = defaultOrder;
+
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: order.taker, token: order.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: order.taker, token: order.makerToken });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: order.maker, token: order.takerToken });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: order.maker, token: order.makerToken });
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: order.recipient, token: order.takerToken });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: order.recipient, token: order.makerToken });
+        Snapshot memory relayerTakerToken = BalanceSnapshot.take({ owner: relayer, token: order.takerToken });
+        Snapshot memory relayerMakerToken = BalanceSnapshot.take({ owner: relayer, token: order.makerToken });
+
+        // craft the `flagAndPeriod` of the order for BestBuy case
+        uint256 flags = FLG_PARTIAL_FILL_MASK;
+        order.flagsAndPeriod = flags;
+
+        // add relayer
+        vm.startPrank(order.maker);
+        address[] memory relayers = new address[](1);
+        relayers[0] = relayer;
+        conditionalSwap.addRelayers(relayers);
+        vm.stopPrank();
+
+        takerSig = signConOrder(takerPrivateKey, order, address(conditionalSwap));
+
+        vm.expectEmit(true, true, true, true);
+        emit ConditionalOrderFilled(
+            getConOrderHash(order),
+            order.taker,
+            order.maker,
+            order.takerToken,
+            order.takerTokenAmount,
+            order.makerToken,
+            order.makerTokenAmount,
+            recipient
+        );
+
+        vm.startPrank(relayer);
+        conditionalSwap.fillConOrder(order, takerSig, order.takerTokenAmount, order.makerTokenAmount, defaultSettlementData);
+        vm.stopPrank();
+
+        takerTakerToken.assertChange(-int256(order.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(0);
+        makerMakerToken.assertChange(0);
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(order.makerTokenAmount));
+        relayerTakerToken.assertChange(int256(order.takerTokenAmount));
+        relayerMakerToken.assertChange(-int256(order.makerTokenAmount));
+    }
+
     function testCannotFillExpiredOrder() public {
         vm.warp(defaultOrder.expiry + 1);
 
@@ -203,7 +254,7 @@ contract ConFillTest is ConditionalOrderSwapTest {
     function testCannotFillOrderByInvalidOderMaker() public {
         address invalidOrderMaker = makeAddr("invalidOrderMaker");
 
-        vm.expectRevert(IConditionalSwap.NotOrderMaker.selector);
+        vm.expectRevert(IConditionalSwap.NotOrderExecutor.selector);
         vm.startPrank(invalidOrderMaker);
         conditionalSwap.fillConOrder(defaultOrder, takerSig, defaultOrder.takerTokenAmount, defaultOrder.makerTokenAmount, defaultSettlementData);
         vm.stopPrank();
@@ -307,6 +358,21 @@ contract ConFillTest is ConditionalOrderSwapTest {
         vm.expectRevert(IConditionalSwap.InvalidMakingAmount.selector);
         vm.startPrank(defaultOrder.maker);
         conditionalSwap.fillConOrder(defaultOrder, takerSig, defaultOrder.takerTokenAmount, defaultOrder.makerTokenAmount - 1, defaultSettlementData);
+        vm.stopPrank();
+    }
+
+    function testCannotFillOrderWithRemovedRelayer() public {
+        // add relayer
+        vm.startPrank(defaultOrder.maker);
+        address[] memory relayers = new address[](1);
+        relayers[0] = relayer;
+        conditionalSwap.addRelayers(relayers);
+        conditionalSwap.removeRelayers(relayers);
+        vm.stopPrank();
+
+        vm.expectRevert(IConditionalSwap.NotOrderExecutor.selector);
+        vm.startPrank(relayer);
+        conditionalSwap.fillConOrder(defaultOrder, takerSig, defaultOrder.takerTokenAmount, defaultOrder.makerTokenAmount, defaultSettlementData);
         vm.stopPrank();
     }
 }

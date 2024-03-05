@@ -23,6 +23,7 @@ contract ConditionalSwap is IConditionalSwap, Ownable, TokenCollector, EIP712 {
     // record how many taker tokens have been filled in an order
     mapping(bytes32 => uint256) public orderHashToTakerTokenFilledAmount;
     mapping(bytes32 => uint256) public orderHashToLastExecutedTime;
+    mapping(address => mapping(address => bool)) public makerToRelayer;
 
     constructor(address _owner, address _uniswapPermit2, address _allowanceTarget) Ownable(_owner) TokenCollector(_uniswapPermit2, _allowanceTarget) {}
 
@@ -37,7 +38,7 @@ contract ConditionalSwap is IConditionalSwap, Ownable, TokenCollector, EIP712 {
         bytes calldata settlementData
     ) external payable override {
         if (block.timestamp > order.expiry) revert ExpiredOrder();
-        if (msg.sender != order.maker) revert NotOrderMaker();
+        if (msg.sender != order.maker && !makerToRelayer[order.maker][msg.sender]) revert NotOrderExecutor();
         if (order.recipient == address(0)) revert InvalidRecipient();
         if (takerTokenAmount == 0) revert ZeroTokenAmount();
 
@@ -106,6 +107,22 @@ contract ConditionalSwap is IConditionalSwap, Ownable, TokenCollector, EIP712 {
         } else revert InvalidSettlementType();
 
         _emitConOrderFilled(order, orderHash, takerTokenAmount, returnedAmount);
+    }
+
+    function addRelayers(address[] calldata relayers) external {
+        // the relayers is stored in calldata, there is no need to cache the relayers length
+        for (uint256 i; i < relayers.length; ++i) {
+            makerToRelayer[msg.sender][relayers[i]] = true;
+            emit AddRelayer(msg.sender, relayers[i]);
+        }
+    }
+
+    function removeRelayers(address[] calldata relayers) external {
+        // the relayers is stored in calldata, there is no need to cache the relayers length
+        for (uint256 i; i < relayers.length; ++i) {
+            delete makerToRelayer[msg.sender][relayers[i]];
+            emit RemoveRelayer(msg.sender, relayers[i]);
+        }
     }
 
     function _emitConOrderFilled(ConOrder calldata order, bytes32 orderHash, uint256 takerTokenSettleAmount, uint256 makerTokenSettleAmount) internal {
