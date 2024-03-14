@@ -18,7 +18,7 @@ contract ConditionalSwap is IConditionalSwap, Ownable, TokenCollector, EIP712 {
     uint256 private constant FLG_SINGLE_AMOUNT_CAP_MASK = 1 << 255; // ConOrder.amount is the cap of single execution, not total cap
     uint256 private constant FLG_PERIODIC_MASK = 1 << 254; // ConOrder can be executed periodically
     uint256 private constant FLG_PARTIAL_FILL_MASK = 1 << 253; // ConOrder can be fill partially
-    uint256 private constant PERIOD_MASK = (1 << 16) - 1;
+    uint256 private constant PERIOD_MASK = (1 << 128) - 1; // this is a 128-bit mask where all bits are set to 1
 
     // record how many taker tokens have been filled in an order
     mapping(bytes32 => uint256) public orderHashToTakerTokenFilledAmount;
