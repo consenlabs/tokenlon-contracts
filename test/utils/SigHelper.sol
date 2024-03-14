@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 import { AllowFill, getAllowFillHash } from "contracts/libraries/AllowFill.sol";
 import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
+import { ConOrder, getConOrderHash } from "contracts/libraries/ConditionalOrder.sol";
 import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
 import { RFQTx, getRFQTxHash } from "contracts/libraries/RFQTx.sol";
 import { Test } from "forge-std/Test.sol";
@@ -156,6 +157,27 @@ contract SigHelper is Test {
     function signRFQTx(uint256 _privateKey, RFQTx memory _rfqTx, uint256 chainId, address verifyingContract) internal pure returns (bytes memory sig) {
         (, bytes32 rfqTxHash) = getRFQTxHash(_rfqTx);
         bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(chainId, verifyingContract), rfqTxHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function signConOrder(uint256 _privateKey, ConOrder memory _order, bytes32 domainSeperator) internal pure returns (bytes memory sig) {
+        bytes32 orderHash = getConOrderHash(_order);
+        bytes32 EIP712SignDigest = getEIP712Hash(domainSeperator, orderHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function signConOrder(uint256 _privateKey, ConOrder memory _order, address verifyingContract) internal view returns (bytes memory sig) {
+        bytes32 orderHash = getConOrderHash(_order);
+        bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(block.chainid, verifyingContract), orderHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function signConOrder(uint256 _privateKey, ConOrder memory _order, uint256 chainId, address verifyingContract) internal pure returns (bytes memory sig) {
+        bytes32 orderHash = getConOrderHash(_order);
+        bytes32 EIP712SignDigest = getEIP712Hash(computeEIP712DomainSeparator(chainId, verifyingContract), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
