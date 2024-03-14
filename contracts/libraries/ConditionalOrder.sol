@@ -32,7 +32,7 @@ function getConOrderHash(ConOrder memory order) pure returns (bytes32 conOrderHa
             order.takerTokenAmount,
             order.makerToken,
             order.makerTokenAmount,
-            order.takerTokenPermit,
+            keccak256(order.takerTokenPermit),
             order.flagsAndPeriod,
             order.expiry,
             order.salt
