@@ -1,0 +1,16 @@
+date,description,type,from,to,amount,currency,comment,tx_hash
+20/3/2024,Unclaimed genesis LON balance,TIP,0xcc734cebf6bd685e1d74ac6b09bf2fca867d7791,0x3557bd3d422300198719710cc3f00194e1c20a46,"9,883,293.57",LON,https://snapshot.org/#/tokenlon.eth/proposal/0x8170797ba1c854221fd0e3649bc6f8900a821d0d913006c622f667d739a72c5a,0xae20473613e159df7a39a83b971bf4713110019f1a4e8e30efdc0dc512c1f87a
+,*Q1 community budget - LON,Community budget,,,4500,LON,,
+,*Q1 community budget - USDT,Community budget,,,1830,USDT,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+Note:,"In accordance with TIP38, the Tokenlon team will designate a dedicated wallet address for the allocation of community and marketing funds, streamlining access to resources. This initiative will be implemented beginning the upcoming quarter, Q2 2024, accompanied by transaction hashes documenting budget expenditures.",,,,,,,
+,"Regarding the community budget for Q1, the funds will be transfered to the Tokenlon community wallet in Q2. The funds were allocated for the following purposes:",,,,,,,
+,,,,,,,,
+,Tokenlon Xmas Surprise campaign,https://tokenlon.im/blog/22020266102420,,4500 LON,,,,
+,Multi chain deployment online marketing,https://tokenlon.im/blog/21285160832788,,800 USDT,,,,
+,imToken Chinese New Year red packet campaign,https://twitter.com/imTokenOfficial/status/1755927487450607622,,1000 USDT,,,,
+,Tokenlon Lantern Festival campaign,https://twitter.com/tokenlon/status/1760492570830893270,,30 USDT,,,,
