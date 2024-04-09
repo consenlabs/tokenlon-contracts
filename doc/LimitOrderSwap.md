@@ -6,7 +6,7 @@ A taker can optionally provide extra action parameter in payload which will be e
 
 ## FullOrKill
 
-The default `fillLimitOrder` function allows the settled taking amount is less than a taker requested. The reason is that it may not be sufficient for the whole request when a trade is actual executed and the rest available taking amout would be the actual taking amount in that case. If a taker wants a non-adjustable taking amount, then the `fillLimitOrderFullOrKill` function should be called instead.
+The default `fillLimitOrder` function allows the settled taking amount is less than a taker requested. The reason is that it may not be sufficient for the whole request when a trade is actual executed and the rest available taking amount would be the actual taking amount in that case. If a taker wants a non-adjustable taking amount, then the `fillLimitOrderFullOrKill` function should be called instead.
 
 ## GroupFill
 

@@ -209,7 +209,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
             // re-calculate the amount of taker willing to spend for this trade by the requested ratio
             _takerTokenAmount = ((_takerTokenAmount * makerSpendingAmount) / _makerTokenAmount);
         } else {
-            // the requested amount can be statisfied
+            // the requested amount can be satisfied
             makerSpendingAmount = _makerTokenAmount;
         }
         uint256 minTakerTokenAmount = ((makerSpendingAmount * _order.takerTokenAmount) / _order.makerTokenAmount);
