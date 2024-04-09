@@ -307,7 +307,7 @@ contract FillTest is LimitOrderSwapTest {
 
     function testFillWithBetterTakingAmountButGetAdjusted() public {
         // fill with better price but the order doesn't have enough for the requested
-        // so the makingAmount == order's avaliable amount
+        // so the makingAmount == order's available amount
         // takingAmount should be adjusted to keep the original price that taker provided
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultOrder.makerToken });

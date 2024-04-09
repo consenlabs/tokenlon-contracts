@@ -1,6 +1,6 @@
 # TokenCollector
 
-In Tokenlon V6, multiple schemes of token approval is supported. TokenCollector is an abstract contract that handles different ways of token transfering. When interacting with Tokenlon, user can choose one of supported approving scheme and prepare the corresponded Tokenlon permit parameter (in bytes). The first byte of the permit indicate the type and the rest are encoded data with type specific structure.
+In Tokenlon V6, multiple schemes of token approval is supported. TokenCollector is an abstract contract that handles different ways of token transferring. When interacting with Tokenlon, user can choose one of supported approving scheme and prepare the corresponded Tokenlon permit parameter (in bytes). The first byte of the permit indicate the type and the rest are encoded data with type specific structure.
 
 ```
 // ***********************************
