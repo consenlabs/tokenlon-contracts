@@ -33,13 +33,9 @@ interface IRFQ {
 
     event CancelRFQOffer(bytes32 indexed rfqOfferHash, address indexed maker);
 
-    function fillRFQ(
-        RFQTx calldata rfqTx,
-        bytes calldata makerSignature,
-        bytes calldata makerTokenPermit,
-        bytes calldata takerTokenPermit
-    ) external payable;
+    function fillRFQ(RFQTx calldata rfqTx, bytes calldata makerSignature, bytes calldata makerTokenPermit, bytes calldata takerTokenPermit) external payable;
 
+    /*
     function fillRFQ(
         RFQTx calldata rfqTx,
         bytes calldata makerSignature,
@@ -47,6 +43,7 @@ interface IRFQ {
         bytes calldata takerTokenPermit,
         bytes calldata takerSignature
     ) external;
+    */
 
     function cancelRFQOffer(RFQOffer calldata rfqOffer) external;
 }

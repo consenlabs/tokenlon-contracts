@@ -470,6 +470,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         rfq.fillRFQ{ value: 2 ether }(rfqTx1, makerSig1, defaultMakerPermit, defaultTakerPermit);
     }
 
+    /*
     function testFillRFQByTakerSig() public {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: defaultRFQOffer.taker, token: defaultRFQOffer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: defaultRFQOffer.taker, token: defaultRFQOffer.makerToken });
@@ -549,6 +550,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper {
         vm.expectRevert(IRFQ.InvalidMakerAmount.selector);
         rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
     }
+    */
 
     function testCancelRFQOffer() public {
         vm.prank(defaultRFQOffer.maker, defaultRFQOffer.maker);

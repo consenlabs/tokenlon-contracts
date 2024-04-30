@@ -34,6 +34,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         );
     }
 
+    /*
     /// @param swapData Swap data
     /// @param taker Claimed taker address
     /// @param takerSig Taker signature
@@ -53,6 +54,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         returnAmount = _executeSwap(swapData, taker, takerTokenPermit);
         emit Swap(swapHash, swapData.maker, taker, swapData.recipient, swapData.takerToken, swapData.takerTokenAmount, swapData.makerToken, returnAmount);
     }
+    */
 
     function _executeSwap(
         GenericSwapData calldata _swapData,

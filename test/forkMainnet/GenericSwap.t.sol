@@ -238,6 +238,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
         genericSwap.executeSwap(gsData, defaultTakerPermit);
     }
 
+    /*
     function testGenericSwapRelayed() public {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultGSData.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultGSData.makerToken });
@@ -285,4 +286,5 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_privateKey, EIP712SignDigest);
         return abi.encodePacked(r, s, v);
     }
+    */
 }
