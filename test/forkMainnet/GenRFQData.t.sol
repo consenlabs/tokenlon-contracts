@@ -7,7 +7,6 @@ import { Tokens } from "test/utils/Tokens.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
 import { RFQTx, getRFQTxHash } from "contracts/libraries/RFQTx.sol";
-import { Constant } from "contracts/libraries/Constant.sol";
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
 import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.sol";
 import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
@@ -29,7 +28,7 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper {
         BalanceUtil.setTokenBalanceAndApprove(maker, deployedRFQ, tokens, 1000000000000);
     }
 
-    function test_gen_RFQ_data_called_from_GS() public {
+    function test_gen_RFQ_data_called_from_GS() public view {
         address testTakerToken = vm.envAddress("TAKER_TOKEN");
         address testMakerToken = vm.envAddress("MAKER_TOKEN");
 
@@ -73,12 +72,15 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper {
             strategyData: abi.encode(operations)
         });
 
-        vm.prank(taker, taker);
-        IGenericSwap(deployedGS).executeSwap(defaultGSData, hex"01");
+        // vm.prank(taker, taker);
+        // IGenericSwap(deployedGS).executeSwap(defaultGSData, hex"01");
         bytes memory gsCalldata = abi.encodeWithSelector(IGenericSwap.executeSwap.selector, defaultGSData, hex"01");
 
-        console.log(taker);
-        console.log(rfqOffer.maker);
+        console.log("taker:", taker);
+        console.log("maker:", rfqOffer.maker);
+
+        console.log("takerToken:", testTakerToken);
+        console.log("makerToken:", testMakerToken);
         console.logBytes(gsCalldata);
     }
 }
