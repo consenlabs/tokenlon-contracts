@@ -64,7 +64,7 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper {
             maker: payable(address(deployedSOR)),
             takerToken: testTakerToken,
             takerTokenAmount: 5000000,
-            makerToken: Constant.ETH_ADDRESS,
+            makerToken: testMakerToken,
             makerTokenAmount: 20000000000, // to be filled later
             minMakerTokenAmount: 0, // to be filled later
             expiry: 2 ** 256 - 1,
