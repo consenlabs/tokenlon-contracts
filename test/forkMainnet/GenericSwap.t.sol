@@ -32,7 +32,8 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         address inputToken,
         uint256 inputAmount,
         address outputToken,
-        uint256 outputAmount
+        uint256 outputAmount,
+        uint256 salt
     );
 
     address strategyAdmin = makeAddr("strategyAdmin");
@@ -140,7 +141,8 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
             defaultGSData.takerToken,
             defaultGSData.takerTokenAmount,
             defaultGSData.makerToken,
-            defaultGSData.makerTokenAmount
+            defaultGSData.makerTokenAmount,
+            defaultGSData.salt
         );
 
         vm.prank(taker);
@@ -168,7 +170,17 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         // 800 < 900 < 1000
         mockStrategy.setOutputAmountAndRecipient(actualOutput, payable(address(genericSwap)));
         vm.expectEmit(true, true, true, true);
-        emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, realChangedInGS);
+        emit Swap(
+            getGSDataHash(gsData),
+            gsData.maker,
+            taker,
+            taker,
+            gsData.takerToken,
+            gsData.takerTokenAmount,
+            gsData.makerToken,
+            realChangedInGS,
+            gsData.salt
+        );
         vm.prank(taker);
         genericSwap.executeSwap(gsData, defaultTakerPermit);
 
@@ -193,7 +205,17 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
 
         mockStrategy.setOutputAmountAndRecipient(gsData.makerTokenAmount, payable(address(genericSwap)));
         vm.expectEmit(true, true, true, true);
-        emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, realChangedInGS);
+        emit Swap(
+            getGSDataHash(gsData),
+            gsData.maker,
+            taker,
+            taker,
+            gsData.takerToken,
+            gsData.takerTokenAmount,
+            gsData.makerToken,
+            realChangedInGS,
+            gsData.salt
+        );
         vm.prank(taker);
         genericSwap.executeSwap{ value: gsData.takerTokenAmount }(gsData, defaultTakerPermit);
 
@@ -219,7 +241,17 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
 
         mockStrategy.setOutputAmountAndRecipient(gsData.makerTokenAmount, payable(address(genericSwap)));
         vm.expectEmit(true, true, true, true);
-        emit Swap(getGSDataHash(gsData), gsData.maker, taker, taker, gsData.takerToken, gsData.takerTokenAmount, gsData.makerToken, realChangedInGS);
+        emit Swap(
+            getGSDataHash(gsData),
+            gsData.maker,
+            taker,
+            taker,
+            gsData.takerToken,
+            gsData.takerTokenAmount,
+            gsData.makerToken,
+            realChangedInGS,
+            gsData.salt
+        );
         vm.prank(taker);
         genericSwap.executeSwap(gsData, defaultTakerPermit);
 
@@ -291,7 +323,8 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
             defaultGSData.takerToken,
             defaultGSData.takerTokenAmount,
             defaultGSData.makerToken,
-            defaultGSData.makerTokenAmount
+            defaultGSData.makerTokenAmount,
+            defaultGSData.salt
         );
 
         bytes memory takerSig = signGenericSwap(takerPrivateKey, defaultGSData, address(genericSwap));
@@ -339,7 +372,8 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
             defaultGSData.takerToken,
             defaultGSData.takerTokenAmount,
             defaultGSData.makerToken,
-            defaultGSData.makerTokenAmount
+            defaultGSData.makerTokenAmount,
+            defaultGSData.salt
         );
 
         vm.prank(taker);
@@ -371,7 +405,8 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
             aliceGSData.takerToken,
             aliceGSData.takerTokenAmount,
             aliceGSData.makerToken,
-            aliceGSData.makerTokenAmount
+            aliceGSData.makerTokenAmount,
+            aliceGSData.salt
         );
 
         vm.startPrank(alice);
