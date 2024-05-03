@@ -19,7 +19,8 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
     address deployedRFQ = 0xC6e1074113a954340277aE6F309aF2AF6e259283;
     address deployedSOR = 0x0E67fD506Db5C6199C5D2b2b54380DEB414E2431;
 
-    address taker = 0x40B38765696e3d5d8d9d834D8AaD4bB6e418E489;
+    uint256 takerKey = uint256(7414);
+    address taker = vm.addr(takerKey);
     uint256 makerKey = uint256(94530678);
     address maker = vm.addr(makerKey);
 
@@ -29,7 +30,7 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
         BalanceUtil.setTokenBalanceAndApprove(maker, deployedRFQ, tokens, 1000000000000);
     }
 
-    function test_gen_RFQ_data_called_from_GS() public view {
+    function test_gen_RFQ_data_called_from_GS() public {
         address testTakerToken = vm.envAddress("TAKER_TOKEN");
         address testMakerToken = vm.envAddress("MAKER_TOKEN");
 
@@ -73,19 +74,19 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
             strategyData: abi.encode(operations)
         });
 
-        // vm.prank(taker, taker);
-        // IGenericSwap(deployedGS).executeSwap(defaultGSData, hex"01");
         bytes memory gsCalldata = abi.encodeWithSelector(IGenericSwap.executeSwap.selector, defaultGSData, hex"01");
 
         console.log("taker:", taker);
         console.log("maker:", rfqOffer.maker);
-
         console.log("takerToken:", testTakerToken);
         console.log("makerToken:", testMakerToken);
         console.logBytes(gsCalldata);
+
+        // vm.prank(taker, taker);
+        // IGenericSwap(deployedGS).executeSwap(defaultGSData, hex"01");
     }
 
-    function test_gen_RFQ_data_directly_call_to_RFQ() public view {
+    function test_gen_RFQ_data_Permit_01_from_EOA() public {
         address testTakerToken = vm.envAddress("TAKER_TOKEN");
         address testMakerToken = vm.envAddress("MAKER_TOKEN");
 
@@ -108,23 +109,22 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
 
         console.log("taker:", taker);
         console.log("maker:", rfqOffer.maker);
-
         console.log("takerToken:", testTakerToken);
         console.log("makerToken:", testMakerToken);
         console.logBytes(rfqCalldata);
+
+        // vm.prank(taker, taker);
+        // IRFQ(deployedRFQ).fillRFQ(rfqTx, makerSig, hex"01", hex"01");
     }
 
-    function test_gen_RFQ_data_directly_call_to_RFQ_Permit2() public {
+    function test_gen_RFQ_data_Permit_03_from_EOA() public {
         address testTakerToken = vm.envAddress("TAKER_TOKEN");
         address testMakerToken = vm.envAddress("MAKER_TOKEN");
 
-        uint256 selfManagedTakerKey = uint256(7414);
-        address selfManagedTaker = vm.addr(selfManagedTakerKey);
-
-        BalanceUtil.setTokenBalanceAndApprove(selfManagedTaker, address(permit2), tokens, 1000000000000);
+        BalanceUtil.setTokenBalanceAndApprove(taker, address(permit2), tokens, 1000000000000);
 
         RFQOffer memory rfqOffer = RFQOffer({
-            taker: selfManagedTaker,
+            taker: taker,
             takerToken: testTakerToken,
             takerTokenAmount: 5000000,
             maker: payable(maker),
@@ -135,19 +135,19 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
             flags: 86844066927987146567678238756515930889952488499230423029593188005934847229952,
             salt: 55688
         });
-        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: 5000000, recipient: payable(selfManagedTaker) });
+        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: 5000000, recipient: payable(taker) });
         bytes memory makerSig = signRFQOffer(makerKey, rfqOffer, address(deployedRFQ));
-        bytes memory takerPermit = getTokenlonPermit2Data(selfManagedTaker, selfManagedTakerKey, testTakerToken, deployedRFQ, 2 ** 256 - 1);
+        bytes memory takerPermit = getTokenlonPermit2Data(taker, takerKey, testTakerToken, deployedRFQ, 2 ** 256 - 1);
 
         bytes memory rfqCalldata = abi.encodeCall(IRFQ.fillRFQ, (rfqTx, makerSig, hex"01", takerPermit));
 
-        console.log("taker:", selfManagedTaker);
+        console.log("taker:", taker);
         console.log("maker:", rfqOffer.maker);
-
         console.log("takerToken:", testTakerToken);
         console.log("makerToken:", testMakerToken);
         console.logBytes(rfqCalldata);
-        // vm.prank(selfManagedTaker, selfManagedTaker);
+
+        // vm.prank(taker, taker);
         // IRFQ(deployedRFQ).fillRFQ(rfqTx, makerSig, hex"01", takerPermit);
     }
 }
