@@ -83,4 +83,33 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper {
         console.log("makerToken:", testMakerToken);
         console.logBytes(gsCalldata);
     }
+
+    function test_gen_RFQ_data_directly_call_to_RFQ() public view {
+        address testTakerToken = vm.envAddress("TAKER_TOKEN");
+        address testMakerToken = vm.envAddress("MAKER_TOKEN");
+
+        RFQOffer memory rfqOffer = RFQOffer({
+            taker: taker,
+            takerToken: testTakerToken,
+            takerTokenAmount: 5000000,
+            maker: payable(maker),
+            makerToken: testMakerToken,
+            makerTokenAmount: 20000000000,
+            expiry: 2 ** 256 - 1,
+            feeFactor: 0,
+            flags: 86844066927987146567678238756515930889952488499230423029593188005934847229952,
+            salt: 55688
+        });
+        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: 5000000, recipient: payable(taker) });
+        bytes memory makerSig = signRFQOffer(makerKey, rfqOffer, address(deployedRFQ));
+
+        bytes memory rfqCalldata = abi.encodeCall(IRFQ.fillRFQ, (rfqTx, makerSig, hex"01", hex"01"));
+
+        console.log("taker:", taker);
+        console.log("maker:", rfqOffer.maker);
+
+        console.log("takerToken:", testTakerToken);
+        console.log("makerToken:", testMakerToken);
+        console.logBytes(rfqCalldata);
+    }
 }
