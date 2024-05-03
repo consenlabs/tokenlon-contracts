@@ -97,7 +97,7 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
             makerToken: testMakerToken,
             makerTokenAmount: 20000000000,
             expiry: 2 ** 256 - 1,
-            feeFactor: 0,
+            feeFactor: 100, // NOTE: if taker fills order solely on RFQ, we charge fee through setting a non-zero feeFactor
             flags: 86844066927987146567678238756515930889952488499230423029593188005934847229952,
             salt: 55688
         });
@@ -131,7 +131,7 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
             makerToken: testMakerToken,
             makerTokenAmount: 20000000000,
             expiry: 2 ** 256 - 1,
-            feeFactor: 0,
+            feeFactor: 100, // NOTE: if taker fills order solely on RFQ, we charge fee through setting a non-zero feeFactor
             flags: 86844066927987146567678238756515930889952488499230423029593188005934847229952,
             salt: 55688
         });
