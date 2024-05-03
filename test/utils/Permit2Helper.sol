@@ -47,11 +47,7 @@ contract Permit2Helper is Test {
         return abi.encodePacked(r, s, v);
     }
 
-    function encodeAllowanceTransfer(
-        address owner,
-        IUniswapPermit2.PermitSingle memory permit,
-        bytes memory permitSig
-    ) public pure returns (bytes memory) {
+    function encodeAllowanceTransfer(address owner, IUniswapPermit2.PermitSingle memory permit, bytes memory permitSig) public pure returns (bytes memory) {
         bytes memory permit2Calldata = abi.encode(owner, permit, permitSig);
         return abi.encodePacked(TokenCollector.Source.Permit2AllowanceTransfer, permit2Calldata);
     }
@@ -61,13 +57,27 @@ contract Permit2Helper is Test {
     }
 
     // will return encoded AllownaceTransfer data
+    function getTokenlonPermit2Data(address owner, uint256 ownerPrivateKey, address token, address spender) public view returns (bytes memory) {
+        uint256 expiration = block.timestamp + 1 days;
+        (, , uint48 nonce) = permit2.allowance(owner, token, spender);
+
+        IUniswapPermit2.PermitSingle memory permit = IUniswapPermit2.PermitSingle({
+            details: IUniswapPermit2.PermitDetails({ token: token, amount: type(uint160).max, expiration: uint48(expiration), nonce: nonce }),
+            spender: spender,
+            sigDeadline: expiration
+        });
+        bytes memory permitSig = signPermitSingle(ownerPrivateKey, permit);
+        return encodeAllowanceTransfer(owner, permit, permitSig);
+    }
+
+    // will return encoded AllownaceTransfer data
     function getTokenlonPermit2Data(
         address owner,
         uint256 ownerPrivateKey,
         address token,
-        address spender
+        address spender,
+        uint256 expiration
     ) public view returns (bytes memory) {
-        uint256 expiration = block.timestamp + 1 days;
         (, , uint48 nonce) = permit2.allowance(owner, token, spender);
 
         IUniswapPermit2.PermitSingle memory permit = IUniswapPermit2.PermitSingle({
