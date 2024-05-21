@@ -7,6 +7,7 @@ import { IStrategy } from "./IStrategy.sol";
 /// @author imToken Labs
 interface ISmartOrderStrategy is IStrategy {
     error ZeroInput();
+    error ZeroDenominator();
     error EmptyOps();
     error InvalidMsgValue();
     error InvalidInputRatio();
@@ -16,8 +17,9 @@ interface ISmartOrderStrategy is IStrategy {
     struct Operation {
         address dest;
         address inputToken;
-        uint128 inputRatio;
-        uint128 dataOffset;
+        uint256 ratioNumerator;
+        uint256 ratioDenominator;
+        uint256 dataOffset;
         uint256 value;
         bytes data;
     }

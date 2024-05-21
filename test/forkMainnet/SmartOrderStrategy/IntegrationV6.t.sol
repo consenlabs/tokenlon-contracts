@@ -75,7 +75,8 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: address(rfq),
             inputToken: rfqOffer.takerToken,
-            inputRatio: 0, // zero ratio indicate no replacement
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
             dataOffset: 0,
             value: 0,
             data: rfqData
@@ -123,7 +124,8 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: address(limitOrderSwap),
             inputToken: order.takerToken,
-            inputRatio: 0, // zero ratio indicate no replacement
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
             dataOffset: 0,
             value: 0,
             data: loData

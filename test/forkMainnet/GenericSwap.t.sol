@@ -98,7 +98,8 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
             inputToken: defaultInputToken,
-            inputRatio: 0, // zero ratio indicate no replacement
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
             dataOffset: 0,
             value: 0,
             data: routerPayload
