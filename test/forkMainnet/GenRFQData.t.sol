@@ -15,9 +15,12 @@ import { SigHelper } from "test/utils/SigHelper.sol";
 import { Permit2Helper } from "test/utils/Permit2Helper.sol";
 
 contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
-    address deployedGS = 0xa7e96Bf2735BD33750Bb504C3Cc63e3770668dd4;
-    address deployedRFQ = 0xC6e1074113a954340277aE6F309aF2AF6e259283;
-    address deployedSOR = 0x0E67fD506Db5C6199C5D2b2b54380DEB414E2431;
+    // address deployedGS = 0xa7e96Bf2735BD33750Bb504C3Cc63e3770668dd4;
+    // address deployedSOR = 0x0E67fD506Db5C6199C5D2b2b54380DEB414E2431;
+    // address deployedRFQ = 0xC6e1074113a954340277aE6F309aF2AF6e259283;
+    address deployedGS;
+    address deployedSOR;
+    address deployedRFQ;
 
     uint256 takerKey = uint256(7414);
     address taker = vm.addr(takerKey);
@@ -25,6 +28,10 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
     address maker = vm.addr(makerKey);
 
     function setUp() public {
+        deployedGS = vm.envAddress("GS");
+        deployedSOR = vm.envAddress("SOR");
+        deployedRFQ = vm.envAddress("RFQ");
+
         BalanceUtil.setTokenBalanceAndApprove(taker, deployedGS, tokens, 1000000000000);
         BalanceUtil.setTokenBalanceAndApprove(taker, deployedRFQ, tokens, 1000000000000);
         BalanceUtil.setTokenBalanceAndApprove(maker, deployedRFQ, tokens, 1000000000000);
