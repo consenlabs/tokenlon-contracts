@@ -41,8 +41,8 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
         address testTakerToken = vm.envAddress("TAKER_TOKEN");
         address testMakerToken = vm.envAddress("MAKER_TOKEN");
 
-        uint256 testTakerTokenAmount = 5000000;
-        uint256 testMakerTokenAmount = 20000000;
+        uint256 testTakerTokenAmount = vm.envUint("TAKER_TOKEN_AMT");
+        uint256 testMakerTokenAmount = vm.envUint("MAKER_TOKEN_AMT");
 
         RFQOffer memory rfqOffer = RFQOffer({
             taker: deployedSOR,
@@ -101,19 +101,22 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
         address testTakerToken = vm.envAddress("TAKER_TOKEN");
         address testMakerToken = vm.envAddress("MAKER_TOKEN");
 
+        uint256 testTakerTokenAmount = vm.envUint("TAKER_TOKEN_AMT");
+        uint256 testMakerTokenAmount = vm.envUint("MAKER_TOKEN_AMT");
+
         RFQOffer memory rfqOffer = RFQOffer({
             taker: taker,
             takerToken: testTakerToken,
-            takerTokenAmount: 5000000,
+            takerTokenAmount: testTakerTokenAmount,
             maker: payable(maker),
             makerToken: testMakerToken,
-            makerTokenAmount: 20000000000,
+            makerTokenAmount: testMakerTokenAmount,
             expiry: 2 ** 256 - 1,
             feeFactor: 100, // NOTE: if taker fills order solely on RFQ, we charge fee through setting a non-zero feeFactor
             flags: 86844066927987146567678238756515930889952488499230423029593188005934847229952,
             salt: 55688
         });
-        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: 5000000, recipient: payable(taker) });
+        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: testTakerTokenAmount, recipient: payable(taker) });
         bytes memory makerSig = signRFQOffer(makerKey, rfqOffer, address(deployedRFQ));
 
         bytes memory rfqCalldata = abi.encodeCall(IRFQ.fillRFQ, (rfqTx, makerSig, hex"01", hex"01"));
@@ -132,21 +135,24 @@ contract GenRFQData is Test, Tokens, BalanceUtil, SigHelper, Permit2Helper {
         address testTakerToken = vm.envAddress("TAKER_TOKEN");
         address testMakerToken = vm.envAddress("MAKER_TOKEN");
 
+        uint256 testTakerTokenAmount = vm.envUint("TAKER_TOKEN_AMT");
+        uint256 testMakerTokenAmount = vm.envUint("MAKER_TOKEN_AMT");
+
         BalanceUtil.setTokenBalanceAndApprove(taker, address(permit2), tokens, 1000000000000);
 
         RFQOffer memory rfqOffer = RFQOffer({
             taker: taker,
             takerToken: testTakerToken,
-            takerTokenAmount: 5000000,
+            takerTokenAmount: testTakerTokenAmount,
             maker: payable(maker),
             makerToken: testMakerToken,
-            makerTokenAmount: 20000000000,
+            makerTokenAmount: testMakerTokenAmount,
             expiry: 2 ** 256 - 1,
             feeFactor: 100, // NOTE: if taker fills order solely on RFQ, we charge fee through setting a non-zero feeFactor
             flags: 86844066927987146567678238756515930889952488499230423029593188005934847229952,
             salt: 55688
         });
-        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: 5000000, recipient: payable(taker) });
+        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: testTakerTokenAmount, recipient: payable(taker) });
         bytes memory makerSig = signRFQOffer(makerKey, rfqOffer, address(deployedRFQ));
         bytes memory takerPermit = getTokenlonPermit2DataWithExpiry(taker, takerKey, testTakerToken, deployedRFQ, 2 ** 48 - 1);
 
