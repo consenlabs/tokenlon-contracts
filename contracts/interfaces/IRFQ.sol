@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0;
+pragma solidity ^0.8.0;
 
 import { RFQOffer } from "../libraries/RFQOffer.sol";
 import { RFQTx } from "../libraries/RFQTx.sol";

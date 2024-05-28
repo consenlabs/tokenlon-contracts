@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { AdminManagement } from "./abstracts/AdminManagement.sol";
