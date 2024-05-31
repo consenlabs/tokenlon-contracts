@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
@@ -473,10 +474,10 @@ contract FillTest is LimitOrderSwapTest {
         mockStrategy.setOutputAmountAndRecipient(defaultOrder.takerTokenAmount - 1, payable(randomTaker));
 
         vm.startPrank(randomTaker);
-        IERC20(defaultOrder.takerToken).safeApprove(address(limitOrderSwap), type(uint256).max);
+        IERC20(defaultOrder.takerToken).forceApprove(address(limitOrderSwap), type(uint256).max);
 
         // the final step transferFrom will fail since taker doesn't have enough balance to fill
-        vm.expectRevert("SafeERC20: low-level call failed");
+        vm.expectRevert(Address.FailedInnerCall.selector);
         limitOrderSwap.fillLimitOrder({
             order: defaultOrder,
             makerSignature: defaultMakerSig,
