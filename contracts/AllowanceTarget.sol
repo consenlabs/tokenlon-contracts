@@ -29,7 +29,7 @@ contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
     }
 
     /// @inheritdoc IAllowanceTarget
-    function spendFromUserTo(address from, address token, address to, uint256 amount) external override whenNotPaused {
+    function spendFromUserTo(address from, address token, address to, uint256 amount) external whenNotPaused {
         if (!authorized[msg.sender]) revert NotAuthorized();
         IERC20(token).safeTransferFrom(from, to, amount);
     }

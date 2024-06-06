@@ -53,7 +53,7 @@ contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector,
         bytes calldata extraAction,
         bytes calldata userTokenPermit,
         CoordinatorParams calldata crdParams
-    ) external payable override {
+    ) external payable {
         // validate fill permission
         {
             if (crdParams.expiry < block.timestamp) revert ExpiredPermission();

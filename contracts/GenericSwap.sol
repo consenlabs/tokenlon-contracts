@@ -20,7 +20,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
 
     /// @param swapData Swap data
     /// @return returnAmount Output amount of the swap
-    function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable override returns (uint256 returnAmount) {
+    function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable returns (uint256 returnAmount) {
         returnAmount = _executeSwap(swapData, msg.sender, takerTokenPermit);
 
         _emitGSExecuted(getGSDataHash(swapData), swapData, msg.sender, returnAmount);
@@ -35,7 +35,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         bytes calldata takerTokenPermit,
         address taker,
         bytes calldata takerSig
-    ) external payable override returns (uint256 returnAmount) {
+    ) external payable returns (uint256 returnAmount) {
         bytes32 swapHash = getGSDataHash(swapData);
         bytes32 gs712Hash = getEIP712Hash(swapHash);
         if (filledSwap[swapHash]) revert AlreadyFilled();

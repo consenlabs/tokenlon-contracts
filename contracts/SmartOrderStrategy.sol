@@ -26,7 +26,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
     }
 
     /// @inheritdoc IStrategy
-    function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable override onlyGenericSwap {
+    function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable onlyGenericSwap {
         if (inputAmount == 0) revert ZeroInput();
 
         Operation[] memory ops = abi.decode(data, (Operation[]));

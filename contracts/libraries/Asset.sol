@@ -24,9 +24,8 @@ library Asset {
     }
 
     function transferTo(address asset, address payable to, uint256 amount) internal {
-        if (to == address(this) || amount == 0) {
-            return;
-        }
+        if (to == address(this) || amount == 0) return;
+
         if (isETH(asset)) {
             // @dev forward all available gas and may cause reentrancy
             if (address(this).balance < amount) revert InsufficientBalance();

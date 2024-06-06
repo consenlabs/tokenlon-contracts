@@ -51,7 +51,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @inheritdoc ILimitOrderSwap
-    function fillLimitOrder(LimitOrder calldata order, bytes calldata makerSignature, TakerParams calldata takerParams) external payable override nonReentrant {
+    function fillLimitOrder(LimitOrder calldata order, bytes calldata makerSignature, TakerParams calldata takerParams) external payable nonReentrant {
         _fillLimitOrder(order, makerSignature, takerParams, false);
     }
 
@@ -60,7 +60,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         LimitOrder calldata order,
         bytes calldata makerSignature,
         TakerParams calldata takerParams
-    ) external payable override nonReentrant {
+    ) external payable nonReentrant {
         _fillLimitOrder(order, makerSignature, takerParams, true);
     }
 
@@ -70,7 +70,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         bytes[] calldata makerSignatures,
         uint256[] calldata makerTokenAmounts,
         address[] calldata profitTokens
-    ) external payable override nonReentrant {
+    ) external payable nonReentrant {
         if (orders.length != makerSignatures.length || orders.length != makerTokenAmounts.length) revert InvalidParams();
 
         // validate orders and calculate takingAmounts
@@ -130,7 +130,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @inheritdoc ILimitOrderSwap
-    function cancelOrder(LimitOrder calldata order) external override nonReentrant {
+    function cancelOrder(LimitOrder calldata order) external nonReentrant {
         if (order.expiry < uint64(block.timestamp)) revert ExpiredOrder();
         if (msg.sender != order.maker) revert NotOrderMaker();
         bytes32 orderHash = getLimitOrderHash(order);
@@ -143,7 +143,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         emit OrderCanceled(orderHash, order.maker);
     }
 
-    function isOrderCanceled(bytes32 orderHash) external view override returns (bool) {
+    function isOrderCanceled(bytes32 orderHash) external view returns (bool) {
         uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
         return (orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0;
     }
@@ -175,9 +175,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
             if (msg.value != takerParams.takerTokenAmount) revert InvalidMsgValue();
             Asset.transferTo(Constant.ETH_ADDRESS, order.maker, takerSpendingAmount);
             uint256 ethRefund = takerParams.takerTokenAmount - takerSpendingAmount;
-            if (ethRefund > 0) {
-                Asset.transferTo(Constant.ETH_ADDRESS, payable(msg.sender), ethRefund);
-            }
+            Asset.transferTo(Constant.ETH_ADDRESS, payable(msg.sender), ethRefund);
         } else {
             if (msg.value != 0) revert InvalidMsgValue();
             _collect(order.takerToken, msg.sender, order.maker, takerSpendingAmount, takerParams.takerTokenPermit);

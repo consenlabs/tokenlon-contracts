@@ -54,12 +54,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         emit SetFeeCollector(_newFeeCollector);
     }
 
-    function fillRFQ(
-        RFQTx calldata rfqTx,
-        bytes calldata makerSignature,
-        bytes calldata makerTokenPermit,
-        bytes calldata takerTokenPermit
-    ) external payable override {
+    function fillRFQ(RFQTx calldata rfqTx, bytes calldata makerSignature, bytes calldata makerTokenPermit, bytes calldata takerTokenPermit) external payable {
         _fillRFQ(rfqTx, makerSignature, makerTokenPermit, takerTokenPermit, bytes(""));
     }
 
@@ -69,11 +64,11 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         bytes calldata makerTokenPermit,
         bytes calldata takerTokenPermit,
         bytes calldata takerSignature
-    ) external override {
+    ) external {
         _fillRFQ(rfqTx, makerSignature, makerTokenPermit, takerTokenPermit, takerSignature);
     }
 
-    function cancelRFQOffer(RFQOffer calldata rfqOffer) external override {
+    function cancelRFQOffer(RFQOffer calldata rfqOffer) external {
         if (msg.sender != rfqOffer.maker) revert NotOfferMaker();
         bytes32 rfqOfferHash = getRFQOfferHash(rfqOffer);
         if (filledOffer[rfqOfferHash]) revert FilledRFQOffer();
