@@ -295,8 +295,8 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: rfqOffer.makerToken });
         // recipient should receive raw ETH
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.takerToken });
-        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: Constant.ZERO_ADDRESS });
-        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: Constant.ZERO_ADDRESS });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
 
         uint256 fee = (rfqOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
         uint256 amountAfterFee = rfqOffer.makerTokenAmount - fee;

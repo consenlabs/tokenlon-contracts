@@ -22,16 +22,8 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     /// @return returnAmount Output amount of the swap
     function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable override returns (uint256 returnAmount) {
         returnAmount = _executeSwap(swapData, msg.sender, takerTokenPermit);
-        emit Swap(
-            getGSDataHash(swapData),
-            swapData.maker,
-            msg.sender, // taker
-            swapData.recipient,
-            swapData.takerToken,
-            swapData.takerTokenAmount,
-            swapData.makerToken,
-            returnAmount
-        );
+
+        _emitGSExecuted(getGSDataHash(swapData), swapData, msg.sender, returnAmount);
     }
 
     /// @param swapData Swap data
@@ -51,7 +43,8 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         if (!SignatureValidator.validateSignature(taker, gs712Hash, takerSig)) revert InvalidSignature();
 
         returnAmount = _executeSwap(swapData, taker, takerTokenPermit);
-        emit Swap(swapHash, swapData.maker, taker, swapData.recipient, swapData.takerToken, swapData.takerTokenAmount, swapData.makerToken, returnAmount);
+
+        _emitGSExecuted(swapHash, swapData, taker, returnAmount);
     }
 
     function _executeSwap(
@@ -83,5 +76,19 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         if (returnAmount < _swapData.minMakerTokenAmount) revert InsufficientOutput();
 
         _outputToken.transferTo(_swapData.recipient, returnAmount);
+    }
+
+    function _emitGSExecuted(bytes32 _gsOfferHash, GenericSwapData calldata _swapData, address _taker, uint256 returnAmount) internal {
+        emit Swap(
+            _gsOfferHash,
+            _swapData.maker,
+            _taker,
+            _swapData.recipient,
+            _swapData.takerToken,
+            _swapData.takerTokenAmount,
+            _swapData.makerToken,
+            returnAmount,
+            _swapData.salt
+        );
     }
 }

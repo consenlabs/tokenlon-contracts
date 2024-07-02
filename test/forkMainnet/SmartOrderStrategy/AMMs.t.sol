@@ -37,7 +37,8 @@ contract AMMsTest is SmartOrderStrategyTest {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
             inputToken: defaultInputToken,
-            inputRatio: 0, // zero ratio indicate no replacement
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
             dataOffset: 0,
             value: 0,
             data: uniswapData
@@ -78,8 +79,9 @@ contract AMMsTest is SmartOrderStrategyTest {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
             inputToken: defaultInputToken,
-            inputRatio: defaultInputRatio,
-            dataOffset: uint128(4 + 32 + 128), // add 32 bytes of length prefix
+            ratioNumerator: defaultInputRatio,
+            ratioDenominator: 10000,
+            dataOffset: 4 + 32 + 128, // add 32 bytes of length prefix
             value: 0,
             data: uniswapData
         });
@@ -117,8 +119,9 @@ contract AMMsTest is SmartOrderStrategyTest {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
             inputToken: defaultInputToken,
-            inputRatio: Constant.BPS_MAX, // BPS_MAX indicate the input amount will be replaced by the actual balance
-            dataOffset: uint128(4 + 32 + 128), // add 32 bytes of length prefix
+            ratioNumerator: 1, // same numerator and ratioDenominator indicate the input amount will be replaced by the actual balance
+            ratioDenominator: 1,
+            dataOffset: 4 + 32 + 128, // add 32 bytes of length prefix
             value: 0,
             data: uniswapData
         });
@@ -161,7 +164,8 @@ contract AMMsTest is SmartOrderStrategyTest {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
             inputToken: defaultInputToken,
-            inputRatio: 0, // zero ratio indicate no replacement
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
             dataOffset: 0,
             value: 0,
             data: uniswapData
@@ -218,7 +222,8 @@ contract AMMsTest is SmartOrderStrategyTest {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: UNISWAP_SWAP_ROUTER_02_ADDRESS,
             inputToken: USDC_ADDRESS,
-            inputRatio: 0, // zero ratio indicate no replacement
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
             dataOffset: 0,
             value: 0,
             data: uniswapData
@@ -226,7 +231,8 @@ contract AMMsTest is SmartOrderStrategyTest {
         operations[1] = ISmartOrderStrategy.Operation({
             dest: CURVE_TRICRYPTO2_POOL_ADDRESS,
             inputToken: WETH_ADDRESS,
-            inputRatio: 0, // zero ratio indicate no replacement
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
             dataOffset: 0,
             value: 0,
             data: curveData

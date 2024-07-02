@@ -118,10 +118,10 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         // transfer takerToken to maker
         if (_rfqOffer.takerToken.isETH()) {
             if (msg.value != _rfqTx.takerRequestAmount) revert InvalidMsgValue();
-            _collecETHAndSend(_rfqOffer.maker, _rfqTx.takerRequestAmount, ((_rfqOffer.flags & FLG_MAKER_RECEIVES_WETH) != 0));
+            _collectETHAndSend(_rfqOffer.maker, _rfqTx.takerRequestAmount, ((_rfqOffer.flags & FLG_MAKER_RECEIVES_WETH) != 0));
         } else if (_rfqOffer.takerToken == address(weth)) {
             if (msg.value != 0) revert InvalidMsgValue();
-            _collecWETHAndSend(
+            _collectWETHAndSend(
                 _rfqOffer.taker,
                 _rfqOffer.maker,
                 _rfqTx.takerRequestAmount,
@@ -133,13 +133,19 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             _collect(_rfqOffer.takerToken, _rfqOffer.taker, _rfqOffer.maker, _rfqTx.takerRequestAmount, _takerTokenPermit);
         }
 
-        // collect makerToken from maker to this
+        // collect makerToken from maker to this contract
         uint256 makerSettleAmount = _rfqOffer.makerTokenAmount;
         if (_rfqTx.takerRequestAmount != _rfqOffer.takerTokenAmount) {
             makerSettleAmount = (_rfqTx.takerRequestAmount * _rfqOffer.makerTokenAmount) / _rfqOffer.takerTokenAmount;
         }
         if (makerSettleAmount == 0) revert InvalidMakerAmount();
-        _collect(_rfqOffer.makerToken, _rfqOffer.maker, address(this), makerSettleAmount, _makerTokenPermit);
+        // if the makerToken is ETH, we collect WETH from the maker to this contract
+        // if the makerToken is a ERC20 token (including WETH) , we collect that ERC20 token from maker to this contract
+        if (_rfqOffer.makerToken.isETH()) {
+            _collect(address(weth), _rfqOffer.maker, address(this), makerSettleAmount, _makerTokenPermit);
+        } else {
+            _collect(_rfqOffer.makerToken, _rfqOffer.maker, address(this), makerSettleAmount, _makerTokenPermit);
+        }
 
         // calculate maker token settlement amount (sub fee)
         uint256 fee = (makerSettleAmount * _rfqOffer.feeFactor) / Constant.BPS_MAX;
@@ -150,12 +156,9 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         }
 
         {
-            // determine if WETH unwrap is needed, send out ETH if makerToken is WETH
+            // unwrap WETH and send out ETH if makerToken is ETH
             address makerToken = _rfqOffer.makerToken;
-            if (makerToken == address(weth)) {
-                weth.withdraw(makerSettleAmount);
-                makerToken = Constant.ETH_ADDRESS;
-            }
+            if (makerToken.isETH()) weth.withdraw(makerSettleAmount);
 
             // collect fee
             makerToken.transferTo(feeCollector, fee);
@@ -181,7 +184,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     }
 
     // Only used when taker token is ETH
-    function _collecETHAndSend(address payable to, uint256 amount, bool makerReceivesWETH) internal {
+    function _collectETHAndSend(address payable to, uint256 amount, bool makerReceivesWETH) internal {
         if (makerReceivesWETH) {
             weth.deposit{ value: amount }();
             weth.transfer(to, amount);
@@ -191,7 +194,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     }
 
     // Only used when taker token is WETH
-    function _collecWETHAndSend(address from, address payable to, uint256 amount, bytes calldata data, bool makerReceivesWETH) internal {
+    function _collectWETHAndSend(address from, address payable to, uint256 amount, bytes calldata data, bool makerReceivesWETH) internal {
         if (makerReceivesWETH) {
             _collect(address(weth), from, to, amount, data);
         } else {

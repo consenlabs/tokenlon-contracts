@@ -17,6 +17,18 @@ contract ValidationTest is SmartOrderStrategyTest {
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, 0, defaultOpsData);
     }
 
+    function testCannotExecuteWithZeroRatioDenominatorWhenRatioNumeratorIsNonZero() public {
+        ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
+        operations[0].inputToken = USDC_ADDRESS;
+        operations[0].ratioNumerator = 1;
+        operations[0].ratioDenominator = 0;
+        bytes memory opsData = abi.encode(operations);
+
+        vm.expectRevert(ISmartOrderStrategy.ZeroDenominator.selector);
+        vm.prank(genericSwap, genericSwap);
+        smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, opsData);
+    }
+
     function testCannotExecuteWithFailDecodedData() public {
         vm.expectRevert();
         vm.prank(genericSwap, genericSwap);

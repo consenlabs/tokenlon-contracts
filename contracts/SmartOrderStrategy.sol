@@ -5,7 +5,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { AdminManagement } from "./abstracts/AdminManagement.sol";
 import { Asset } from "./libraries/Asset.sol";
-import { Constant } from "./libraries/Constant.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { ISmartOrderStrategy } from "./interfaces/ISmartOrderStrategy.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
@@ -44,7 +43,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         uint256 opsCount = ops.length;
         for (uint256 i = 0; i < opsCount; ++i) {
             Operation memory op = ops[i];
-            _call(op.dest, op.inputToken, op.inputRatio, op.dataOffset, op.value, op.data);
+            _call(op.dest, op.inputToken, op.ratioNumerator, op.ratioDenominator, op.dataOffset, op.value, op.data);
         }
 
         // transfer output token back to GenericSwap
@@ -65,11 +64,17 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         Asset.transferTo(outputToken, payable(genericSwap), selfBalance);
     }
 
-    function _call(address _dest, address _inputToken, uint128 _inputRatio, uint128 _dataOffset, uint256 _value, bytes memory _data) internal {
-        if (_inputRatio > Constant.BPS_MAX) revert InvalidInputRatio();
-
+    function _call(
+        address _dest,
+        address _inputToken,
+        uint256 _ratioNumerator,
+        uint256 _ratioDenominator,
+        uint256 _dataOffset,
+        uint256 _value,
+        bytes memory _data
+    ) internal {
         // replace amount if ratio != 0
-        if (_inputRatio != 0) {
+        if (_ratioNumerator != 0) {
             uint256 inputTokenBalance = IERC20(_inputToken).balanceOf(address(this));
             // leaving one wei for gas optimization
             if (inputTokenBalance > 1) {
@@ -79,8 +84,10 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
             }
 
             // calculate input amount if ratio should be applied
-            if (_inputRatio != Constant.BPS_MAX) {
-                inputTokenBalance = (inputTokenBalance * _inputRatio) / Constant.BPS_MAX;
+            // we provide a _ratioNumerator and a _ratioDenominator to decide a ratio
+            if (_ratioNumerator != _ratioDenominator) {
+                if (_ratioDenominator == 0) revert ZeroDenominator();
+                inputTokenBalance = (inputTokenBalance * _ratioNumerator) / _ratioDenominator;
             }
             assembly {
                 mstore(add(_data, _dataOffset), inputTokenBalance)
