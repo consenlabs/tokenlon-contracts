@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Pausable } from "@openzeppelin/contracts/security/Pausable.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 
 import { Ownable } from "./abstracts/Ownable.sol";
 import { IAllowanceTarget } from "./interfaces/IAllowanceTarget.sol";
@@ -29,7 +29,7 @@ contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
     }
 
     /// @inheritdoc IAllowanceTarget
-    function spendFromUserTo(address from, address token, address to, uint256 amount) external override whenNotPaused {
+    function spendFromUserTo(address from, address token, address to, uint256 amount) external whenNotPaused {
         if (!authorized[msg.sender]) revert NotAuthorized();
         IERC20(token).safeTransferFrom(from, to, amount);
     }

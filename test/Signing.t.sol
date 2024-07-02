@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { AllowFill, ALLOWFILL_DATA_TYPEHASH } from "contracts/libraries/AllowFill.sol";
 import { GenericSwapData, GS_DATA_TYPEHASH } from "contracts/libraries/GenericSwapData.sol";

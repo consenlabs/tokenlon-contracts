@@ -34,7 +34,7 @@ contract BalanceUtil is Test {
 
     function approveERC20(address token, address user, address spender) internal {
         vm.startPrank(user);
-        IERC20(token).safeApprove(spender, type(uint256).max);
+        IERC20(token).forceApprove(spender, type(uint256).max);
         vm.stopPrank();
     }
 }

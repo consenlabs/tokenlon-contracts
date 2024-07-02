@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { AdminManagement } from "./abstracts/AdminManagement.sol";
@@ -53,7 +53,7 @@ contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector,
         bytes calldata extraAction,
         bytes calldata userTokenPermit,
         CoordinatorParams calldata crdParams
-    ) external payable override {
+    ) external payable {
         // validate fill permission
         {
             if (crdParams.expiry < block.timestamp) revert ExpiredPermission();

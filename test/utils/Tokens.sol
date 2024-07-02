@@ -13,7 +13,6 @@ contract Tokens is Addresses {
     IERC20 public dai;
     IERC20 public wbtc;
     IERC20 public lon;
-    IERC20 public ankreth;
     IERC20[] public tokens;
 
     constructor() {
@@ -38,13 +37,11 @@ contract Tokens is Addresses {
         }
 
         tokens = [weth, usdt, usdc, dai, wbtc, lon];
-
         vm.label(address(weth), "WETH");
         vm.label(address(usdt), "USDT");
         vm.label(address(usdc), "USDC");
         vm.label(address(dai), "DAI");
         vm.label(address(wbtc), "WBTC");
         vm.label(address(lon), "LON");
-        vm.label(address(ankreth), "ANKRETH");
     }
 }

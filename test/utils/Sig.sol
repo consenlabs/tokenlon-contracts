@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 function getEIP712Hash(bytes32 domainSeparator, bytes32 structHash) pure returns (bytes32) {
     string memory EIP191_HEADER = "\x19\x01";

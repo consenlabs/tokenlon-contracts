@@ -20,7 +20,7 @@ library SignatureValidator {
      * @return True if the address recovered from the provided signature matches the input signer address.
      */
     function validateSignature(address _signerAddress, bytes32 _hash, bytes memory _signature) internal view returns (bool) {
-        if (_signerAddress.isContract()) {
+        if (_signerAddress.code.length > 0) {
             return ERC1271_MAGICVALUE == IERC1271Wallet(_signerAddress).isValidSignature(_hash, _signature);
         } else {
             return _signerAddress == ECDSA.recover(_hash, _signature);

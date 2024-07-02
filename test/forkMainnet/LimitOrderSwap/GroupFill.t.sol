@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";

@@ -17,7 +17,7 @@ abstract contract AdminManagement is Ownable {
     function approveTokens(address[] calldata tokens, address[] calldata spenders) external onlyOwner {
         for (uint256 i = 0; i < tokens.length; ++i) {
             for (uint256 j = 0; j < spenders.length; ++j) {
-                IERC20(tokens[i]).safeApprove(spenders[j], type(uint256).max);
+                IERC20(tokens[i]).forceApprove(spenders[j], type(uint256).max);
             }
         }
     }
@@ -25,9 +25,7 @@ abstract contract AdminManagement is Ownable {
     function rescueTokens(address[] calldata tokens, address recipient) external onlyOwner {
         for (uint256 i = 0; i < tokens.length; ++i) {
             uint256 selfBalance = Asset.getBalance(tokens[i], address(this));
-            if (selfBalance > 0) {
-                Asset.transferTo(tokens[i], payable(recipient), selfBalance);
-            }
+            Asset.transferTo(tokens[i], payable(recipient), selfBalance);
         }
     }
 }

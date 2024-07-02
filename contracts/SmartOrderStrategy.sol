@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -26,7 +26,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
     }
 
     /// @inheritdoc IStrategy
-    function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable override onlyGenericSwap {
+    function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable onlyGenericSwap {
         if (inputAmount == 0) revert ZeroInput();
 
         Operation[] memory ops = abi.decode(data, (Operation[]));

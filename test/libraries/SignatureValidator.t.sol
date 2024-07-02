@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { Test } from "forge-std/Test.sol";
 import { IERC1271Wallet } from "contracts/interfaces/IERC1271Wallet.sol";
@@ -50,14 +50,14 @@ contract SignatureValidatorTest is Test {
         // should have 96 bytes signature
         bytes memory signature = abi.encodePacked(r, s, v);
         // will be reverted in OZ ECDSA lib
-        vm.expectRevert("ECDSA: invalid signature length");
+        vm.expectRevert(abi.encodeWithSelector(ECDSA.ECDSAInvalidSignatureLength.selector, signature.length));
         SignatureValidator.validateSignature(vm.addr(userPrivateKey), digest, signature);
     }
 
     function testEIP712WithEmptySignature() public {
         bytes memory signature;
         // will be reverted in OZ ECDSA lib
-        vm.expectRevert("ECDSA: invalid signature length");
+        vm.expectRevert(abi.encodeWithSelector(ECDSA.ECDSAInvalidSignatureLength.selector, signature.length));
         SignatureValidator.validateSignature(vm.addr(userPrivateKey), digest, signature);
     }
 
@@ -79,7 +79,7 @@ contract SignatureValidatorTest is Test {
         bytes memory signature = abi.encodePacked(r, s, uint8(10));
         // OZ ECDSA lib will handle the zero address case and throw error instead
         // so the zero address will never be matched
-        vm.expectRevert("ECDSA: invalid signature");
+        vm.expectRevert(ECDSA.ECDSAInvalidSignature.selector);
         this._isValidSignatureWrap(address(0), digest, signature);
     }
 
