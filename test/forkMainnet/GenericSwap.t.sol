@@ -129,6 +129,13 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultGSData.takerToken, address(genericSwap));
     }
 
+    function testGenericSwapInitialState() public {
+        genericSwap = new GenericSwap(UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget));
+
+        assertEq(genericSwap.permit2(), UNISWAP_PERMIT2_ADDRESS);
+        assertEq(genericSwap.allowanceTarget(), address(allowanceTarget));
+    }
+
     function testGenericSwapWithUniswap() public {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: taker, token: defaultGSData.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: taker, token: defaultGSData.makerToken });

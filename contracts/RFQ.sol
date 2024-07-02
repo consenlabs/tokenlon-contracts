@@ -153,6 +153,9 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         {
             // unwrap WETH and send out ETH if makerToken is ETH
             address makerToken = _rfqOffer.makerToken;
+            // after trying to withdraw more WETH than this contract has
+            // and replacing `makerToken.isETH()` with `makerToken == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`
+            // the if statement is still not fully covered by the test
             if (makerToken.isETH()) weth.withdraw(makerSettleAmount);
 
             // collect fee
@@ -184,6 +187,8 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             weth.deposit{ value: amount }();
             weth.transfer(to, amount);
         } else {
+            // this branch cannot be covered because we cannot trigger the sendValue internal revert,
+            // as this function is called only when msg.value == amount
             Address.sendValue(to, amount);
         }
     }

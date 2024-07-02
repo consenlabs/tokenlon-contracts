@@ -67,8 +67,5 @@ abstract contract TokenCollector {
             IUniswapPermit2.SignatureTransferDetails memory detail = IUniswapPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount });
             return IUniswapPermit2(permit2).permitTransferFrom(permit, detail, from, permitSig);
         }
-
-        // won't be reached
-        revert();
     }
 }

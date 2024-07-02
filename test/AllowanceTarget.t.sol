@@ -103,6 +103,24 @@ contract AllowanceTargetTest is BalanceUtil {
         toBalance.assertChange(int256(amount));
     }
 
+    function testSpendFromUserToAfterUnpause() public {
+        Snapshot memory fromBalance = BalanceSnapshot.take({ owner: user, token: address(mockERC20) });
+        Snapshot memory toBalance = BalanceSnapshot.take({ owner: recipient, token: address(mockERC20) });
+
+        uint256 amount = 100;
+
+        vm.startPrank(allowanceTargetOwner);
+        allowanceTarget.pause();
+        allowanceTarget.unpause();
+        vm.stopPrank();
+
+        vm.prank(authorized);
+        allowanceTarget.spendFromUserTo(user, address(mockERC20), recipient, amount);
+
+        fromBalance.assertChange(-int256(amount));
+        toBalance.assertChange(int256(amount));
+    }
+
     function testSpendFromUserToWithNoReturnValueToken() public {
         Snapshot memory fromBalance = BalanceSnapshot.take({ owner: user, token: address(noReturnERC20) });
         Snapshot memory toBalance = BalanceSnapshot.take({ owner: recipient, token: address(noReturnERC20) });

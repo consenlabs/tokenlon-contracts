@@ -10,7 +10,10 @@ interface ILimitOrderSwap {
     error CanceledOrder();
     error FilledOrder();
     error ZeroAddress();
-    error ZeroTokenAmount();
+    error ZeroTakerTokenAmount();
+    error ZeroMakerTokenAmount();
+    error ZeroTakerSpendingAmount();
+    error ZeroMakerSpendingAmount();
     error NotEnoughForFill();
     error InvalidMsgValue();
     error InvalidSignature();
