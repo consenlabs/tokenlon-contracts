@@ -28,7 +28,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
     uint256 crdPrivateKey = uint256(2);
     address coordinator = vm.addr(crdPrivateKey);
-    bytes defaultUserPrmit;
+    bytes defaultUserPermit;
     LimitOrder defaultCrdOrder;
     AllowFill defaultAllowFill;
     ICoordinatedTaker.CoordinatorParams defaultCRDParams;
@@ -58,7 +58,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
 
         defaultMakerSig = signLimitOrder(makerPrivateKey, defaultCrdOrder, address(limitOrderSwap));
 
-        defaultUserPrmit = getTokenlonPermit2Data(user, userPrivateKey, defaultCrdOrder.takerToken, address(coordinatedTaker));
+        defaultUserPermit = getTokenlonPermit2Data(user, userPrivateKey, defaultCrdOrder.takerToken, address(coordinatedTaker));
 
         defaultAllowFill = AllowFill({
             orderHash: getLimitOrderHash(defaultCrdOrder),
@@ -73,6 +73,24 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             expiry: defaultAllowFill.expiry,
             salt: defaultAllowFill.salt
         });
+    }
+
+    function testCoordinatedTakerInitialState() public {
+        coordinatedTaker = new CoordinatedTaker(
+            crdTakerOwner,
+            UNISWAP_PERMIT2_ADDRESS,
+            address(allowanceTarget),
+            IWETH(WETH_ADDRESS),
+            coordinator,
+            ILimitOrderSwap(address(limitOrderSwap))
+        );
+
+        assertEq(address(coordinatedTaker.owner()), crdTakerOwner);
+        assertEq(coordinatedTaker.permit2(), UNISWAP_PERMIT2_ADDRESS);
+        assertEq(coordinatedTaker.allowanceTarget(), address(allowanceTarget));
+        assertEq(address(coordinatedTaker.weth()), WETH_ADDRESS);
+        assertEq(coordinatedTaker.coordinator(), coordinator);
+        assertEq(address(coordinatedTaker.limitOrderSwap()), address(limitOrderSwap));
     }
 
     function testCannotSetCoordinatorByNotOwner() public {
@@ -152,7 +170,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultUserPrmit,
+            userTokenPermit: defaultUserPermit,
             crdParams: defaultCRDParams
         });
 
@@ -216,7 +234,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: order.takerTokenAmount,
             makerTokenAmount: order.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultUserPrmit,
+            userTokenPermit: defaultUserPermit,
             crdParams: crdParams
         });
 
@@ -238,7 +256,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultUserPrmit,
+            userTokenPermit: defaultUserPermit,
             crdParams: defaultCRDParams
         });
     }
@@ -258,7 +276,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultUserPrmit,
+            userTokenPermit: defaultUserPermit,
             crdParams: crdParams
         });
     }
@@ -271,7 +289,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultUserPrmit,
+            userTokenPermit: defaultUserPermit,
             crdParams: defaultCRDParams
         });
 
@@ -297,7 +315,7 @@ contract CoordinatedTakerTest is LimitOrderSwapTest {
             takerTokenAmount: defaultCrdOrder.takerTokenAmount,
             makerTokenAmount: defaultCrdOrder.makerTokenAmount,
             extraAction: bytes(""),
-            userTokenPermit: defaultUserPrmit,
+            userTokenPermit: defaultUserPermit,
             crdParams: defaultCRDParams
         });
     }

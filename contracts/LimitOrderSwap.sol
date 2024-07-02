@@ -80,17 +80,21 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         for (uint256 i = 0; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
             uint256 makingAmount = makerTokenAmounts[i];
+            if (makingAmount == 0) revert ZeroMakerSpendingAmount();
 
             (bytes32 orderHash, uint256 orderFilledAmount) = _validateOrder(order, makerSignatures[i]);
             {
-                uint256 orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
+                uint256 orderAvailableAmount;
+                unchecked {
+                    // orderAvailableAmount must be greater than 0 here, or it will be reverted by the _validateOrder function
+                    orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
+                }
                 if (makingAmount > orderAvailableAmount) revert NotEnoughForFill();
                 takerTokenAmounts[i] = ((makingAmount * order.takerTokenAmount) / order.makerTokenAmount);
+                if (takerTokenAmounts[i] == 0) revert ZeroTakerTokenAmount();
 
-                if (makingAmount == 0) {
-                    if (takerTokenAmounts[i] == 0) revert ZeroTokenAmount();
-                }
-
+                // the if statement cannot be covered by tests, due to the following issue
+                // https://github.com/foundry-rs/foundry/issues/3600
                 if (order.takerToken == address(weth)) {
                     wethToPay += takerTokenAmounts[i];
                 }
@@ -112,6 +116,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         // unwrap extra WETH in order to pay for ETH taker token and profit
         uint256 wethBalance = weth.balanceOf(address(this));
         if (wethBalance > wethToPay) {
+            // this if statement cannot be fully covered because the WETH withdraw will always succeed as we have checked that wethBalance > wethToPay
             unchecked {
                 weth.withdraw(wethBalance - wethToPay);
             }
@@ -167,6 +172,8 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
 
         if (takerParams.extraAction.length != 0) {
             (address strategy, bytes memory strategyData) = abi.decode(takerParams.extraAction, (address, bytes));
+            // The coverage report indicates that the following line causes the if statement to not be fully covered.
+            // even if the logic of the executeStrategy function is empty, this if statement is still not covered.
             IStrategy(strategy).executeStrategy(order.makerToken, order.takerToken, makerSpendingAmount - fee, strategyData);
         }
 
@@ -195,8 +202,16 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         uint256 orderFilledAmount;
         (orderHash, orderFilledAmount) = _validateOrder(_order, _makerSignature);
 
+        if (_takerTokenAmount == 0) revert ZeroTakerSpendingAmount();
+        if (_makerTokenAmount == 0) revert ZeroMakerSpendingAmount();
+
         // get the quote of the fill
-        uint256 orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
+        uint256 orderAvailableAmount;
+        unchecked {
+            // orderAvailableAmount must be greater than 0 here, or it will be reverted by the _validateOrder function
+            orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
+        }
+
         if (_makerTokenAmount > orderAvailableAmount) {
             // the requested amount is larger than fillable amount
             if (_fullOrKill) revert NotEnoughForFill();
@@ -206,18 +221,17 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
 
             // re-calculate the amount of taker willing to spend for this trade by the requested ratio
             _takerTokenAmount = ((_takerTokenAmount * makerSpendingAmount) / _makerTokenAmount);
+            // Check _takerTokenAmount again
+            // because there is a case where _takerTokenAmount == 0 after a division calculation
+            if (_takerTokenAmount == 0) revert ZeroTakerSpendingAmount();
         } else {
-            // the requested amount can be statisfied
+            // the requested amount can be satisfied
             makerSpendingAmount = _makerTokenAmount;
         }
         uint256 minTakerTokenAmount = ((makerSpendingAmount * _order.takerTokenAmount) / _order.makerTokenAmount);
         // check if taker provide enough amount for this fill (better price is allowed)
         if (_takerTokenAmount < minTakerTokenAmount) revert InvalidTakingAmount();
         takerSpendingAmount = _takerTokenAmount;
-
-        if (takerSpendingAmount == 0) {
-            if (makerSpendingAmount == 0) revert ZeroTokenAmount();
-        }
 
         // record fill amount of this tx
         orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makerSpendingAmount;
@@ -229,6 +243,8 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         if (_order.taker != address(0)) {
             if (msg.sender != _order.taker) revert InvalidTaker();
         }
+        if (_order.takerTokenAmount == 0) revert ZeroTakerTokenAmount();
+        if (_order.makerTokenAmount == 0) revert ZeroMakerTokenAmount();
 
         // validate the status of the order
         bytes32 orderHash = getLimitOrderHash(_order);

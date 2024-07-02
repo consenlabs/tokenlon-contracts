@@ -35,6 +35,8 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         // wrap eth first
         if (Asset.isETH(inputToken)) {
             if (msg.value != inputAmount) revert InvalidMsgValue();
+            // the coverage report indicates that the following line causes this branch to not be covered by our tests
+            // even though we tried all possible success and revert scenarios
             IWETH(weth).deposit{ value: inputAmount }();
         } else {
             if (msg.value != 0) revert InvalidMsgValue();
@@ -48,9 +50,15 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
 
         // transfer output token back to GenericSwap
         // ETH first so WETH is not considered as an option of outputToken
+
+        // after replacing `makerToken.isETH()` with `makerToken == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`
+        // and crafting some cases where outputToken is ETH and non-ETH
+        // the if statement is still not fully covered by the test
         if (Asset.isETH(outputToken)) {
             // unwrap existing WETH if any
             uint256 wethBalance = IWETH(weth).balanceOf(address(this));
+            // after trying to craft a test case where wethBalance == 0
+            // the if statement is still not fully covered by the test
             if (wethBalance > 0) {
                 IWETH(weth).withdraw(wethBalance);
             }
