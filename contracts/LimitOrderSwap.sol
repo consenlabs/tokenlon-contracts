@@ -84,9 +84,14 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
 
             (bytes32 orderHash, uint256 orderFilledAmount) = _validateOrder(order, makerSignatures[i]);
             {
-                uint256 orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
+                uint256 orderAvailableAmount;
+                unchecked {
+                    // orderAvailableAmount must be greater than 0 here, or it will be reverted by the _validateOrder function
+                    orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
+                }
                 if (makingAmount > orderAvailableAmount) revert NotEnoughForFill();
                 takerTokenAmounts[i] = ((makingAmount * order.takerTokenAmount) / order.makerTokenAmount);
+                if (takerTokenAmounts[i] == 0) revert ZeroTakerTokenAmount();
 
                 // the if statement cannot be covered by tests, due to the following issue
                 // https://github.com/foundry-rs/foundry/issues/3600
@@ -110,9 +115,8 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
 
         // unwrap extra WETH in order to pay for ETH taker token and profit
         uint256 wethBalance = weth.balanceOf(address(this));
-        // the if statement cannot be covered by tests
-        // because the WETH withdrawal amount is always greater than the balance this contract has
         if (wethBalance > wethToPay) {
+            // this if statement cannot be fully covered because the WETH withdraw will always succeed as we have checked that wethBalance > wethToPay
             unchecked {
                 weth.withdraw(wethBalance - wethToPay);
             }
@@ -202,8 +206,12 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         if (_makerTokenAmount == 0) revert ZeroMakerSpendingAmount();
 
         // get the quote of the fill
-        // orderAvailableAmount must be greater than 0 here, or it will be reverted by the _validateOrder function
-        uint256 orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
+        uint256 orderAvailableAmount;
+        unchecked {
+            // orderAvailableAmount must be greater than 0 here, or it will be reverted by the _validateOrder function
+            orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
+        }
+
         if (_makerTokenAmount > orderAvailableAmount) {
             // the requested amount is larger than fillable amount
             if (_fullOrKill) revert NotEnoughForFill();

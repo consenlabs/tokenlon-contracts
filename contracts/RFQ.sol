@@ -187,7 +187,7 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
             weth.deposit{ value: amount }();
             weth.transfer(to, amount);
         } else {
-            // this branch cannot be covered because we cannot trigger the sendValue internal revert,
+            // this branch cannot be covered because we cannot trigger the AddressInsufficientBalance error in sendValue,
             // as this function is called only when msg.value == amount
             Address.sendValue(to, amount);
         }
