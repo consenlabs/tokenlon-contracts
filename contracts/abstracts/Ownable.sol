@@ -3,18 +3,42 @@ pragma solidity ^0.8.0;
 
 /// @title Ownable Contract
 /// @author imToken Labs
+/// @notice This contract manages ownership and allows transfer and renouncement of ownership.
+/// @dev This contract uses a nomination system for ownership transfer.
 abstract contract Ownable {
     address public owner;
     address public nominatedOwner;
 
+    /// @notice Error to be thrown when the caller is not the owner.
+    /// @dev This error is used to ensure that only the owner can call certain functions.
     error NotOwner();
+
+    /// @notice Error to be thrown when the caller is not the nominated owner.
+    /// @dev This error is used to ensure that only the nominated owner can accept ownership.
     error NotNominated();
+
+    /// @notice Error to be thrown when the provided owner address is zero.
+    /// @dev This error is used to ensure a valid address is provided for the owner.
     error ZeroOwner();
+
+    /// @notice Error to be thrown when there is already a nominated owner.
+    /// @dev This error is used to prevent nominating a new owner when one is already nominated.
     error NominationExists();
 
+    /// @notice Event emitted when a new owner is nominated.
+    /// @dev This event is emitted when the current owner nominates a new owner.
+    /// @param newOwner The address of the new nominated owner.
     event OwnerNominated(address indexed newOwner);
+
+    /// @notice Event emitted when ownership is transferred.
+    /// @dev This event is emitted when ownership is transferred to a new owner.
+    /// @param oldOwner The address of the previous owner.
+    /// @param newOwner The address of the new owner.
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
 
+    /// @notice Constructor to set the initial owner of the contract.
+    /// @dev Initializes the contract setting the provided address as the initial owner.
+    /// @param _owner The address of the initial owner.
     constructor(address _owner) {
         if (_owner == address(0)) revert ZeroOwner();
         owner = _owner;
@@ -25,8 +49,8 @@ abstract contract Ownable {
         _;
     }
 
-    /// @notice Activate new ownership
-    /// @notice Only nominated owner can call
+    /// @notice Accept the ownership transfer.
+    /// @dev Only the nominated owner can call this function to accept the ownership.
     function acceptOwnership() external {
         if (msg.sender != nominatedOwner) revert NotNominated();
         emit OwnerChanged(owner, nominatedOwner);
@@ -35,18 +59,17 @@ abstract contract Ownable {
         nominatedOwner = address(0);
     }
 
-    /// @notice Give up the ownership
-    /// @notice Only owner can call
-    /// @notice Ownership cannot be recovered
+    /// @notice Renounce ownership of the contract.
+    /// @dev Only the current owner can call this function to renounce ownership. Once renounced, ownership cannot be recovered.
     function renounceOwnership() external onlyOwner {
         if (nominatedOwner != address(0)) revert NominationExists();
         emit OwnerChanged(owner, address(0));
         owner = address(0);
     }
 
-    /// @notice Nominate new owner
-    /// @notice Only owner can call
-    /// @param newOwner The address of the new owner
+    /// @notice Nominate a new owner.
+    /// @dev Only the current owner can call this function to nominate a new owner.
+    /// @param newOwner The address of the new owner.
     function nominateNewOwner(address newOwner) external onlyOwner {
         nominatedOwner = newOwner;
         emit OwnerNominated(newOwner);

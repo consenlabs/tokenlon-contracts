@@ -21,7 +21,6 @@ struct GenericSwapData {
 }
 
 // solhint-disable-next-line func-visibility
-// free functions cannot have function visibility
 function getGSDataHash(GenericSwapData memory gsData) pure returns (bytes32) {
     return
         keccak256(

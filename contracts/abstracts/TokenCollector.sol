@@ -8,11 +8,20 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IUniswapPermit2 } from "../interfaces/IUniswapPermit2.sol";
 import { IAllowanceTarget } from "../interfaces/IAllowanceTarget.sol";
 
+/// @title TokenCollector Contract
+/// @author imToken Labs
+/// @notice This contract handles the collection of tokens using various methods.
+/// @dev This contract supports multiple token collection mechanisms including allowance targets, direct transfers, and permit transfers.
 abstract contract TokenCollector {
     using SafeERC20 for IERC20;
 
+    /// @notice Error to be thrown when Permit2 data is empty.
+    /// @dev This error is used to ensure Permit2 data is provided when required.
     error Permit2DataEmpty();
 
+    /// @title Token Collection Sources
+    /// @notice Enumeration of possible token collection sources.
+    /// @dev Represents the various methods for collecting tokens.
     enum Source {
         TokenlonAllowanceTarget,
         Token,
@@ -24,11 +33,22 @@ abstract contract TokenCollector {
     address public immutable permit2;
     address public immutable allowanceTarget;
 
+    /// @notice Constructor to set the Permit2 and allowance target addresses.
+    /// @dev Initializes the contract setting the provided addresses for Permit2 and allowance target.
+    /// @param _permit2 The address of the Uniswap Permit2 contract.
+    /// @param _allowanceTarget The address of the allowance target contract.
     constructor(address _permit2, address _allowanceTarget) {
         permit2 = _permit2;
         allowanceTarget = _allowanceTarget;
     }
 
+    /// @notice Internal function to collect tokens using various methods.
+    /// @dev Handles token collection based on the specified source.
+    /// @param token The address of the token to be collected.
+    /// @param from The address from which the tokens will be collected.
+    /// @param to The address to which the tokens will be sent.
+    /// @param amount The amount of tokens to be collected.
+    /// @param data Additional data required for the token collection process.
     function _collect(address token, address from, address to, uint256 amount, bytes calldata data) internal {
         Source src = Source(uint8(data[0]));
 

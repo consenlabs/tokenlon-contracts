@@ -8,11 +8,20 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
 import { IAllowanceTarget } from "./interfaces/IAllowanceTarget.sol";
 
+/// @title AllowanceTarget Contract
+/// @author imToken Labs
+/// @notice This contract manages allowances and authorizes spenders to transfer tokens on behalf of users.
 contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
     using SafeERC20 for IERC20;
 
+    /// @notice Mapping of authorized addresses permitted to call spendFromUserTo.
+    /// @dev Tracks the authorization status of each address to execute the spendFromUserTo function.
     mapping(address => bool) public authorized;
 
+    /// @notice Constructor to initialize the contract with the owner and trusted callers.
+    /// @dev Sets up the initial contract owner and authorizes a list of trusted callers.
+    /// @param _owner The address of the contract owner.
+    /// @param trustedCaller An array of addresses that are initially authorized to call spendFromUserTo.
     constructor(address _owner, address[] memory trustedCaller) Ownable(_owner) {
         uint256 callerCount = trustedCaller.length;
         for (uint256 i = 0; i < callerCount; ++i) {
@@ -20,14 +29,24 @@ contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
         }
     }
 
+    /// @notice Pauses the contract, preventing the execution of spendFromUserTo.
+    /// @dev Pauses the Contract. Only the owner can call this function.
     function pause() external onlyOwner {
         _pause();
     }
 
+    /// @notice Unpauses the contract, allowing the execution of spendFromUserTo.
+    /// @dev Unpauses the Contract. Only the owner can call this function.
     function unpause() external onlyOwner {
         _unpause();
     }
 
+    /// @notice Transfers tokens from a user to a specified address.
+    /// @dev Transfers `amount` of `token` from `from` to `to`. The caller must be authorized.
+    /// @param from The address from which the tokens are transferred.
+    /// @param token The address of the ERC20 token contract.
+    /// @param to The address to which the tokens are transferred.
+    /// @param amount The amount of tokens to transfer.
     /// @inheritdoc IAllowanceTarget
     function spendFromUserTo(address from, address token, address to, uint256 amount) external whenNotPaused {
         if (!authorized[msg.sender]) revert NotAuthorized();

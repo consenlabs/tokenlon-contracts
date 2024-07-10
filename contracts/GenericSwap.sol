@@ -9,27 +9,44 @@ import { GenericSwapData, getGSDataHash } from "./libraries/GenericSwapData.sol"
 import { Asset } from "./libraries/Asset.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
+/// @title GenericSwap Contract
+/// @author imToken Labs
+/// @notice This contract facilitates token swaps using predefined strategies.
 contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     using Asset for address;
 
-    mapping(bytes32 => bool) private filledSwap;
+    /// @notice Mapping to keep track of filled swaps.
+    /// @dev Stores the status of swaps to ensure they are not filled more than once.
+    mapping(bytes32 => bool) public filledSwap;
 
+    /// @notice Constructor to initialize the contract with the permit2 and allowance target.
+    /// @dev Sets up the contract with the Uniswap permit2 address and allowance target address.
+    /// @param _uniswapPermit2 The address for Uniswap permit2.
+    /// @param _allowanceTarget The address for the allowance target.
     constructor(address _uniswapPermit2, address _allowanceTarget) TokenCollector(_uniswapPermit2, _allowanceTarget) {}
 
+    /// @notice Receive function to receive ETH.
+    /// @dev This function allows the contract to receive ETH payments.
     receive() external payable {}
 
-    /// @param swapData Swap data
-    /// @return returnAmount Output amount of the swap
+    /// @notice Executes a generic swap using predefined strategies.
+    /// @param swapData The swap data containing details of the swap.
+    /// @param takerTokenPermit The permit for the taker token.
+    /// @return returnAmount The output amount of the swap.
+    /// @inheritdoc IGenericSwap
     function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable returns (uint256 returnAmount) {
         returnAmount = _executeSwap(swapData, msg.sender, takerTokenPermit);
 
         _emitGSExecuted(getGSDataHash(swapData), swapData, msg.sender, returnAmount);
     }
 
-    /// @param swapData Swap data
-    /// @param taker Claimed taker address
-    /// @param takerSig Taker signature
-    /// @return returnAmount Output amount of the swap
+    /// @notice Executes a generic swap using predefined strategies with a signature.
+    /// @param swapData The swap data containing details of the swap.
+    /// @param takerTokenPermit The permit for the taker token.
+    /// @param taker The address of the taker.
+    /// @param takerSig The signature of the taker.
+    /// @return returnAmount The output amount of the swap.
+    /// @inheritdoc IGenericSwap
     function executeSwapWithSig(
         GenericSwapData calldata swapData,
         bytes calldata takerTokenPermit,
@@ -47,6 +64,12 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         _emitGSExecuted(swapHash, swapData, taker, returnAmount);
     }
 
+    /// @notice Executes a generic swap.
+    /// @dev Internal function to handle the swap execution.
+    /// @param _swapData The swap data containing details of the swap.
+    /// @param _authorizedUser The address authorized to execute the swap.
+    /// @param _takerTokenPermit The permit for the taker token.
+    /// @return returnAmount The output amount of the swap.
     function _executeSwap(
         GenericSwapData calldata _swapData,
         address _authorizedUser,
@@ -78,6 +101,12 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         _outputToken.transferTo(_swapData.recipient, returnAmount);
     }
 
+    /// @notice Emits the Swap event after executing a generic swap.
+    /// @dev Internal function to emit the Swap event.
+    /// @param _gsOfferHash The hash of the generic swap offer.
+    /// @param _swapData The swap data containing details of the swap.
+    /// @param _taker The address of the taker.
+    /// @param returnAmount The output amount of the swap.
     function _emitGSExecuted(bytes32 _gsOfferHash, GenericSwapData calldata _swapData, address _taker, uint256 returnAmount) internal {
         emit Swap(
             _gsOfferHash,
