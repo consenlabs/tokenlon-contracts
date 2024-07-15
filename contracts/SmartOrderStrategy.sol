@@ -17,11 +17,9 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
     address public immutable genericSwap;
 
     /// @notice Receive function to receive ETH.
-    /// @dev This function allows the contract to receive ETH payments.
     receive() external payable {}
 
     /// @notice Constructor to initialize the contract with the owner, generic swap contract address, and WETH contract address.
-    /// @dev Initializes the contract with the specified owner, sets the address of the generic swap contract used by this strategy, and sets the WETH contract address for token operations.
     /// @param _owner The address of the contract owner.
     /// @param _genericSwap The address of the generic swap contract that interacts with this strategy.
     /// @param _weth The address of the WETH contract.
@@ -36,13 +34,6 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         _;
     }
 
-    /// @notice Executes a strategy to perform token swaps and other operations as specified by the operations array.
-    /// @dev This function processes the token swap operations provided in the 'data' parameter, handling ETH and ERC20 tokens,
-    /// wrapping/unwrapping ETH/WETH to WETH/ETH if necessary, and transferring output tokens back to the generic swap contract.
-    /// @param inputToken The address of the input token for the swap.
-    /// @param outputToken The address of the output token for the swap.
-    /// @param inputAmount The amount of input tokens to be swapped.
-    /// @param data Additional data specifying the operations to be performed.
     /// @inheritdoc IStrategy
     function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable onlyGenericSwap {
         if (inputAmount == 0) revert ZeroInput();
@@ -89,7 +80,6 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         Asset.transferTo(outputToken, payable(genericSwap), selfBalance);
     }
 
-    /// @notice Internal function to call a contract with specified parameters and data.
     /// @dev This function adjusts the input amount based on a ratio if specified, then calls the destination contract with data.
     /// @param _dest The destination address to call.
     /// @param _inputToken The address of the input token for the call.

@@ -33,11 +33,9 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     address payable public feeCollector;
 
     /// @notice Mapping to track the filled status of each offer identified by its hash.
-    /// @dev Keeps track of whether each offer identified by its hash has been filled.
-    mapping(bytes32 => bool) public filledOffer;
+    mapping(bytes32 rfqOfferHash => bool isFilled) public filledOffer;
 
     /// @notice Constructor to initialize the RFQ contract with the owner, Uniswap permit2, allowance target, WETH, and fee collector.
-    /// @dev Initializes the RFQ contract with the specified owner, sets the Uniswap permit2 address, allowance target address, WETH token instance, and fee collector address.
     /// @param _owner The address of the contract owner.
     /// @param _uniswapPermit2 The address of the Uniswap permit2.
     /// @param _allowanceTarget The address of the allowance target.
@@ -56,7 +54,6 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     }
 
     /// @notice Receive function to receive ETH.
-    /// @dev This function allows the contract to receive ETH payments.
     receive() external payable {}
 
     /// @notice Sets the fee collector address.
@@ -69,22 +66,11 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         emit SetFeeCollector(_newFeeCollector);
     }
 
-    /// @notice Fills an RFQ transaction based on the provided parameters and signatures.
-    /// @param rfqTx The RFQ transaction data.
-    /// @param makerSignature The signature of the maker authorizing the transaction.
-    /// @param makerTokenPermit The permit data for the maker's token transfer.
-    /// @param takerTokenPermit The permit data for the taker's token transfer.
     /// @inheritdoc IRFQ
     function fillRFQ(RFQTx calldata rfqTx, bytes calldata makerSignature, bytes calldata makerTokenPermit, bytes calldata takerTokenPermit) external payable {
         _fillRFQ(rfqTx, makerSignature, makerTokenPermit, takerTokenPermit, bytes(""));
     }
 
-    /// @notice Fills an RFQ transaction with taker's signature, in addition to maker's signatures.
-    /// @param rfqTx The RFQ transaction data.
-    /// @param makerSignature The signature of the maker authorizing the transaction.
-    /// @param makerTokenPermit The permit data for the maker's token transfer.
-    /// @param takerTokenPermit The permit data for the taker's token transfer.
-    /// @param takerSignature The signature of the taker authorizing the transaction.
     /// @inheritdoc IRFQ
     function fillRFQWithSig(
         RFQTx calldata rfqTx,
@@ -96,10 +82,6 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
         _fillRFQ(rfqTx, makerSignature, makerTokenPermit, takerTokenPermit, takerSignature);
     }
 
-    /// @notice Cancels an RFQ offer created by the maker.
-    /// @dev This function cancels an RFQ offer if called by the maker, marking it as filled in the storage.
-    /// @param rfqOffer The RFQ offer data to be canceled.
-    /// Emits a `CancelRFQOffer` event upon successful cancellation.
     /// @inheritdoc IRFQ
     function cancelRFQOffer(RFQOffer calldata rfqOffer) external {
         if (msg.sender != rfqOffer.maker) revert NotOfferMaker();
@@ -209,7 +191,6 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     }
 
     /// @notice Emits the FilledRFQ event after executing an RFQ order swap.
-    /// @dev Internal function to emit FilledRFQ event.
     /// @param _rfqOfferHash The hash of the RFQ offer.
     /// @param _rfqTx The RFQ transaction data.
     /// @param _makerTokenToTaker The amount of maker tokens transferred to the taker.
@@ -229,7 +210,6 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     }
 
     /// @notice Collects ETH and sends it to the specified address.
-    /// @dev Internal function to collect ETH and send it to the specified address.
     /// @param to The address to send the collected ETH.
     /// @param amount The amount of ETH to collect.
     /// @param makerReceivesWETH Boolean flag to indicate if the maker receives WETH.
@@ -245,7 +225,6 @@ contract RFQ is IRFQ, Ownable, TokenCollector, EIP712 {
     }
 
     /// @notice Collects WETH and sends it to the specified address.
-    /// @dev Internal function to collect WETH and send it to the specified address.
     /// @param from The address to collect WETH from.
     /// @param to The address to send the collected WETH.
     /// @param amount The amount of WETH to collect.

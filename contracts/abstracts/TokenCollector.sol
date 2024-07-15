@@ -34,7 +34,6 @@ abstract contract TokenCollector {
     address public immutable allowanceTarget;
 
     /// @notice Constructor to set the Permit2 and allowance target addresses.
-    /// @dev Initializes the contract setting the provided addresses for Permit2 and allowance target.
     /// @param _permit2 The address of the Uniswap Permit2 contract.
     /// @param _allowanceTarget The address of the allowance target contract.
     constructor(address _permit2, address _allowanceTarget) {

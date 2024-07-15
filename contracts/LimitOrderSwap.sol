@@ -28,11 +28,9 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     address payable public feeCollector;
 
     /// @notice Mapping to track the filled amounts of maker tokens for each order hash.
-    /// @dev Keeps a record of the amount of maker tokens filled for each corresponding order hash.
-    mapping(bytes32 => uint256) public orderHashToMakerTokenFilledAmount;
+    mapping(bytes32 orderHash => uint256 orderFilledAmount) public orderHashToMakerTokenFilledAmount;
 
     /// @notice Constructor to initialize the contract with the owner, Uniswap permit2, allowance target, WETH, and fee collector.
-    /// @dev Sets up the contract by initializing the owner, Uniswap permit2, allowance target, WETH token, and fee collector addresses.
     /// @param _owner The address of the contract owner.
     /// @param _uniswapPermit2 The address of the Uniswap permit2.
     /// @param _allowanceTarget The address of the allowance target.
@@ -51,7 +49,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @notice Receive function to receive ETH.
-    /// @dev This function allows the contract to receive ETH payments.
     receive() external payable {}
 
     /// @notice Sets a new fee collector address.
@@ -64,23 +61,11 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         emit SetFeeCollector(_newFeeCollector);
     }
 
-    /// @notice Fills a single limit order, transferring tokens between maker and taker according to the order details.
-    /// @dev This function validates the order, calculates token amounts to transfer, collects tokens from makers, transfers tokens to takers,
-    /// collects fees, and handles any additional actions specified by takerParams.
-    /// @param order The limit order details to fill.
-    /// @param makerSignature The signature of the maker authorizing the order.
-    /// @param takerParams Additional parameters provided by the taker for this fill.
     /// @inheritdoc ILimitOrderSwap
     function fillLimitOrder(LimitOrder calldata order, bytes calldata makerSignature, TakerParams calldata takerParams) external payable nonReentrant {
         _fillLimitOrder(order, makerSignature, takerParams, false);
     }
 
-    /// @notice Fills a single limit order fully or not at all (FOK), ensuring either the entire order is filled or no tokens are transferred.
-    /// @dev This function validates the order, calculates token amounts to transfer, collects tokens from makers, transfers tokens to takers,
-    /// collects fees, and handles any additional actions specified by takerParams. If the full order cannot be filled, the transaction reverts.
-    /// @param order The limit order details to fill.
-    /// @param makerSignature The signature of the maker authorizing the order.
-    /// @param takerParams Additional parameters provided by the taker for this fill.
     /// @inheritdoc ILimitOrderSwap
     function fillLimitOrderFullOrKill(
         LimitOrder calldata order,
@@ -90,14 +75,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         _fillLimitOrder(order, makerSignature, takerParams, true);
     }
 
-    /// @notice Fills multiple limit orders in a batch, transferring tokens between makers and takers according to the order details.
-    /// @dev This function validates each order in the batch, calculates token amounts to transfer for each order, collects tokens from makers,
-    /// transfers tokens to takers, collects fees, and handles any additional actions specified by takerParams for each order.
-    /// It also processes WETH withdrawals if needed to cover ETH payments and transfers any remaining tokens as profit to the taker.
-    /// @param orders Array of limit order details to fill.
-    /// @param makerSignatures Signatures of the makers authorizing each order.
-    /// @param makerTokenAmounts Amounts of maker tokens requested to be filled for each order.
-    /// @param profitTokens Array of tokens considered as profit for the taker.
     /// @inheritdoc ILimitOrderSwap
     function fillLimitOrderGroup(
         LimitOrder[] calldata orders,
@@ -168,9 +145,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         }
     }
 
-    /// @notice Cancels an unfilled limit order, preventing it from being executed.
-    /// @dev Only the order maker can cancel an order, and the order must not be expired, filled, or already canceled.
-    /// @param order The limit order details to cancel.
     /// @inheritdoc ILimitOrderSwap
     function cancelOrder(LimitOrder calldata order) external nonReentrant {
         if (order.expiry < uint64(block.timestamp)) revert ExpiredOrder();
@@ -185,9 +159,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         emit OrderCanceled(orderHash, order.maker);
     }
 
-    /// @notice Checks if an order is canceled.
-    /// @param orderHash The hash of the order to check.
-    /// @return True if the order is canceled, false otherwise.
     /// @inheritdoc ILimitOrderSwap
     function isOrderCanceled(bytes32 orderHash) external view returns (bool) {
         uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
@@ -195,7 +166,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @notice Fills a limit order.
-    /// @dev Internal function to fill a limit order with optional FOK(full-or-kill) logic.
     /// @param order The limit order details.
     /// @param makerSignature The maker's signature for the order.
     /// @param takerParams The taker's parameters for the order.
@@ -240,7 +210,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @notice Validates an order and quotes the taker and maker spending amounts.
-    /// @dev Internal function to validate an order and calculate spending amounts.
     /// @param _order The limit order details.
     /// @param _makerSignature The maker's signature for the order.
     /// @param _takerTokenAmount The amount of taker token.
@@ -295,7 +264,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @notice Validates an order and its signature.
-    /// @dev Internal function to validate an order and its maker's signature.
     /// @param _order The limit order details.
     /// @param _makerSignature The maker's signature for the order.
     /// @return orderHash The hash of the validated order.
@@ -326,7 +294,6 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @notice Emits the LimitOrderFilled event after executing a limit order swap.
-    /// @dev Internal function to emit the LimitOrderFilled event.
     /// @param _order The limit order details.
     /// @param _orderHash The hash of the limit order.
     /// @param _takerTokenSettleAmount The settled amount of taker token.

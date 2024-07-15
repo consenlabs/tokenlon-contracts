@@ -37,7 +37,6 @@ abstract contract Ownable {
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
 
     /// @notice Constructor to set the initial owner of the contract.
-    /// @dev Initializes the contract setting the provided address as the initial owner.
     /// @param _owner The address of the initial owner.
     constructor(address _owner) {
         if (_owner == address(0)) revert ZeroOwner();

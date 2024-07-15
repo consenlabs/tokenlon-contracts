@@ -20,21 +20,18 @@ abstract contract EIP712 {
     bytes32 public immutable originalEIP712DomainSeparator;
 
     /// @notice Initialize the original chain ID and domain separator.
-    /// @dev Constructor to set the initial originalChainId and the originalEIP712DomainSeparator.
     constructor() {
         originalChainId = block.chainid;
         originalEIP712DomainSeparator = _buildDomainSeparator();
     }
 
     /// @notice Internal function to build the EIP712 domain separator hash.
-    /// @dev Constructs the EIP712 domain separator hash based on the current contract's parameters.
     /// @return The EIP712 domain separator hash.
     function _buildDomainSeparator() private view returns (bytes32) {
         return keccak256(abi.encode(EIP712_TYPE_HASH, EIP712_HASHED_NAME, EIP712_HASHED_VERSION, block.chainid, address(this)));
     }
 
     /// @notice Internal function to get the current EIP712 domain separator.
-    /// @dev Retrieves the current EIP712 domain separator hash, either the original one or the updated one if chain ID changes.
     /// @return The current EIP712 domain separator.
     function _getDomainSeparator() private view returns (bytes32) {
         if (block.chainid == originalChainId) {
@@ -45,7 +42,6 @@ abstract contract EIP712 {
     }
 
     /// @notice Calculate the EIP712 hash of a structured data hash.
-    /// @dev Calculates the EIP712 hash by hashing the EIP191 header, domain separator, and structured data hash.
     /// @param structHash The hash of the structured data.
     /// @return The EIP712 hash of the structured data.
     function getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
@@ -53,7 +49,6 @@ abstract contract EIP712 {
     }
 
     /// @notice Get the current EIP712 domain separator.
-    /// @dev Retrieves the current EIP712 domain separator hash.
     /// @return The current EIP712 domain separator.
     function EIP712_DOMAIN_SEPARATOR() external view returns (bytes32) {
         return _getDomainSeparator();

@@ -14,7 +14,7 @@ import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 /// @title CoordinatedTaker Contract
 /// @author imToken Labs
-/// @notice This contract allows for the coordination of limit order fills through a designated coordinator.
+/// @notice This contract allows for the coordinator of limit order fills through a designated coordinator.
 contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector, EIP712 {
     using Asset for address;
 
@@ -23,11 +23,9 @@ contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector,
     address public coordinator;
 
     /// @notice Mapping to keep track of used allow fill hashes.
-    /// @dev Tracks whether each allow fill hash has been used.
-    mapping(bytes32 => bool) public allowFillUsed;
+    mapping(bytes32 allowFillHash => bool isUsed) public allowFillUsed;
 
     /// @notice Constructor to initialize the contract with the owner, Uniswap permit2, allowance target, WETH, coordinator and LimitOrderSwap contract.
-    /// @dev Sets up the contract with the owner, Uniswap permit2 address, allowance target, WETH contract, coordinator, and LimitOrderSwap contract.
     /// @param _owner The address of the contract owner.
     /// @param _uniswapPermit2 The address for Uniswap permit2.
     /// @param _allowanceTarget The address for the allowance target.
@@ -48,7 +46,6 @@ contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector,
     }
 
     /// @notice Receive function to receive ETH.
-    /// @dev This function allows the contract to receive ETH payments.
     receive() external payable {}
 
     /// @notice Sets a new coordinator address.
@@ -61,15 +58,6 @@ contract CoordinatedTaker is ICoordinatedTaker, AdminManagement, TokenCollector,
         emit SetCoordinator(_newCoordinator);
     }
 
-    /// @notice Submits a limit order fill request.
-    /// @dev Validates permissions and forwards the request to the LimitOrderSwap contract.
-    /// @param order The limit order details.
-    /// @param makerSignature The signature of the order maker.
-    /// @param takerTokenAmount The amount of taker tokens.
-    /// @param makerTokenAmount The amount of maker tokens.
-    /// @param extraAction Additional actions to perform.
-    /// @param userTokenPermit The permit for the user token.
-    /// @param crdParams The coordinator parameters.
     /// @inheritdoc ICoordinatedTaker
     function submitLimitOrderFill(
         LimitOrder calldata order,
