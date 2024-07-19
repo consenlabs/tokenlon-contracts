@@ -112,4 +112,14 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelp
         vm.label(taker, "taker");
         vm.label(maker, "maker");
     }
+
+    function testLimitOrderSwapInitialState() public virtual {
+        limitOrderSwap = new LimitOrderSwap(limitOrderOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS), feeCollector);
+
+        assertEq(limitOrderSwap.owner(), limitOrderOwner);
+        assertEq(limitOrderSwap.permit2(), UNISWAP_PERMIT2_ADDRESS);
+        assertEq(limitOrderSwap.allowanceTarget(), address(allowanceTarget));
+        assertEq(address(limitOrderSwap.weth()), WETH_ADDRESS);
+        assertEq(limitOrderSwap.feeCollector(), feeCollector);
+    }
 }

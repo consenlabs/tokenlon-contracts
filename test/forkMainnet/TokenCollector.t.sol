@@ -53,6 +53,15 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         vm.label(address(token), "TKN");
     }
 
+    function testCannotCollectByInvalidSource() public {
+        uint8 invalidSource = 255;
+        bytes memory data = abi.encodePacked(invalidSource);
+
+        // failed to convert value into enum type
+        vm.expectRevert();
+        strategy.collect(address(token), user, address(this), 0, data);
+    }
+
     /* Token Approval */
 
     function testCannotCollectByTokenApprovalWhenAllowanceIsNotEnough() public {
@@ -209,6 +218,12 @@ contract TestTokenCollector is Addresses, Permit2Helper {
     }
 
     /* Permit2 Allowance Transfer */
+    function testCannotCollectByPermit2DataIsEmpty() public {
+        bytes memory data = abi.encodePacked(TokenCollector.Source.Permit2SignatureTransfer, "");
+
+        vm.expectRevert(TokenCollector.Permit2DataEmpty.selector);
+        strategy.collect(address(token), user, address(this), 0, data);
+    }
 
     function testCannotCollectByPermit2AllowanceTransferWhenPermitSigIsInvalid() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
