@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 
 import { IAllowanceTarget } from "contracts/interfaces/IAllowanceTarget.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
@@ -64,7 +65,7 @@ contract AllowanceTargetTest is BalanceUtil {
 
     function testCannotSpendFromUserInsufficientBalanceWithReturnFalseToken() public {
         uint256 userBalance = noRevertERC20.balanceOf(user);
-        vm.expectRevert("SafeERC20: ERC20 operation did not succeed");
+        vm.expectRevert(abi.encodeWithSelector(SafeERC20.SafeERC20FailedOperation.selector, address(noRevertERC20)));
         vm.prank(authorized);
         allowanceTarget.spendFromUserTo(user, address(noRevertERC20), recipient, userBalance + 1);
     }
@@ -86,7 +87,7 @@ contract AllowanceTargetTest is BalanceUtil {
         vm.prank(allowanceTargetOwner, allowanceTargetOwner);
         allowanceTarget.pause();
 
-        vm.expectRevert("Pausable: paused");
+        vm.expectRevert(Pausable.EnforcedPause.selector);
         allowanceTarget.spendFromUserTo(user, address(mockERC20), recipient, 1234);
     }
 
@@ -95,6 +96,24 @@ contract AllowanceTargetTest is BalanceUtil {
         Snapshot memory toBalance = BalanceSnapshot.take({ owner: recipient, token: address(mockERC20) });
 
         uint256 amount = 100;
+        vm.prank(authorized);
+        allowanceTarget.spendFromUserTo(user, address(mockERC20), recipient, amount);
+
+        fromBalance.assertChange(-int256(amount));
+        toBalance.assertChange(int256(amount));
+    }
+
+    function testSpendFromUserToAfterUnpause() public {
+        Snapshot memory fromBalance = BalanceSnapshot.take({ owner: user, token: address(mockERC20) });
+        Snapshot memory toBalance = BalanceSnapshot.take({ owner: recipient, token: address(mockERC20) });
+
+        uint256 amount = 100;
+
+        vm.startPrank(allowanceTargetOwner);
+        allowanceTarget.pause();
+        allowanceTarget.unpause();
+        vm.stopPrank();
+
         vm.prank(authorized);
         allowanceTarget.spendFromUserTo(user, address(mockERC20), recipient, amount);
 

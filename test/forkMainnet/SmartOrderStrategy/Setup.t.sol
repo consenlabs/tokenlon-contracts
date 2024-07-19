@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { Test } from "forge-std/Test.sol";
 import { SmartOrderStrategy } from "contracts/SmartOrderStrategy.sol";
@@ -14,7 +14,7 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
     address defaultInputToken = USDC_ADDRESS;
     address defaultOutputToken = WETH_ADDRESS;
     uint256 defaultInputAmount = 1000;
-    uint128 defaultInputRatio = 5000;
+    uint256 defaultInputRatio = 5000;
     uint256 defaultExpiry = block.timestamp + 100;
     bytes defaultOpsData;
     bytes encodedUniv3Path;

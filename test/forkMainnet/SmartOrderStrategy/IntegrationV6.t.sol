@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -12,6 +12,7 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.sol";
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
+import { Constant } from "contracts/libraries/Constant.sol";
 import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
 import { RFQTx } from "contracts/libraries/RFQTx.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
@@ -75,7 +76,8 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: address(rfq),
             inputToken: rfqOffer.takerToken,
-            inputRatio: 0, // zero ratio indicate no replacement
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
             dataOffset: 0,
             value: 0,
             data: rfqData
@@ -91,6 +93,85 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
 
         sosInputToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         gsOutputToken.assertChange(int256(realChangedInGS));
+    }
+
+    function testV6RFQIntegrationWhenTakerTokenIsETH() public {
+        RFQOffer memory rfqOffer = RFQOffer({
+            taker: address(smartOrderStrategy),
+            maker: payable(maker),
+            takerToken: Constant.ETH_ADDRESS,
+            takerTokenAmount: 1 ether,
+            makerToken: LON_ADDRESS,
+            makerTokenAmount: 1000 ether,
+            feeFactor: 0,
+            flags: FLG_ALLOW_CONTRACT_SENDER,
+            expiry: defaultExpiry,
+            salt: defaultSalt
+        });
+
+        uint256 realChangedInGS = rfqOffer.makerTokenAmount - 1; // leaving 1 wei in GS
+
+        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: rfqOffer.takerTokenAmount, recipient: payable(address(smartOrderStrategy)) });
+        bytes memory makerSig = signRFQOffer(makerPrivateKey, rfqOffer, address(rfq));
+        bytes memory rfqData = abi.encodeWithSelector(RFQ_FILL_SELECTOR, rfqTx, makerSig, defaultPermit, defaultPermit);
+
+        ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
+        operations[0] = ISmartOrderStrategy.Operation({
+            dest: address(rfq),
+            inputToken: rfqOffer.takerToken,
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
+            dataOffset: 0,
+            value: rfqOffer.takerTokenAmount,
+            data: rfqData
+        });
+        bytes memory opsData = abi.encode(operations);
+
+        vm.startPrank(genericSwap, genericSwap);
+        vm.deal(address(smartOrderStrategy), rfqOffer.takerTokenAmount);
+        Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), rfqOffer.takerToken);
+        Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, rfqOffer.makerToken);
+        smartOrderStrategy.executeStrategy{ value: rfqOffer.takerTokenAmount }(rfqOffer.takerToken, rfqOffer.makerToken, rfqOffer.takerTokenAmount, opsData);
+        vm.stopPrank();
+
+        sosInputToken.assertChange(-int256(rfqOffer.takerTokenAmount));
+        gsOutputToken.assertChange(int256(realChangedInGS));
+    }
+
+    function testV6RFQIntegrationWhenMakerTokenIsETH() public {
+        RFQOffer memory rfqOffer = RFQOffer({
+            taker: address(smartOrderStrategy),
+            maker: payable(maker),
+            takerToken: USDT_ADDRESS,
+            takerTokenAmount: 10 * 1e6,
+            makerToken: Constant.ETH_ADDRESS,
+            makerTokenAmount: 1 ether,
+            feeFactor: 0,
+            flags: FLG_ALLOW_CONTRACT_SENDER,
+            expiry: defaultExpiry,
+            salt: defaultSalt
+        });
+
+        RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: rfqOffer.takerTokenAmount, recipient: payable(address(smartOrderStrategy)) });
+        bytes memory makerSig = signRFQOffer(makerPrivateKey, rfqOffer, address(rfq));
+        bytes memory rfqData = abi.encodeWithSelector(RFQ_FILL_SELECTOR, rfqTx, makerSig, defaultPermit, defaultPermit);
+
+        ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
+        operations[0] = ISmartOrderStrategy.Operation({
+            dest: address(rfq),
+            inputToken: rfqOffer.takerToken,
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
+            dataOffset: 0,
+            value: 0,
+            data: rfqData
+        });
+        bytes memory opsData = abi.encode(operations);
+
+        vm.startPrank(genericSwap, genericSwap);
+        IERC20(rfqOffer.takerToken).safeTransfer(address(smartOrderStrategy), rfqOffer.takerTokenAmount);
+        smartOrderStrategy.executeStrategy(rfqOffer.takerToken, rfqOffer.makerToken, rfqOffer.takerTokenAmount, opsData);
+        vm.stopPrank();
     }
 
     function testV6LOIntegration() public {
@@ -123,7 +204,8 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         operations[0] = ISmartOrderStrategy.Operation({
             dest: address(limitOrderSwap),
             inputToken: order.takerToken,
-            inputRatio: 0, // zero ratio indicate no replacement
+            ratioNumerator: 0, // zero ratio indicate no replacement
+            ratioDenominator: 0,
             dataOffset: 0,
             value: 0,
             data: loData

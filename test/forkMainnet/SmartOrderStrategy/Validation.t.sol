@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { SmartOrderStrategyTest } from "./Setup.t.sol";
 import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.sol";
@@ -15,6 +15,18 @@ contract ValidationTest is SmartOrderStrategyTest {
         vm.expectRevert(ISmartOrderStrategy.ZeroInput.selector);
         vm.prank(genericSwap, genericSwap);
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, 0, defaultOpsData);
+    }
+
+    function testCannotExecuteWithZeroRatioDenominatorWhenRatioNumeratorIsNonZero() public {
+        ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
+        operations[0].inputToken = USDC_ADDRESS;
+        operations[0].ratioNumerator = 1;
+        operations[0].ratioDenominator = 0;
+        bytes memory opsData = abi.encode(operations);
+
+        vm.expectRevert(ISmartOrderStrategy.ZeroDenominator.selector);
+        vm.prank(genericSwap, genericSwap);
+        smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, opsData);
     }
 
     function testCannotExecuteWithFailDecodedData() public {
@@ -50,5 +62,24 @@ contract ValidationTest is SmartOrderStrategyTest {
         vm.expectRevert(ISmartOrderStrategy.InvalidMsgValue.selector);
         vm.prank(genericSwap, genericSwap);
         smartOrderStrategy.executeStrategy{ value: 1 }(defaultInputToken, defaultOutputToken, defaultInputAmount, defaultOpsData);
+    }
+
+    function testCannotExecuteAnOperationWillFail() public {
+        ISmartOrderStrategy.Operation[] memory operations = new ISmartOrderStrategy.Operation[](1);
+        operations[0] = ISmartOrderStrategy.Operation({
+            dest: defaultInputToken,
+            inputToken: defaultInputToken,
+            ratioNumerator: 0,
+            ratioDenominator: 0,
+            dataOffset: 0,
+            value: 0,
+            data: abi.encode("invalid data")
+        });
+        bytes memory opsData = abi.encode(operations);
+
+        vm.startPrank(genericSwap, genericSwap);
+        vm.expectRevert();
+        smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, opsData);
+        vm.stopPrank();
     }
 }
