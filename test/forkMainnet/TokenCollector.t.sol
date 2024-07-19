@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
+
+import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
@@ -19,6 +22,7 @@ contract Strategy is TokenCollector {
 contract TestTokenCollector is Addresses, Permit2Helper {
     uint256 otherPrivateKey = uint256(123);
     uint256 userPrivateKey = uint256(1);
+    address other = vm.addr(otherPrivateKey);
     address user = vm.addr(userPrivateKey);
     address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
 
@@ -34,7 +38,7 @@ contract TestTokenCollector is Addresses, Permit2Helper {
     Strategy strategy = new Strategy(address(permit2), address(allowanceTarget));
 
     function setUp() public {
-        token.mint(user, 10000 * 1e18);
+        token.mint(user, 10000 ether);
 
         // get permit2 nonce and compose PermitSingle for AllowanceTransfer
         uint256 expiration = block.timestamp + 1 days;
@@ -49,17 +53,26 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         vm.label(address(token), "TKN");
     }
 
+    function testCannotCollectByInvalidSource() public {
+        uint8 invalidSource = 255;
+        bytes memory data = abi.encodePacked(invalidSource);
+
+        // failed to convert value into enum type
+        vm.expectRevert();
+        strategy.collect(address(token), user, address(this), 0, data);
+    }
+
     /* Token Approval */
 
     function testCannotCollectByTokenApprovalWhenAllowanceIsNotEnough() public {
         bytes memory data = abi.encodePacked(TokenCollector.Source.Token);
 
-        vm.expectRevert("ERC20: insufficient allowance");
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(strategy), 0, 1));
         strategy.collect(address(token), user, address(this), 1, data);
     }
 
     function testCollectByTokenApproval() public {
-        uint256 amount = 100 * 1e18;
+        uint256 amount = 100 ether;
 
         vm.prank(user);
         token.approve(address(strategy), amount);
@@ -74,12 +87,14 @@ contract TestTokenCollector is Addresses, Permit2Helper {
     function testCannotCollectByAllowanceTargetIfNoPriorApprove() public {
         bytes memory data = abi.encodePacked(TokenCollector.Source.TokenlonAllowanceTarget);
 
-        vm.expectRevert("ERC20: insufficient allowance");
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(allowanceTarget), 0, 1));
+        vm.startPrank(user);
         strategy.collect(address(token), user, address(this), 1, data);
+        vm.stopPrank();
     }
 
     function testCollectByAllowanceTarget() public {
-        uint256 amount = 100 * 1e18;
+        uint256 amount = 100 ether;
 
         vm.prank(user);
         token.approve(address(allowanceTarget), amount);
@@ -98,7 +113,7 @@ contract TestTokenCollector is Addresses, Permit2Helper {
             token: address(token),
             owner: user,
             spender: address(strategy),
-            amount: 100 * 1e18,
+            amount: 100 ether,
             nonce: token.nonces(user),
             deadline: block.timestamp + 1 days
         });
@@ -132,7 +147,7 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(otherPrivateKey, permitHash);
 
         bytes memory data = encodeTokenPermitData(permit, v, r, s);
-        vm.expectRevert("ERC20Permit: invalid signature");
+        vm.expectRevert(abi.encodeWithSelector(ERC20Permit.ERC2612InvalidSigner.selector, other, permit.owner));
         strategy.collect(address(token), permit.owner, address(this), permit.amount, data);
     }
 
@@ -145,7 +160,7 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
 
         bytes memory data = encodeTokenPermitData(permit, v, r, s);
-        vm.expectRevert("ERC20: insufficient allowance");
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(strategy), 0, permit.amount));
         strategy.collect(address(token), permit.owner, address(this), permit.amount, data);
     }
 
@@ -158,7 +173,7 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
 
         bytes memory data = encodeTokenPermitData(permit, v, r, s);
-        vm.expectRevert("ERC20: insufficient allowance");
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(strategy), permit.amount, invalidAmount));
         strategy.collect(address(token), permit.owner, address(this), invalidAmount, data);
     }
 
@@ -169,9 +184,10 @@ contract TestTokenCollector is Addresses, Permit2Helper {
 
         bytes32 permitHash = getTokenPermitHash(permit);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
+        address recoveredAddress = 0x5d6b650146e111D930C9F97570876A12F568D2B5;
 
         bytes memory data = encodeTokenPermitData(permit, v, r, s);
-        vm.expectRevert("ERC20Permit: invalid signature");
+        vm.expectRevert(abi.encodeWithSelector(ERC20Permit.ERC2612InvalidSigner.selector, recoveredAddress, permit.owner));
         strategy.collect(address(token), permit.owner, address(this), permit.amount, data);
     }
 
@@ -184,7 +200,7 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
 
         bytes memory data = encodeTokenPermitData(permit, v, r, s);
-        vm.expectRevert("ERC20Permit: expired deadline");
+        vm.expectRevert(abi.encodeWithSelector(ERC20Permit.ERC2612ExpiredSignature.selector, permit.deadline));
         strategy.collect(address(token), permit.owner, address(this), permit.amount, data);
     }
 
@@ -202,6 +218,12 @@ contract TestTokenCollector is Addresses, Permit2Helper {
     }
 
     /* Permit2 Allowance Transfer */
+    function testCannotCollectByPermit2DataIsEmpty() public {
+        bytes memory data = abi.encodePacked(TokenCollector.Source.Permit2SignatureTransfer, "");
+
+        vm.expectRevert(TokenCollector.Permit2DataEmpty.selector);
+        strategy.collect(address(token), user, address(this), 0, data);
+    }
 
     function testCannotCollectByPermit2AllowanceTransferWhenPermitSigIsInvalid() public {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
@@ -289,7 +311,7 @@ contract TestTokenCollector is Addresses, Permit2Helper {
 
     IUniswapPermit2.PermitTransferFrom DEFAULT_PERMIT_TRANSFER =
         IUniswapPermit2.PermitTransferFrom({
-            permitted: IUniswapPermit2.TokenPermissions({ token: address(token), amount: 100 * 1e18 }),
+            permitted: IUniswapPermit2.TokenPermissions({ token: address(token), amount: 100 ether }),
             nonce: 0,
             deadline: block.timestamp + 1 days
         });

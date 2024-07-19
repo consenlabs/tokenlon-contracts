@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { Test } from "forge-std/Test.sol";
 import { Tokens } from "test/utils/Tokens.sol";
@@ -127,6 +127,13 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         });
 
         defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultGSData.takerToken, address(genericSwap));
+    }
+
+    function testGenericSwapInitialState() public {
+        genericSwap = new GenericSwap(UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget));
+
+        assertEq(genericSwap.permit2(), UNISWAP_PERMIT2_ADDRESS);
+        assertEq(genericSwap.allowanceTarget(), address(allowanceTarget));
     }
 
     function testGenericSwapWithUniswap() public {

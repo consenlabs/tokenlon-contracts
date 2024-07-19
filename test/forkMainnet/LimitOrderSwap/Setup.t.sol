@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { Test } from "forge-std/Test.sol";
 import { Tokens } from "test/utils/Tokens.sol";
@@ -111,5 +111,15 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelp
         vm.label(address(limitOrderSwap), "limitOrderSwap");
         vm.label(taker, "taker");
         vm.label(maker, "maker");
+    }
+
+    function testLimitOrderSwapInitialState() public virtual {
+        limitOrderSwap = new LimitOrderSwap(limitOrderOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS), feeCollector);
+
+        assertEq(limitOrderSwap.owner(), limitOrderOwner);
+        assertEq(limitOrderSwap.permit2(), UNISWAP_PERMIT2_ADDRESS);
+        assertEq(limitOrderSwap.allowanceTarget(), address(allowanceTarget));
+        assertEq(address(limitOrderSwap.weth()), WETH_ADDRESS);
+        assertEq(limitOrderSwap.feeCollector(), feeCollector);
     }
 }

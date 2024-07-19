@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { Ownable } from "./abstracts/Ownable.sol";
@@ -16,17 +16,26 @@ import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 /// @title LimitOrderSwap Contract
 /// @author imToken Labs
+/// @notice This contract allows users to execute limit orders for token swaps
 contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, ReentrancyGuard {
     using Asset for address;
 
+    /// @dev Mask used to mark order cancellation in `orderHashToMakerTokenFilledAmount`.
+    /// The left-most bit (bit 255) of `orderHashToMakerTokenFilledAmount[orderHash]` represents order cancellation.
     uint256 private constant ORDER_CANCEL_AMOUNT_MASK = 1 << 255;
 
     IWETH public immutable weth;
     address payable public feeCollector;
 
-    // how much maker token has been filled in an order
-    mapping(bytes32 => uint256) public orderHashToMakerTokenFilledAmount;
+    /// @notice Mapping to track the filled amounts of maker tokens for each order hash.
+    mapping(bytes32 orderHash => uint256 orderFilledAmount) public orderHashToMakerTokenFilledAmount;
 
+    /// @notice Constructor to initialize the contract with the owner, Uniswap permit2, allowance target, WETH, and fee collector.
+    /// @param _owner The address of the contract owner.
+    /// @param _uniswapPermit2 The address of the Uniswap permit2.
+    /// @param _allowanceTarget The address of the allowance target.
+    /// @param _weth The WETH token instance.
+    /// @param _feeCollector The initial address of the fee collector.
     constructor(
         address _owner,
         address _uniswapPermit2,
@@ -39,10 +48,12 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         feeCollector = _feeCollector;
     }
 
+    /// @notice Receive function to receive ETH.
     receive() external payable {}
 
-    /// @notice Only owner can call
-    /// @param _newFeeCollector The new address of fee collector
+    /// @notice Sets a new fee collector address.
+    /// @dev Only the owner can call this function.
+    /// @param _newFeeCollector The new address of the fee collector.
     function setFeeCollector(address payable _newFeeCollector) external onlyOwner {
         if (_newFeeCollector == address(0)) revert ZeroAddress();
         feeCollector = _newFeeCollector;
@@ -51,7 +62,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @inheritdoc ILimitOrderSwap
-    function fillLimitOrder(LimitOrder calldata order, bytes calldata makerSignature, TakerParams calldata takerParams) external payable override nonReentrant {
+    function fillLimitOrder(LimitOrder calldata order, bytes calldata makerSignature, TakerParams calldata takerParams) external payable nonReentrant {
         _fillLimitOrder(order, makerSignature, takerParams, false);
     }
 
@@ -60,7 +71,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         LimitOrder calldata order,
         bytes calldata makerSignature,
         TakerParams calldata takerParams
-    ) external payable override nonReentrant {
+    ) external payable nonReentrant {
         _fillLimitOrder(order, makerSignature, takerParams, true);
     }
 
@@ -70,7 +81,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         bytes[] calldata makerSignatures,
         uint256[] calldata makerTokenAmounts,
         address[] calldata profitTokens
-    ) external payable override nonReentrant {
+    ) external payable nonReentrant {
         if (orders.length != makerSignatures.length || orders.length != makerTokenAmounts.length) revert InvalidParams();
 
         // validate orders and calculate takingAmounts
@@ -80,17 +91,21 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         for (uint256 i = 0; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
             uint256 makingAmount = makerTokenAmounts[i];
+            if (makingAmount == 0) revert ZeroMakerSpendingAmount();
 
             (bytes32 orderHash, uint256 orderFilledAmount) = _validateOrder(order, makerSignatures[i]);
             {
-                uint256 orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
+                uint256 orderAvailableAmount;
+                unchecked {
+                    // orderAvailableAmount must be greater than 0 here, or it will be reverted by the _validateOrder function
+                    orderAvailableAmount = order.makerTokenAmount - orderFilledAmount;
+                }
                 if (makingAmount > orderAvailableAmount) revert NotEnoughForFill();
                 takerTokenAmounts[i] = ((makingAmount * order.takerTokenAmount) / order.makerTokenAmount);
+                if (takerTokenAmounts[i] == 0) revert ZeroTakerTokenAmount();
 
-                if (makingAmount == 0) {
-                    if (takerTokenAmounts[i] == 0) revert ZeroTokenAmount();
-                }
-
+                // this if statement cannot be covered by tests due to the following issue
+                // https://github.com/foundry-rs/foundry/issues/3600
                 if (order.takerToken == address(weth)) {
                     wethToPay += takerTokenAmounts[i];
                 }
@@ -102,7 +117,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
             // collect maker tokens
             _collect(order.makerToken, order.maker, address(this), makingAmount, order.makerTokenPermit);
 
-            // transfer fee if present
+            // Transfer fee if present
             uint256 fee = (makingAmount * order.feeFactor) / Constant.BPS_MAX;
             order.makerToken.transferTo(_feeCollector, fee);
 
@@ -112,6 +127,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         // unwrap extra WETH in order to pay for ETH taker token and profit
         uint256 wethBalance = weth.balanceOf(address(this));
         if (wethBalance > wethToPay) {
+            // this if statement cannot be fully covered because the WETH withdraw will always succeed as we have checked that wethBalance > wethToPay
             unchecked {
                 weth.withdraw(wethBalance - wethToPay);
             }
@@ -130,7 +146,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
     }
 
     /// @inheritdoc ILimitOrderSwap
-    function cancelOrder(LimitOrder calldata order) external override nonReentrant {
+    function cancelOrder(LimitOrder calldata order) external nonReentrant {
         if (order.expiry < uint64(block.timestamp)) revert ExpiredOrder();
         if (msg.sender != order.maker) revert NotOrderMaker();
         bytes32 orderHash = getLimitOrderHash(order);
@@ -143,11 +159,17 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         emit OrderCanceled(orderHash, order.maker);
     }
 
-    function isOrderCanceled(bytes32 orderHash) external view override returns (bool) {
+    /// @inheritdoc ILimitOrderSwap
+    function isOrderCanceled(bytes32 orderHash) external view returns (bool) {
         uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
         return (orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0;
     }
 
+    /// @notice Fills a limit order.
+    /// @param order The limit order details.
+    /// @param makerSignature The maker's signature for the order.
+    /// @param takerParams The taker's parameters for the order.
+    /// @param fullOrKill Whether the order should be filled completely or not at all.
     function _fillLimitOrder(LimitOrder calldata order, bytes calldata makerSignature, TakerParams calldata takerParams, bool fullOrKill) private {
         (bytes32 orderHash, uint256 takerSpendingAmount, uint256 makerSpendingAmount) = _validateOrderAndQuote(
             order,
@@ -167,6 +189,8 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
 
         if (takerParams.extraAction.length != 0) {
             (address strategy, bytes memory strategyData) = abi.decode(takerParams.extraAction, (address, bytes));
+            // the coverage report indicates that the following line causes the if statement to not be fully covered,
+            // even if the logic of the executeStrategy function is empty, this if statement is still not covered.
             IStrategy(strategy).executeStrategy(order.makerToken, order.takerToken, makerSpendingAmount - fee, strategyData);
         }
 
@@ -175,9 +199,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
             if (msg.value != takerParams.takerTokenAmount) revert InvalidMsgValue();
             Asset.transferTo(Constant.ETH_ADDRESS, order.maker, takerSpendingAmount);
             uint256 ethRefund = takerParams.takerTokenAmount - takerSpendingAmount;
-            if (ethRefund > 0) {
-                Asset.transferTo(Constant.ETH_ADDRESS, payable(msg.sender), ethRefund);
-            }
+            Asset.transferTo(Constant.ETH_ADDRESS, payable(msg.sender), ethRefund);
         } else {
             if (msg.value != 0) revert InvalidMsgValue();
             _collect(order.takerToken, msg.sender, order.maker, takerSpendingAmount, takerParams.takerTokenPermit);
@@ -187,6 +209,15 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         _emitLimitOrderFilled(order, orderHash, takerSpendingAmount, makerSpendingAmount - fee, fee, takerParams.recipient);
     }
 
+    /// @notice Validates an order and quotes the taker and maker spending amounts.
+    /// @param _order The limit order details.
+    /// @param _makerSignature The maker's signature for the order.
+    /// @param _takerTokenAmount The amount of taker token.
+    /// @param _makerTokenAmount The amount of maker token.
+    /// @param _fullOrKill Whether the order should be filled completely or not at all.
+    /// @return orderHash The hash of the validated order.
+    /// @return takerSpendingAmount The calculated taker spending amount.
+    /// @return makerSpendingAmount The calculated maker spending amount.
     function _validateOrderAndQuote(
         LimitOrder calldata _order,
         bytes calldata _makerSignature,
@@ -197,8 +228,16 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         uint256 orderFilledAmount;
         (orderHash, orderFilledAmount) = _validateOrder(_order, _makerSignature);
 
+        if (_takerTokenAmount == 0) revert ZeroTakerSpendingAmount();
+        if (_makerTokenAmount == 0) revert ZeroMakerSpendingAmount();
+
         // get the quote of the fill
-        uint256 orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
+        uint256 orderAvailableAmount;
+        unchecked {
+            // orderAvailableAmount must be greater than 0 here, or it will be reverted by the _validateOrder function
+            orderAvailableAmount = _order.makerTokenAmount - orderFilledAmount;
+        }
+
         if (_makerTokenAmount > orderAvailableAmount) {
             // the requested amount is larger than fillable amount
             if (_fullOrKill) revert NotEnoughForFill();
@@ -208,46 +247,59 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
 
             // re-calculate the amount of taker willing to spend for this trade by the requested ratio
             _takerTokenAmount = ((_takerTokenAmount * makerSpendingAmount) / _makerTokenAmount);
+            // Check _takerTokenAmount again
+            // because there is a case where _takerTokenAmount == 0 after a division calculation
+            if (_takerTokenAmount == 0) revert ZeroTakerSpendingAmount();
         } else {
-            // the requested amount can be statisfied
+            // the requested amount can be satisfied
             makerSpendingAmount = _makerTokenAmount;
         }
         uint256 minTakerTokenAmount = ((makerSpendingAmount * _order.takerTokenAmount) / _order.makerTokenAmount);
-        // check if taker provide enough amount for this fill (better price is allowed)
+        // check if taker provides enough amount for this fill (better price is allowed)
         if (_takerTokenAmount < minTakerTokenAmount) revert InvalidTakingAmount();
         takerSpendingAmount = _takerTokenAmount;
-
-        if (takerSpendingAmount == 0) {
-            if (makerSpendingAmount == 0) revert ZeroTokenAmount();
-        }
 
         // record fill amount of this tx
         orderHashToMakerTokenFilledAmount[orderHash] = orderFilledAmount + makerSpendingAmount;
     }
 
+    /// @notice Validates an order and its signature.
+    /// @param _order The limit order details.
+    /// @param _makerSignature The maker's signature for the order.
+    /// @return orderHash The hash of the validated order.
+    /// @return orderFilledAmount The filled amount of the validated order.
     function _validateOrder(LimitOrder calldata _order, bytes calldata _makerSignature) private view returns (bytes32, uint256) {
-        // validate the constrain of the order
+        // validate the constraints of the order
         if (_order.expiry < block.timestamp) revert ExpiredOrder();
         if (_order.taker != address(0)) {
             if (msg.sender != _order.taker) revert InvalidTaker();
         }
+        if (_order.takerTokenAmount == 0) revert ZeroTakerTokenAmount();
+        if (_order.makerTokenAmount == 0) revert ZeroMakerTokenAmount();
 
-        // validate the status of the order
         bytes32 orderHash = getLimitOrderHash(_order);
-
-        // check whether the order is fully filled or not
         uint256 orderFilledAmount = orderHashToMakerTokenFilledAmount[orderHash];
-        // validate maker signature only once per order
+
         if (orderFilledAmount == 0) {
+            // validate maker signature only once per order
             if (!SignatureValidator.validateSignature(_order.maker, getEIP712Hash(orderHash), _makerSignature)) revert InvalidSignature();
         }
 
+        // validate the status of the order
         if ((orderFilledAmount & ORDER_CANCEL_AMOUNT_MASK) != 0) revert CanceledOrder();
+        // check whether the order is fully filled or not
         if (orderFilledAmount >= _order.makerTokenAmount) revert FilledOrder();
 
         return (orderHash, orderFilledAmount);
     }
 
+    /// @notice Emits the LimitOrderFilled event after executing a limit order swap.
+    /// @param _order The limit order details.
+    /// @param _orderHash The hash of the limit order.
+    /// @param _takerTokenSettleAmount The settled amount of taker token.
+    /// @param _makerTokenSettleAmount The settled amount of maker token.
+    /// @param _fee The fee amount.
+    /// @param _recipient The recipient of the order settlement.
     function _emitLimitOrderFilled(
         LimitOrder calldata _order,
         bytes32 _orderHash,

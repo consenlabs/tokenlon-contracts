@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.26;
 
 import { Test } from "forge-std/Test.sol";
 import { Tokens } from "test/utils/Tokens.sol";
@@ -14,10 +14,9 @@ import { Ownable } from "contracts/abstracts/Ownable.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { IRFQ } from "contracts/interfaces/IRFQ.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
-import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
-import { RFQTx, getRFQTxHash } from "contracts/libraries/RFQTx.sol";
+import { RFQTx } from "contracts/libraries/RFQTx.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 
 contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
@@ -101,6 +100,16 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         vm.label(taker, "taker");
         vm.label(maker, "maker");
         vm.label(address(rfq), "rfq");
+    }
+
+    function testRFQInitialState() public {
+        rfq = new RFQ(rfqOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS), feeCollector);
+
+        assertEq(rfq.owner(), rfqOwner);
+        assertEq(rfq.permit2(), UNISWAP_PERMIT2_ADDRESS);
+        assertEq(rfq.allowanceTarget(), address(allowanceTarget));
+        assertEq(address(rfq.weth()), WETH_ADDRESS);
+        assertEq(rfq.feeCollector(), feeCollector);
     }
 
     function testCannotSetFeeCollectorByNotOwner() public {
@@ -243,7 +252,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         fcMakerToken.assertChange(int256(fee));
     }
 
-    function testFillRFQWithRawETHAndRecieveWETH() public {
+    function testFillRFQWithRawETHAndReceiveWETH() public {
         // case : taker token is ETH
         RFQOffer memory rfqOffer = defaultRFQOffer;
         rfqOffer.takerToken = Constant.ZERO_ADDRESS;
@@ -282,9 +291,8 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
     }
 
     function testFillRFQTakerGetRawETH() public {
-        // case : maker token is WETH
         RFQOffer memory rfqOffer = defaultRFQOffer;
-        rfqOffer.makerToken = WETH_ADDRESS;
+        rfqOffer.makerToken = Constant.ETH_ADDRESS;
         rfqOffer.makerTokenAmount = 1 ether;
 
         bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
@@ -292,7 +300,43 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.takerToken });
         Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.makerToken });
         Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: rfqOffer.takerToken });
-        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: rfqOffer.makerToken });
+        // market maker only receives WETH
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: WETH_ADDRESS });
+        // recipient should receive raw ETH
+        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.takerToken });
+        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.makerToken });
+        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
+
+        uint256 fee = (rfqOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
+        uint256 amountAfterFee = rfqOffer.makerTokenAmount - fee;
+
+        RFQTx memory rfqTx = defaultRFQTx;
+        rfqTx.rfqOffer = rfqOffer;
+
+        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+
+        takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(rfqOffer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(rfqOffer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        // recipient gets less than original makerTokenAmount because of the fee
+        recMakerToken.assertChange(int256(amountAfterFee));
+        fcMakerToken.assertChange(int256(fee));
+    }
+
+    function testFillRFQTakerGetRawETH2() public {
+        RFQOffer memory rfqOffer = defaultRFQOffer;
+        rfqOffer.makerToken = Constant.ZERO_ADDRESS;
+        rfqOffer.makerTokenAmount = 1 ether;
+
+        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
+
+        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.takerToken });
+        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.makerToken });
+        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: rfqOffer.takerToken });
+        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: WETH_ADDRESS });
         // recipient should receive raw ETH
         Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.takerToken });
         Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.makerToken });
@@ -355,7 +399,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         fcMakerToken.assertChange(int256(fee));
     }
 
-    function testFillRFQWithWETHAndRecieveWETH() public {
+    function testFillRFQWithWETHAndReceiveWETH() public {
         // case : taker token is WETH
         RFQOffer memory rfqOffer = defaultRFQOffer;
         rfqOffer.takerToken = WETH_ADDRESS;
@@ -478,6 +522,15 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         vm.expectRevert(IRFQ.InvalidTakerAmount.selector);
         vm.prank(rfqOffer.taker, rfqOffer.taker);
         rfq.fillRFQ(rfqTx1, makerSig, defaultMakerPermit, defaultTakerPermit);
+    }
+
+    function testCannotFillWithContractWhenNotAllowContractSender() public {
+        RFQTx memory rfqTx = defaultRFQTx;
+        address mockContract = makeAddr("mockContract");
+
+        vm.expectRevert(IRFQ.ForbidContract.selector);
+        vm.prank(mockContract, defaultRFQOffer.taker);
+        rfq.fillRFQ(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
     }
 
     function testCannotFillExpiredRFQTx() public {
