@@ -26,7 +26,10 @@ Under construction
 ### Example
 
 ```bash
-MAINNET_NODE_RPC_URL=https://eth-mainnet.alchemyapi.io/v2/#####__YOUR_SECRET__#####
+MAINNET_NODE_RPC_URL=https://eth-mainnet.infura.io/v3//#####__YOUR_SECRET__#####
+```
+```bash
+MAINNET_NODE_RPC_URL=https://polygon-mainnet.infura.io/v3//#####__YOUR_SECRET__#####
 ```
 
 ## Installation
