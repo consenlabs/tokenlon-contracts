@@ -28,7 +28,29 @@ Under construction
 ```bash
 MAINNET_NODE_RPC_URL=https://eth-mainnet.alchemyapi.io/v2/#####__YOUR_SECRET__#####
 ```
+// Integration Instructions: https://docs.tenderly.co/node/integrations-smart-contract-frameworks/hardhat
+import { HardhatUserConfig, task, types } from "hardhat/config";
+import "@nomicfoundation/hardhat-toolbox";
+import * as tenderly from "@tenderly/hardhat-tenderly";
+import * as dotenv from 'dotenv';
 
+dotenv.configure();
+tenderly.setup({ automaticVerifications: true });
+
+const config: HardhatUserConfig = {
+  solidity: "0.8.19",
+  defaultNetwork: "tenderly",
+  networks: {
+    tenderly: {
+      url: "https://polygon.gateway.tenderly.co/j8BP8CpYPDwsln2c7AQkz",
+      chainId: 137,
+    },
+  },
+  tenderly: {
+    username: "Vitalika",
+    project: "0xa67e213e4debdd5a5b1c9e7da521b85c45884e6b",
+  },
+};
 ## Installation
 
 ```bash
