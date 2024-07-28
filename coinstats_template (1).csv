@@ -1,0 +1,8 @@
+Coin Symbol,Exchange,Pair,Type,Amount,Price,Fee,Date,Notes
+BNB,Binance,,interest_earn,0.233,,,"7/22/2019, 7:37:58 PM",
+BTC,Binance,,interest_paid,0.03696939,,,"7/22/2019, 7:37:58 PM",
+ETH,Binance,BTC,buy,10,0.0122332,0.0003,"7/22/2019, 7:37:58 PM",
+BNB,Binance,BTC,sell,12.5,0.0029796,0.07502008,"7/22/2019, 7:37:57 PM",
+LTC,Binance,,withdraw,10.2,,,"7/22/2019, 7:37:57 PM",
+BNB,Binance,,fee,0.00123,,0.075,"7/22/2019, 7:37:57 PM",
+BTC,Binance,,deposit,1,,,"7/22/2019, 7:37:57 PM",
