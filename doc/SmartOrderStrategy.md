@@ -1,3 +1,7 @@
 # SmartOrderStrategy
 
-SmartOrderStrategy is a strategy executor of a generic swap. It should be called by GenericSwap contract and preform any swaps according to provided payload. This contract should not has any balance or token approval since it could perform any arbitary calls. Also the `executeStrategy` function is only allowed to be called by GenericSwap contract.
+SmartOrderStrategy is a strategy executor of a generic swap. It is designed to be called by the `GenericSwap contract` and performs swaps according to the provided payload. This contract should not hold any significant token balance or require token approvals, as it can execute arbitrary calls. Additionally, the `executeStrategy` function is restricted to being called only by the GenericSwap contract.
+
+## Gas Saving Technical
+
+SmartOrderStrategy retains 1 wei of the maker token at the end of each swap transaction. This practice avoids repeatedly clearing the token balance to zero, as the EVM charges different gas fees for various storage states. By preventing frequent resets to zero, this approach effectively reduces gas consumption.

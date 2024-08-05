@@ -9,7 +9,7 @@ Tokenlon is a decentralized exchange and payment settlement protocol based on bl
 
 ## Architecture
 
-Under construction
+![Tokenlon Architecture](./Tokenlon-Architecture.png)
 
 ## Deployed contracts
 

@@ -1,18 +1,26 @@
 # RFQ
 
-RFQ (Request For Quote) is a contract that settles a trade between two parties. Normally it requires an off-chain quoting system which provides quotes and signatures from certain makers. A user may request for a quote of a specific trading pair and size. Upon receiving the request, any maker willing to trade can respond with a quote to the user. If the user accepts it, then both parties will sign the trading order and submit the order with signatures to the RFQ contract. After verifying signatures, the RFQ contract will transfer tokens between user and maker accordingly.
+The RFQ (Request For Quote) contract facilitates the settlement of trades between two parties: a market maker and an user. We provide an off-chain quoting system that handles the quoting process. Users can request quotes for specific trading pairs and sizes. Upon receiving a request, any interested maker can provide a quote to the user. If the user accepts the quote, both parties will sign the trading order and submit it ot the RFQ contract along with their signatures. The RFQ contract verifies the signatures and executes the token transfers between the user and the market maker.
 
 ## Order option flags
 
-There are two options that the maker of a RFQ offer can set. The option flags is a uint256 field in the offer.
+The maker of an RFQ offer can specify certain options using a `uint256` field in the offer, referred to as option flags:
 
--   Partial fill : Whether the Offer can be filled partially or not (but once).
--   Contract call : Whether the Offer can be filled by a contract or not.
+-   `FLG_ALLOW_CONTRACT_SENDER` : Determines whether the RFQ offer can be filled by a contract.
+-   `FLG_ALLOW_PARTIAL_FILL` : Whether a RFQ offer can be filled partially or not (but once).
+-   `FLG_MAKER_RECEIVES_WETH` : Specifies whether a market maker is willing to receive WETH from a RFQ offer.
 
 ## Relayer
 
-RFQ supports submitting a trade by a relayer with user signature. The hash of relayed trade should be recoreded to prevent replay attack.
+The RFQ contract allows for trade submissions by a relayer with user's signatures. To prevent replay attacks, the hash of the relayed trade is recorded.
 
 ## Fee
 
-Some portion of maker asset of an order will be deducted as protocol fee. The fee will be transfered to `feeCollector` during the settlement. Each order may have different fee factor, it depends on the characteristic of an order.
+A portion of the maker's asset in the order will be deducted as a protocol fee. This fee is transferred to the feeCollector during settlement.
+
+The fee factor is composed of two parts:
+
+1. Protocol Fee
+2. Gas Fee
+
+If a relayer submits the trade on-chain, the gas fee will be adjusted according to the on-chain conditions at the time of the transaction.
