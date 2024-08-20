@@ -7,7 +7,7 @@ The RFQ (Request For Quote) contract facilitates the settlement of trades betwee
 The maker of an RFQ offer can specify certain options using a `uint256` field in the offer, referred to as option flags:
 
 -   `FLG_ALLOW_CONTRACT_SENDER` : Determines whether an RFQ offer can be filled by a contract. This flag is intended to prevent arbitrageurs from using contracts to execute flash loans to arbitrage RFQ orders.
--   `FLG_ALLOW_PARTIAL_FILL: Determines whether an RFQ offer can be partially filled. However, each RFQ order can only be filled once, regardless of whether it's fully or partially filled.
+-   `FLG_ALLOW_PARTIAL_FILL`: Determines whether an RFQ offer can be partially filled. However, each RFQ order can only be filled once, regardless of whether it's fully or partially filled.
 -   `FLG_MAKER_RECEIVES_WETH` : Specifies whether a market maker wants the RFQ contract to wrap the ETH he received into WETH for him.
 
 ## Relayer
