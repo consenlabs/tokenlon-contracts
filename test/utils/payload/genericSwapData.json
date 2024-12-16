@@ -8,9 +8,9 @@
   "expiry": 3376656000,
   "salt": 123,
   "recipient": "0xdf5621f59CcD4A58cF487E0C4E3fCDd6Db67E4dA",
-  "expectedSig": "0xdfe4e0414baa9b0ac4edcefc1d8ceb18dc21230f6b93a83c91188a105d1d7ece7809ca3c67db499fd497e35ba271a0a6689f7683d41b5d4602a5bb7895537a2d1c",
+  "expectedSig": "0x5a671e6994dbed10c4f8fd34cc4d526a8d74b15363fcefc30a20ad295674ec8a231c5e743da079623545601b37aa09c51c017da1a5cb6c0dde42da5fe7665e4c1b",
   "signingKey": "0x1dc4f07f92fa1783042350ffe685439f857a8fdd837589c00c5299e287c4afcb",
   "chainId": 5,
   "verifyingContract": "0x49eA36C04c109a8c62C9b48fd8C4d13b3EA98B27",
-  "typehash": "0x1b6f9d7673107802b331a5ab52a40f7d942bdf74fa821744df8b69eead3d26c1"
+  "typehash": "0x3aaeb6ca9ecb74a956054c8b123c6d2ab5251f97eed10a138611db2aafd0b792"
 }
