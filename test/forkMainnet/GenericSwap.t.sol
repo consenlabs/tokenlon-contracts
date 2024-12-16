@@ -39,6 +39,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
     uint24[] defaultV3Fees = [3000];
     bytes defaultTakerPermit;
     bytes alicePermit;
+    bytes swapData;
     SmartOrderStrategy smartStrategy;
     GenericSwap genericSwap;
     GenericSwapData defaultGSData;
@@ -94,7 +95,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
             value: 0,
             data: routerPayload
         });
-        bytes memory swapData = abi.encode(operations);
+        swapData = abi.encode(operations);
 
         deal(taker, 100 ether);
         setTokenBalanceAndApprove(taker, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
@@ -112,8 +113,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
             minMakerTokenAmount: minOutputAmount,
             expiry: defaultExpiry,
             salt: 5678,
-            recipient: payable(taker),
-            strategyData: swapData
+            recipient: payable(taker)
         });
 
         defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultGSData.takerToken, address(genericSwap));
@@ -279,7 +279,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
     function testCannotSwapWithInvalidETHInput() public {
         // case1 : msg.value != 0 when takerToken is not ETH
         vm.expectRevert(IGenericSwap.InvalidMsgValue.selector);
-        genericSwap.executeSwap{ value: 1 }(defaultGSData, defaultTakerPermit);
+        genericSwap.executeSwap{ value: 1 }(defaultGSData, swapData, defaultTakerPermit);
 
         // change input token as ETH and update amount
         GenericSwapData memory gsData = defaultGSData;
@@ -363,15 +363,15 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
 
         vm.expectRevert(IGenericSwap.InvalidSignature.selector);
         // submit with user address as expected signer
-        genericSwap.executeSwapWithSig(defaultGSData, defaultTakerPermit, taker, randomSig);
+        genericSwap.executeSwapWithSig(defaultGSData, swapData, defaultTakerPermit, taker, randomSig);
     }
 
     function testCannotReplayGenericSwapSig() public {
         bytes memory takerSig = signGenericSwap(takerPrivateKey, defaultGSData, address(genericSwap));
-        genericSwap.executeSwapWithSig(defaultGSData, defaultTakerPermit, taker, takerSig);
+        genericSwap.executeSwapWithSig(defaultGSData, swapData, defaultTakerPermit, taker, takerSig);
 
         vm.expectRevert(IGenericSwap.AlreadyFilled.selector);
-        genericSwap.executeSwapWithSig(defaultGSData, defaultTakerPermit, taker, takerSig);
+        genericSwap.executeSwapWithSig(defaultGSData, swapData, defaultTakerPermit, taker, takerSig);
     }
 
     function testLeaveOneWeiWithMultipleUsers() public {
@@ -434,7 +434,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         );
 
         vm.startPrank(alice);
-        genericSwap.executeSwap(aliceGSData, alicePermit);
+        genericSwap.executeSwap(aliceGSData, swapData, alicePermit);
         vm.stopPrank();
         vm.snapshotGasLastCall("GenericSwap", "executeSwap(): testLeaveOneWeiWithMultipleUsers(the second deposit)");
 

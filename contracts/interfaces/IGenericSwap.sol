@@ -60,18 +60,25 @@ interface IGenericSwap {
 
     /// @notice Executes a swap using provided swap data and taker token permit.
     /// @param swapData The swap data containing details of the swap.
+    /// @param strategyData The strategy data contains the details on how to perform the swap.
     /// @param takerTokenPermit The permit for spending taker's tokens.
     /// @return returnAmount The amount of tokens returned from the swap.
-    function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable returns (uint256 returnAmount);
+    function executeSwap(
+        GenericSwapData calldata swapData,
+        bytes calldata strategyData,
+        bytes calldata takerTokenPermit
+    ) external payable returns (uint256 returnAmount);
 
     /// @notice Executes a swap using provided swap data, taker token permit, taker address, and signature.
     /// @param swapData The swap data containing details of the swap.
+    /// @param strategyData The strategy data contains the details on how to perform the swap.
     /// @param takerTokenPermit The permit for spending taker's tokens.
     /// @param taker The address of the taker initiating the swap.
     /// @param takerSig The signature of the taker authorizing the swap.
     /// @return returnAmount The amount of tokens returned from the swap.
     function executeSwapWithSig(
         GenericSwapData calldata swapData,
+        bytes calldata strategyData,
         bytes calldata takerTokenPermit,
         address taker,
         bytes calldata takerSig

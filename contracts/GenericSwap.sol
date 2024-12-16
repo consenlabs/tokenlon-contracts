@@ -30,8 +30,12 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     receive() external payable {}
 
     /// @inheritdoc IGenericSwap
-    function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable returns (uint256 returnAmount) {
-        returnAmount = _executeSwap(swapData, msg.sender, takerTokenPermit);
+    function executeSwap(
+        GenericSwapData calldata swapData,
+        bytes calldata strategyData,
+        bytes calldata takerTokenPermit
+    ) external payable returns (uint256 returnAmount) {
+        returnAmount = _executeSwap(swapData, strategyData, msg.sender, takerTokenPermit);
 
         _emitGSExecuted(getGSDataHash(swapData), swapData, msg.sender, returnAmount);
     }
@@ -39,6 +43,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     /// @inheritdoc IGenericSwap
     function executeSwapWithSig(
         GenericSwapData calldata swapData,
+        bytes calldata strategyData,
         bytes calldata takerTokenPermit,
         address taker,
         bytes calldata takerSig
@@ -49,7 +54,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
         filledSwap[swapHash] = true;
         if (!SignatureValidator.validateSignature(taker, gs712Hash, takerSig)) revert InvalidSignature();
 
-        returnAmount = _executeSwap(swapData, taker, takerTokenPermit);
+        returnAmount = _executeSwap(swapData, strategyData, taker, takerTokenPermit);
 
         _emitGSExecuted(swapHash, swapData, taker, returnAmount);
     }
@@ -61,6 +66,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     /// @return returnAmount The output amount of the swap.
     function _executeSwap(
         GenericSwapData calldata _swapData,
+        bytes calldata strategyData,
         address _authorizedUser,
         bytes calldata _takerTokenPermit
     ) private returns (uint256 returnAmount) {
