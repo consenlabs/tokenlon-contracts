@@ -49,7 +49,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
     uint24[] defaultV3Fees = [3000];
     bytes defaultTakerPermit;
     bytes alicePermit;
-    bytes swapData;
+    bytes strategyData;
     SmartOrderStrategy smartStrategy;
     GenericSwap genericSwap;
     GenericSwapData defaultGSData;
@@ -104,7 +104,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
             value: 0,
             data: routerPayload
         });
-        swapData = abi.encode(operations);
+        strategyData = abi.encode(operations);
 
         deal(taker, 100 ether);
         setTokenBalanceAndApprove(taker, UNISWAP_PERMIT2_ADDRESS, tokens, 100000);
@@ -153,7 +153,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         );
 
         vm.prank(taker);
-        genericSwap.executeSwap(defaultGSData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap(defaultGSData, strategyData, defaultTakerPermit);
 
         takerTakerToken.assertChange(-int256(defaultGSData.takerTokenAmount));
         // the makerTokenAmount in the defaultGSData is the exact quote from strategy
@@ -189,7 +189,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
             gsData.salt
         );
         vm.prank(taker);
-        genericSwap.executeSwap(gsData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap(gsData, strategyData, defaultTakerPermit);
 
         takerTakerToken.assertChange(-int256(gsData.takerTokenAmount));
         takerMakerToken.assertChange(int256(realChangedInGS));
@@ -224,7 +224,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
             gsData.salt
         );
         vm.prank(taker);
-        genericSwap.executeSwap{ value: gsData.takerTokenAmount }(gsData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap{ value: gsData.takerTokenAmount }(gsData, strategyData, defaultTakerPermit);
 
         takerTakerToken.assertChange(-int256(gsData.takerTokenAmount));
         takerMakerToken.assertChange(int256(realChangedInGS));
@@ -260,7 +260,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
             gsData.salt
         );
         vm.prank(taker);
-        genericSwap.executeSwap(gsData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap(gsData, strategyData, defaultTakerPermit);
 
         takerTakerToken.assertChange(-int256(gsData.takerTokenAmount));
         takerMakerToken.assertChange(int256(realChangedInGS));
@@ -273,13 +273,13 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
 
         vm.prank(taker);
         vm.expectRevert(IGenericSwap.ExpiredOrder.selector);
-        genericSwap.executeSwap(defaultGSData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap(defaultGSData, strategyData, defaultTakerPermit);
     }
 
     function testCannotSwapWithInvalidETHInput() public {
         // case1 : msg.value != 0 when takerToken is not ETH
         vm.expectRevert(IGenericSwap.InvalidMsgValue.selector);
-        genericSwap.executeSwap{ value: 1 }(defaultGSData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap{ value: 1 }(defaultGSData, strategyData, defaultTakerPermit);
 
         // change input token as ETH and update amount
         GenericSwapData memory gsData = defaultGSData;
@@ -289,12 +289,12 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         // case2 : msg.value > takerTokenAmount
         vm.prank(taker);
         vm.expectRevert(IGenericSwap.InvalidMsgValue.selector);
-        genericSwap.executeSwap{ value: gsData.takerTokenAmount + 1 }(gsData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap{ value: gsData.takerTokenAmount + 1 }(gsData, strategyData, defaultTakerPermit);
 
         // case3 : msg.value < takerTokenAmount
         vm.prank(taker);
         vm.expectRevert(IGenericSwap.InvalidMsgValue.selector);
-        genericSwap.executeSwap{ value: gsData.takerTokenAmount - 1 }(gsData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap{ value: gsData.takerTokenAmount - 1 }(gsData, strategyData, defaultTakerPermit);
     }
 
     function testCannotSwapWithInsufficientOutput() public {
@@ -305,7 +305,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         mockStrategy.setOutputAmountAndRecipient(gsData.minMakerTokenAmount - 1, payable(address(genericSwap)));
         vm.prank(taker);
         vm.expectRevert(IGenericSwap.InsufficientOutput.selector);
-        genericSwap.executeSwap(gsData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap(gsData, strategyData, defaultTakerPermit);
     }
 
     function testCannotSwapWithZeroRecipient() public {
@@ -314,7 +314,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
 
         vm.prank(taker);
         vm.expectRevert(IGenericSwap.ZeroAddress.selector);
-        genericSwap.executeSwap(gsData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap(gsData, strategyData, defaultTakerPermit);
     }
 
     function testGenericSwapRelayed() public {
@@ -335,7 +335,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         );
 
         bytes memory takerSig = signGenericSwap(takerPrivateKey, defaultGSData, address(genericSwap));
-        genericSwap.executeSwapWithSig(defaultGSData, swapData, defaultTakerPermit, taker, takerSig);
+        genericSwap.executeSwapWithSig(defaultGSData, strategyData, defaultTakerPermit, taker, takerSig);
 
         takerTakerToken.assertChange(-int256(defaultGSData.takerTokenAmount));
         // the makerTokenAmount in the defaultGSData is the exact quote from strategy
@@ -348,15 +348,15 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
 
         vm.expectRevert(IGenericSwap.InvalidSignature.selector);
         // submit with user address as expected signer
-        genericSwap.executeSwapWithSig(defaultGSData, swapData, defaultTakerPermit, taker, randomSig);
+        genericSwap.executeSwapWithSig(defaultGSData, strategyData, defaultTakerPermit, taker, randomSig);
     }
 
     function testCannotReplayGenericSwapSig() public {
         bytes memory takerSig = signGenericSwap(takerPrivateKey, defaultGSData, address(genericSwap));
-        genericSwap.executeSwapWithSig(defaultGSData, swapData, defaultTakerPermit, taker, takerSig);
+        genericSwap.executeSwapWithSig(defaultGSData, strategyData, defaultTakerPermit, taker, takerSig);
 
         vm.expectRevert(IGenericSwap.AlreadyFilled.selector);
-        genericSwap.executeSwapWithSig(defaultGSData, swapData, defaultTakerPermit, taker, takerSig);
+        genericSwap.executeSwapWithSig(defaultGSData, strategyData, defaultTakerPermit, taker, takerSig);
     }
 
     function testLeaveOneWeiWithMultipleUsers() public {
@@ -384,7 +384,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         );
 
         vm.prank(taker);
-        genericSwap.executeSwap(defaultGSData, swapData, defaultTakerPermit);
+        genericSwap.executeSwap(defaultGSData, strategyData, defaultTakerPermit);
 
         // the second user: Alice
         // his makerTokenAmount is recalculate by `quoteExactInput() function base on the current state`
@@ -417,7 +417,7 @@ contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper 
         );
 
         vm.startPrank(alice);
-        genericSwap.executeSwap(aliceGSData, swapData, alicePermit);
+        genericSwap.executeSwap(aliceGSData, strategyData, alicePermit);
         vm.stopPrank();
 
         takerTakerToken.assertChange(-int256(defaultGSData.takerTokenAmount));
