@@ -31,8 +31,9 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
     function setUp() public virtual {
         // Deploy and setup SmartOrderStrategy
         smartOrderStrategy = new SmartOrderStrategy(strategyOwner, genericSwap, WETH_ADDRESS);
-        vm.prank(strategyOwner);
+        vm.startPrank(strategyOwner);
         smartOrderStrategy.approveTokens(tokenList, ammList);
+        vm.stopPrank();
 
         // Make genericSwap rich to provide fund for strategy contract
         deal(genericSwap, 100 ether);

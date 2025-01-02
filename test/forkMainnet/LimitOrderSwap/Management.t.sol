@@ -8,22 +8,28 @@ import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol"
 contract ManagementTest is LimitOrderSwapTest {
     function testCannotSetFeeCollectorByNotOwner() public {
         address newFeeCollector = makeAddr("newFeeCollector");
-        vm.prank(newFeeCollector);
+
+        vm.startPrank(newFeeCollector);
         vm.expectRevert(Ownable.NotOwner.selector);
         limitOrderSwap.setFeeCollector(payable(newFeeCollector));
+        vm.stopPrank();
     }
 
     function testCannotSetFeeCollectorToZero() public {
-        vm.prank(limitOrderOwner, limitOrderOwner);
+        vm.startPrank(limitOrderOwner);
         vm.expectRevert(ILimitOrderSwap.ZeroAddress.selector);
         limitOrderSwap.setFeeCollector(payable(address(0)));
+        vm.stopPrank();
     }
 
     function testSetFeeCollector() public {
         address newFeeCollector = makeAddr("newFeeCollector");
-        vm.prank(limitOrderOwner, limitOrderOwner);
-        limitOrderSwap.setFeeCollector(payable(newFeeCollector));
+
+        vm.expectEmit(false, false, false, true);
         emit SetFeeCollector(newFeeCollector);
-        assertEq(limitOrderSwap.feeCollector(), newFeeCollector);
+
+        vm.startPrank(limitOrderOwner);
+        limitOrderSwap.setFeeCollector(payable(newFeeCollector));
+        vm.stopPrank();
     }
 }

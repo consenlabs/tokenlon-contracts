@@ -26,20 +26,6 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
     uint256 private constant FLG_ALLOW_PARTIAL_FILL = 1 << 254;
     uint256 private constant FLG_MAKER_RECEIVES_WETH = 1 << 253;
 
-    event FilledRFQ(
-        bytes32 indexed rfqOfferHash,
-        address indexed user,
-        address indexed maker,
-        address takerToken,
-        uint256 takerTokenUserAmount,
-        address makerToken,
-        uint256 makerTokenUserAmount,
-        address recipient,
-        uint256 fee
-    );
-    event SetFeeCollector(address newFeeCollector);
-    event CancelRFQOffer(bytes32 indexed rfqOfferHash, address indexed maker);
-
     address rfqOwner = makeAddr("rfqOwner");
     address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
     uint256 makerSignerPrivateKey = uint256(9021);
@@ -112,24 +98,36 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         assertEq(rfq.feeCollector(), feeCollector);
     }
 
+    function testCannotNewRFQWithZeroAddressFeeCollector() public {
+        vm.expectRevert(IRFQ.ZeroAddress.selector);
+        new RFQ(rfqOwner, UNISWAP_PERMIT2_ADDRESS, address(allowanceTarget), IWETH(WETH_ADDRESS), payable(address(0)));
+    }
+
     function testCannotSetFeeCollectorByNotOwner() public {
         address newFeeCollector = makeAddr("newFeeCollector");
-        vm.prank(newFeeCollector);
+        vm.startPrank(newFeeCollector);
         vm.expectRevert(Ownable.NotOwner.selector);
         rfq.setFeeCollector(payable(newFeeCollector));
+        vm.stopPrank();
     }
 
     function testCannotSetFeeCollectorToZero() public {
-        vm.prank(rfqOwner, rfqOwner);
+        vm.startPrank(rfqOwner);
         vm.expectRevert(IRFQ.ZeroAddress.selector);
         rfq.setFeeCollector(payable(address(0)));
+        vm.stopPrank();
     }
 
     function testSetFeeCollector() public {
         address newFeeCollector = makeAddr("newFeeCollector");
-        vm.prank(rfqOwner, rfqOwner);
+
+        vm.expectEmit(false, false, false, true);
+        emit IRFQ.SetFeeCollector(newFeeCollector);
+
+        vm.startPrank(rfqOwner);
         rfq.setFeeCollector(payable(newFeeCollector));
-        emit SetFeeCollector(newFeeCollector);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "setFeeCollector(): testSetFeeCollector");
         assertEq(rfq.feeCollector(), newFeeCollector);
     }
 
@@ -145,7 +143,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         uint256 fee = (defaultRFQOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
         uint256 amountAfterFee = defaultRFQOffer.makerTokenAmount - fee;
         vm.expectEmit(true, true, true, true);
-        emit FilledRFQ(
+        emit IRFQ.FilledRFQ(
             getRFQOfferHash(defaultRFQOffer),
             defaultRFQOffer.taker,
             defaultRFQOffer.maker,
@@ -157,8 +155,11 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
             fee
         );
 
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQ(): testFillRFQ");
+
         takerTakerToken.assertChange(-int256(defaultRFQOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
         makerTakerToken.assertChange(int256(defaultRFQOffer.takerTokenAmount));
@@ -174,8 +175,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
 
         bytes memory takerPermit = abi.encodePacked(TokenCollector.Source.TokenlonAllowanceTarget);
 
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, takerPermit);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQ(): testFillRFQWithTakerApproveAllowanceTarget");
     }
 
     function testFillRFQWithZeroFee() public {
@@ -193,7 +196,7 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqTx.rfqOffer, address(rfq));
 
         vm.expectEmit(true, true, true, true);
-        emit FilledRFQ(
+        emit IRFQ.FilledRFQ(
             getRFQOfferHash(rfqOffer),
             defaultRFQOffer.taker,
             defaultRFQOffer.maker,
@@ -205,8 +208,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
             0
         );
 
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQ(): testFillRFQWithZeroFee");
 
         takerTakerToken.assertChange(-int256(defaultRFQOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -239,8 +244,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         rfqTx.rfqOffer = rfqOffer;
         rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount;
 
-        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        vm.startPrank(rfqOffer.taker, rfqOffer.taker);
         rfq.fillRFQ{ value: rfqOffer.takerTokenAmount }(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQ(): testFillRFQWithRawETH");
 
         takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -277,8 +284,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         rfqTx.rfqOffer = rfqOffer;
         rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount;
 
-        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        vm.startPrank(rfqOffer.taker, rfqOffer.taker);
         rfq.fillRFQ{ value: rfqOffer.takerTokenAmount }(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQ(): testFillRFQWithRawETHAndReceiveWETH");
 
         takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -313,43 +322,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.rfqOffer = rfqOffer;
 
-        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        vm.startPrank(rfqOffer.taker, rfqOffer.taker);
         rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
-
-        takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
-        takerMakerToken.assertChange(int256(0));
-        makerTakerToken.assertChange(int256(rfqOffer.takerTokenAmount));
-        makerMakerToken.assertChange(-int256(rfqOffer.makerTokenAmount));
-        recTakerToken.assertChange(int256(0));
-        // recipient gets less than original makerTokenAmount because of the fee
-        recMakerToken.assertChange(int256(amountAfterFee));
-        fcMakerToken.assertChange(int256(fee));
-    }
-
-    function testFillRFQTakerGetRawETH2() public {
-        RFQOffer memory rfqOffer = defaultRFQOffer;
-        rfqOffer.makerToken = Constant.ZERO_ADDRESS;
-        rfqOffer.makerTokenAmount = 1 ether;
-
-        bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
-
-        Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.takerToken });
-        Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.taker, token: rfqOffer.makerToken });
-        Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: rfqOffer.takerToken });
-        Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: rfqOffer.maker, token: WETH_ADDRESS });
-        // recipient should receive raw ETH
-        Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.takerToken });
-        Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: rfqOffer.makerToken });
-        Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: rfqOffer.makerToken });
-
-        uint256 fee = (rfqOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
-        uint256 amountAfterFee = rfqOffer.makerTokenAmount - fee;
-
-        RFQTx memory rfqTx = defaultRFQTx;
-        rfqTx.rfqOffer = rfqOffer;
-
-        vm.prank(rfqOffer.taker, rfqOffer.taker);
-        rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQ(): testFillRFQTakerGetRawETH");
 
         takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -387,8 +363,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
 
         bytes memory takerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, rfqOffer.takerToken, address(rfq));
 
-        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        vm.startPrank(rfqOffer.taker, rfqOffer.taker);
         rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, takerPermit);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQ(): testFillRFQWithWETH");
 
         takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -426,8 +404,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
 
         bytes memory takerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, rfqOffer.takerToken, address(rfq));
 
-        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        vm.startPrank(rfqOffer.taker, rfqOffer.taker);
         rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, takerPermit);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQ(): testFillRFQWithWETHAndReceiveWETH");
 
         takerTakerToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -452,8 +432,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         bytes memory takerPermit = getTokenlonPermit2Data(takerWalletContract, takerPrivateKey, defaultRFQOffer.takerToken, address(rfq));
 
         // tx.origin is an EOA, msg.sender is a contract
-        vm.prank(takerWalletContract, makeAddr("anyAddr"));
+        vm.startPrank(takerWalletContract, makeAddr("anyAddr"));
         rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, takerPermit);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQ(): testFillWithContract");
     }
 
     function testPartialFill() public {
@@ -474,8 +456,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         rfqTx.rfqOffer = rfqOffer;
         rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount / 2;
 
-        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        vm.startPrank(rfqOffer.taker, rfqOffer.taker);
         rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQ(): testPartialFill");
 
         {
             uint256 makerActualAmount = rfqOffer.makerTokenAmount / 2;
@@ -496,9 +480,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.takerRequestAmount = defaultRFQOffer.takerTokenAmount / 2;
 
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.ForbidPartialFill.selector);
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         rfq.fillRFQ(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
     }
 
     function testCannotPartialFillWithInvalidAmount() public {
@@ -511,68 +496,79 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.rfqOffer = rfqOffer;
         rfqTx.takerRequestAmount = defaultRFQOffer.takerTokenAmount * 2;
+
+        vm.startPrank(rfqOffer.taker, rfqOffer.taker);
         vm.expectRevert(IRFQ.InvalidTakerAmount.selector);
-        vm.prank(rfqOffer.taker, rfqOffer.taker);
         rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
 
         // case : takerRequestAmount = 0
         RFQTx memory rfqTx1 = defaultRFQTx;
         rfqTx1.rfqOffer = rfqOffer;
         rfqTx1.takerRequestAmount = 0;
+
+        vm.startPrank(rfqOffer.taker, rfqOffer.taker);
         vm.expectRevert(IRFQ.InvalidTakerAmount.selector);
-        vm.prank(rfqOffer.taker, rfqOffer.taker);
         rfq.fillRFQ(rfqTx1, makerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
     }
 
     function testCannotFillWithContractWhenNotAllowContractSender() public {
         RFQTx memory rfqTx = defaultRFQTx;
         address mockContract = makeAddr("mockContract");
 
+        vm.startPrank(mockContract, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.ForbidContract.selector);
-        vm.prank(mockContract, defaultRFQOffer.taker);
         rfq.fillRFQ(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
     }
 
     function testCannotFillExpiredRFQTx() public {
         vm.warp(defaultRFQOffer.expiry + 1);
 
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.ExpiredRFQOffer.selector);
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
     }
 
     function testCannotFillAlreadyFillRFQTx() public {
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
 
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.FilledRFQOffer.selector);
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
     }
 
     function testCannotFillRFQWithIncorrectMakerSig() public {
         uint256 randomPrivateKey = 5677;
         bytes memory randomMakerSig = signRFQOffer(randomPrivateKey, defaultRFQOffer, address(rfq));
 
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.InvalidSignature.selector);
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         rfq.fillRFQ(defaultRFQTx, randomMakerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
     }
 
     function testCannotFillWithZeroRecipient() public {
         RFQTx memory rfqTx = defaultRFQTx;
         rfqTx.recipient = payable(address(0));
 
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.ZeroAddress.selector);
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         rfq.fillRFQ(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
     }
 
     function testCannotFillWithIncorrectMsgValue() public {
         // case : takerToken is normal ERC20
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.InvalidMsgValue.selector);
         rfq.fillRFQ{ value: 1 ether }(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
 
         // case : takerToken is WETH
         RFQOffer memory rfqOffer = defaultRFQOffer;
@@ -583,9 +579,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         rfqTx.takerRequestAmount = rfqOffer.takerTokenAmount;
         bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
 
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.InvalidMsgValue.selector);
         rfq.fillRFQ{ value: 2 ether }(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
 
         // case : takerToken is raw ETH
         RFQOffer memory rfqOffer1 = defaultRFQOffer;
@@ -596,9 +593,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         rfqTx1.takerRequestAmount = rfqOffer1.takerTokenAmount;
         bytes memory makerSig1 = signRFQOffer(makerSignerPrivateKey, rfqOffer1, address(rfq));
 
-        vm.prank(defaultRFQOffer.taker, defaultRFQOffer.taker);
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
         vm.expectRevert(IRFQ.InvalidMsgValue.selector);
         rfq.fillRFQ{ value: 2 ether }(rfqTx1, makerSig1, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
     }
 
     function testFillRFQByTakerSig() public {
@@ -611,11 +609,11 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         Snapshot memory fcMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultRFQOffer.makerToken });
 
         bytes memory takerSig = signRFQTx(takerPrivateKey, defaultRFQTx, address(rfq));
-
         uint256 fee = (defaultRFQOffer.makerTokenAmount * defaultFeeFactor) / Constant.BPS_MAX;
         uint256 amountAfterFee = defaultRFQOffer.makerTokenAmount - fee;
+
         vm.expectEmit(true, true, true, true);
-        emit FilledRFQ(
+        emit IRFQ.FilledRFQ(
             getRFQOfferHash(defaultRFQOffer),
             defaultRFQOffer.taker,
             defaultRFQOffer.maker,
@@ -627,8 +625,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
             fee
         );
 
-        vm.prank(txRelayer, txRelayer);
+        vm.startPrank(txRelayer, txRelayer);
         rfq.fillRFQWithSig(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, takerSig);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "fillRFQWithSig(): testFillRFQByTakerSig");
 
         takerTakerToken.assertChange(-int256(defaultRFQOffer.takerTokenAmount));
         takerMakerToken.assertChange(int256(0));
@@ -644,9 +644,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         uint256 randomPrivateKey = 5677;
         bytes memory randomSig = signRFQTx(randomPrivateKey, defaultRFQTx, address(rfq));
 
+        vm.startPrank(txRelayer, txRelayer);
         vm.expectRevert(IRFQ.InvalidSignature.selector);
-        vm.prank(txRelayer, txRelayer);
         rfq.fillRFQWithSig(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, randomSig);
+        vm.stopPrank();
     }
 
     function testCannotFillWithInvalidFeeFactor() public {
@@ -654,9 +655,10 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         rfqTx.rfqOffer.feeFactor = Constant.BPS_MAX + 1;
         bytes memory takerSig = signRFQTx(takerPrivateKey, rfqTx, address(rfq));
 
+        vm.startPrank(txRelayer, txRelayer);
         vm.expectRevert(IRFQ.InvalidFeeFactor.selector);
-        vm.prank(txRelayer, txRelayer);
         rfq.fillRFQWithSig(rfqTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit, takerSig);
+        vm.stopPrank();
     }
 
     function testCannotFillIfMakerAmountIsZero() public {
@@ -676,31 +678,48 @@ contract RFQTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
         RFQTx memory rfqTx = RFQTx({ rfqOffer: rfqOffer, takerRequestAmount: 1, recipient: payable(recipient) });
         bytes memory makerSig = signRFQOffer(makerSignerPrivateKey, rfqOffer, address(rfq));
 
-        vm.prank(rfqOffer.taker, rfqOffer.taker);
+        vm.startPrank(rfqOffer.taker, rfqOffer.taker);
         vm.expectRevert(IRFQ.InvalidMakerAmount.selector);
         rfq.fillRFQ(rfqTx, makerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
     }
 
     function testCancelRFQOffer() public {
-        vm.prank(defaultRFQOffer.maker, defaultRFQOffer.maker);
-        rfq.cancelRFQOffer(defaultRFQOffer);
+        vm.expectEmit(true, true, false, false);
+        emit IRFQ.CancelRFQOffer(getRFQOfferHash(defaultRFQOffer), defaultRFQOffer.maker);
 
-        emit CancelRFQOffer(getRFQOfferHash(defaultRFQOffer), defaultRFQOffer.maker);
+        vm.startPrank(defaultRFQOffer.maker);
+        rfq.cancelRFQOffer(defaultRFQOffer);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("RFQ", "cancelRFQOffer(): testCancelRFQOffer");
     }
 
     function testCannotCancelRFQOfferIfNotMaker() public {
+        vm.startPrank(makeAddr("not offer maker"));
         vm.expectRevert(IRFQ.NotOfferMaker.selector);
         rfq.cancelRFQOffer(defaultRFQOffer);
+        vm.stopPrank();
     }
 
-    function testCannotCancelRFQOfferIfFilledOrCancelled() public {
-        vm.startPrank(defaultRFQOffer.maker, defaultRFQOffer.maker);
-        rfq.cancelRFQOffer(defaultRFQOffer);
+    function testCannotCancelRFQOfferIfFilled() public {
+        vm.startPrank(defaultRFQOffer.taker, defaultRFQOffer.taker);
+        rfq.fillRFQ(defaultRFQTx, defaultMakerSig, defaultMakerPermit, defaultTakerPermit);
+        vm.stopPrank();
 
-        // cannot cancel an offer twice
+        vm.startPrank(defaultRFQOffer.maker);
         vm.expectRevert(IRFQ.FilledRFQOffer.selector);
         rfq.cancelRFQOffer(defaultRFQOffer);
+        vm.stopPrank();
+    }
 
+    function testCannotCancelRFQOfferTwice() public {
+        vm.startPrank(defaultRFQOffer.maker);
+        rfq.cancelRFQOffer(defaultRFQOffer);
+        vm.stopPrank();
+
+        vm.startPrank(defaultRFQOffer.maker);
+        vm.expectRevert(IRFQ.FilledRFQOffer.selector);
+        rfq.cancelRFQOffer(defaultRFQOffer);
         vm.stopPrank();
     }
 }

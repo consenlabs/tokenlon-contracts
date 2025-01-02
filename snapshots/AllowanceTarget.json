@@ -1,0 +1,8 @@
+{
+  "pause(): testSpendFromUserToAfterUnpause": "27667",
+  "spendFromUserTo(): testSpendFromUserTo": "63533",
+  "spendFromUserTo(): testSpendFromUserToAfterUnpause": "63533",
+  "spendFromUserTo(): testSpendFromUserToWithDeflationaryToken": "91576",
+  "spendFromUserTo(): testSpendFromUserToWithNoReturnValueToken": "68943",
+  "unpause(): testSpendFromUserToAfterUnpause": "27645"
+}

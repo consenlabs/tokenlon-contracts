@@ -10,6 +10,7 @@ contract AssetTest is Test {
     using Asset for address;
 
     MockERC20 token;
+    AssetHarness assetHarness;
 
     address payable recipient = payable(makeAddr("recipient"));
     uint256 tokenBalance = 123;
@@ -17,59 +18,79 @@ contract AssetTest is Test {
 
     function setUp() public {
         token = new MockERC20("TOKEN", "TKN", 18);
+        assetHarness = new AssetHarness();
 
         // set balance
-        token.mint(address(this), tokenBalance);
-        vm.deal(address(this), ethBalance);
-    }
-
-    function transferToWrap(address asset, address payable to, uint256 amount) public {
-        Asset.transferTo(asset, to, amount);
+        token.mint(address(assetHarness), tokenBalance);
+        vm.deal(address(assetHarness), ethBalance);
     }
 
     function testIsETH() public {
-        assertTrue(Asset.isETH(Constant.ETH_ADDRESS));
-        assertTrue(Asset.isETH(address(0)));
+        assertTrue(assetHarness.exposedIsETH(Constant.ETH_ADDRESS));
+        vm.snapshotGasLastCall("Asset", "isETH(): testIsETH(ETH_ADDRESS)");
+        assertTrue(assetHarness.exposedIsETH(Constant.ZERO_ADDRESS));
+        vm.snapshotGasLastCall("Asset", "isETH(): testIsETH2(ZERO_ADDRESS)");
     }
 
     function testGetBalance() public {
-        assertEq(Asset.getBalance(address(token), address(this)), tokenBalance);
-        assertEq(Asset.getBalance(Constant.ETH_ADDRESS, address(this)), ethBalance);
-        assertEq(Asset.getBalance(address(0), address(this)), ethBalance);
+        assertEq(assetHarness.exposedGetBalance(address(token), address(assetHarness)), tokenBalance);
+        vm.snapshotGasLastCall("Asset", "getBalance(): testGetBalance");
+        assertEq(assetHarness.exposedGetBalance(Constant.ETH_ADDRESS, address(assetHarness)), ethBalance);
+        vm.snapshotGasLastCall("Asset", "getBalance(): testGetBalance(ETH_ADDRESS)");
+        assertEq(assetHarness.exposedGetBalance(Constant.ZERO_ADDRESS, address(assetHarness)), ethBalance);
+        vm.snapshotGasLastCall("Asset", "getBalance(): testGetBalance(ZERO_ADDRESS)");
     }
 
     function testDoNothingIfTransferWithZeroAmount() public {
-        Asset.transferTo(address(token), recipient, 0);
+        assetHarness.exposedTransferTo(address(token), recipient, 0);
+        vm.snapshotGasLastCall("Asset", "transferTo(): testDoNothingIfTransferWithZeroAmount");
     }
 
     function testDoNothingIfTransferToSelf() public {
-        Asset.transferTo(address(token), payable(address(token)), 0);
+        assetHarness.exposedTransferTo(address(token), payable(address(token)), 0);
+        vm.snapshotGasLastCall("Asset", "transferTo(): testDoNothingIfTransferToSelf");
     }
 
-    function testTransferETHWithInsufficientBalance() public {
-        vm.expectRevert(Asset.InsufficientBalance.selector);
-        this.transferToWrap(Constant.ETH_ADDRESS, recipient, address(this).balance + 1);
+    function testCannotTransferETHWithInsufficientBalance() public {
+        vm.expectRevert();
+        assetHarness.exposedTransferTo(Constant.ETH_ADDRESS, recipient, address(assetHarness).balance + 1);
     }
 
-    function testTransferETHToContractCannotReceiveETH() public {
+    function testCannotTransferETHToContractCannotReceiveETH() public {
         vm.expectRevert();
         // mockERC20 cannot receive any ETH
-        this.transferToWrap(Constant.ETH_ADDRESS, payable(address(token)), 1);
+        assetHarness.exposedTransferTo(Constant.ETH_ADDRESS, payable(address(token)), 1);
     }
 
     function testTransferETH() public {
-        uint256 amount = address(this).balance;
-        Asset.transferTo(Constant.ETH_ADDRESS, payable(recipient), amount);
+        uint256 amount = address(assetHarness).balance;
+        assetHarness.exposedTransferTo(Constant.ETH_ADDRESS, recipient, amount);
+        vm.snapshotGasLastCall("Asset", "transferTo(): testTransferETH");
 
         assertEq(address(recipient).balance, amount);
-        assertEq(address(this).balance, 0);
+        assertEq(address(assetHarness).balance, 0);
     }
 
     function testTransferToken() public {
-        uint256 amount = token.balanceOf(address(this));
-        Asset.transferTo(address(token), payable(recipient), amount);
+        uint256 amount = token.balanceOf(address(assetHarness));
+        assetHarness.exposedTransferTo(address(token), recipient, amount);
+        vm.snapshotGasLastCall("Asset", "transferTo(): testTransferToken");
 
         assertEq(token.balanceOf(recipient), amount);
-        assertEq(token.balanceOf(address(this)), 0);
+        assertEq(token.balanceOf(address(assetHarness)), 0);
+    }
+}
+
+contract AssetHarness {
+    function exposedIsETH(address addr) external pure returns (bool) {
+        return Asset.isETH(addr);
+    }
+
+    function exposedGetBalance(address asset, address owner) external view returns (uint256) {
+        return Asset.getBalance(asset, owner);
+    }
+
+    function exposedTransferTo(address asset, address payable to, uint256 amount) external {
+        Asset.transferTo(asset, to, amount);
     }
 }

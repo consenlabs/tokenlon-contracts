@@ -6,46 +6,53 @@ import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol";
 
 contract CancelOrderTest is LimitOrderSwapTest {
-    event OrderCanceled(bytes32 orderHash, address maker);
-
     function testCancelOrder() public {
         vm.expectEmit(true, true, true, true);
-        emit OrderCanceled(getLimitOrderHash(defaultOrder), maker);
+        emit ILimitOrderSwap.OrderCanceled(getLimitOrderHash(defaultOrder), maker);
 
-        vm.prank(maker, maker);
+        vm.startPrank(maker);
         limitOrderSwap.cancelOrder(defaultOrder);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("LimitOrderSwap", "cancelOrder(): testCancelOrder");
+
         assertEq(limitOrderSwap.isOrderCanceled(getLimitOrderHash(defaultOrder)), true);
     }
 
     function testCannotCancelOrderIfNotMaker() public {
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.NotOrderMaker.selector);
-        vm.prank(taker, taker);
         limitOrderSwap.cancelOrder(defaultOrder);
+        vm.stopPrank();
     }
 
     function testCannotCancelExpiredOrder() public {
         vm.warp(defaultOrder.expiry + 1);
 
+        vm.startPrank(maker);
         vm.expectRevert(ILimitOrderSwap.ExpiredOrder.selector);
-        vm.prank(maker, maker);
         limitOrderSwap.cancelOrder(defaultOrder);
+        vm.stopPrank();
     }
 
     function testCannotCancelFilledOrder() public {
-        vm.prank(taker);
+        vm.startPrank(taker);
         limitOrderSwap.fillLimitOrder({ order: defaultOrder, makerSignature: defaultMakerSig, takerParams: defaultTakerParams });
+        vm.stopPrank();
 
+        vm.startPrank(maker);
         vm.expectRevert(ILimitOrderSwap.FilledOrder.selector);
-        vm.prank(maker, maker);
         limitOrderSwap.cancelOrder(defaultOrder);
+        vm.stopPrank();
     }
 
     function testCannotCancelCanceledOrder() public {
-        vm.prank(maker, maker);
+        vm.startPrank(maker);
         limitOrderSwap.cancelOrder(defaultOrder);
+        vm.stopPrank();
 
+        vm.startPrank(maker);
         vm.expectRevert(ILimitOrderSwap.CanceledOrder.selector);
-        vm.prank(maker, maker);
         limitOrderSwap.cancelOrder(defaultOrder);
+        vm.stopPrank();
     }
 }

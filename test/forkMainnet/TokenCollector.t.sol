@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
@@ -20,15 +21,26 @@ contract Strategy is TokenCollector {
 }
 
 contract TestTokenCollector is Addresses, Permit2Helper {
-    uint256 otherPrivateKey = uint256(123);
-    uint256 userPrivateKey = uint256(1);
-    address other = vm.addr(otherPrivateKey);
+    uint256 userPrivateKey = uint256(123);
+    uint256 otherPrivateKey = uint256(456);
     address user = vm.addr(userPrivateKey);
+    address other = vm.addr(otherPrivateKey);
     address allowanceTargetOwner = makeAddr("allowanceTargetOwner");
 
-    MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
+    struct TokenPermit {
+        address token;
+        address owner;
+        address spender;
+        uint256 amount;
+        uint256 nonce;
+        uint256 deadline;
+    }
 
+    TokenPermit DEFAULT_TOKEN_PERMIT;
     IUniswapPermit2.PermitSingle DEFAULT_PERMIT_SINGLE;
+    IUniswapPermit2.PermitTransferFrom DEFAULT_PERMIT_TRANSFER;
+
+    MockERC20Permit token = new MockERC20Permit("Token", "TKN", 18);
 
     // pre-compute Strategy address since the whitelist of allowance target is immutable
     // NOTE: this assumes Strategy is deployed right next to Allowance Target
@@ -40,6 +52,15 @@ contract TestTokenCollector is Addresses, Permit2Helper {
     function setUp() public {
         token.mint(user, 10000 ether);
 
+        DEFAULT_TOKEN_PERMIT = TokenPermit({
+            token: address(token),
+            owner: user,
+            spender: address(strategy),
+            amount: 100 ether,
+            nonce: token.nonces(user),
+            deadline: block.timestamp + 1 days
+        });
+
         // get permit2 nonce and compose PermitSingle for AllowanceTransfer
         uint256 expiration = block.timestamp + 1 days;
         (, , uint48 nonce) = permit2.allowance(user, address(token), address(strategy));
@@ -49,8 +70,23 @@ contract TestTokenCollector is Addresses, Permit2Helper {
             sigDeadline: expiration
         });
 
-        vm.label(address(this), "TestingContract");
-        vm.label(address(token), "TKN");
+        DEFAULT_PERMIT_TRANSFER = IUniswapPermit2.PermitTransferFrom({
+            permitted: IUniswapPermit2.TokenPermissions({ token: address(token), amount: 100 ether }),
+            nonce: 0,
+            deadline: block.timestamp + 1 days
+        });
+    }
+
+    function _getTokenPermitHash(TokenPermit memory permit) private view returns (bytes32) {
+        MockERC20Permit tokenWithPermit = MockERC20Permit(permit.token);
+        bytes32 structHash = keccak256(
+            abi.encode(tokenWithPermit._PERMIT_TYPEHASH(), permit.owner, permit.spender, permit.amount, permit.nonce, permit.deadline)
+        );
+        return keccak256(abi.encodePacked("\x19\x01", tokenWithPermit.DOMAIN_SEPARATOR(), structHash));
+    }
+
+    function _encodeTokenPermitData(TokenPermit memory permit, uint8 v, bytes32 r, bytes32 s) private pure returns (bytes memory) {
+        return abi.encodePacked(TokenCollector.Source.TokenPermit, abi.encode(permit.owner, permit.spender, permit.amount, permit.deadline, v, r, s));
     }
 
     function testCannotCollectByInvalidSource() public {
@@ -62,8 +98,30 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         strategy.collect(address(token), user, address(this), 0, data);
     }
 
-    /* Token Approval */
+    /* Tokenlon AllowanceTarget */
+    function testCannotCollectByAllowanceTargetIfNoPriorApprove() public {
+        bytes memory data = abi.encodePacked(TokenCollector.Source.TokenlonAllowanceTarget);
 
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(allowanceTarget), 0, 1));
+        strategy.collect(address(token), user, address(this), 1, data);
+    }
+
+    function testCollectByAllowanceTarget() public {
+        uint256 amount = 100 ether;
+
+        vm.startPrank(user);
+        token.approve(address(allowanceTarget), amount);
+        vm.stopPrank();
+
+        bytes memory data = abi.encodePacked(TokenCollector.Source.TokenlonAllowanceTarget);
+        strategy.collect(address(token), user, address(this), amount, data);
+        vm.snapshotGasLastCall("TokenCollector", "collect(): testCollectByAllowanceTarget");
+
+        uint256 balance = token.balanceOf(address(this));
+        assertEq(balance, amount);
+    }
+
+    /* Token */
     function testCannotCollectByTokenApprovalWhenAllowanceIsNotEnough() public {
         bytes memory data = abi.encodePacked(TokenCollector.Source.Token);
 
@@ -74,79 +132,27 @@ contract TestTokenCollector is Addresses, Permit2Helper {
     function testCollectByTokenApproval() public {
         uint256 amount = 100 ether;
 
-        vm.prank(user);
+        vm.startPrank(user);
         token.approve(address(strategy), amount);
+        vm.stopPrank();
 
         bytes memory data = abi.encodePacked(TokenCollector.Source.Token);
         strategy.collect(address(token), user, address(this), amount, data);
-
-        uint256 balance = token.balanceOf(address(this));
-        assertEq(balance, amount);
-    }
-
-    function testCannotCollectByAllowanceTargetIfNoPriorApprove() public {
-        bytes memory data = abi.encodePacked(TokenCollector.Source.TokenlonAllowanceTarget);
-
-        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(allowanceTarget), 0, 1));
-        vm.startPrank(user);
-        strategy.collect(address(token), user, address(this), 1, data);
-        vm.stopPrank();
-    }
-
-    function testCollectByAllowanceTarget() public {
-        uint256 amount = 100 ether;
-
-        vm.prank(user);
-        token.approve(address(allowanceTarget), amount);
-
-        bytes memory data = abi.encodePacked(TokenCollector.Source.TokenlonAllowanceTarget);
-        strategy.collect(address(token), user, address(this), amount, data);
+        vm.snapshotGasLastCall("TokenCollector", "collect(): testCollectByTokenApproval");
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, amount);
     }
 
     /* Token Permit */
-
-    TokenPermit DEFAULT_TOKEN_PERMIT =
-        TokenPermit({
-            token: address(token),
-            owner: user,
-            spender: address(strategy),
-            amount: 100 ether,
-            nonce: token.nonces(user),
-            deadline: block.timestamp + 1 days
-        });
-
-    struct TokenPermit {
-        address token;
-        address owner;
-        address spender;
-        uint256 amount;
-        uint256 nonce;
-        uint256 deadline;
-    }
-
-    function getTokenPermitHash(TokenPermit memory permit) private view returns (bytes32) {
-        MockERC20Permit tokenWithPermit = MockERC20Permit(permit.token);
-        bytes32 structHash = keccak256(
-            abi.encode(tokenWithPermit._PERMIT_TYPEHASH(), permit.owner, permit.spender, permit.amount, permit.nonce, permit.deadline)
-        );
-        return keccak256(abi.encodePacked("\x19\x01", tokenWithPermit.DOMAIN_SEPARATOR(), structHash));
-    }
-
-    function encodeTokenPermitData(TokenPermit memory permit, uint8 v, bytes32 r, bytes32 s) private pure returns (bytes memory) {
-        return abi.encodePacked(TokenCollector.Source.TokenPermit, abi.encode(permit.owner, permit.spender, permit.amount, permit.deadline, v, r, s));
-    }
-
     function testCannotCollectByTokenPermitWhenPermitSigIsInvalid() public {
         TokenPermit memory permit = DEFAULT_TOKEN_PERMIT;
 
-        bytes32 permitHash = getTokenPermitHash(permit);
+        bytes32 permitHash = _getTokenPermitHash(permit);
         // Sign by not owner
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(otherPrivateKey, permitHash);
 
-        bytes memory data = encodeTokenPermitData(permit, v, r, s);
+        bytes memory data = _encodeTokenPermitData(permit, v, r, s);
         vm.expectRevert(abi.encodeWithSelector(ERC20Permit.ERC2612InvalidSigner.selector, other, permit.owner));
         strategy.collect(address(token), permit.owner, address(this), permit.amount, data);
     }
@@ -156,10 +162,10 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         // Spender is not strategy
         permit.spender = address(this);
 
-        bytes32 permitHash = getTokenPermitHash(permit);
+        bytes32 permitHash = _getTokenPermitHash(permit);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
 
-        bytes memory data = encodeTokenPermitData(permit, v, r, s);
+        bytes memory data = _encodeTokenPermitData(permit, v, r, s);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(strategy), 0, permit.amount));
         strategy.collect(address(token), permit.owner, address(this), permit.amount, data);
     }
@@ -169,10 +175,10 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         // Amount is more than permitted
         uint256 invalidAmount = permit.amount + 100;
 
-        bytes32 permitHash = getTokenPermitHash(permit);
+        bytes32 permitHash = _getTokenPermitHash(permit);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
 
-        bytes memory data = encodeTokenPermitData(permit, v, r, s);
+        bytes memory data = _encodeTokenPermitData(permit, v, r, s);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(strategy), permit.amount, invalidAmount));
         strategy.collect(address(token), permit.owner, address(this), invalidAmount, data);
     }
@@ -182,11 +188,11 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         // Nonce is invalid
         permit.nonce = 123;
 
-        bytes32 permitHash = getTokenPermitHash(permit);
+        bytes32 permitHash = _getTokenPermitHash(permit);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
-        address recoveredAddress = 0x5d6b650146e111D930C9F97570876A12F568D2B5;
+        address recoveredAddress = ECDSA.recover(_getTokenPermitHash(DEFAULT_TOKEN_PERMIT), v, r, s);
 
-        bytes memory data = encodeTokenPermitData(permit, v, r, s);
+        bytes memory data = _encodeTokenPermitData(permit, v, r, s);
         vm.expectRevert(abi.encodeWithSelector(ERC20Permit.ERC2612InvalidSigner.selector, recoveredAddress, permit.owner));
         strategy.collect(address(token), permit.owner, address(this), permit.amount, data);
     }
@@ -196,10 +202,10 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         // Deadline is expired
         permit.deadline = block.timestamp - 1 days;
 
-        bytes32 permitHash = getTokenPermitHash(permit);
+        bytes32 permitHash = _getTokenPermitHash(permit);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
 
-        bytes memory data = encodeTokenPermitData(permit, v, r, s);
+        bytes memory data = _encodeTokenPermitData(permit, v, r, s);
         vm.expectRevert(abi.encodeWithSelector(ERC20Permit.ERC2612ExpiredSignature.selector, permit.deadline));
         strategy.collect(address(token), permit.owner, address(this), permit.amount, data);
     }
@@ -207,11 +213,12 @@ contract TestTokenCollector is Addresses, Permit2Helper {
     function testCollectByTokenPermit() public {
         TokenPermit memory permit = DEFAULT_TOKEN_PERMIT;
 
-        bytes32 permitHash = getTokenPermitHash(permit);
+        bytes32 permitHash = _getTokenPermitHash(permit);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, permitHash);
 
-        bytes memory data = encodeTokenPermitData(permit, v, r, s);
+        bytes memory data = _encodeTokenPermitData(permit, v, r, s);
         strategy.collect(address(token), permit.owner, address(this), permit.amount, data);
+        vm.snapshotGasLastCall("TokenCollector", "collect(): testCollectByTokenPermit");
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, permit.amount);
@@ -277,8 +284,9 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
         uint256 amount = 1234;
 
-        vm.prank(user);
+        vm.startPrank(user);
         token.approve(address(permit2), type(uint256).max);
+        vm.stopPrank();
 
         bytes memory permitSig = signPermitSingle(userPrivateKey, permit);
         bytes memory data = encodeAllowanceTransfer(user, permit, permitSig);
@@ -295,27 +303,21 @@ contract TestTokenCollector is Addresses, Permit2Helper {
         IUniswapPermit2.PermitSingle memory permit = DEFAULT_PERMIT_SINGLE;
         uint256 amount = 1234;
 
-        vm.prank(user);
+        vm.startPrank(user);
         token.approve(address(permit2), type(uint256).max);
+        vm.stopPrank();
 
         bytes memory permitSig = signPermitSingle(userPrivateKey, permit);
         bytes memory data = encodeAllowanceTransfer(user, permit, permitSig);
 
         strategy.collect(address(token), user, address(this), amount, data);
+        vm.snapshotGasLastCall("TokenCollector", "collect(): testCollectByPermit2AllowanceTransfer");
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, amount);
     }
 
     /* Permit2 Signature Transfer */
-
-    IUniswapPermit2.PermitTransferFrom DEFAULT_PERMIT_TRANSFER =
-        IUniswapPermit2.PermitTransferFrom({
-            permitted: IUniswapPermit2.TokenPermissions({ token: address(token), amount: 100 ether }),
-            nonce: 0,
-            deadline: block.timestamp + 1 days
-        });
-
     function testCannotCollectByPermit2SignatureTransferWhenSpenderIsInvalid() public {
         IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
         // Spender is not strategy
@@ -343,8 +345,9 @@ contract TestTokenCollector is Addresses, Permit2Helper {
     function testCannotCollectByPermit2SignatureTransferWhenNonceIsUsed() public {
         IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
 
-        vm.prank(user);
+        vm.startPrank(user);
         token.approve(address(permit2), permit.permitted.amount);
+        vm.stopPrank();
 
         bytes memory permitSig = signPermitTransferFrom(userPrivateKey, permit, address(strategy));
         bytes memory data = encodeSignatureTransfer(permit, permitSig);
@@ -371,13 +374,15 @@ contract TestTokenCollector is Addresses, Permit2Helper {
     function testCollectByPermit2SignatureTransfer() public {
         IUniswapPermit2.PermitTransferFrom memory permit = DEFAULT_PERMIT_TRANSFER;
 
-        vm.prank(user);
+        vm.startPrank(user);
         token.approve(address(permit2), permit.permitted.amount);
+        vm.stopPrank();
 
         bytes memory permitSig = signPermitTransferFrom(userPrivateKey, permit, address(strategy));
         bytes memory data = encodeSignatureTransfer(permit, permitSig);
 
         strategy.collect(address(token), user, address(this), permit.permitted.amount, data);
+        vm.snapshotGasLastCall("TokenCollector", "collect(): testCollectByPermit2SignatureTransfer");
 
         uint256 balance = token.balanceOf(address(this));
         assertEq(balance, permit.permitted.amount);

@@ -13,8 +13,9 @@ contract OwnableTest is Test {
     address otherAccount = makeAddr("otherAccount");
 
     function setUp() public {
-        vm.prank(owner);
+        vm.startPrank(owner);
         ownable = new OwnableTestContract(owner);
+        vm.stopPrank();
     }
 
     function testOwnableInitialState() public {
@@ -27,64 +28,80 @@ contract OwnableTest is Test {
     }
 
     function testCannotAcceptOwnershipWithOtherAccount() public {
-        vm.prank(owner);
+        vm.startPrank(owner);
         ownable.nominateNewOwner(newOwner);
+        vm.stopPrank();
 
-        vm.prank(otherAccount);
+        vm.startPrank(otherAccount);
         vm.expectRevert(Ownable.NotNominated.selector);
         ownable.acceptOwnership();
+        vm.stopPrank();
     }
 
     function testCannotRenounceOwnershipWithNominatedOwner() public {
-        vm.prank(owner);
+        vm.startPrank(owner);
         ownable.nominateNewOwner(newOwner);
+        vm.stopPrank();
 
-        vm.prank(owner);
+        vm.startPrank(owner);
         vm.expectRevert(Ownable.NominationExists.selector);
         ownable.renounceOwnership();
+        vm.stopPrank();
     }
 
     function testCannotRenounceOwnershipWithOtherAccount() public {
-        vm.prank(otherAccount);
+        vm.startPrank(otherAccount);
         vm.expectRevert(Ownable.NotOwner.selector);
         ownable.renounceOwnership();
+        vm.stopPrank();
     }
 
     function testCannotNominateNewOwnerWithOtherAccount() public {
-        vm.prank(otherAccount);
+        vm.startPrank(otherAccount);
         vm.expectRevert(Ownable.NotOwner.selector);
         ownable.nominateNewOwner(newOwner);
+        vm.stopPrank();
     }
 
     function testAcceptOwnership() public {
-        vm.prank(owner);
+        vm.startPrank(owner);
         ownable.nominateNewOwner(newOwner);
+        vm.stopPrank();
 
         assertEq(ownable.nominatedOwner(), newOwner);
 
-        vm.prank(newOwner);
         vm.expectEmit(true, true, false, false);
         emit Ownable.OwnerChanged(owner, newOwner);
+
+        vm.startPrank(newOwner);
         ownable.acceptOwnership();
+        vm.stopPrank();
+        vm.snapshotGasLastCall("Ownable", "acceptOwnership(): testAcceptOwnership");
 
         assertEq(ownable.owner(), newOwner);
         assertEq(ownable.nominatedOwner(), address(0));
     }
 
     function testRenounceOwnership() public {
-        vm.prank(owner);
         vm.expectEmit(true, true, false, false);
         emit Ownable.OwnerChanged(owner, address(0));
+
+        vm.startPrank(owner);
         ownable.renounceOwnership();
+        vm.stopPrank();
+        vm.snapshotGasLastCall("Ownable", "renounceOwnership(): testRenounceOwnership");
 
         assertEq(ownable.owner(), address(0));
     }
 
     function testNominateNewOwner() public {
-        vm.prank(owner);
         vm.expectEmit(true, false, false, false);
         emit Ownable.OwnerNominated(newOwner);
+
+        vm.startPrank(owner);
         ownable.nominateNewOwner(newOwner);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("Ownable", "nominateNewOwner(): testNominateNewOwner");
 
         assertEq(ownable.nominatedOwner(), newOwner);
     }
