@@ -1,0 +1,24 @@
+date,description,type,from,to,amount,currency,comment,tx_hash
+27/10/2024,2173 LON for DevCon7 sponsorship with imToken,Campaign budget,0xc5B2f3e81c9B4FB643190A060Fbc5653542505dF,0xc79b9fB4828FF3987cc318d4EbaCf0d26305F14c,"2,000.00",USDT,https://arbiscan.io/tx/0x6153f199b9815502f3b2be98513f1f5cebbf863bbf0da33a454101c7d17b789e,0x15af2f7336f902c0492281b4e0dd8d5e716fa4c3479eec9c231a2756cc98d28f
+20/12/2024,5126.064735 USDT swapped for 1.4999865 ETH,Swap,0xc5B2f3e81c9B4FB643190A060Fbc5653542505dF,0x4a14347083B80E5216cA31350a2D21702aC3650d,"5,126.06",USDT,User product tests gas fees 1 ETH + current community treasury gas fees 0.5 ETH,https://etherscan.io/tx/0x5c19253d8376577d0c874f6cb4bb3aec40bd9d721c4a523cda4afc348940c078?locale=zh-CN&utm_source=imtoken
+,,,0xc5B2f3e81c9B4FB643190A060Fbc5653542505dF,0x4031e602F315e37ec17415740fd24605372911B6,1.00,ETH,Product test gas fees,https://etherscan.io/tx/0xf380027246a6b0cc00c42ae05a110f34665e1ef18898306e50e9921dad632d80?locale=zh-CN&utm_source=imtoken
+20/12/2024,7200.390516 USDT swapped for 8949.9999 LON,Swap,0xc5B2f3e81c9B4FB643190A060Fbc5653542505dF,0x4a14347083B80E5216cA31350a2D21702aC3650d,"7,200.39",USDT,"Devcon Twitter campaign 300 LON + BNB campaign 1150 LON + Xmas campaign 7500 LON, total 8950 LON",https://etherscan.io/tx/0x5c19253d8376577d0c874f6cb4bb3aec40bd9d721c4a523cda4afc348940c078?locale=zh-CN&utm_source=imtoken
+,,,0xc5B2f3e81c9B4FB643190A060Fbc5653542505dF,0xc79b9fB4828FF3987cc318d4EbaCf0d26305F14c,"8,950.00",LON,"Rewards for DevCon, BNB, and Xmas campaign distribution",https://etherscan.io/tx/0x4652d57dca6c14b05e0595ab9bc350fb3dbc6c0b705a24d356b553299818afcf?locale=zh-CN&utm_source=imtoken
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,Q4 Total expenditure in USDT:,"14,326.45",,,,,,
