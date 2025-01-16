@@ -1,0 +1,9 @@
+{
+  "executeSwap(): testGenericSwapWithUniswap": "251909",
+  "executeSwap(): testLeaveOneWeiWithMultipleUsers(the first deposit)": "251909",
+  "executeSwap(): testLeaveOneWeiWithMultipleUsers(the second deposit)": "208263",
+  "executeSwap(): testSwapWithETHInput": "100382",
+  "executeSwap(): testSwapWithETHOutput": "130241",
+  "executeSwap(): testSwapWithLessOutputButWithinTolerance": "160688",
+  "executeSwapWithSig(): testGenericSwapRelayed": "283756"
+}

@@ -1,0 +1,11 @@
+{
+  "executeStrategy(): testMultipleAMMs": "610173",
+  "executeStrategy(): testUniswapV2WithWETHUnwrap": "142340",
+  "executeStrategy(): testUniswapV3WithAmountReplace": "161811",
+  "executeStrategy(): testUniswapV3WithMaxAmountReplace": "161607",
+  "executeStrategy(): testUniswapV3WithoutAmountReplace": "155017",
+  "executeStrategy(): testV6LOIntegration": "180661",
+  "executeStrategy(): testV6RFQIntegration": "183394",
+  "executeStrategy(): testV6RFQIntegrationWhenMakerTokenIsETH": "149739",
+  "executeStrategy(): testV6RFQIntegrationWhenTakerTokenIsETH": "204956"
+}

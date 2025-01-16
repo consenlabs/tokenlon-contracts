@@ -93,8 +93,9 @@ contract LimitOrderSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelp
         });
 
         // maker should call permit2 first independently
-        vm.prank(maker);
+        vm.startPrank(maker);
         IUniswapPermit2(UNISWAP_PERMIT2_ADDRESS).approve(defaultOrder.makerToken, address(limitOrderSwap), type(uint160).max, uint48(block.timestamp + 1 days));
+        vm.stopPrank();
 
         defaultTakerPermit = getTokenlonPermit2Data(taker, takerPrivateKey, defaultOrder.takerToken, address(limitOrderSwap));
 

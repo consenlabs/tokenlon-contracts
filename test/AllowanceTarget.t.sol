@@ -32,7 +32,6 @@ contract AllowanceTargetTest is BalanceUtil {
     MockNoRevertERC20 noRevertERC20 = new MockNoRevertERC20();
     IERC20[] tokens = [IERC20(mockERC20), IERC20(address(deflationaryERC20)), IERC20(address(noReturnERC20)), IERC20(address(noRevertERC20))];
 
-    // effectively a "beforeEach" block
     function setUp() public {
         // Deploy
         allowanceTarget = new AllowanceTarget(allowanceTargetOwner, trusted);
@@ -58,16 +57,20 @@ contract AllowanceTargetTest is BalanceUtil {
 
     function testCannotSpendFromUserInsufficientBalanceWithNoReturnValueToken() public {
         uint256 userBalance = noReturnERC20.balanceOf(user);
+
+        vm.startPrank(authorized);
         vm.expectRevert("ERC20: transfer amount exceeds balance");
-        vm.prank(authorized);
         allowanceTarget.spendFromUserTo(user, address(noReturnERC20), recipient, userBalance + 1);
+        vm.stopPrank();
     }
 
     function testCannotSpendFromUserInsufficientBalanceWithReturnFalseToken() public {
         uint256 userBalance = noRevertERC20.balanceOf(user);
+
+        vm.startPrank(authorized);
         vm.expectRevert(abi.encodeWithSelector(SafeERC20.SafeERC20FailedOperation.selector, address(noRevertERC20)));
-        vm.prank(authorized);
         allowanceTarget.spendFromUserTo(user, address(noRevertERC20), recipient, userBalance + 1);
+        vm.stopPrank();
     }
 
     function testCannotPauseIfNotOwner() public {
@@ -76,16 +79,18 @@ contract AllowanceTargetTest is BalanceUtil {
     }
 
     function testCannotUnpauseIfNotOwner() public {
-        vm.prank(allowanceTargetOwner, allowanceTargetOwner);
+        vm.startPrank(allowanceTargetOwner);
         allowanceTarget.pause();
+        vm.stopPrank();
 
         vm.expectRevert(Ownable.NotOwner.selector);
         allowanceTarget.unpause();
     }
 
     function testCannotSpendIfPaused() public {
-        vm.prank(allowanceTargetOwner, allowanceTargetOwner);
+        vm.startPrank(allowanceTargetOwner);
         allowanceTarget.pause();
+        vm.stopPrank();
 
         vm.expectRevert(Pausable.EnforcedPause.selector);
         allowanceTarget.spendFromUserTo(user, address(mockERC20), recipient, 1234);
@@ -96,8 +101,11 @@ contract AllowanceTargetTest is BalanceUtil {
         Snapshot memory toBalance = BalanceSnapshot.take({ owner: recipient, token: address(mockERC20) });
 
         uint256 amount = 100;
-        vm.prank(authorized);
+
+        vm.startPrank(authorized);
         allowanceTarget.spendFromUserTo(user, address(mockERC20), recipient, amount);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("AllowanceTarget", "spendFromUserTo(): testSpendFromUserTo");
 
         fromBalance.assertChange(-int256(amount));
         toBalance.assertChange(int256(amount));
@@ -111,11 +119,15 @@ contract AllowanceTargetTest is BalanceUtil {
 
         vm.startPrank(allowanceTargetOwner);
         allowanceTarget.pause();
+        vm.snapshotGasLastCall("AllowanceTarget", "pause(): testSpendFromUserToAfterUnpause");
         allowanceTarget.unpause();
+        vm.snapshotGasLastCall("AllowanceTarget", "unpause(): testSpendFromUserToAfterUnpause");
         vm.stopPrank();
 
-        vm.prank(authorized);
+        vm.startPrank(authorized);
         allowanceTarget.spendFromUserTo(user, address(mockERC20), recipient, amount);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("AllowanceTarget", "spendFromUserTo(): testSpendFromUserToAfterUnpause");
 
         fromBalance.assertChange(-int256(amount));
         toBalance.assertChange(int256(amount));
@@ -126,8 +138,10 @@ contract AllowanceTargetTest is BalanceUtil {
         Snapshot memory toBalance = BalanceSnapshot.take({ owner: recipient, token: address(noReturnERC20) });
 
         uint256 amount = 100;
-        vm.prank(authorized);
+        vm.startPrank(authorized);
         allowanceTarget.spendFromUserTo(user, address(noReturnERC20), recipient, amount);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("AllowanceTarget", "spendFromUserTo(): testSpendFromUserToWithNoReturnValueToken");
 
         fromBalance.assertChange(-int256(amount));
         toBalance.assertChange(int256(amount));
@@ -138,8 +152,10 @@ contract AllowanceTargetTest is BalanceUtil {
         Snapshot memory toBalance = BalanceSnapshot.take({ owner: recipient, token: address(deflationaryERC20) });
 
         uint256 amount = 100;
-        vm.prank(authorized);
+        vm.startPrank(authorized);
         allowanceTarget.spendFromUserTo(user, address(deflationaryERC20), recipient, 100);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("AllowanceTarget", "spendFromUserTo(): testSpendFromUserToWithDeflationaryToken");
 
         uint256 expectedReceive = 99; // MockDeflationaryERC20 will burn 1% during each transfer
         fromBalance.assertChange(-int256(amount));

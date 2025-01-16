@@ -13,9 +13,9 @@ import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.so
 import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
-import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
+import { RFQOffer } from "contracts/libraries/RFQOffer.sol";
 import { RFQTx } from "contracts/libraries/RFQTx.sol";
-import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
+import { LimitOrder } from "contracts/libraries/LimitOrder.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 import { SigHelper } from "test/utils/SigHelper.sol";
 
@@ -44,8 +44,9 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         address[] memory spenders = new address[](2);
         spenders[0] = address(rfq);
         spenders[1] = address(limitOrderSwap);
-        vm.prank(strategyOwner);
+        vm.startPrank(strategyOwner);
         smartOrderStrategy.approveTokens(tokenList, spenders);
+        vm.stopPrank();
 
         // maker approves RFQ & LO
         setTokenBalanceAndApprove(maker, address(rfq), tokens, 100000);
@@ -84,12 +85,13 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         });
         bytes memory opsData = abi.encode(operations);
 
-        vm.startPrank(genericSwap, genericSwap);
+        vm.startPrank(genericSwap);
         IERC20(rfqOffer.takerToken).safeTransfer(address(smartOrderStrategy), rfqOffer.takerTokenAmount);
         Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), rfqOffer.takerToken);
         Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, rfqOffer.makerToken);
         smartOrderStrategy.executeStrategy(rfqOffer.takerToken, rfqOffer.makerToken, rfqOffer.takerTokenAmount, opsData);
         vm.stopPrank();
+        vm.snapshotGasLastCall("SmartOrderStrategy", "executeStrategy(): testV6RFQIntegration");
 
         sosInputToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         gsOutputToken.assertChange(int256(realChangedInGS));
@@ -127,12 +129,13 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         });
         bytes memory opsData = abi.encode(operations);
 
-        vm.startPrank(genericSwap, genericSwap);
+        vm.startPrank(genericSwap);
         vm.deal(address(smartOrderStrategy), rfqOffer.takerTokenAmount);
         Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), rfqOffer.takerToken);
         Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, rfqOffer.makerToken);
         smartOrderStrategy.executeStrategy{ value: rfqOffer.takerTokenAmount }(rfqOffer.takerToken, rfqOffer.makerToken, rfqOffer.takerTokenAmount, opsData);
         vm.stopPrank();
+        vm.snapshotGasLastCall("SmartOrderStrategy", "executeStrategy(): testV6RFQIntegrationWhenTakerTokenIsETH");
 
         sosInputToken.assertChange(-int256(rfqOffer.takerTokenAmount));
         gsOutputToken.assertChange(int256(realChangedInGS));
@@ -168,10 +171,11 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         });
         bytes memory opsData = abi.encode(operations);
 
-        vm.startPrank(genericSwap, genericSwap);
+        vm.startPrank(genericSwap);
         IERC20(rfqOffer.takerToken).safeTransfer(address(smartOrderStrategy), rfqOffer.takerTokenAmount);
         smartOrderStrategy.executeStrategy(rfqOffer.takerToken, rfqOffer.makerToken, rfqOffer.takerTokenAmount, opsData);
         vm.stopPrank();
+        vm.snapshotGasLastCall("SmartOrderStrategy", "executeStrategy(): testV6RFQIntegrationWhenMakerTokenIsETH");
     }
 
     function testV6LOIntegration() public {
@@ -212,12 +216,13 @@ contract IntegrationV6Test is SmartOrderStrategyTest, SigHelper {
         });
         bytes memory opsData = abi.encode(operations);
 
-        vm.startPrank(genericSwap, genericSwap);
+        vm.startPrank(genericSwap);
         IERC20(order.takerToken).safeTransfer(address(smartOrderStrategy), order.takerTokenAmount);
         Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), order.takerToken);
         Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, order.makerToken);
         smartOrderStrategy.executeStrategy(order.takerToken, order.makerToken, order.takerTokenAmount, opsData);
         vm.stopPrank();
+        vm.snapshotGasLastCall("SmartOrderStrategy", "executeStrategy(): testV6LOIntegration");
 
         sosInputToken.assertChange(-int256(order.takerTokenAmount));
         gsOutputToken.assertChange(int256(realChangedInGS));

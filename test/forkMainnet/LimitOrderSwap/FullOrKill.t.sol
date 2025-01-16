@@ -37,7 +37,7 @@ contract FullOrKillTest is LimitOrderSwapTest {
             recipient
         );
 
-        vm.prank(taker);
+        vm.startPrank(taker);
         limitOrderSwap.fillLimitOrderFullOrKill({
             order: defaultOrder,
             makerSignature: defaultMakerSig,
@@ -49,6 +49,8 @@ contract FullOrKillTest is LimitOrderSwapTest {
                 takerTokenPermit: defaultTakerPermit
             })
         });
+        vm.stopPrank();
+        vm.snapshotGasLastCall("LimitOrderSwap", "fillLimitOrderFullOrKill(): testFillWithFOK");
 
         takerTakerToken.assertChange(-int256(traderTakingAmount));
         takerMakerToken.assertChange(int256(0));
@@ -64,8 +66,8 @@ contract FullOrKillTest is LimitOrderSwapTest {
         uint256 traderMakingAmount = defaultOrder.makerTokenAmount * 2;
         uint256 traderTakingAmount = defaultOrder.takerTokenAmount * 2;
 
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.NotEnoughForFill.selector);
-        vm.prank(taker);
         limitOrderSwap.fillLimitOrderFullOrKill({
             order: defaultOrder,
             makerSignature: defaultMakerSig,
@@ -77,6 +79,7 @@ contract FullOrKillTest is LimitOrderSwapTest {
                 takerTokenPermit: defaultTakerPermit
             })
         });
+        vm.stopPrank();
     }
 
     function testCannotFillFOKIfNotEnoughEvenPriceIsBetter() public {
@@ -84,8 +87,8 @@ contract FullOrKillTest is LimitOrderSwapTest {
         uint256 traderMakingAmount = defaultOrder.makerTokenAmount * 2;
         uint256 traderTakingAmount = defaultOrder.takerTokenAmount * 20;
 
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.NotEnoughForFill.selector);
-        vm.prank(taker);
         limitOrderSwap.fillLimitOrderFullOrKill({
             order: defaultOrder,
             makerSignature: defaultMakerSig,
@@ -97,5 +100,6 @@ contract FullOrKillTest is LimitOrderSwapTest {
                 takerTokenPermit: defaultTakerPermit
             })
         });
+        vm.stopPrank();
     }
 }

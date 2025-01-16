@@ -12,9 +12,10 @@ contract ValidationTest is SmartOrderStrategyTest {
     }
 
     function testCannotExecuteWithZeroInputAmount() public {
+        vm.startPrank(genericSwap);
         vm.expectRevert(ISmartOrderStrategy.ZeroInput.selector);
-        vm.prank(genericSwap, genericSwap);
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, 0, defaultOpsData);
+        vm.stopPrank();
     }
 
     function testCannotExecuteWithZeroRatioDenominatorWhenRatioNumeratorIsNonZero() public {
@@ -24,24 +25,27 @@ contract ValidationTest is SmartOrderStrategyTest {
         operations[0].ratioDenominator = 0;
         bytes memory opsData = abi.encode(operations);
 
+        vm.startPrank(genericSwap);
         vm.expectRevert(ISmartOrderStrategy.ZeroDenominator.selector);
-        vm.prank(genericSwap, genericSwap);
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, opsData);
+        vm.stopPrank();
     }
 
     function testCannotExecuteWithFailDecodedData() public {
+        vm.startPrank(genericSwap);
         vm.expectRevert();
-        vm.prank(genericSwap, genericSwap);
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, bytes("random data"));
+        vm.stopPrank();
     }
 
     function testCannotExecuteWithEmptyOperation() public {
         ISmartOrderStrategy.Operation[] memory operations;
         bytes memory emptyOpsData = abi.encode(operations);
 
+        vm.startPrank(genericSwap);
         vm.expectRevert(ISmartOrderStrategy.EmptyOps.selector);
-        vm.prank(genericSwap, genericSwap);
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, emptyOpsData);
+        vm.stopPrank();
     }
 
     function testCannotExecuteWithIncorrectMsgValue() public {
@@ -49,19 +53,22 @@ contract ValidationTest is SmartOrderStrategyTest {
         address inputToken = Constant.ETH_ADDRESS;
         uint256 inputAmount = 1 ether;
 
+        vm.startPrank(genericSwap);
         vm.expectRevert(ISmartOrderStrategy.InvalidMsgValue.selector);
-        vm.prank(genericSwap, genericSwap);
         smartOrderStrategy.executeStrategy{ value: inputAmount + 1 }(inputToken, defaultOutputToken, inputAmount, defaultOpsData);
+        vm.stopPrank();
 
         // case : ETH as input but msg.value is zero
+        vm.startPrank(genericSwap);
         vm.expectRevert(ISmartOrderStrategy.InvalidMsgValue.selector);
-        vm.prank(genericSwap, genericSwap);
         smartOrderStrategy.executeStrategy{ value: 0 }(inputToken, defaultOutputToken, inputAmount, defaultOpsData);
+        vm.stopPrank();
 
         // case : token as input but msg.value is not zero
+        vm.startPrank(genericSwap);
         vm.expectRevert(ISmartOrderStrategy.InvalidMsgValue.selector);
-        vm.prank(genericSwap, genericSwap);
         smartOrderStrategy.executeStrategy{ value: 1 }(defaultInputToken, defaultOutputToken, defaultInputAmount, defaultOpsData);
+        vm.stopPrank();
     }
 
     function testCannotExecuteAnOperationWillFail() public {
@@ -77,7 +84,7 @@ contract ValidationTest is SmartOrderStrategyTest {
         });
         bytes memory opsData = abi.encode(operations);
 
-        vm.startPrank(genericSwap, genericSwap);
+        vm.startPrank(genericSwap);
         vm.expectRevert();
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, opsData);
         vm.stopPrank();

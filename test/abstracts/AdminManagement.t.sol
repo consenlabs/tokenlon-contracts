@@ -31,17 +31,19 @@ contract AdminManagementTest is BalanceUtil {
     }
 
     function testApproveTokens() public {
-        for (uint256 i = 0; i < tokens.length; ++i) {
-            for (uint256 j = 0; j < spenders.length; ++j) {
+        for (uint256 i; i < tokens.length; ++i) {
+            for (uint256 j; j < spenders.length; ++j) {
                 assertEq(IERC20(tokens[i]).allowance(address(contractWithAdmin), spenders[j]), 0);
             }
         }
 
-        vm.prank(owner);
+        vm.startPrank(owner);
         contractWithAdmin.approveTokens(tokens, spenders);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("AdminManagement", "approveTokens(): testApproveTokens");
 
-        for (uint256 i = 0; i < tokens.length; ++i) {
-            for (uint256 j = 0; j < spenders.length; ++j) {
+        for (uint256 i; i < tokens.length; ++i) {
+            for (uint256 j; j < spenders.length; ++j) {
                 assertEq(IERC20(tokens[i]).allowance(address(contractWithAdmin), spenders[j]), type(uint256).max);
             }
         }
@@ -63,8 +65,10 @@ contract AdminManagementTest is BalanceUtil {
         assertEq(IERC20(tokens[1]).balanceOf(address(contractWithAdmin)), amount2);
         assertEq(IERC20(tokens[1]).balanceOf(rescueTarget), 0);
 
-        vm.prank(owner);
+        vm.startPrank(owner);
         contractWithAdmin.rescueTokens(tokens, rescueTarget);
+        vm.stopPrank();
+        vm.snapshotGasLastCall("AdminManagement", "rescueTokens(): testRescueTokens");
 
         assertEq(IERC20(tokens[0]).balanceOf(address(contractWithAdmin)), 0);
         assertEq(IERC20(tokens[0]).balanceOf(rescueTarget), amount1);

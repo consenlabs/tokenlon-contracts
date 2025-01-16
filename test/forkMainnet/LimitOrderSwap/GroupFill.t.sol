@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
@@ -83,8 +82,11 @@ contract GroupFillTest is LimitOrderSwapTest {
         address[] memory profitTokens = new address[](1);
         profitTokens[0] = DAI_ADDRESS;
         Snapshot memory arbProfitToken = BalanceSnapshot.take({ owner: arbitrageur, token: DAI_ADDRESS });
-        vm.prank(arbitrageur, arbitrageur);
+
+        vm.startPrank(arbitrageur);
         limitOrderSwap.fillLimitOrderGroup({ orders: orders, makerSignatures: makerSigs, makerTokenAmounts: makerTokenAmounts, profitTokens: profitTokens });
+        vm.stopPrank();
+        vm.snapshotGasLastCall("LimitOrderSwap", "testGroupFillWithProfit: fillLimitOrderGroup()");
 
         // two makers should give/get exactly as order specified
         maker0TakerToken.assertChange(int256(orders[0].takerTokenAmount));
@@ -155,7 +157,11 @@ contract GroupFillTest is LimitOrderSwapTest {
         Snapshot memory maker2MakerToken = BalanceSnapshot.take({ owner: orders[2].maker, token: orders[2].makerToken });
 
         address[] memory profitTokens;
+
+        vm.startPrank(arbitrageur);
         limitOrderSwap.fillLimitOrderGroup({ orders: orders, makerSignatures: makerSigs, makerTokenAmounts: makerTokenAmounts, profitTokens: profitTokens });
+        vm.stopPrank();
+        vm.snapshotGasLastCall("LimitOrderSwap", "fillLimitOrderGroup(): testPartialFillLargeOrderWithSmallOrders");
 
         // small orders maker should be fully filled
         maker0TakerToken.assertChange(int256(orders[0].takerTokenAmount));
@@ -211,7 +217,11 @@ contract GroupFillTest is LimitOrderSwapTest {
         Snapshot memory maker1MakerToken = BalanceSnapshot.take({ owner: orders[1].maker, token: orders[1].makerToken });
 
         address[] memory profitTokens;
+
+        vm.startPrank(arbitrageur);
         limitOrderSwap.fillLimitOrderGroup({ orders: orders, makerSignatures: makerSigs, makerTokenAmounts: makerTokenAmounts, profitTokens: profitTokens });
+        vm.stopPrank();
+        vm.snapshotGasLastCall("LimitOrderSwap", "fillLimitOrderGroup(): testGroupFillWithWETHUnwrap");
 
         // all orders should be fully filled
         maker0TakerToken.assertChange(int256(orders[0].takerTokenAmount));
@@ -289,8 +299,10 @@ contract GroupFillTest is LimitOrderSwapTest {
         profitTokens[0] = Constant.ETH_ADDRESS;
         Snapshot memory arbETHProfit = BalanceSnapshot.take({ owner: arbitrageur, token: Constant.ETH_ADDRESS });
 
-        vm.prank(arbitrageur, arbitrageur);
+        vm.startPrank(arbitrageur);
         limitOrderSwap.fillLimitOrderGroup({ orders: orders, makerSignatures: makerSigs, makerTokenAmounts: makerTokenAmounts, profitTokens: profitTokens });
+        vm.stopPrank();
+        vm.snapshotGasLastCall("LimitOrderSwap", "fillLimitOrderGroup(): testGroupFillWithPartialWETHUnwrap");
 
         // all orders should be fully filled
         maker0TakerToken.assertChange(int256(orders[0].takerTokenAmount));
@@ -353,13 +365,16 @@ contract GroupFillTest is LimitOrderSwapTest {
         uint256 takerPreFund = orders[1].takerTokenAmount - orders[0].makerTokenAmount;
 
         address[] memory profitTokens;
-        vm.prank(arbitrageur);
+
+        vm.startPrank(arbitrageur);
         limitOrderSwap.fillLimitOrderGroup{ value: takerPreFund }({
             orders: orders,
             makerSignatures: makerSigs,
             makerTokenAmounts: makerTokenAmounts,
             profitTokens: profitTokens
         });
+        vm.stopPrank();
+        vm.snapshotGasLastCall("LimitOrderSwap", "fillLimitOrderGroup(): testGroupFillWithTakerPrefundETH");
 
         // small orders maker should be fully filled
         maker0TakerToken.assertChange(int256(orders[0].takerTokenAmount));
@@ -428,7 +443,11 @@ contract GroupFillTest is LimitOrderSwapTest {
         Snapshot memory maker2MakerToken = BalanceSnapshot.take({ owner: orders[2].maker, token: orders[2].makerToken });
 
         address[] memory profitTokens;
+
+        vm.startPrank(arbitrageur);
         limitOrderSwap.fillLimitOrderGroup({ orders: orders, makerSignatures: makerSigs, makerTokenAmounts: makerTokenAmounts, profitTokens: profitTokens });
+        vm.stopPrank();
+        vm.snapshotGasLastCall("LimitOrderSwap", "fillLimitOrderGroup(): testGroupFillRingTrade");
 
         // all order should be fully filled
         maker0TakerToken.assertChange(int256(orders[0].takerTokenAmount));

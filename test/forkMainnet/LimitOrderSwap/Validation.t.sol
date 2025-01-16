@@ -12,6 +12,7 @@ contract ValidationTest is LimitOrderSwapTest {
 
         bytes memory makerSig = signLimitOrder(makerPrivateKey, order, address(limitOrderSwap));
 
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.ZeroTakerTokenAmount.selector);
         limitOrderSwap.fillLimitOrder({
             order: order,
@@ -24,6 +25,7 @@ contract ValidationTest is LimitOrderSwapTest {
                 takerTokenPermit: defaultTakerPermit
             })
         });
+        vm.stopPrank();
     }
 
     function testCannotFillLimitOrderWithZeroMakerTokenAmount() public {
@@ -32,6 +34,7 @@ contract ValidationTest is LimitOrderSwapTest {
 
         bytes memory makerSig = signLimitOrder(makerPrivateKey, order, address(limitOrderSwap));
 
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.ZeroMakerTokenAmount.selector);
         limitOrderSwap.fillLimitOrder({
             order: order,
@@ -44,9 +47,11 @@ contract ValidationTest is LimitOrderSwapTest {
                 takerTokenPermit: defaultTakerPermit
             })
         });
+        vm.stopPrank();
     }
 
     function testCannotFillLimitOrderWithZeroTakerSpendingAmount() public {
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.ZeroTakerSpendingAmount.selector);
         limitOrderSwap.fillLimitOrder({
             order: defaultOrder,
@@ -59,12 +64,13 @@ contract ValidationTest is LimitOrderSwapTest {
                 takerTokenPermit: defaultTakerPermit
             })
         });
+        vm.stopPrank();
     }
 
     function testCannotFillLimitOrderWithZeroTakerSpendingAmountWhenRecalculation() public {
         // this case tests if _takerTokenAmount is zero due to re-calculation.
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.ZeroTakerSpendingAmount.selector);
-        vm.prank(taker);
         limitOrderSwap.fillLimitOrder({
             order: defaultOrder,
             makerSignature: defaultMakerSig,
@@ -76,9 +82,11 @@ contract ValidationTest is LimitOrderSwapTest {
                 takerTokenPermit: defaultTakerPermit
             })
         });
+        vm.stopPrank();
     }
 
     function testCannotFillLimitOrderWithZeroMakerSpendingAmount() public {
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.ZeroMakerSpendingAmount.selector);
         limitOrderSwap.fillLimitOrder({
             order: defaultOrder,
@@ -91,6 +99,7 @@ contract ValidationTest is LimitOrderSwapTest {
                 takerTokenPermit: defaultTakerPermit
             })
         });
+        vm.stopPrank();
     }
 
     function testCannotFillLimitOrderGroupWithInvalidParams() public {
@@ -99,8 +108,10 @@ contract ValidationTest is LimitOrderSwapTest {
         uint256[] memory makerTokenAmounts = new uint256[](3);
         address[] memory profitTokens = new address[](1);
 
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.InvalidParams.selector);
         limitOrderSwap.fillLimitOrderGroup({ orders: orders, makerSignatures: makerSigs, makerTokenAmounts: makerTokenAmounts, profitTokens: profitTokens });
+        vm.stopPrank();
     }
 
     function testCannotFillLimitOrderGroupWithNotEnoughForFill() public {
@@ -125,8 +136,10 @@ contract ValidationTest is LimitOrderSwapTest {
         makerSigs[0] = signLimitOrder(makerPrivateKey, orders[0], address(limitOrderSwap));
         makerTokenAmounts[0] = orders[0].makerTokenAmount + 1;
 
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.NotEnoughForFill.selector);
         limitOrderSwap.fillLimitOrderGroup({ orders: orders, makerSignatures: makerSigs, makerTokenAmounts: makerTokenAmounts, profitTokens: profitTokens });
+        vm.stopPrank();
     }
 
     function testCannotFillLimitOrderGroupWithZeroMakerSpendingAmount() public {
@@ -151,7 +164,9 @@ contract ValidationTest is LimitOrderSwapTest {
         makerSigs[0] = signLimitOrder(makerPrivateKey, orders[0], address(limitOrderSwap));
         makerTokenAmounts[0] = 0;
 
+        vm.startPrank(taker);
         vm.expectRevert(ILimitOrderSwap.ZeroMakerSpendingAmount.selector);
         limitOrderSwap.fillLimitOrderGroup({ orders: orders, makerSignatures: makerSigs, makerTokenAmounts: makerTokenAmounts, profitTokens: profitTokens });
+        vm.stopPrank();
     }
 }

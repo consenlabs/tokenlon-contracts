@@ -1,0 +1,15 @@
+{
+  "cancelRFQOffer(): testCancelRFQOffer": "49848",
+  "fillRFQ(): testFillRFQ": "219666",
+  "fillRFQ(): testFillRFQTakerGetRawETH": "238797",
+  "fillRFQ(): testFillRFQWithRawETH": "159563",
+  "fillRFQ(): testFillRFQWithRawETHAndReceiveWETH": "174630",
+  "fillRFQ(): testFillRFQWithTakerApproveAllowanceTarget": "187631",
+  "fillRFQ(): testFillRFQWithWETH": "222131",
+  "fillRFQ(): testFillRFQWithWETHAndReceiveWETH": "208373",
+  "fillRFQ(): testFillRFQWithZeroFee": "192740",
+  "fillRFQ(): testFillWithContract": "223381",
+  "fillRFQ(): testPartialFill": "219826",
+  "fillRFQWithSig(): testFillRFQByTakerSig": "228592",
+  "setFeeCollector(): testSetFeeCollector": "30099"
+}

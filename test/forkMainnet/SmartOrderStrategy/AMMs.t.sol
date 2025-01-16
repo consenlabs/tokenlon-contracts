@@ -10,8 +10,6 @@ import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.so
 import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
-import { UniswapV2Library } from "test/utils/UniswapV2Library.sol";
-import { UniswapV3 } from "test/utils/UniswapV3.sol";
 
 contract AMMsTest is SmartOrderStrategyTest {
     using SafeERC20 for IERC20;
@@ -49,12 +47,13 @@ contract AMMsTest is SmartOrderStrategyTest {
         uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, defaultInputAmount);
         uint256 realChangedInGS = expectedOut - 1;
 
-        vm.startPrank(genericSwap, genericSwap);
+        vm.startPrank(genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), defaultInputAmount);
         Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), defaultInputToken);
         Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, defaultOutputToken);
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, data);
         vm.stopPrank();
+        vm.snapshotGasLastCall("SmartOrderStrategy", "executeStrategy(): testUniswapV3WithoutAmountReplace");
 
         sosInputToken.assertChange(-int256(defaultInputAmount));
         gsOutputToken.assertChange(int256(realChangedInGS));
@@ -90,12 +89,15 @@ contract AMMsTest is SmartOrderStrategyTest {
         // get the exact quote from uniswap
         uint256 inputAmountAfterRatio = ((defaultInputAmount - 1) * defaultInputRatio) / Constant.BPS_MAX;
         uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, inputAmountAfterRatio);
-        vm.startPrank(genericSwap, genericSwap);
+
+        vm.startPrank(genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), defaultInputAmount);
         Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), defaultInputToken);
         Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, defaultOutputToken);
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, data);
         vm.stopPrank();
+        vm.snapshotGasLastCall("SmartOrderStrategy", "executeStrategy(): testUniswapV3WithAmountReplace");
+
         sosInputToken.assertChange(-int256(inputAmountAfterRatio));
         gsOutputToken.assertChange(int256(expectedOut - 1));
     }
@@ -133,12 +135,13 @@ contract AMMsTest is SmartOrderStrategyTest {
         // get the exact quote from uniswap
         uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, actualInputAmount - 1);
 
-        vm.startPrank(genericSwap, genericSwap);
+        vm.startPrank(genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), actualInputAmount);
         Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), defaultInputToken);
         Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, defaultOutputToken);
         smartOrderStrategy.executeStrategy(defaultInputToken, defaultOutputToken, defaultInputAmount, data);
         vm.stopPrank();
+        vm.snapshotGasLastCall("SmartOrderStrategy", "executeStrategy(): testUniswapV3WithMaxAmountReplace");
 
         // the amount change will be the actual balance at the moment
         sosInputToken.assertChange(-int256(actualInputAmount - 1)); // leaving 1 wei in SOS
@@ -175,15 +178,16 @@ contract AMMsTest is SmartOrderStrategyTest {
         // get the exact quote from uniswap
         uint256 expectedOut = v3Quoter.quoteExactInput(encodedUniv3Path, defaultInputAmount);
         uint256 realChangedInGS = expectedOut - 1;
-
         // set output token as ETH
         address outputToken = Constant.ETH_ADDRESS;
-        vm.startPrank(genericSwap, genericSwap);
+
+        vm.startPrank(genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), defaultInputAmount);
         Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), defaultInputToken);
         Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, outputToken);
         smartOrderStrategy.executeStrategy(defaultInputToken, outputToken, defaultInputAmount, data);
         vm.stopPrank();
+        vm.snapshotGasLastCall("SmartOrderStrategy", "executeStrategy(): testUniswapV2WithWETHUnwrap");
 
         sosInputToken.assertChange(-int256(defaultInputAmount));
         gsOutputToken.assertChange(int256(realChangedInGS));
@@ -239,12 +243,13 @@ contract AMMsTest is SmartOrderStrategyTest {
         });
         bytes memory data = abi.encode(operations);
 
-        vm.startPrank(genericSwap, genericSwap);
+        vm.startPrank(genericSwap);
         IERC20(defaultInputToken).safeTransfer(address(smartOrderStrategy), defaultInputAmount);
         Snapshot memory sosInputToken = BalanceSnapshot.take(address(smartOrderStrategy), defaultInputToken);
         Snapshot memory gsOutputToken = BalanceSnapshot.take(genericSwap, USDT_ADDRESS);
         smartOrderStrategy.executeStrategy(defaultInputToken, USDT_ADDRESS, defaultInputAmount, data);
         vm.stopPrank();
+        vm.snapshotGasLastCall("SmartOrderStrategy", "executeStrategy(): testMultipleAMMs");
 
         sosInputToken.assertChange(-int256(defaultInputAmount));
         gsOutputToken.assertChange(int256(realChangedInGS));
