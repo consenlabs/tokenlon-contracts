@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import { Test } from "forge-std/Test.sol";
+
 import { Ownable } from "contracts/abstracts/Ownable.sol";
 
 contract OwnableTest is Test {

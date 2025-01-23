@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
+import { TokenCollector } from "./abstracts/TokenCollector.sol";
+
 import { IGenericSwap } from "./interfaces/IGenericSwap.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
-import { GenericSwapData, getGSDataHash } from "./libraries/GenericSwapData.sol";
+
 import { Asset } from "./libraries/Asset.sol";
+import { GenericSwapData, getGSDataHash } from "./libraries/GenericSwapData.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 /// @title GenericSwap Contract

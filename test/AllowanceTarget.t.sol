@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { IERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/utils/SafeERC20.sol";
+import { Pausable } from "@openzeppelin/contracts@v5.0.2/utils/Pausable.sol";
 
-import { IAllowanceTarget } from "contracts/interfaces/IAllowanceTarget.sol";
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
 import { Ownable } from "contracts/abstracts/Ownable.sol";
-import { MockERC20 } from "test/mocks/MockERC20.sol";
+import { IAllowanceTarget } from "contracts/interfaces/IAllowanceTarget.sol";
+
 import { MockDeflationaryERC20 } from "test/mocks/MockDeflationaryERC20.sol";
+import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { MockNoReturnERC20 } from "test/mocks/MockNoReturnERC20.sol";
 import { MockNoRevertERC20 } from "test/mocks/MockNoRevertERC20.sol";
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";

@@ -6,6 +6,24 @@ import { LimitOrder } from "../libraries/LimitOrder.sol";
 /// @title ICoordinatedTaker Interface
 /// @author imToken Labs
 interface ICoordinatedTaker {
+    /// @title Coordinator Parameters
+    /// @dev Contains the signature, salt, and expiry for coordinator authorization.
+    struct CoordinatorParams {
+        bytes sig;
+        uint256 salt;
+        uint256 expiry;
+    }
+
+    /// @notice Emitted when a limit order is filled by the coordinator.
+    /// @param user The address of the user.
+    /// @param orderHash The hash of the order.
+    /// @param allowFillHash The hash of the allowed fill.
+    event CoordinatorFill(address indexed user, bytes32 indexed orderHash, bytes32 indexed allowFillHash);
+
+    /// @notice Emitted when the coordinator address is updated.
+    /// @param newCoordinator The address of the new coordinator.
+    event SetCoordinator(address newCoordinator);
+
     /// @notice Error to be thrown when a permission is reused.
     /// @dev This error is used to prevent the reuse of permissions.
     error ReusedPermission();
@@ -25,24 +43,6 @@ interface ICoordinatedTaker {
     /// @notice Error to be thrown when an address is zero.
     /// @dev This error is used to ensure that a valid address is provided.
     error ZeroAddress();
-
-    /// @title Coordinator Parameters
-    /// @dev Contains the signature, salt, and expiry for coordinator authorization.
-    struct CoordinatorParams {
-        bytes sig;
-        uint256 salt;
-        uint256 expiry;
-    }
-
-    /// @notice Emitted when a limit order is filled by the coordinator.
-    /// @param user The address of the user.
-    /// @param orderHash The hash of the order.
-    /// @param allowFillHash The hash of the allowed fill.
-    event CoordinatorFill(address indexed user, bytes32 indexed orderHash, bytes32 indexed allowFillHash);
-
-    /// @notice Emitted when the coordinator address is updated.
-    /// @param newCoordinator The address of the new coordinator.
-    event SetCoordinator(address newCoordinator);
 
     /// @notice Submits a limit order fill with additional coordination parameters..
     /// @param order The limit order to be filled.

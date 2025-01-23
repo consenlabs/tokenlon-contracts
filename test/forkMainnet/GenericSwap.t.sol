@@ -2,23 +2,25 @@
 pragma solidity 0.8.26;
 
 import { Test } from "forge-std/Test.sol";
-import { Tokens } from "test/utils/Tokens.sol";
-import { BalanceUtil } from "test/utils/BalanceUtil.sol";
-import { SigHelper } from "test/utils/SigHelper.sol";
-import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
-import { computeContractAddress } from "test/utils/Addresses.sol";
-import { Permit2Helper } from "test/utils/Permit2Helper.sol";
-import { UniswapV3 } from "test/utils/UniswapV3.sol";
-import { IUniswapV3Quoter } from "test/utils/IUniswapV3Quoter.sol";
-import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
-import { MockStrategy } from "test/mocks/MockStrategy.sol";
-import { GenericSwap } from "contracts/GenericSwap.sol";
+
 import { AllowanceTarget } from "contracts/AllowanceTarget.sol";
+import { GenericSwap } from "contracts/GenericSwap.sol";
 import { SmartOrderStrategy } from "contracts/SmartOrderStrategy.sol";
-import { Constant } from "contracts/libraries/Constant.sol";
-import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
 import { IGenericSwap } from "contracts/interfaces/IGenericSwap.sol";
 import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.sol";
+import { Constant } from "contracts/libraries/Constant.sol";
+import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
+
+import { MockStrategy } from "test/mocks/MockStrategy.sol";
+import { computeContractAddress } from "test/utils/Addresses.sol";
+import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
+import { BalanceUtil } from "test/utils/BalanceUtil.sol";
+import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
+import { IUniswapV3Quoter } from "test/utils/IUniswapV3Quoter.sol";
+import { Permit2Helper } from "test/utils/Permit2Helper.sol";
+import { SigHelper } from "test/utils/SigHelper.sol";
+import { Tokens } from "test/utils/Tokens.sol";
+import { UniswapV3 } from "test/utils/UniswapV3.sol";
 
 contract GenericSwapTest is Test, Tokens, BalanceUtil, Permit2Helper, SigHelper {
     using BalanceSnapshot for Snapshot;

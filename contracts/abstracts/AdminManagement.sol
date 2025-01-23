@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/utils/SafeERC20.sol";
+
+import { Asset } from "../libraries/Asset.sol";
 
 import { Ownable } from "./Ownable.sol";
-import { Asset } from "../libraries/Asset.sol";
 
 /// @title AdminManagement Contract
 /// @author imToken Labs
@@ -22,8 +23,8 @@ abstract contract AdminManagement is Ownable {
     /// @param tokens The array of token addresses to approve.
     /// @param spenders The array of spender addresses to approve for each token.
     function approveTokens(address[] calldata tokens, address[] calldata spenders) external onlyOwner {
-        for (uint256 i = 0; i < tokens.length; ++i) {
-            for (uint256 j = 0; j < spenders.length; ++j) {
+        for (uint256 i; i < tokens.length; ++i) {
+            for (uint256 j; j < spenders.length; ++j) {
                 IERC20(tokens[i]).forceApprove(spenders[j], type(uint256).max);
             }
         }
@@ -34,7 +35,7 @@ abstract contract AdminManagement is Ownable {
     /// @param tokens An array of token addresses to rescue.
     /// @param recipient The address to which rescued tokens will be transferred.
     function rescueTokens(address[] calldata tokens, address recipient) external onlyOwner {
-        for (uint256 i = 0; i < tokens.length; ++i) {
+        for (uint256 i; i < tokens.length; ++i) {
             uint256 selfBalance = Asset.getBalance(tokens[i], address(this));
             Asset.transferTo(tokens[i], payable(recipient), selfBalance);
         }

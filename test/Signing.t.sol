@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { AllowFill, ALLOWFILL_DATA_TYPEHASH } from "contracts/libraries/AllowFill.sol";
-import { GenericSwapData, GS_DATA_TYPEHASH } from "contracts/libraries/GenericSwapData.sol";
-import { LimitOrder, LIMITORDER_DATA_TYPEHASH } from "contracts/libraries/LimitOrder.sol";
+import { ALLOWFILL_DATA_TYPEHASH, AllowFill } from "contracts/libraries/AllowFill.sol";
+import { GS_DATA_TYPEHASH, GenericSwapData } from "contracts/libraries/GenericSwapData.sol";
+import { LIMITORDER_DATA_TYPEHASH, LimitOrder } from "contracts/libraries/LimitOrder.sol";
 import { RFQOffer, RFQ_OFFER_DATA_TYPEHASH } from "contracts/libraries/RFQOffer.sol";
 import { RFQTx, RFQ_TX_TYPEHASH } from "contracts/libraries/RFQTx.sol";
+
 import { SigHelper } from "test/utils/SigHelper.sol";
 
 contract testEIP712Signing is SigHelper {

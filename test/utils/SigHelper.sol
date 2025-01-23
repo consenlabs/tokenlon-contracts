@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import { Test } from "forge-std/Test.sol";
+
 import { AllowFill, getAllowFillHash } from "contracts/libraries/AllowFill.sol";
 import { GenericSwapData, getGSDataHash } from "contracts/libraries/GenericSwapData.sol";
 import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 import { RFQOffer, getRFQOfferHash } from "contracts/libraries/RFQOffer.sol";
 import { RFQTx, getRFQTxHash } from "contracts/libraries/RFQTx.sol";
-import { Test } from "forge-std/Test.sol";
 
 contract SigHelper is Test {
     function getEIP712Hash(bytes32 domainSeparator, bytes32 structHash) internal pure returns (bytes32) {

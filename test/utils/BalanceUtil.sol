@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import { ERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/ERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/utils/SafeERC20.sol";
 import { StdStorage, stdStorage } from "forge-std/StdStorage.sol";
 import { Test } from "forge-std/Test.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract BalanceUtil is Test {
     using stdStorage for StdStorage;
@@ -16,7 +16,7 @@ contract BalanceUtil is Test {
     }
 
     function setTokenBalanceAndApprove(address user, address spender, IERC20[] memory tokens, uint256 amount) internal {
-        for (uint256 i = 0; i < tokens.length; i++) {
+        for (uint256 i; i < tokens.length; i++) {
             setERC20Balance(address(tokens[i]), user, amount);
             approveERC20(address(tokens[i]), user, spender);
         }
