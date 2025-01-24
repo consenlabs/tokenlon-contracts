@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import { IUniswapV3SwapRouter } from "./IUniswapV3SwapRouter.sol";
 import { IUniswapV3Quoter } from "./IUniswapV3Quoter.sol";
+import { IUniswapV3SwapRouter } from "./IUniswapV3SwapRouter.sol";
 
 library UniswapV3 {
     using Path for bytes;
@@ -69,7 +69,7 @@ library UniswapV3 {
 
     function encodePath(address[] memory _path, uint24[] memory _fees) internal pure returns (bytes memory) {
         bytes memory res;
-        for (uint256 i = 0; i < _fees.length; i++) {
+        for (uint256 i; i < _fees.length; i++) {
             res = abi.encodePacked(res, _path[i], _fees[i]);
         }
         res = abi.encodePacked(res, _path[_path.length - 1]);

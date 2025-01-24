@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/IERC20.sol";
 
 import { AdminManagement } from "./abstracts/AdminManagement.sol";
-import { Asset } from "./libraries/Asset.sol";
-import { IWETH } from "./interfaces/IWETH.sol";
+
 import { ISmartOrderStrategy } from "./interfaces/ISmartOrderStrategy.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
+import { IWETH } from "./interfaces/IWETH.sol";
+
+import { Asset } from "./libraries/Asset.sol";
 
 /// @title SmartOrderStrategy Contract
 /// @author imToken Labs
@@ -52,7 +54,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         }
 
         uint256 opsCount = ops.length;
-        for (uint256 i = 0; i < opsCount; ++i) {
+        for (uint256 i; i < opsCount; ++i) {
             Operation memory op = ops[i];
             _call(op.dest, op.inputToken, op.ratioNumerator, op.ratioDenominator, op.dataOffset, op.value, op.data);
         }

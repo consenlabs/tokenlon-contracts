@@ -2,10 +2,12 @@
 pragma solidity 0.8.26;
 
 import { Test } from "forge-std/Test.sol";
+
 import { SmartOrderStrategy } from "contracts/SmartOrderStrategy.sol";
-import { Tokens } from "test/utils/Tokens.sol";
+
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 import { IUniswapV3Quoter } from "test/utils/IUniswapV3Quoter.sol";
+import { Tokens } from "test/utils/Tokens.sol";
 import { UniswapV3 } from "test/utils/UniswapV3.sol";
 
 contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
@@ -37,7 +39,7 @@ contract SmartOrderStrategyTest is Test, Tokens, BalanceUtil {
 
         // Make genericSwap rich to provide fund for strategy contract
         deal(genericSwap, 100 ether);
-        for (uint256 i = 0; i < tokenList.length; i++) {
+        for (uint256 i; i < tokenList.length; i++) {
             setERC20Balance(tokenList[i], genericSwap, 10000);
         }
 

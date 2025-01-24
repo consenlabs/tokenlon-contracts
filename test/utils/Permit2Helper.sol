@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
-import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
-import { getEIP712Hash } from "test/utils/Sig.sol";
 import { Test } from "forge-std/Test.sol";
+
+import { TokenCollector } from "contracts/abstracts/TokenCollector.sol";
+import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
+
+import { getEIP712Hash } from "test/utils/Sig.sol";
 
 contract Permit2Helper is Test {
     IUniswapPermit2 public constant permit2 = IUniswapPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);

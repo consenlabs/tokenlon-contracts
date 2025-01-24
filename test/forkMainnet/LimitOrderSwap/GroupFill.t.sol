@@ -2,10 +2,11 @@
 pragma solidity 0.8.26;
 
 import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
-import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
-import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
+import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
+
 import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol";
+import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 
 contract GroupFillTest is LimitOrderSwapTest {
     using BalanceSnapshot for Snapshot;
@@ -18,7 +19,7 @@ contract GroupFillTest is LimitOrderSwapTest {
         super.setUp();
 
         deal(arbitrageur, 100 ether);
-        for (uint256 i = 0; i < makerPrivateKeys.length; ++i) {
+        for (uint256 i; i < makerPrivateKeys.length; ++i) {
             makers[i] = payable(vm.addr(makerPrivateKeys[i]));
             deal(makers[i], 100 ether);
             setTokenBalanceAndApprove(makers[i], UNISWAP_PERMIT2_ADDRESS, tokens, 100000);

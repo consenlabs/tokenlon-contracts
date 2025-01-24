@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts@v5.0.2/utils/ReentrancyGuard.sol";
 
-import { TokenCollector } from "./abstracts/TokenCollector.sol";
-import { Ownable } from "./abstracts/Ownable.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
-import { IWETH } from "./interfaces/IWETH.sol";
+import { Ownable } from "./abstracts/Ownable.sol";
+import { TokenCollector } from "./abstracts/TokenCollector.sol";
+
 import { ILimitOrderSwap } from "./interfaces/ILimitOrderSwap.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
+import { IWETH } from "./interfaces/IWETH.sol";
+
+import { Asset } from "./libraries/Asset.sol";
 import { Constant } from "./libraries/Constant.sol";
 import { LimitOrder, getLimitOrderHash } from "./libraries/LimitOrder.sol";
-import { Asset } from "./libraries/Asset.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 /// @title LimitOrderSwap Contract
@@ -88,7 +90,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
         uint256[] memory takerTokenAmounts = new uint256[](orders.length);
         uint256 wethToPay;
         address payable _feeCollector = feeCollector;
-        for (uint256 i = 0; i < orders.length; ++i) {
+        for (uint256 i; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
             uint256 makingAmount = makerTokenAmounts[i];
             if (makingAmount == 0) revert ZeroMakerSpendingAmount();
@@ -133,13 +135,13 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
             }
         }
 
-        for (uint256 i = 0; i < orders.length; ++i) {
+        for (uint256 i; i < orders.length; ++i) {
             LimitOrder calldata order = orders[i];
             order.takerToken.transferTo(order.maker, takerTokenAmounts[i]);
         }
 
         // any token left is considered as profit
-        for (uint256 i = 0; i < profitTokens.length; ++i) {
+        for (uint256 i; i < profitTokens.length; ++i) {
             uint256 profit = profitTokens[i].getBalance(address(this));
             profitTokens[i].transferTo(payable(msg.sender), profit);
         }

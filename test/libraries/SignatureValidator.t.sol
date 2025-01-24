@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import { ECDSA } from "@openzeppelin/contracts@v5.0.2/utils/cryptography/ECDSA.sol";
 import { Test } from "forge-std/Test.sol";
+
 import { IERC1271Wallet } from "contracts/interfaces/IERC1271Wallet.sol";
 import { SignatureValidator } from "contracts/libraries/SignatureValidator.sol";
+
 import { MockERC1271Wallet } from "test/mocks/MockERC1271Wallet.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract SignatureValidatorTest is Test {
     uint256 userPrivateKey = 1234;

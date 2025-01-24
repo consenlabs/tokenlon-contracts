@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/IERC20.sol";
 
 import { AdminManagement } from "contracts/abstracts/AdminManagement.sol";
 import { Ownable } from "contracts/abstracts/Ownable.sol";
+
 import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { BalanceUtil } from "test/utils/BalanceUtil.sol";
 

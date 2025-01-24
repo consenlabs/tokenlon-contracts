@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { Address } from "@openzeppelin/contracts@v5.0.2/utils/Address.sol";
+import { ECDSA } from "@openzeppelin/contracts@v5.0.2/utils/cryptography/ECDSA.sol";
 
 import { IERC1271Wallet } from "../interfaces/IERC1271Wallet.sol";
 

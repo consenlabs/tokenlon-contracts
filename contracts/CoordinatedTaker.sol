@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { TokenCollector } from "./abstracts/TokenCollector.sol";
 import { AdminManagement } from "./abstracts/AdminManagement.sol";
 import { EIP712 } from "./abstracts/EIP712.sol";
-import { IWETH } from "./interfaces/IWETH.sol";
+import { TokenCollector } from "./abstracts/TokenCollector.sol";
+
 import { ICoordinatedTaker } from "./interfaces/ICoordinatedTaker.sol";
 import { ILimitOrderSwap } from "./interfaces/ILimitOrderSwap.sol";
-import { LimitOrder, getLimitOrderHash } from "./libraries/LimitOrder.sol";
+import { IWETH } from "./interfaces/IWETH.sol";
+
 import { AllowFill, getAllowFillHash } from "./libraries/AllowFill.sol";
 import { Asset } from "./libraries/Asset.sol";
+import { LimitOrder, getLimitOrderHash } from "./libraries/LimitOrder.sol";
 import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 
 /// @title CoordinatedTaker Contract

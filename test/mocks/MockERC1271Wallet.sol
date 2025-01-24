@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { IERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/utils/SafeERC20.sol";
+import { ECDSA } from "@openzeppelin/contracts@v5.0.2/utils/cryptography/ECDSA.sol";
 
 import { IERC1271Wallet } from "contracts/interfaces/IERC1271Wallet.sol";
 
@@ -28,13 +28,13 @@ contract MockERC1271Wallet is IERC1271Wallet {
     receive() external payable {}
 
     function setAllowance(address[] memory _tokenList, address _spender) external onlyOperator {
-        for (uint256 i = 0; i < _tokenList.length; i++) {
+        for (uint256 i; i < _tokenList.length; i++) {
             IERC20(_tokenList[i]).forceApprove(_spender, MAX_UINT);
         }
     }
 
     function closeAllowance(address[] memory _tokenList, address _spender) external onlyOperator {
-        for (uint256 i = 0; i < _tokenList.length; i++) {
+        for (uint256 i; i < _tokenList.length; i++) {
             IERC20(_tokenList[i]).forceApprove(_spender, 0);
         }
     }

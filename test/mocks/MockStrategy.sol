@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { Asset } from "contracts/libraries/Asset.sol";
 import { IStrategy } from "contracts/interfaces/IStrategy.sol";
+import { Asset } from "contracts/libraries/Asset.sol";
 
 contract MockStrategy is IStrategy {
     using Asset for address;

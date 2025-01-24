@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { RFQOffer, getRFQOfferHash, RFQ_OFFER_TYPESTRING } from "./RFQOffer.sol";
+import { RFQOffer, RFQ_OFFER_TYPESTRING, getRFQOfferHash } from "./RFQOffer.sol";
 
 string constant RFQ_TX_TYPESTRING = string(abi.encodePacked("RFQTx(RFQOffer rfqOffer,address recipient,uint256 takerRequestAmount)", RFQ_OFFER_TYPESTRING));
 

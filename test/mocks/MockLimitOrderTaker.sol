@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/utils/SafeERC20.sol";
 
-import { Ownable } from "contracts/abstracts/Ownable.sol";
-import { IStrategy } from "contracts/interfaces/IStrategy.sol";
-import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
 import { MockERC1271Wallet } from "./MockERC1271Wallet.sol";
+
+import { IStrategy } from "contracts/interfaces/IStrategy.sol";
+
+import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
 
 contract MockLimitOrderTaker is IStrategy, MockERC1271Wallet {
     using SafeERC20 for IERC20;

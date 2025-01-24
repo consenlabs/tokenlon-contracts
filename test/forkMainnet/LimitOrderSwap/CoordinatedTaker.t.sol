@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
-import { ICoordinatedTaker } from "contracts/interfaces/ICoordinatedTaker.sol";
-import { IWETH } from "contracts/interfaces/IWETH.sol";
-import { Constant } from "contracts/libraries/Constant.sol";
-import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
-import { AllowFill, getAllowFillHash } from "contracts/libraries/AllowFill.sol";
 import { CoordinatedTaker } from "contracts/CoordinatedTaker.sol";
 import { Ownable } from "contracts/abstracts/Ownable.sol";
-import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
+import { ICoordinatedTaker } from "contracts/interfaces/ICoordinatedTaker.sol";
+import { ILimitOrderSwap } from "contracts/interfaces/ILimitOrderSwap.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
+import { AllowFill, getAllowFillHash } from "contracts/libraries/AllowFill.sol";
+import { Constant } from "contracts/libraries/Constant.sol";
+import { LimitOrder, getLimitOrderHash } from "contracts/libraries/LimitOrder.sol";
+
 import { LimitOrderSwapTest } from "test/forkMainnet/LimitOrderSwap/Setup.t.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
+import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
 
 contract CoordinatedTakerTest is LimitOrderSwapTest {
     using BalanceSnapshot for Snapshot;

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { IERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/utils/SafeERC20.sol";
+import { Pausable } from "@openzeppelin/contracts@v5.0.2/utils/Pausable.sol";
 
 import { Ownable } from "./abstracts/Ownable.sol";
+
 import { IAllowanceTarget } from "./interfaces/IAllowanceTarget.sol";
 
 /// @title AllowanceTarget Contract
@@ -22,7 +23,7 @@ contract AllowanceTarget is IAllowanceTarget, Pausable, Ownable {
     /// @param trustedCaller An array of addresses that are initially authorized to call spendFromUserTo.
     constructor(address _owner, address[] memory trustedCaller) Ownable(_owner) {
         uint256 callerCount = trustedCaller.length;
-        for (uint256 i = 0; i < callerCount; ++i) {
+        for (uint256 i; i < callerCount; ++i) {
             authorized[trustedCaller[i]] = true;
         }
     }

@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts@v5.0.2/token/ERC20/utils/SafeERC20.sol";
 
 import { SmartOrderStrategyTest } from "./Setup.t.sol";
-import { ICurveFiV2 } from "test/utils/ICurveFiV2.sol";
+
 import { ISmartOrderStrategy } from "contracts/interfaces/ISmartOrderStrategy.sol";
-import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
 import { Constant } from "contracts/libraries/Constant.sol";
+
 import { BalanceSnapshot, Snapshot } from "test/utils/BalanceSnapshot.sol";
+import { ICurveFiV2 } from "test/utils/ICurveFiV2.sol";
+import { IUniswapSwapRouter02 } from "test/utils/IUniswapSwapRouter02.sol";
 
 contract AMMsTest is SmartOrderStrategyTest {
     using SafeERC20 for IERC20;
