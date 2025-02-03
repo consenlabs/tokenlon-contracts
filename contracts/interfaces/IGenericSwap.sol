@@ -8,6 +8,28 @@ import { GenericSwapData } from "../libraries/GenericSwapData.sol";
 /// @notice Interface for a generic swap contract.
 /// @dev This interface defines functions and events related to executing swaps and handling swap errors.
 interface IGenericSwap {
+    /// @notice Event emitted when a swap is executed.
+    /// @param swapHash The hash of the swap data.
+    /// @param maker The address of the maker initiating the swap.
+    /// @param taker The address of the taker executing the swap.
+    /// @param recipient The address receiving the output tokens.
+    /// @param inputToken The address of the input token.
+    /// @param inputAmount The amount of input tokens.
+    /// @param outputToken The address of the output token.
+    /// @param outputAmount The amount of output tokens received.
+    /// @param salt The salt value used in the swap.
+    event Swap(
+        bytes32 indexed swapHash,
+        address indexed maker,
+        address indexed taker,
+        address recipient,
+        address inputToken,
+        uint256 inputAmount,
+        address outputToken,
+        uint256 outputAmount,
+        uint256 salt
+    );
+
     /// @notice Error to be thrown when a swap is already filled.
     /// @dev This error is used when attempting to fill a swap that has already been completed.
     error AlreadyFilled();
@@ -31,28 +53,6 @@ interface IGenericSwap {
     /// @notice Error to be thrown when an address is zero.
     /// @dev This error is used to ensure that a valid address is provided.
     error ZeroAddress();
-
-    /// @notice Event emitted when a swap is executed.
-    /// @param swapHash The hash of the swap data.
-    /// @param maker The address of the maker initiating the swap.
-    /// @param taker The address of the taker executing the swap.
-    /// @param recipient The address receiving the output tokens.
-    /// @param inputToken The address of the input token.
-    /// @param inputAmount The amount of input tokens.
-    /// @param outputToken The address of the output token.
-    /// @param outputAmount The amount of output tokens received.
-    /// @param salt The salt value used in the swap.
-    event Swap(
-        bytes32 indexed swapHash,
-        address indexed maker,
-        address indexed taker,
-        address recipient,
-        address inputToken,
-        uint256 inputAmount,
-        address outputToken,
-        uint256 outputAmount,
-        uint256 salt
-    );
 
     /// @notice Executes a swap using provided swap data and taker token permit.
     /// @param swapData The swap data containing details of the swap.

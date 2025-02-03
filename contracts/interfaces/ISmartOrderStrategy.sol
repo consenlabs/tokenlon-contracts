@@ -6,6 +6,19 @@ import { IStrategy } from "./IStrategy.sol";
 /// @title ISmartOrderStrategy Interface
 /// @author imToken Labs
 interface ISmartOrderStrategy is IStrategy {
+    /// @title Operation
+    /// @notice Struct containing parameters for the operation.
+    /// @dev The encoded operation list should be passed as `data` when calling `IStrategy.executeStrategy`
+    struct Operation {
+        address dest;
+        address inputToken;
+        uint256 ratioNumerator;
+        uint256 ratioDenominator;
+        uint256 dataOffset;
+        uint256 value;
+        bytes data;
+    }
+
     /// @notice Error thrown when the input is zero.
     /// @dev Thrown when an operation requires a non-zero input value that is not provided.
     error ZeroInput();
@@ -29,17 +42,4 @@ interface ISmartOrderStrategy is IStrategy {
     /// @notice Error thrown when the operation is not from a Governance System (GS).
     /// @dev Thrown when an operation is attempted by an unauthorized caller that is not from a Governance System (GS).
     error NotFromGS();
-
-    /// @title Operation
-    /// @notice Struct containing parameters for the operation.
-    /// @dev The encoded operation list should be passed as `data` when calling `IStrategy.executeStrategy`
-    struct Operation {
-        address dest;
-        address inputToken;
-        uint256 ratioNumerator;
-        uint256 ratioDenominator;
-        uint256 dataOffset;
-        uint256 value;
-        bytes data;
-    }
 }

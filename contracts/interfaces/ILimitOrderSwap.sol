@@ -8,6 +8,47 @@ import { LimitOrder } from "../libraries/LimitOrder.sol";
 /// @notice Interface for a limit order swap contract.
 /// @dev This interface defines functions and events related to executing and managing limit orders.
 interface ILimitOrderSwap {
+    /// @notice Struct containing parameters for the taker.
+    /// @dev This struct encapsulates the parameters necessary for a taker to fill a limit order.
+    struct TakerParams {
+        uint256 takerTokenAmount; // Amount of tokens taken by the taker.
+        uint256 makerTokenAmount; // Amount of tokens provided by the maker.
+        address recipient; // Address to receive the tokens.
+        bytes extraAction; // Additional action to be performed.
+        bytes takerTokenPermit; // Permit for spending taker's tokens.
+    }
+
+    /// @notice Emitted when the fee collector address is updated.
+    /// @param newFeeCollector The address of the new fee collector.
+    event SetFeeCollector(address newFeeCollector);
+
+    /// @notice Emitted when a limit order is successfully filled.
+    /// @param orderHash The hash of the limit order.
+    /// @param taker The address of the taker filling the order.
+    /// @param maker The address of the maker who created the order.
+    /// @param takerToken The address of the token taken by the taker.
+    /// @param takerTokenFilledAmount The amount of taker tokens filled.
+    /// @param makerToken The address of the token received by the maker.
+    /// @param makerTokenSettleAmount The amount of maker tokens settled.
+    /// @param fee The fee amount paid for the order.
+    /// @param recipient The address receiving the tokens.
+    event LimitOrderFilled(
+        bytes32 indexed orderHash,
+        address indexed taker,
+        address indexed maker,
+        address takerToken,
+        uint256 takerTokenFilledAmount,
+        address makerToken,
+        uint256 makerTokenSettleAmount,
+        uint256 fee,
+        address recipient
+    );
+
+    /// @notice Emitted when an order is canceled.
+    /// @param orderHash The hash of the canceled order.
+    /// @param maker The address of the maker who canceled the order.
+    event OrderCanceled(bytes32 orderHash, address maker);
+
     /// @notice Error to be thrown when an order has expired.
     /// @dev Thrown when attempting to fill an order that has already expired.
     error ExpiredOrder();
@@ -67,47 +108,6 @@ interface ILimitOrderSwap {
     /// @notice Error to be thrown when the caller is not the maker of the order.
     /// @dev Thrown when an operation is attempted by an unauthorized caller who is not the maker of the order.
     error NotOrderMaker();
-
-    /// @notice Emitted when the fee collector address is updated.
-    /// @param newFeeCollector The address of the new fee collector.
-    event SetFeeCollector(address newFeeCollector);
-
-    /// @notice Emitted when a limit order is successfully filled.
-    /// @param orderHash The hash of the limit order.
-    /// @param taker The address of the taker filling the order.
-    /// @param maker The address of the maker who created the order.
-    /// @param takerToken The address of the token taken by the taker.
-    /// @param takerTokenFilledAmount The amount of taker tokens filled.
-    /// @param makerToken The address of the token received by the maker.
-    /// @param makerTokenSettleAmount The amount of maker tokens settled.
-    /// @param fee The fee amount paid for the order.
-    /// @param recipient The address receiving the tokens.
-    event LimitOrderFilled(
-        bytes32 indexed orderHash,
-        address indexed taker,
-        address indexed maker,
-        address takerToken,
-        uint256 takerTokenFilledAmount,
-        address makerToken,
-        uint256 makerTokenSettleAmount,
-        uint256 fee,
-        address recipient
-    );
-
-    /// @notice Emitted when an order is canceled.
-    /// @param orderHash The hash of the canceled order.
-    /// @param maker The address of the maker who canceled the order.
-    event OrderCanceled(bytes32 orderHash, address maker);
-
-    /// @notice Struct containing parameters for the taker.
-    /// @dev This struct encapsulates the parameters necessary for a taker to fill a limit order.
-    struct TakerParams {
-        uint256 takerTokenAmount; // Amount of tokens taken by the taker.
-        uint256 makerTokenAmount; // Amount of tokens provided by the maker.
-        address recipient; // Address to receive the tokens.
-        bytes extraAction; // Additional action to be performed.
-        bytes takerTokenPermit; // Permit for spending taker's tokens.
-    }
 
     /// @notice Fills a limit order.
     /// @param order The limit order to be filled.

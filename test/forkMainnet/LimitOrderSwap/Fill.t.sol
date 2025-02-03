@@ -87,7 +87,7 @@ contract FillTest is LimitOrderSwapTest {
         bytes memory extraAction;
         {
             bytes memory makerSpecificData = abi.encode(defaultAMMPath);
-            bytes memory strategyData = abi.encode(UNISWAP_SWAP_ROUTER_02_ADDRESS, makerSpecificData);
+            bytes memory strategyData = abi.encode(UNISWAP_SWAP_ROUTER_02_ADDRESS, order.makerToken, order.makerTokenAmount - fee, makerSpecificData);
             extraAction = abi.encode(address(mockLimitOrderTaker), strategyData);
         }
 

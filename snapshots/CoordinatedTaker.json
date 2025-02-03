@@ -1,6 +1,6 @@
 {
-  "approveTokens(): testApproveTokens": "54307",
-  "setCoordinator(): testSetCoordinator": "30043",
-  "submitLimitOrderFill(): testFillWithETH": "192971",
-  "submitLimitOrderFill(): testFillWithPermission": "256473"
+  "approveTokens(): testApproveTokens": "53171",
+  "setCoordinator(): testSetCoordinator": "30166",
+  "submitLimitOrderFill(): testFillWithETH": "189977",
+  "submitLimitOrderFill(): testFillWithPermission": "252405"
 }

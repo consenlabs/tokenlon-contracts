@@ -15,10 +15,6 @@ import { IUniswapPermit2 } from "../interfaces/IUniswapPermit2.sol";
 abstract contract TokenCollector {
     using SafeERC20 for IERC20;
 
-    /// @notice Error to be thrown when Permit2 data is empty.
-    /// @dev This error is used to ensure Permit2 data is provided when required.
-    error Permit2DataEmpty();
-
     /// @title Token Collection Sources
     /// @notice Enumeration of possible token collection sources.
     /// @dev Represents the various methods for collecting tokens.
@@ -32,6 +28,10 @@ abstract contract TokenCollector {
 
     address public immutable permit2;
     address public immutable allowanceTarget;
+
+    /// @notice Error to be thrown when Permit2 data is empty.
+    /// @dev This error is used to ensure Permit2 data is provided when required.
+    error Permit2DataEmpty();
 
     /// @notice Constructor to set the Permit2 and allowance target addresses.
     /// @param _permit2 The address of the Uniswap Permit2 contract.
