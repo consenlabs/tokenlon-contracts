@@ -1,9 +1,9 @@
 {
-  "executeSwap(): testGenericSwapWithUniswap": "248116",
-  "executeSwap(): testLeaveOneWeiWithMultipleUsers(the first deposit)": "248116",
-  "executeSwap(): testLeaveOneWeiWithMultipleUsers(the second deposit)": "204470",
-  "executeSwap(): testSwapWithETHInput": "97797",
-  "executeSwap(): testSwapWithETHOutput": "127948",
-  "executeSwap(): testSwapWithLessOutputButWithinTolerance": "157404",
-  "executeSwapWithSig(): testGenericSwapRelayed": "279447"
+  "executeSwap(): testGenericSwapWithUniswap": "248141",
+  "executeSwap(): testLeaveOneWeiWithMultipleUsers(the first deposit)": "248141",
+  "executeSwap(): testLeaveOneWeiWithMultipleUsers(the second deposit)": "204495",
+  "executeSwap(): testSwapWithETHInput": "97813",
+  "executeSwap(): testSwapWithETHOutput": "127973",
+  "executeSwap(): testSwapWithLessOutputButWithinTolerance": "157429",
+  "executeSwapWithSig(): testGenericSwapRelayed": "279472"
 }

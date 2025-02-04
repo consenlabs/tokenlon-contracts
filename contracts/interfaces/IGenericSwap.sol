@@ -54,6 +54,10 @@ interface IGenericSwap {
     /// @dev This error is used to ensure that a valid address is provided.
     error ZeroAddress();
 
+    /// @notice Error to be thrown when a swap amount is zero.
+    /// @dev This error is used to ensure that a valid, nonzero swap amount is provided.
+    error SwapWithZeroAmount();
+
     /// @notice Executes a swap using provided swap data and taker token permit.
     /// @param swapData The swap data containing details of the swap.
     /// @param takerTokenPermit The permit for spending taker's tokens.
