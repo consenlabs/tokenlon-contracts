@@ -15,6 +15,9 @@ library Asset {
     /// @notice Error thrown when there is insufficient balance for a transfer
     error InsufficientBalance();
 
+    /// @notice Error thrown when an ETH transfer fails
+    error ETHTransferFailed();
+
     /// @notice Checks if an address is ETH
     /// @dev ETH is identified by comparing the address to Constant.ETH_ADDRESS or Constant.ZERO_ADDRESS
     /// @param addr The address to check
@@ -42,19 +45,17 @@ library Asset {
     /// @param to The address of the recipient
     /// @param amount The amount to transfer
     function transferTo(address asset, address payable to, uint256 amount) internal {
-        if (to == address(this) || amount == 0) return;
-
-        if (isETH(asset)) {
-            // @dev Forward all available gas and may cause reentrancy
-            if (address(this).balance < amount) revert InsufficientBalance();
-            (bool success, bytes memory result) = to.call{ value: amount }("");
-            if (!success) {
-                assembly {
-                    revert(add(result, 32), mload(result))
+        if (amount > 0) {
+            if (to != address(this)) {
+                if (isETH(asset)) {
+                    // @dev Forward all available gas and may cause reentrancy
+                    if (address(this).balance < amount) revert InsufficientBalance();
+                    (bool success, ) = to.call{ value: amount }("");
+                    if (!success) revert ETHTransferFailed();
+                } else {
+                    IERC20(asset).safeTransfer(to, amount);
                 }
             }
-        } else {
-            IERC20(asset).safeTransfer(to, amount);
         }
     }
 }

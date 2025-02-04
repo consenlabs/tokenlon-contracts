@@ -3,11 +3,6 @@ pragma solidity ^0.8.0;
 
 /// @title IWETH Interface
 interface IWETH {
-    /// @notice Returns the balance of `account`.
-    /// @param account The address for which to query the balance.
-    /// @return The balance of `account`.
-    function balanceOf(address account) external view returns (uint256);
-
     /// @notice Deposits ETH into the contract and wraps it into WETH.
     function deposit() external payable;
 
@@ -27,4 +22,9 @@ interface IWETH {
     /// @param wad The amount of WETH to transfer.
     /// @return True if the transfer is successful, false otherwise.
     function transferFrom(address src, address dst, uint256 wad) external returns (bool);
+
+    /// @notice Returns the balance of `account`.
+    /// @param account The address for which to query the balance.
+    /// @return The balance of `account`.
+    function balanceOf(address account) external view returns (uint256);
 }

@@ -66,6 +66,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     ) private returns (uint256 returnAmount) {
         if (_swapData.expiry < block.timestamp) revert ExpiredOrder();
         if (_swapData.recipient == address(0)) revert ZeroAddress();
+        if (_swapData.takerTokenAmount == 0) revert SwapWithZeroAmount();
 
         address _inputToken = _swapData.takerToken;
         address _outputToken = _swapData.makerToken;
@@ -77,7 +78,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
             _collect(_inputToken, _authorizedUser, _swapData.maker, _swapData.takerTokenAmount, _takerTokenPermit);
         }
 
-        IStrategy(_swapData.maker).executeStrategy{ value: msg.value }(_inputToken, _outputToken, _swapData.takerTokenAmount, _swapData.strategyData);
+        IStrategy(_swapData.maker).executeStrategy{ value: msg.value }(_outputToken, _swapData.strategyData);
 
         returnAmount = _outputToken.getBalance(address(this));
         if (returnAmount > 1) {

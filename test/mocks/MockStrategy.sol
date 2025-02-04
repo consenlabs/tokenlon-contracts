@@ -15,7 +15,7 @@ contract MockStrategy is IStrategy {
         recipient = rec;
     }
 
-    function executeStrategy(address, address outputToken, uint256, bytes calldata) external payable override {
+    function executeStrategy(address outputToken, bytes calldata) external payable override {
         outputToken.transferTo(recipient, outputAmount);
     }
 }

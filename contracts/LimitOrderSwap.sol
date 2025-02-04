@@ -193,7 +193,7 @@ contract LimitOrderSwap is ILimitOrderSwap, Ownable, TokenCollector, EIP712, Ree
             (address strategy, bytes memory strategyData) = abi.decode(takerParams.extraAction, (address, bytes));
             // the coverage report indicates that the following line causes the if statement to not be fully covered,
             // even if the logic of the executeStrategy function is empty, this if statement is still not covered.
-            IStrategy(strategy).executeStrategy(order.makerToken, order.takerToken, makerSpendingAmount - fee, strategyData);
+            IStrategy(strategy).executeStrategy(order.takerToken, strategyData);
         }
 
         // taker -> maker

@@ -28,7 +28,7 @@ contract EIP712Test is Test {
     function testGetEIP712Hash() public {
         bytes32 structHash = DUMMY_STRUCT_HASH;
         bytes32 domainSeparator = eip712Harness.calculateDomainSeparator();
-        bytes32 expectedEIP712Hash = keccak256(abi.encodePacked(eip712Harness.EIP191_HEADER(), domainSeparator, structHash));
+        bytes32 expectedEIP712Hash = keccak256(abi.encodePacked(hex"1901", domainSeparator, structHash));
 
         assertEq(eip712Harness.exposedGetEIP712Hash(structHash), expectedEIP712Hash);
         vm.snapshotGasLastCall("EIP712", "getEIP712Hash(): testGetEIP712Hash");

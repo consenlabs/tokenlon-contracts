@@ -1,11 +1,11 @@
 {
-  "getBalance(): testGetBalance": "6107",
-  "getBalance(): testGetBalance(ETH_ADDRESS)": "764",
-  "getBalance(): testGetBalance(ZERO_ADDRESS)": "781",
-  "isETH(): testIsETH(ETH_ADDRESS)": "441",
-  "isETH(): testIsETH2(ZERO_ADDRESS)": "458",
-  "transferTo(): testDoNothingIfTransferToSelf": "22431",
-  "transferTo(): testDoNothingIfTransferWithZeroAmount": "22419",
-  "transferTo(): testTransferETH": "57012",
-  "transferTo(): testTransferToken": "51501"
+  "getBalance(): testGetBalance": "5799",
+  "getBalance(): testGetBalance(ETH_ADDRESS)": "510",
+  "getBalance(): testGetBalance(ZERO_ADDRESS)": "517",
+  "isETH(): testIsETH(ETH_ADDRESS)": "306",
+  "isETH(): testIsETH(ZERO_ADDRESS)": "313",
+  "transferTo(): testDoNothingIfTransferToSelf": "22182",
+  "transferTo(): testDoNothingIfTransferWithZeroAmount": "22170",
+  "transferTo(): testTransferETH": "56716",
+  "transferTo(): testTransferToken": "50378"
 }
