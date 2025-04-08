@@ -50,7 +50,7 @@ abstract contract EIP712 {
         assembly {
             // Compute the digest.
             mstore(0x00, 0x1901000000000000000000000000000000000000000000000000000000000000) // Store "\x19\x01".
-            mstore(0x2, digest) // Store the domain separator.
+            mstore(0x02, digest) // Store the domain separator.
             mstore(0x22, structHash) // Store the struct hash.
             digest := keccak256(0x0, 0x42)
             mstore(0x22, 0) // Restore the part of the free memory slot that was overwritten.
