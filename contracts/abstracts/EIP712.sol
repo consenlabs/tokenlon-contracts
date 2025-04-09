@@ -46,6 +46,9 @@ abstract contract EIP712 {
 
         digest = _getDomainSeparator();
 
+        // reference:
+        // 1. solady: https://github.com/Vectorized/solady/blob/main/src/utils/EIP712.sol#L138-L147
+        // 2. 1inch: https://etherscan.io/address/0x111111125421cA6dc452d289314280a0f8842A65#code (line 1204~1209)
         // solhint-disable no-inline-assembly
         assembly {
             // Compute the digest.
