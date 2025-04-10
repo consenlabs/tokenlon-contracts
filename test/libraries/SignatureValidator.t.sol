@@ -45,6 +45,7 @@ contract SignatureValidatorTest is Test {
         assertFalse(SignatureValidator.validateSignature(vm.addr(walletAdminPrivateKey), otherDigest, signature));
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function testEIP712WithWrongSignatureLength() public {
         uint256 v = 1;
         uint256 r = 2;
@@ -56,6 +57,7 @@ contract SignatureValidatorTest is Test {
         SignatureValidator.validateSignature(vm.addr(userPrivateKey), digest, signature);
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function testEIP712WithEmptySignature() public {
         bytes memory signature;
         // will be reverted in OZ ECDSA lib

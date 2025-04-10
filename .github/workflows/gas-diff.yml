@@ -17,7 +17,7 @@ jobs:
         node-version: [16.x]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -47,14 +47,14 @@ jobs:
           cat gasreport-fork.ansi >> $GITHUB_STEP_SUMMARY
 
       - name: Compare gas reports of local tests
-        uses: Rubilmax/foundry-gas-diff@v3.14
+        uses: Rubilmax/foundry-gas-diff@v3
         with:
           report: gasreport-local.ansi
           ignore: test/**/*
         id: gas_diff_local
 
       - name: Compare gas reports of fork tests
-        uses: Rubilmax/foundry-gas-diff@v3.14
+        uses: Rubilmax/foundry-gas-diff@v3
         with:
           report: gasreport-fork.ansi
           ignore: test/**/*

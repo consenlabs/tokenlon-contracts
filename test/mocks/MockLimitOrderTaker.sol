@@ -19,12 +19,15 @@ contract MockLimitOrderTaker is IStrategy, MockERC1271Wallet {
         uniswapRouter02 = IUniswapSwapRouter02(_uniswapRouter02);
     }
 
-    function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable override {
-        (address routerAddr, bytes memory makerSpecificData) = abi.decode(data, (address, bytes));
+    function executeStrategy(address targetToken, bytes calldata strategyData) external payable override {
+        (address routerAddr, address inputToken, uint256 inputAmount, bytes memory makerSpecificData) = abi.decode(
+            strategyData,
+            (address, address, uint256, bytes)
+        );
         require(routerAddr == address(uniswapRouter02), "non supported protocol");
 
         address[] memory path = abi.decode(makerSpecificData, (address[]));
-        _validateAMMPath(inputToken, outputToken, path);
+        _validateAMMPath(inputToken, targetToken, path);
         _tradeUniswapV2TokenToToken(inputAmount, path);
     }
 

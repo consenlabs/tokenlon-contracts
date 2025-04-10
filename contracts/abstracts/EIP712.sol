@@ -6,9 +6,6 @@ pragma solidity ^0.8.0;
 /// @notice This contract implements the EIP-712 standard for structured data hashing and signing.
 /// @dev This contract provides functions to handle EIP-712 domain separator and hash calculation.
 abstract contract EIP712 {
-    // EIP-191 Header
-    string public constant EIP191_HEADER = "\x19\x01";
-
     // EIP-712 Domain
     string public constant EIP712_NAME = "Tokenlon";
     string public constant EIP712_VERSION = "v6";
@@ -43,9 +40,24 @@ abstract contract EIP712 {
 
     /// @notice Calculate the EIP712 hash of a structured data hash.
     /// @param structHash The hash of the structured data.
-    /// @return The EIP712 hash of the structured data.
-    function getEIP712Hash(bytes32 structHash) internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(EIP191_HEADER, _getDomainSeparator(), structHash));
+    /// @return digest The EIP712 hash of the structured data.
+    function getEIP712Hash(bytes32 structHash) internal view returns (bytes32 digest) {
+        // return keccak256(abi.encodePacked("\x19\x01", _getDomainSeparator(), structHash));
+
+        digest = _getDomainSeparator();
+
+        // reference:
+        // 1. solady: https://github.com/Vectorized/solady/blob/main/src/utils/EIP712.sol#L138-L147
+        // 2. 1inch: https://etherscan.io/address/0x111111125421cA6dc452d289314280a0f8842A65#code (line 1204~1209)
+        // solhint-disable no-inline-assembly
+        assembly {
+            // Compute the digest.
+            mstore(0x00, 0x1901000000000000000000000000000000000000000000000000000000000000) // Store "\x19\x01".
+            mstore(0x02, digest) // Store the domain separator.
+            mstore(0x22, structHash) // Store the struct hash.
+            digest := keccak256(0x0, 0x42)
+            mstore(0x22, 0) // Restore the part of the free memory slot that was overwritten.
+        }
     }
 
     /// @notice Get the current EIP712 domain separator.

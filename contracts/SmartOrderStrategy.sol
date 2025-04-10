@@ -37,21 +37,9 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
     }
 
     /// @inheritdoc IStrategy
-    function executeStrategy(address inputToken, address outputToken, uint256 inputAmount, bytes calldata data) external payable onlyGenericSwap {
-        if (inputAmount == 0) revert ZeroInput();
-
-        Operation[] memory ops = abi.decode(data, (Operation[]));
+    function executeStrategy(address targetToken, bytes calldata strategyData) external payable onlyGenericSwap {
+        Operation[] memory ops = abi.decode(strategyData, (Operation[]));
         if (ops.length == 0) revert EmptyOps();
-
-        // wrap ETH to WETH if inputToken is ETH
-        if (Asset.isETH(inputToken)) {
-            if (msg.value != inputAmount) revert InvalidMsgValue();
-            // the coverage report indicates that the following line causes this branch to not be covered by our tests
-            // even though we tried all possible success and revert scenarios
-            IWETH(weth).deposit{ value: inputAmount }();
-        } else {
-            if (msg.value != 0) revert InvalidMsgValue();
-        }
 
         uint256 opsCount = ops.length;
         for (uint256 i; i < opsCount; ++i) {
@@ -59,10 +47,10 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
             _call(op.dest, op.inputToken, op.ratioNumerator, op.ratioDenominator, op.dataOffset, op.value, op.data);
         }
 
-        // unwrap WETH to ETH if outputToken is ETH
-        if (Asset.isETH(outputToken)) {
+        // unwrap WETH to ETH if targetToken is ETH
+        if (Asset.isETH(targetToken)) {
             // the if statement is not fully covered by the tests even replacing `makerToken.isETH()` with `makerToken == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`
-            // and crafting some cases where outputToken is ETH and non-ETH
+            // and crafting some cases where targetToken is ETH and non-ETH
             uint256 wethBalance = IWETH(weth).balanceOf(address(this));
 
             if (wethBalance > 0) {
@@ -71,7 +59,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
             }
         }
 
-        uint256 selfBalance = Asset.getBalance(outputToken, address(this));
+        uint256 selfBalance = Asset.getBalance(targetToken, address(this));
         if (selfBalance > 1) {
             unchecked {
                 --selfBalance;
@@ -79,7 +67,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         }
 
         // transfer output tokens back to the generic swap contract
-        Asset.transferTo(outputToken, payable(genericSwap), selfBalance);
+        Asset.transferTo(targetToken, payable(genericSwap), selfBalance);
     }
 
     /// @dev This function adjusts the input amount based on a ratio if specified, then calls the destination contract with data.
@@ -102,12 +90,6 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
         // adjust amount if ratio != 0
         if (_ratioNumerator != 0) {
             uint256 inputTokenBalance = IERC20(_inputToken).balanceOf(address(this));
-            // leaving one wei for gas optimization
-            if (inputTokenBalance > 1) {
-                unchecked {
-                    --inputTokenBalance;
-                }
-            }
 
             // calculate input amount if ratio should be applied
             if (_ratioNumerator != _ratioDenominator) {

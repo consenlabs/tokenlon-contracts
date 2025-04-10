@@ -31,7 +31,7 @@ contract AssetTest is Test {
         assertTrue(assetHarness.exposedIsETH(Constant.ETH_ADDRESS));
         vm.snapshotGasLastCall("Asset", "isETH(): testIsETH(ETH_ADDRESS)");
         assertTrue(assetHarness.exposedIsETH(Constant.ZERO_ADDRESS));
-        vm.snapshotGasLastCall("Asset", "isETH(): testIsETH2(ZERO_ADDRESS)");
+        vm.snapshotGasLastCall("Asset", "isETH(): testIsETH(ZERO_ADDRESS)");
     }
 
     function testGetBalance() public {

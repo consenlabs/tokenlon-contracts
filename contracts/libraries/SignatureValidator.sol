@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { Address } from "@openzeppelin/contracts@v5.0.2/utils/Address.sol";
 import { ECDSA } from "@openzeppelin/contracts@v5.0.2/utils/cryptography/ECDSA.sol";
 
 import { IERC1271Wallet } from "../interfaces/IERC1271Wallet.sol";
@@ -10,8 +9,6 @@ import { IERC1271Wallet } from "../interfaces/IERC1271Wallet.sol";
 /// @author imToken Labs
 /// @notice Library for validating signatures using ECDSA and ERC1271 standards
 library SignatureValidator {
-    using Address for address;
-
     // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
     bytes4 internal constant ERC1271_MAGICVALUE = 0x1626ba7e;
 

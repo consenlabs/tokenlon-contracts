@@ -9,6 +9,37 @@ import { RFQTx } from "../libraries/RFQTx.sol";
 /// @notice Interface for an RFQ (Request for Quote) contract.
 /// @dev This interface defines functions and events related to handling RFQ offers and transactions.
 interface IRFQ {
+    /// @notice Emitted when the fee collector address is updated.
+    /// @param newFeeCollector The address of the new fee collector.
+    event SetFeeCollector(address newFeeCollector);
+
+    /// @notice Emitted when an RFQ offer is successfully filled.
+    /// @param rfqOfferHash The hash of the RFQ offer.
+    /// @param user The address of the user filling the RFQ offer.
+    /// @param maker The address of the maker who created the RFQ offer.
+    /// @param takerToken The address of the token taken by the taker.
+    /// @param takerTokenUserAmount The amount of taker tokens taken by the user.
+    /// @param makerToken The address of the token provided by the maker.
+    /// @param makerTokenUserAmount The amount of maker tokens received by the user.
+    /// @param recipient The address receiving the tokens.
+    /// @param fee The fee amount paid for the RFQ transaction.
+    event FilledRFQ(
+        bytes32 indexed rfqOfferHash,
+        address indexed user,
+        address indexed maker,
+        address takerToken,
+        uint256 takerTokenUserAmount,
+        address makerToken,
+        uint256 makerTokenUserAmount,
+        address recipient,
+        uint256 fee
+    );
+
+    /// @notice Emitted when an RFQ offer is canceled.
+    /// @param rfqOfferHash The hash of the canceled RFQ offer.
+    /// @param maker The address of the maker who canceled the RFQ offer.
+    event CancelRFQOffer(bytes32 indexed rfqOfferHash, address indexed maker);
+
     /// @notice Error to be thrown when an RFQ offer has expired.
     /// @dev Thrown when attempting to fill an RFQ offer that has expired.
     error ExpiredRFQOffer();
@@ -52,37 +83,6 @@ interface IRFQ {
     /// @notice Error to be thrown when the caller is not the maker of the RFQ offer.
     /// @dev Thrown when an operation is attempted by an unauthorized caller who is not the maker of the RFQ offer.
     error NotOfferMaker();
-
-    /// @notice Emitted when the fee collector address is updated.
-    /// @param newFeeCollector The address of the new fee collector.
-    event SetFeeCollector(address newFeeCollector);
-
-    /// @notice Emitted when an RFQ offer is successfully filled.
-    /// @param rfqOfferHash The hash of the RFQ offer.
-    /// @param user The address of the user filling the RFQ offer.
-    /// @param maker The address of the maker who created the RFQ offer.
-    /// @param takerToken The address of the token taken by the taker.
-    /// @param takerTokenUserAmount The amount of taker tokens taken by the user.
-    /// @param makerToken The address of the token provided by the maker.
-    /// @param makerTokenUserAmount The amount of maker tokens received by the user.
-    /// @param recipient The address receiving the tokens.
-    /// @param fee The fee amount paid for the RFQ transaction.
-    event FilledRFQ(
-        bytes32 indexed rfqOfferHash,
-        address indexed user,
-        address indexed maker,
-        address takerToken,
-        uint256 takerTokenUserAmount,
-        address makerToken,
-        uint256 makerTokenUserAmount,
-        address recipient,
-        uint256 fee
-    );
-
-    /// @notice Emitted when an RFQ offer is canceled.
-    /// @param rfqOfferHash The hash of the canceled RFQ offer.
-    /// @param maker The address of the maker who canceled the RFQ offer.
-    event CancelRFQOffer(bytes32 indexed rfqOfferHash, address indexed maker);
 
     /// @notice Fills an RFQ offer.
     /// @param rfqTx The RFQ transaction details.
