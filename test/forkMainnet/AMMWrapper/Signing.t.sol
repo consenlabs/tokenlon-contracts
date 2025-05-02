@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
+pragma abicoder v2;
 
 import "contracts/utils/AMMLibEIP712.sol";
 import "test/utils/StrategySharedSetup.sol";
@@ -29,11 +30,7 @@ contract TestAMMWrapperSigning is StrategySharedSetup {
         require(keccak256(sig) == keccak256(expectedSig), "Not expected AMM order sig");
     }
 
-    function _signAMMTrade(
-        address ammWrapperAddr,
-        uint256 privateKey,
-        AMMLibEIP712.Order memory order
-    ) internal returns (bytes memory sig) {
+    function _signAMMTrade(address ammWrapperAddr, uint256 privateKey, AMMLibEIP712.Order memory order) internal returns (bytes memory sig) {
         bytes32 orderHash = AMMLibEIP712._getOrderHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(ammWrapperAddr), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);

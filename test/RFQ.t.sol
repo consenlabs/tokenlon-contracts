@@ -2,6 +2,7 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -9,11 +10,13 @@ import "contracts/MarketMakerProxy.sol";
 import "contracts/RFQ.sol";
 import "contracts/utils/SignatureValidator.sol";
 import "test/mocks/MockERC1271Wallet.sol";
+import "test/mocks/MockERC7702Wallet.sol";
 import "test/utils/BalanceSnapshot.sol";
 import "test/utils/StrategySharedSetup.sol";
 import { computeMainnetEIP712DomainSeparator, getEIP712Hash } from "test/utils/Sig.sol";
 
 contract RFQTest is StrategySharedSetup {
+    using Address for address;
     using SafeMath for uint256;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
@@ -45,6 +48,7 @@ contract RFQTest is StrategySharedSetup {
     address[] wallet = [user, maker];
 
     MockERC1271Wallet mockERC1271Wallet;
+    MockERC7702Wallet mockERC7702Wallet;
     MarketMakerProxy marketMakerProxy;
     RFQ rfq;
 
@@ -61,6 +65,7 @@ contract RFQTest is StrategySharedSetup {
         vm.prank(maker, maker);
         marketMakerProxy.updateWithdrawWhitelist(maker, true);
         mockERC1271Wallet = new MockERC1271Wallet(user);
+        mockERC7702Wallet = new MockERC7702Wallet();
 
         // Deal 100 ETH to each account
         dealWallet({ wallet: wallet, amount: 100 ether });
@@ -317,6 +322,58 @@ contract RFQTest is StrategySharedSetup {
         makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
     }
 
+    function testFillDAIToUSDT_EIP7702UserAndEIP7702Maker() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.EIP712 });
+        bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
+
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take({ owner: receiver, token: order.makerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take({ owner: maker, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take({ owner: maker, token: order.makerAssetAddr });
+
+        vm.signAndAttachDelegation(address(mockERC7702Wallet), userPrivateKey);
+        vm.signAndAttachDelegation(address(mockERC7702Wallet), makerPrivateKey);
+        // Verify that taker's account now behaves as a smart contract.
+        require(user.isContract(), "no code written to user");
+        require(maker.isContract(), "no code written to maker");
+
+        vm.prank(user, user);
+        userProxy.toRFQ(payload);
+
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
+    }
+
+    function testFillDAIToUSDT_EIP7702UserAndEIP7702Maker_WithEIP1271Method() public {
+        RFQLibEIP712.Order memory order = DEFAULT_ORDER;
+        bytes memory makerSig = _signOrder({ privateKey: makerPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
+        bytes memory userSig = _signFill({ privateKey: userPrivateKey, order: order, sigType: SignatureValidator.SignatureType.WalletBytes32 });
+        bytes memory payload = _genFillPayload({ order: order, makerSig: makerSig, userSig: userSig });
+
+        BalanceSnapshot.Snapshot memory userTakerAsset = BalanceSnapshot.take({ owner: user, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory receiverMakerAsset = BalanceSnapshot.take({ owner: receiver, token: order.makerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerTakerAsset = BalanceSnapshot.take({ owner: maker, token: order.takerAssetAddr });
+        BalanceSnapshot.Snapshot memory makerMakerAsset = BalanceSnapshot.take({ owner: maker, token: order.makerAssetAddr });
+
+        vm.signAndAttachDelegation(address(mockERC7702Wallet), userPrivateKey);
+        vm.signAndAttachDelegation(address(mockERC7702Wallet), makerPrivateKey);
+        // Verify that taker's account now behaves as a smart contract.
+        require(user.isContract(), "no code written to user");
+        require(maker.isContract(), "no code written to maker");
+
+        vm.prank(user, user);
+        userProxy.toRFQ(payload);
+
+        userTakerAsset.assertChange(-int256(order.takerAssetAmount));
+        receiverMakerAsset.assertChange(int256(order.makerAssetAmount));
+        makerTakerAsset.assertChange(int256(order.takerAssetAmount));
+        makerMakerAsset.assertChange(-int256(order.makerAssetAmount));
+    }
+
     function testFillETHToUSDT_EOAUserAndMMPMaker() public {
         RFQLibEIP712.Order memory order = DEFAULT_ORDER;
         order.takerAssetAddr = address(weth);
@@ -466,22 +523,14 @@ contract RFQTest is StrategySharedSetup {
         require(keccak256(fillSig) == keccak256(expectedFillSig), "Not expected RFQ fill sig");
     }
 
-    function _signOrderEIP712(
-        address rfqAddr,
-        uint256 privateKey,
-        RFQLibEIP712.Order memory order
-    ) internal returns (bytes memory sig) {
+    function _signOrderEIP712(address rfqAddr, uint256 privateKey, RFQLibEIP712.Order memory order) internal returns (bytes memory sig) {
         bytes32 orderHash = RFQLibEIP712._getOrderHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(rfqAddr), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
 
-    function _signFillEIP712(
-        address rfqAddr,
-        uint256 privateKey,
-        RFQLibEIP712.Order memory order
-    ) internal returns (bytes memory sig) {
+    function _signFillEIP712(address rfqAddr, uint256 privateKey, RFQLibEIP712.Order memory order) internal returns (bytes memory sig) {
         bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(rfqAddr), transactionHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -492,11 +541,7 @@ contract RFQTest is StrategySharedSetup {
      *             Helpers           *
      *********************************/
 
-    function _signOrder(
-        uint256 privateKey,
-        RFQLibEIP712.Order memory order,
-        SignatureValidator.SignatureType sigType
-    ) internal returns (bytes memory sig) {
+    function _signOrder(uint256 privateKey, RFQLibEIP712.Order memory order, SignatureValidator.SignatureType sigType) internal returns (bytes memory sig) {
         bytes32 orderHash = RFQLibEIP712._getOrderHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), orderHash);
 
@@ -527,11 +572,7 @@ contract RFQTest is StrategySharedSetup {
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
 
-    function _signFill(
-        uint256 privateKey,
-        RFQLibEIP712.Order memory order,
-        SignatureValidator.SignatureType sigType
-    ) internal returns (bytes memory sig) {
+    function _signFill(uint256 privateKey, RFQLibEIP712.Order memory order, SignatureValidator.SignatureType sigType) internal returns (bytes memory sig) {
         bytes32 transactionHash = RFQLibEIP712._getTransactionHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), transactionHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -551,11 +592,7 @@ contract RFQTest is StrategySharedSetup {
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
 
-    function _genFillPayload(
-        RFQLibEIP712.Order memory order,
-        bytes memory makerSig,
-        bytes memory userSig
-    ) internal view returns (bytes memory payload) {
+    function _genFillPayload(RFQLibEIP712.Order memory order, bytes memory makerSig, bytes memory userSig) internal view returns (bytes memory payload) {
         return abi.encodeWithSelector(rfq.fill.selector, order, makerSig, userSig);
     }
 }

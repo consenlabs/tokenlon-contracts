@@ -2,6 +2,7 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -13,6 +14,7 @@ import "contracts/utils/LimitOrderLibEIP712.sol";
 import "contracts/utils/LibConstant.sol";
 
 import "test/mocks/MockERC1271Wallet.sol";
+import "test/mocks/MockERC7702Wallet.sol";
 import "test/utils/BalanceSnapshot.sol";
 import "test/utils/StrategySharedSetup.sol";
 import "test/utils/UniswapV3Util.sol";
@@ -21,6 +23,7 @@ import { computeMainnetEIP712DomainSeparator, getEIP712Hash } from "test/utils/S
 
 contract LimitOrderTest is StrategySharedSetup {
     using SafeMath for uint256;
+    using Address for address;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     event LimitOrderFilledByTrader(
@@ -54,6 +57,7 @@ contract LimitOrderTest is StrategySharedSetup {
     address feeCollector = makeAddr("feeCollector");
     address receiver = makeAddr("receiver");
     MockERC1271Wallet mockERC1271Wallet = new MockERC1271Wallet(user);
+    MockERC7702Wallet mockERC7702Wallet = new MockERC7702Wallet();
     address[] wallet = [user, maker, coordinator, address(mockERC1271Wallet)];
     address[] allowanceAddrs;
 
@@ -694,6 +698,54 @@ contract LimitOrderTest is StrategySharedSetup {
 
         bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
         vm.prank(user, user); // Only EOA
+        userProxy.toLimitOrder(payload);
+    }
+
+    function testFullyFillByEIP7702TraderWithEIP712Method() public {
+        LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
+        fill.taker = address(user);
+
+        ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.taker = address(user);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.EIP712);
+
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.executor = address(user);
+
+        ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
+
+        vm.signAndAttachDelegation(address(mockERC7702Wallet), userPrivateKey);
+        // Verify that taker's account now behaves as a smart contract.
+        require(user.isContract(), "no code written to user");
+
+        vm.prank(user, user);
+        userProxy.toLimitOrder(payload);
+    }
+
+    function testFullyFillByEIP7702TraderWithERC1271Method() public {
+        LimitOrderLibEIP712.Fill memory fill = DEFAULT_FILL;
+        fill.taker = address(user);
+
+        ILimitOrder.TraderParams memory traderParams = DEFAULT_TRADER_PARAMS;
+        traderParams.taker = address(user);
+        traderParams.takerSig = _signFill(userPrivateKey, fill, SignatureValidator.SignatureType.WalletBytes32);
+
+        LimitOrderLibEIP712.AllowFill memory allowFill = DEFAULT_ALLOW_FILL;
+        allowFill.executor = address(user);
+
+        ILimitOrder.CoordinatorParams memory crdParams = DEFAULT_CRD_PARAMS;
+        crdParams.sig = _signAllowFill(coordinatorPrivateKey, allowFill, SignatureValidator.SignatureType.EIP712);
+
+        bytes memory payload = _genFillByTraderPayload(DEFAULT_ORDER, DEFAULT_ORDER_MAKER_SIG, traderParams, crdParams);
+
+        vm.signAndAttachDelegation(address(mockERC7702Wallet), userPrivateKey);
+        // Verify that taker's account now behaves as a smart contract.
+        require(user.isContract(), "no code written to user");
+
+        vm.prank(user, user);
         userProxy.toLimitOrder(payload);
     }
 
@@ -1339,22 +1391,14 @@ contract LimitOrderTest is StrategySharedSetup {
         require(keccak256(allowFillSig) == keccak256(expectedAllowFillSig), "Not expected LimitOrder allow fill sig");
     }
 
-    function _signOrderEIP712(
-        address limitOrderAddr,
-        uint256 privateKey,
-        LimitOrderLibEIP712.Order memory order
-    ) internal returns (bytes memory sig) {
+    function _signOrderEIP712(address limitOrderAddr, uint256 privateKey, LimitOrderLibEIP712.Order memory order) internal returns (bytes memory sig) {
         bytes32 orderHash = LimitOrderLibEIP712._getOrderStructHash(order);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), orderHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
 
-    function _signFillEIP712(
-        address limitOrderAddr,
-        uint256 privateKey,
-        LimitOrderLibEIP712.Fill memory fill
-    ) internal returns (bytes memory sig) {
+    function _signFillEIP712(address limitOrderAddr, uint256 privateKey, LimitOrderLibEIP712.Fill memory fill) internal returns (bytes memory sig) {
         bytes32 fillHash = LimitOrderLibEIP712._getFillStructHash(fill);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(limitOrderAddr), fillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -1407,11 +1451,7 @@ contract LimitOrderTest is StrategySharedSetup {
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(sigType));
     }
 
-    function _signFill(
-        uint256 privateKey,
-        LimitOrderLibEIP712.Fill memory fill,
-        SignatureValidator.SignatureType sigType
-    ) internal returns (bytes memory sig) {
+    function _signFill(uint256 privateKey, LimitOrderLibEIP712.Fill memory fill, SignatureValidator.SignatureType sigType) internal returns (bytes memory sig) {
         bytes32 fillHash = LimitOrderLibEIP712._getFillStructHash(fill);
         bytes32 EIP712SignDigest = getEIP712Hash(limitOrder.EIP712_DOMAIN_SEPARATOR(), fillHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);
@@ -1471,11 +1511,10 @@ contract LimitOrderTest is StrategySharedSetup {
         return abi.encodeWithSelector(limitOrder.fillLimitOrderByProtocol.selector, order, orderMakerSig, params, crdParams);
     }
 
-    function _genCancelLimitOrderPayload(LimitOrderLibEIP712.Order memory order, bytes memory cancelOrderMakerSig)
-        internal
-        view
-        returns (bytes memory payload)
-    {
+    function _genCancelLimitOrderPayload(
+        LimitOrderLibEIP712.Order memory order,
+        bytes memory cancelOrderMakerSig
+    ) internal view returns (bytes memory payload) {
         return abi.encodeWithSelector(limitOrder.cancelLimitOrder.selector, order, cancelOrderMakerSig);
     }
 }
