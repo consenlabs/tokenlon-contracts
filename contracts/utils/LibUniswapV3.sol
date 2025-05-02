@@ -64,11 +64,7 @@ library LibUniswapV3 {
             );
     }
 
-    function _validatePath(
-        bytes memory _path,
-        address _tokenIn,
-        address _tokenOut
-    ) internal pure {
+    function _validatePath(bytes memory _path, address _tokenIn, address _tokenOut) internal pure {
         (address tokenA, address tokenB, ) = _path.decodeFirstPool();
 
         if (_path.hasMultiplePools()) {

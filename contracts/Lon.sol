@@ -48,15 +48,7 @@ contract Lon is ERC20, ILon, Ownable {
     }
 
     // implement the eip-2612
-    function permit(
-        address owner,
-        address spender,
-        uint256 value,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external override {
+    function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external override {
         require(owner != address(0), "zero address");
         require(block.timestamp <= deadline || deadline == 0, "permit is expired");
 

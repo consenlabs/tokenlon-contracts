@@ -314,12 +314,7 @@ contract AMMWrapper is IAMMWrapper, StrategyBase, ReentrancyGuard, BaseLibEIP712
      * @dev internal function of `trade`.
      * It transfer assets to receiver specified in order.
      */
-    function _settle(
-        AMMLibEIP712.Order memory _order,
-        InternalTxData memory _internalTxData,
-        uint256 _settleAmount,
-        uint256 _feeAmount
-    ) internal {
+    function _settle(AMMLibEIP712.Order memory _order, InternalTxData memory _internalTxData, uint256 _settleAmount, uint256 _feeAmount) internal {
         // Transfer token/ETH to receiver
         if (_internalTxData.toEth) {
             // Withdraw from WETH if internal maker asset is WETH

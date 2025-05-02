@@ -27,21 +27,12 @@ contract MerkleRedeem is Ownable, ReentrancyGuard, IEmergency {
     mapping(uint256 => mapping(address => bool)) public claimed;
 
     /*==== PUBLIC FUNCTIONS =====*/
-    constructor(
-        address _owner,
-        IERC20 _rewardsToken,
-        address _emergencyRecipient
-    ) Ownable(_owner) {
+    constructor(address _owner, IERC20 _rewardsToken, address _emergencyRecipient) Ownable(_owner) {
         emergencyRecipient = _emergencyRecipient;
         rewardsToken = _rewardsToken;
     }
 
-    function claimPeriod(
-        address recipient,
-        uint256 period,
-        uint256 balance,
-        bytes32[] memory proof
-    ) external nonReentrant {
+    function claimPeriod(address recipient, uint256 period, uint256 balance, bytes32[] memory proof) external nonReentrant {
         require(!claimed[period][recipient]);
         require(verifyClaim(recipient, period, balance, proof), "incorrect merkle proof");
 
@@ -49,12 +40,7 @@ contract MerkleRedeem is Ownable, ReentrancyGuard, IEmergency {
         _disburse(recipient, balance);
     }
 
-    function verifyClaim(
-        address recipient,
-        uint256 period,
-        uint256 balance,
-        bytes32[] memory proof
-    ) public view returns (bool) {
+    function verifyClaim(address recipient, uint256 period, uint256 balance, bytes32[] memory proof) public view returns (bool) {
         bytes32 leaf = keccak256(abi.encodePacked(recipient, balance));
         return MerkleProof.verify(proof, periodMerkleRoots[period], leaf);
     }
@@ -76,11 +62,7 @@ contract MerkleRedeem is Ownable, ReentrancyGuard, IEmergency {
         _disburse(recipient, totalBalance);
     }
 
-    function claimStatus(
-        address recipient,
-        uint256 begin,
-        uint256 end
-    ) external view returns (bool[] memory) {
+    function claimStatus(address recipient, uint256 begin, uint256 end) external view returns (bool[] memory) {
         uint256 size = 1 + end - begin;
         bool[] memory arr = new bool[](size);
         for (uint256 i = 0; i < size; ++i) {
@@ -104,11 +86,7 @@ contract MerkleRedeem is Ownable, ReentrancyGuard, IEmergency {
         token.transfer(emergencyRecipient, token.balanceOf(address(this)));
     }
 
-    function seedAllocations(
-        uint256 period,
-        bytes32 merkleRoot,
-        uint256 totalAllocation
-    ) external onlyOwner {
+    function seedAllocations(uint256 period, bytes32 merkleRoot, uint256 totalAllocation) external onlyOwner {
         require(periodMerkleRoots[period] == bytes32(0), "already seed");
 
         periodMerkleRoots[period] = merkleRoot;

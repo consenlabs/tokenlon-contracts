@@ -80,11 +80,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
     /// @param _makerFeeFactor The new fee factor for maker
     /// @param _takerFeeFactor The new fee factor for taker
     /// @param _profitFeeFactor The new fee factor for relayer profit
-    function setFactors(
-        uint16 _makerFeeFactor,
-        uint16 _takerFeeFactor,
-        uint16 _profitFeeFactor
-    ) external onlyOwner {
+    function setFactors(uint16 _makerFeeFactor, uint16 _takerFeeFactor, uint16 _profitFeeFactor) external onlyOwner {
         require(_makerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid maker fee factor");
         require(_takerFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid taker fee factor");
         require(_profitFeeFactor <= LibConstant.BPS_MAX, "LimitOrder: Invalid profit fee factor");
@@ -455,11 +451,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
 
     /* order utils */
 
-    function _validateOrder(
-        LimitOrderLibEIP712.Order memory _order,
-        bytes32 _orderHash,
-        bytes memory _orderMakerSig
-    ) internal view {
+    function _validateOrder(LimitOrderLibEIP712.Order memory _order, bytes32 _orderHash, bytes memory _orderMakerSig) internal view {
         require(_order.expiry > uint64(block.timestamp), "LimitOrder: Order is expired");
         bool isCancelled = LibOrderStorage.getStorage().orderHashToCancelled[_orderHash];
         require(!isCancelled, "LimitOrder: Order is cancelled");
@@ -477,15 +469,7 @@ contract LimitOrder is ILimitOrder, StrategyBase, BaseLibEIP712, SignatureValida
         LimitOrderLibEIP712.Order memory _order,
         bytes32 _orderHash,
         uint256 _takerTokenAmount
-    )
-        internal
-        view
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) internal view returns (uint256, uint256, uint256) {
         uint256 takerTokenFilledAmount = LibOrderStorage.getStorage().orderHashToTakerTokenFilledAmount[_orderHash];
 
         require(takerTokenFilledAmount < _order.takerTokenAmount, "LimitOrder: Order is filled");

@@ -111,14 +111,7 @@ contract TestLONStakingStakeWithPermit is TestLONStaking {
             );
     }
 
-    function _signStakeWithPermit(uint256 privateKey, StakeWithPermit memory stakeWithPermit)
-        internal
-        returns (
-            uint8,
-            bytes32,
-            bytes32
-        )
-    {
+    function _signStakeWithPermit(uint256 privateKey, StakeWithPermit memory stakeWithPermit) internal returns (uint8, bytes32, bytes32) {
         bytes32 stakeWithPermitHash = _getStakeWithPermitHash(stakeWithPermit);
         bytes32 EIP712SignDigest = getEIP712Hash(lon.DOMAIN_SEPARATOR(), stakeWithPermitHash);
 

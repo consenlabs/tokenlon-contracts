@@ -56,12 +56,7 @@ contract SignatureValidator {
      *      (bytes32 r, bytes32 s, uint8 v, uint256 nonce, SignatureType sigType)
      * @return isValid True if the address recovered from the provided signature matches the input signer address.
      */
-    function isValidSignature(
-        address _signerAddress,
-        bytes32 _hash,
-        bytes memory _data,
-        bytes memory _sig
-    ) public view returns (bool isValid) {
+    function isValidSignature(address _signerAddress, bytes32 _hash, bytes memory _data, bytes memory _sig) public view returns (bool isValid) {
         require(_sig.length > 0, "SignatureValidator#isValidSignature: length greater than 0 required");
 
         require(_signerAddress != address(0x0), "SignatureValidator#isValidSignature: invalid signer");
@@ -137,11 +132,7 @@ contract SignatureValidator {
     ///                      and defines its own signature verification method.
     /// @param signature Proof that the hash has been signed by signer.
     /// @return isValid True if signature is valid for given wallet..
-    function isValidWalletSignature(
-        bytes32 hash,
-        address walletAddress,
-        bytes memory signature
-    ) internal view returns (bool isValid) {
+    function isValidWalletSignature(bytes32 hash, address walletAddress, bytes memory signature) internal view returns (bool isValid) {
         bytes memory _calldata = abi.encodeWithSelector(IWallet(walletAddress).isValidSignature.selector, hash, signature);
         bytes32 magic_salt = bytes32(bytes4(keccak256("isValidWalletSignature(bytes32,address,bytes)")));
         assembly {

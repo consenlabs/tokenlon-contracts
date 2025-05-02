@@ -93,11 +93,7 @@ contract RFQ is IRFQ, StrategyBase, ReentrancyGuard, SignatureValidator, BaseLib
         return _settle(_order, vars);
     }
 
-    function _emitFillOrder(
-        RFQLibEIP712.Order memory _order,
-        GroupedVars memory _vars,
-        uint256 settleAmount
-    ) internal {
+    function _emitFillOrder(RFQLibEIP712.Order memory _order, GroupedVars memory _vars, uint256 settleAmount) internal {
         emit FillOrder(
             SOURCE,
             _vars.transactionHash,

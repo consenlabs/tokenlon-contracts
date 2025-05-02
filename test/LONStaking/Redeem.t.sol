@@ -287,11 +287,7 @@ contract TestLONStakingRedeem is TestLONStaking {
         }
     }
 
-    function testFuzz_RedeemMultipleOneTimeWithBuyback(
-        uint256[16] memory stakeAmounts,
-        uint256[16] memory redeemAmounts,
-        uint256 buybackAmount
-    ) public {
+    function testFuzz_RedeemMultipleOneTimeWithBuyback(uint256[16] memory stakeAmounts, uint256[16] memory redeemAmounts, uint256 buybackAmount) public {
         // Make initial big enough deposit so LON amount will not increase dramatically relative to xLON amount due to buyback
         // and hence result in later staker getting zero shares
         lon.mint(makeAddr("initial_depositor"), 10_000_000e18);

@@ -17,14 +17,7 @@ contract TreasuryVester {
 
     uint256 public lastUpdate;
 
-    constructor(
-        address _lon,
-        address _recipient,
-        uint256 _vestingAmount,
-        uint256 _vestingBegin,
-        uint256 _vestingCliff,
-        uint256 _vestingEnd
-    ) {
+    constructor(address _lon, address _recipient, uint256 _vestingAmount, uint256 _vestingBegin, uint256 _vestingCliff, uint256 _vestingEnd) {
         require(_vestingAmount > 0, "vesting amount is zero");
         require(_vestingBegin >= block.timestamp, "vesting begin too early");
         require(_vestingCliff >= _vestingBegin, "cliff is too early");

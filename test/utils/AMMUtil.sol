@@ -9,11 +9,7 @@ function _encodeUniswapSinglePoolData(uint256 swapType, uint24 poolFee) pure ret
     return abi.encode(swapType, poolFee);
 }
 
-function _encodeUniswapMultiPoolData(
-    uint256 swapType,
-    address[] memory path,
-    uint24[] memory poolFees
-) pure returns (bytes memory) {
+function _encodeUniswapMultiPoolData(uint256 swapType, address[] memory path, uint24[] memory poolFees) pure returns (bytes memory) {
     return abi.encode(swapType, encodePath(path, poolFees));
 }
 

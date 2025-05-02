@@ -114,11 +114,7 @@ contract RFQv2 is IRFQv2, StrategyBase, TokenCollector, SignatureValidator, Base
         _emitFilledRFQEvent(offerHash, order, makerTokenToTaker);
     }
 
-    function _emitFilledRFQEvent(
-        bytes32 _offerHash,
-        RFQOrder calldata _rfqOrder,
-        uint256 _makerTokenToTaker
-    ) internal {
+    function _emitFilledRFQEvent(bytes32 _offerHash, RFQOrder calldata _rfqOrder, uint256 _makerTokenToTaker) internal {
         emit FilledRFQ(
             _offerHash,
             _rfqOrder.offer.taker,

@@ -224,11 +224,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         return amounts[amounts.length - 1];
     }
 
-    function _validateAMMPath(
-        address[] memory _path,
-        address _takerAssetAddr,
-        address _makerAssetAddr
-    ) internal pure {
+    function _validateAMMPath(address[] memory _path, address _takerAssetAddr, address _makerAssetAddr) internal pure {
         require(_path.length >= 2, "AMMWrapper: path length must be at least two");
         require(_path[0] == _takerAssetAddr, "AMMWrapper: first element of path must match taker asset");
         require(_path[_path.length - 1] == _makerAssetAddr, "AMMWrapper: last element of path must match maker asset");
@@ -341,11 +337,7 @@ contract AMMWrapperWithPath is IAMMWrapperWithPath, AMMWrapper {
         return swapSteps;
     }
 
-    function _buildBalancerV2Limits(
-        address[] memory _path,
-        uint256 _takerAssetAmount,
-        uint256 _makerAssetAmount
-    ) internal pure returns (int256[] memory) {
+    function _buildBalancerV2Limits(address[] memory _path, uint256 _takerAssetAmount, uint256 _makerAssetAmount) internal pure returns (int256[] memory) {
         int256[] memory limits = new int256[](_path.length);
         // amount swapped in to balancer will denoted with positive sign
         limits[0] = int256(_takerAssetAmount);

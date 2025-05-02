@@ -130,12 +130,7 @@ contract AMMQuoter {
         return _getCurveMakerOutAmount(vars, curveVersion, fromTokenCurveIndex, toTokenCurveIndex, swapMethod);
     }
 
-    function getMakerOutAmount(
-        address _makerAddr,
-        address _takerAssetAddr,
-        address _makerAssetAddr,
-        uint256 _takerAssetAmount
-    ) public view returns (uint256) {
+    function getMakerOutAmount(address _makerAddr, address _takerAssetAddr, address _makerAssetAddr, uint256 _takerAssetAmount) public view returns (uint256) {
         uint256 makerAssetAmount;
         if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) {
             IUniswapRouterV2 router = IUniswapRouterV2(_makerAddr);
@@ -284,12 +279,7 @@ contract AMMQuoter {
         return _getCurveTakerInAmount(vars, curveVersion, fromTokenCurveIndex, toTokenCurveIndex, swapMethod, supportGetDx);
     }
 
-    function getTakerInAmount(
-        address _makerAddr,
-        address _takerAssetAddr,
-        address _makerAssetAddr,
-        uint256 _makerAssetAmount
-    ) public view returns (uint256) {
+    function getTakerInAmount(address _makerAddr, address _takerAssetAddr, address _makerAssetAddr, uint256 _makerAssetAmount) public view returns (uint256) {
         uint256 takerAssetAmount;
         if (_makerAddr == UNISWAP_V2_ROUTER_02_ADDRESS || _makerAddr == SUSHISWAP_ROUTER_ADDRESS) {
             IUniswapRouterV2 router = IUniswapRouterV2(_makerAddr);
@@ -348,7 +338,7 @@ contract AMMQuoter {
         address _makerAssetAddr,
         uint256 _makerAssetAmount
     ) external view returns (address bestMaker, uint256 bestAmount) {
-        bestAmount = 2**256 - 1;
+        bestAmount = 2 ** 256 - 1;
         uint256 poolLength = _makerAddresses.length;
         for (uint256 i = 0; i < poolLength; ++i) {
             address makerAddress = _makerAddresses[i];

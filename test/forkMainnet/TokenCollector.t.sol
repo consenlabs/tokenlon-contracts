@@ -13,13 +13,7 @@ import { StrategySharedSetup } from "test/utils/StrategySharedSetup.sol";
 contract Strategy is TokenCollector {
     constructor(address _uniswapPermit2, address _tokenlonSpender) TokenCollector(_uniswapPermit2, _tokenlonSpender) {}
 
-    function collect(
-        address token,
-        address from,
-        address to,
-        uint256 amount,
-        bytes calldata data
-    ) external {
+    function collect(address token, address from, address to, uint256 amount, bytes calldata data) external {
         _collect(token, from, to, amount, data);
     }
 }
@@ -126,12 +120,7 @@ contract TestTokenCollector is StrategySharedSetup, Permit2Helper {
         return keccak256(abi.encodePacked("\x19\x01", tokenWithPermit.DOMAIN_SEPARATOR(), structHash));
     }
 
-    function encodeTokenPermitData(
-        TokenPermit memory permit,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) private pure returns (bytes memory) {
+    function encodeTokenPermitData(TokenPermit memory permit, uint8 v, bytes32 r, bytes32 s) private pure returns (bytes memory) {
         return abi.encodePacked(TokenCollector.Source.TokenPermit, abi.encode(permit.owner, permit.spender, permit.amount, permit.deadline, v, r, s));
     }
 

@@ -60,11 +60,7 @@ contract PermanentStorage is IPermanentStorage {
     }
 
     /// @dev Set permission for entity to write certain storage.
-    function setPermission(
-        bytes32 _storageId,
-        address _role,
-        bool _enabled
-    ) external onlyOperator {
+    function setPermission(bytes32 _storageId, address _role, bool _enabled) external onlyOperator {
         if (_enabled) {
             require(
                 (_role == operator) || (_role == ammWrapperAddr()) || (_role == rfqAddr()) || (_role == rfqv2Addr()) || (_role == limitOrderAddr()),
@@ -124,17 +120,7 @@ contract PermanentStorage is IPermanentStorage {
         address _makerAddr,
         address _takerAssetAddr,
         address _makerAssetAddr
-    )
-        external
-        view
-        override
-        returns (
-            int128 takerAssetIndex,
-            int128 makerAssetIndex,
-            uint16 swapMethod,
-            bool supportGetDx
-        )
-    {
+    ) external view override returns (int128 takerAssetIndex, int128 makerAssetIndex, uint16 swapMethod, bool supportGetDx) {
         // underlying_coins
         int128 i = AMMWrapperStorage.getStorage().curveTokenIndexes[_makerAddr][_takerAssetAddr];
         int128 j = AMMWrapperStorage.getStorage().curveTokenIndexes[_makerAddr][_makerAssetAddr];

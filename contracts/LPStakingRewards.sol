@@ -39,13 +39,7 @@ contract LPStakingRewards is ILPStakingRewards, ReentrancyGuard, IEmergency {
         _;
     }
 
-    constructor(
-        address _emergencyRecipient,
-        address _rewardsDistribution,
-        address _rewardsToken,
-        address _lpToken,
-        uint256 _rewardsDuration
-    ) {
+    constructor(address _emergencyRecipient, address _rewardsDistribution, address _rewardsToken, address _lpToken, uint256 _rewardsDuration) {
         require(_rewardsDuration > 0, "rewards duration is 0");
 
         emergencyRecipient = _emergencyRecipient;
@@ -82,13 +76,7 @@ contract LPStakingRewards is ILPStakingRewards, ReentrancyGuard, IEmergency {
         return rewardRate.mul(rewardsDuration);
     }
 
-    function stakeWithPermit(
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external nonReentrant updateReward(msg.sender) {
+    function stakeWithPermit(uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external nonReentrant updateReward(msg.sender) {
         require(amount > 0, "cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);

@@ -83,14 +83,7 @@ contract TestLONStakingPermit is TestLONStaking {
      *          Test Helpers         *
      *********************************/
 
-    function _signPermit(uint256 privateKey, Permit memory permit)
-        internal
-        returns (
-            uint8,
-            bytes32,
-            bytes32
-        )
-    {
+    function _signPermit(uint256 privateKey, Permit memory permit) internal returns (uint8, bytes32, bytes32) {
         bytes32 permitHash = _getPermitHash(permit);
         bytes32 EIP712SignDigest = getEIP712Hash(lonStaking.DOMAIN_SEPARATOR(), permitHash);
 
