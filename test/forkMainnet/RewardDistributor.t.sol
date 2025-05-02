@@ -852,34 +852,24 @@ contract RewardDistributorTest is Addresses {
         miningTreasuryLON.assertChange(int256(lonToMiningTreasury));
     }
 
-    function _splitBuyback(SetFeeTokenParams memory feeToken, uint256 buybackAmount)
-        internal
-        pure
-        returns (uint256 buybackToFeeRecipient, uint256 buybackToSwap)
-    {
+    function _splitBuyback(
+        SetFeeTokenParams memory feeToken,
+        uint256 buybackAmount
+    ) internal pure returns (uint256 buybackToFeeRecipient, uint256 buybackToSwap) {
         buybackToFeeRecipient = buybackAmount.mul(feeToken.LFactor).div(100);
         buybackToSwap = buybackAmount.sub(buybackToFeeRecipient);
     }
 
-    function _splitBuybackLON(SetFeeTokenParams memory feeToken, uint256 lonAmount)
-        internal
-        view
-        returns (
-            uint256 lonToTreasury,
-            uint256 lonToStaking,
-            uint256 lonToMiningTreasury
-        )
-    {
+    function _splitBuybackLON(
+        SetFeeTokenParams memory feeToken,
+        uint256 lonAmount
+    ) internal view returns (uint256 lonToTreasury, uint256 lonToStaking, uint256 lonToMiningTreasury) {
         lonToTreasury = lonAmount.mul(feeToken.RFactor).div(100);
         lonToStaking = lonAmount.sub(lonToTreasury);
         lonToMiningTreasury = lonAmount.mul(rewardDistributor.miningFactor()).div(100);
     }
 
-    function _expectBuybackEvent(
-        SetFeeTokenParams memory feeToken,
-        uint256 swapAmount,
-        uint256 lonAmount
-    ) internal {
+    function _expectBuybackEvent(SetFeeTokenParams memory feeToken, uint256 swapAmount, uint256 lonAmount) internal {
         vm.expectEmit(true, true, true, true);
         emit BuyBack(feeToken.feeTokenAddr, swapAmount, lonAmount, feeToken.LFactor, feeToken.RFactor, feeToken.minBuy, feeToken.maxBuy);
     }

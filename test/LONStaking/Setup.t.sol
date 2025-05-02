@@ -115,14 +115,7 @@ contract TestLONStaking is Test {
         uint256[16] memory buybackAmounts,
         uint256 minStakeAmount,
         uint256 totalLONAmount
-    )
-        internal
-        returns (
-            uint256[16] memory boundedStakeAmounts,
-            uint256[16] memory boundedBuybackAmounts,
-            uint256 newTotalLONAmount
-        )
-    {
+    ) internal returns (uint256[16] memory boundedStakeAmounts, uint256[16] memory boundedBuybackAmounts, uint256 newTotalLONAmount) {
         newTotalLONAmount = totalLONAmount;
         for (uint256 i = 0; i < stakeAmounts.length; i++) {
             uint256 numStakeAmountLeft = stakeAmounts.length - i - 1;

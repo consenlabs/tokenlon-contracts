@@ -2,8 +2,10 @@
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ECDSA } from "@openzeppelin/contracts/cryptography/ECDSA.sol";
 
+import { MockERC7702Wallet } from "test/mocks/MockERC7702Wallet.sol";
 import { StrategySharedSetup } from "test/utils/StrategySharedSetup.sol";
 import { BalanceSnapshot } from "test/utils/BalanceSnapshot.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
@@ -19,6 +21,7 @@ import { IUniswapPermit2 } from "contracts/interfaces/IUniswapPermit2.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 contract RFQTest is StrategySharedSetup, Permit2Helper {
+    using Address for address;
     using BalanceSnapshot for BalanceSnapshot.Snapshot;
 
     event FilledRFQ(
@@ -50,6 +53,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
     Offer defaultOffer;
     RFQOrder defaultOrder;
     MarketMakerProxy marketMakerProxy;
+    MockERC7702Wallet mockERC7702Wallet;
     RFQv2 rfq;
 
     function setUp() public {
@@ -61,6 +65,7 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         recipient = payable(address(rfq));
 
         marketMakerProxy = new MarketMakerProxy(maker, maker, IWETH(address(weth)));
+        mockERC7702Wallet = new MockERC7702Wallet();
 
         deal(maker, 100 ether);
         setEOABalanceAndApprove(maker, tokens, 100000);
@@ -265,6 +270,95 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         recMakerToken.assertChange(int256(offer.makerTokenAmount));
     }
 
+    function testFillRFQWithEIP7702WalletAndERC1271Signature() public {
+        BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.takerToken });
+        BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.makerToken });
+        BalanceSnapshot.Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOffer.maker, token: defaultOffer.takerToken });
+        BalanceSnapshot.Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.maker, token: defaultOffer.makerToken });
+        BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.takerToken });
+        BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.makerToken });
+        BalanceSnapshot.Snapshot memory feeCollectorMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOffer.makerToken });
+
+        uint256 fee = (defaultOffer.makerTokenAmount * defaultOffer.feeFactor) / LibConstant.BPS_MAX;
+        uint256 amountAfterFee = defaultOffer.makerTokenAmount - fee;
+        vm.expectEmit(true, true, true, true);
+        emit FilledRFQ(
+            getOfferHash(defaultOffer),
+            defaultOffer.taker,
+            defaultOffer.maker,
+            defaultOffer.takerToken,
+            defaultOffer.takerTokenAmount,
+            defaultOffer.makerToken,
+            defaultOffer.makerTokenAmount,
+            defaultOrder.recipient,
+            amountAfterFee,
+            defaultOffer.feeFactor
+        );
+
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, defaultOrder, SignatureValidator.SignatureType.WalletBytes32);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, takerSig, defaultPermit);
+
+        vm.signAndAttachDelegation(address(mockERC7702Wallet), takerPrivateKey);
+        require(defaultOffer.taker.isContract(), "no code written to taker");
+
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
+        userProxy.toRFQv2(payload);
+
+        takerTakerToken.assertChange(-int256(defaultOffer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(defaultOffer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(defaultOffer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        // recipient gets less than original makerTokenAmount because of the fee for relayer
+        recMakerToken.assertChange(int256(amountAfterFee));
+        feeCollectorMakerToken.assertChange(int256(fee));
+    }
+
+    function testFillRFQWithEIP7702WalletAndERC712Signature() public {
+        BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.takerToken });
+        BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.taker, token: defaultOffer.makerToken });
+        BalanceSnapshot.Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: defaultOffer.maker, token: defaultOffer.takerToken });
+        BalanceSnapshot.Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: defaultOffer.maker, token: defaultOffer.makerToken });
+        BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.takerToken });
+        BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: defaultOffer.makerToken });
+        BalanceSnapshot.Snapshot memory feeCollectorMakerToken = BalanceSnapshot.take({ owner: feeCollector, token: defaultOffer.makerToken });
+
+        uint256 fee = (defaultOffer.makerTokenAmount * defaultOffer.feeFactor) / LibConstant.BPS_MAX;
+        uint256 amountAfterFee = defaultOffer.makerTokenAmount - fee;
+        vm.expectEmit(true, true, true, true);
+        emit FilledRFQ(
+            getOfferHash(defaultOffer),
+            defaultOffer.taker,
+            defaultOffer.maker,
+            defaultOffer.takerToken,
+            defaultOffer.takerTokenAmount,
+            defaultOffer.makerToken,
+            defaultOffer.makerTokenAmount,
+            defaultOrder.recipient,
+            amountAfterFee,
+            defaultOffer.feeFactor
+        );
+
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, defaultOrder, SignatureValidator.SignatureType.EIP712);
+        bytes memory payload = _genFillRFQPayload(defaultOrder, defaultMakerSig, defaultPermit, takerSig, defaultPermit);
+
+        vm.signAndAttachDelegation(address(mockERC7702Wallet), takerPrivateKey);
+        // Verify that taker's account now behaves as a smart contract.
+        require(defaultOffer.taker.isContract(), "no code written to taker");
+
+        vm.prank(defaultOffer.taker, defaultOffer.taker);
+        userProxy.toRFQv2(payload);
+
+        takerTakerToken.assertChange(-int256(defaultOffer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(defaultOffer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(defaultOffer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        // recipient gets less than original makerTokenAmount because of the fee for relayer
+        recMakerToken.assertChange(int256(amountAfterFee));
+        feeCollectorMakerToken.assertChange(int256(fee));
+    }
+
     function testFillRFQWithRawETH() public {
         // case : taker token is ETH
         Offer memory offer = defaultOffer;
@@ -296,6 +390,42 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         recMakerToken.assertChange(int256(offer.makerTokenAmount));
     }
 
+    function testFillRFQWithEIP7702WalletAndRawETH() public {
+        // case : taker token is ETH
+        Offer memory offer = defaultOffer;
+        offer.takerToken = LibConstant.ZERO_ADDRESS;
+        offer.takerTokenAmount = 1 ether;
+        offer.feeFactor = 0;
+        RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient) });
+
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+
+        BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
+        // maker should receive WETH instead
+        BalanceSnapshot.Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: offer.maker, token: address(weth) });
+        BalanceSnapshot.Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.makerToken });
+        BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.makerToken });
+
+        bytes memory payload = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
+
+        vm.signAndAttachDelegation(address(mockERC7702Wallet), takerPrivateKey);
+        // Verify that taker's account now behaves as a smart contract.
+        require(offer.taker.isContract(), "no code written to taker");
+
+        vm.prank(offer.taker, offer.taker);
+        userProxy.toRFQv2{ value: offer.takerTokenAmount }(payload);
+
+        takerTakerToken.assertChange(-int256(offer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(offer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(offer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(offer.makerTokenAmount));
+    }
+
     function testFillRFQTakerGetRawETH() public {
         // case : maker token is WETH
         Offer memory offer = defaultOffer;
@@ -316,6 +446,42 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: LibConstant.ETH_ADDRESS });
 
         bytes memory payload = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
+        vm.prank(offer.taker, offer.taker);
+        userProxy.toRFQv2(payload);
+
+        takerTakerToken.assertChange(-int256(offer.takerTokenAmount));
+        takerMakerToken.assertChange(int256(0));
+        makerTakerToken.assertChange(int256(offer.takerTokenAmount));
+        makerMakerToken.assertChange(-int256(offer.makerTokenAmount));
+        recTakerToken.assertChange(int256(0));
+        recMakerToken.assertChange(int256(offer.makerTokenAmount));
+    }
+
+    function testFillRFQWithEIP7702TakerGetRawETH() public {
+        // case : maker token is WETH
+        Offer memory offer = defaultOffer;
+        offer.makerToken = address(weth);
+        offer.makerTokenAmount = 1 ether;
+        offer.feeFactor = 0;
+        RFQOrder memory rfqOrder = RFQOrder({ offer: offer, recipient: payable(recipient) });
+
+        bytes memory makerSig = _signOffer(makerPrivateKey, offer, SignatureValidator.SignatureType.EIP712);
+        bytes memory takerSig = _signRFQOrder(takerPrivateKey, rfqOrder, SignatureValidator.SignatureType.EIP712);
+
+        BalanceSnapshot.Snapshot memory takerTakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory takerMakerToken = BalanceSnapshot.take({ owner: offer.taker, token: offer.makerToken });
+        BalanceSnapshot.Snapshot memory makerTakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory makerMakerToken = BalanceSnapshot.take({ owner: offer.maker, token: offer.makerToken });
+        // recipient should receive raw ETH
+        BalanceSnapshot.Snapshot memory recTakerToken = BalanceSnapshot.take({ owner: recipient, token: offer.takerToken });
+        BalanceSnapshot.Snapshot memory recMakerToken = BalanceSnapshot.take({ owner: recipient, token: LibConstant.ETH_ADDRESS });
+
+        bytes memory payload = _genFillRFQPayload(rfqOrder, makerSig, defaultPermit, takerSig, defaultPermit);
+
+        vm.signAndAttachDelegation(address(mockERC7702Wallet), takerPrivateKey);
+        // Verify that taker's account now behaves as a smart contract.
+        require(offer.taker.isContract(), "no code written to taker");
+
         vm.prank(offer.taker, offer.taker);
         userProxy.toRFQv2(payload);
 
@@ -487,31 +653,19 @@ contract RFQTest is StrategySharedSetup, Permit2Helper {
         userProxy.toRFQv2(payload);
     }
 
-    function _signOffer(
-        uint256 _privateKey,
-        Offer memory _offer,
-        SignatureValidator.SignatureType _sigType
-    ) private view returns (bytes memory sig) {
+    function _signOffer(uint256 _privateKey, Offer memory _offer, SignatureValidator.SignatureType _sigType) private view returns (bytes memory sig) {
         bytes32 offerHash = getOfferHash(_offer);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), offerHash);
         return _signEIP712Digest(_privateKey, EIP712SignDigest, _sigType);
     }
 
-    function _signRFQOrder(
-        uint256 _privateKey,
-        RFQOrder memory _rfqOrder,
-        SignatureValidator.SignatureType _sigType
-    ) private view returns (bytes memory sig) {
+    function _signRFQOrder(uint256 _privateKey, RFQOrder memory _rfqOrder, SignatureValidator.SignatureType _sigType) private view returns (bytes memory sig) {
         (, bytes32 rfqOrderHash) = getRFQOrderHash(_rfqOrder);
         bytes32 EIP712SignDigest = getEIP712Hash(rfq.EIP712_DOMAIN_SEPARATOR(), rfqOrderHash);
         return _signEIP712Digest(_privateKey, EIP712SignDigest, _sigType);
     }
 
-    function _signEIP712Digest(
-        uint256 _privateKey,
-        bytes32 _digest,
-        SignatureValidator.SignatureType _sigType
-    ) internal pure returns (bytes memory) {
+    function _signEIP712Digest(uint256 _privateKey, bytes32 _digest, SignatureValidator.SignatureType _sigType) internal pure returns (bytes memory) {
         if (
             _sigType == SignatureValidator.SignatureType.EIP712 ||
             _sigType == SignatureValidator.SignatureType.WalletBytes ||

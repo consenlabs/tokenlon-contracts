@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
+pragma abicoder v2;
 
 import "contracts/AMMWrapper.sol";
 import "contracts/AMMQuoter.sol";
@@ -141,11 +142,7 @@ contract TestAMMWrapper is StrategySharedSetup {
         sig = abi.encodePacked(r, s, v, bytes32(0), uint8(2));
     }
 
-    function _genTradePayload(
-        AMMLibEIP712.Order memory order,
-        uint256 feeFactor,
-        bytes memory sig
-    ) internal pure returns (bytes memory payload) {
+    function _genTradePayload(AMMLibEIP712.Order memory order, uint256 feeFactor, bytes memory sig) internal pure returns (bytes memory payload) {
         return
             abi.encodeWithSignature(
                 "trade(address,address,address,uint256,uint256,uint256,address,address,uint256,uint256,bytes)",

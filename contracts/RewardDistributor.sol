@@ -329,11 +329,7 @@ contract RewardDistributor is Ownable, Pausable {
         }
     }
 
-    function _transferFeeToken(
-        address _feeTokenAddr,
-        address _transferTo,
-        uint256 _totalFeeTokenAmount
-    ) internal {
+    function _transferFeeToken(address _feeTokenAddr, address _transferTo, uint256 _totalFeeTokenAmount) internal {
         address strategyAddr;
         uint256 balanceInStrategy;
         uint256 amountToTransferFrom;
@@ -406,13 +402,7 @@ contract RewardDistributor is Ownable, Pausable {
         }
     }
 
-    function _buyback(
-        address _feeTokenAddr,
-        FeeToken storage _feeToken,
-        address _exchangeAddr,
-        uint256 _amountFeeTokenToSwap,
-        uint256 _minLonAmount
-    ) internal {
+    function _buyback(address _feeTokenAddr, FeeToken storage _feeToken, address _exchangeAddr, uint256 _amountFeeTokenToSwap, uint256 _minLonAmount) internal {
         if (_amountFeeTokenToSwap > 0) {
             uint256 swappedLonAmount = _swap(_feeTokenAddr, _exchangeAddr, _feeToken.path, _amountFeeTokenToSwap, _minLonAmount);
 
@@ -429,11 +419,7 @@ contract RewardDistributor is Ownable, Pausable {
     /************************************************************
      *                   External functions                      *
      *************************************************************/
-    function buyback(
-        address _feeTokenAddr,
-        uint256 _amount,
-        uint256 _minLonAmount
-    ) external whenNotPaused only_EOA_or_Self {
+    function buyback(address _feeTokenAddr, uint256 _amount, uint256 _minLonAmount) external whenNotPaused only_EOA_or_Self {
         FeeToken storage feeToken = feeTokens[_feeTokenAddr];
 
         // Distribute LON directly without swap
@@ -472,11 +458,7 @@ contract RewardDistributor is Ownable, Pausable {
         }
     }
 
-    function batchBuyback(
-        address[] calldata _feeTokenAddr,
-        uint256[] calldata _amount,
-        uint256[] calldata _minLonAmount
-    ) external whenNotPaused only_EOA {
+    function batchBuyback(address[] calldata _feeTokenAddr, uint256[] calldata _amount, uint256[] calldata _minLonAmount) external whenNotPaused only_EOA {
         uint256 inputLength = _feeTokenAddr.length;
         require((_amount.length == inputLength) && (_minLonAmount.length == inputLength), "input not the same length");
 

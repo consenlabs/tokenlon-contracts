@@ -36,11 +36,7 @@ contract SpenderSimulation {
     /// @param _user The user to spend token from.
     /// @param _tokenAddr The address of the token.
     /// @param _amount Amount to spend.
-    function simulate(
-        address _user,
-        address _tokenAddr,
-        uint256 _amount
-    ) external checkBlackList(_tokenAddr, _user) {
+    function simulate(address _user, address _tokenAddr, uint256 _amount) external checkBlackList(_tokenAddr, _user) {
         spender.spendFromUser(_user, _tokenAddr, _amount);
 
         // All checks passed: revert with success reason string

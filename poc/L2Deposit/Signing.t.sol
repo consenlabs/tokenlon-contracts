@@ -29,11 +29,7 @@ contract TestL2DepositWrapperSigning is StrategySharedSetup {
         require(keccak256(sig) == keccak256(expectedSig), "Not expected L2Deposit sig");
     }
 
-    function _signL2Deposit(
-        address l2DepositAddr,
-        uint256 privateKey,
-        L2DepositLibEIP712.Deposit memory deposit
-    ) internal returns (bytes memory sig) {
+    function _signL2Deposit(address l2DepositAddr, uint256 privateKey, L2DepositLibEIP712.Deposit memory deposit) internal returns (bytes memory sig) {
         bytes32 depositHash = L2DepositLibEIP712._getDepositHash(deposit);
         bytes32 EIP712SignDigest = getEIP712Hash(computeMainnetEIP712DomainSeparator(l2DepositAddr), depositHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, EIP712SignDigest);

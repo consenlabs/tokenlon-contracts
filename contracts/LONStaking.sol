@@ -44,12 +44,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
 
     /* ========== CONSTRUCTOR ========== */
 
-    function initialize(
-        ILon _lonToken,
-        address _owner,
-        uint256 _COOLDOWN_IN_DAYS,
-        uint256 _BPS_RAGE_EXIT_PENALTY
-    ) external {
+    function initialize(ILon _lonToken, address _owner, uint256 _COOLDOWN_IN_DAYS, uint256 _BPS_RAGE_EXIT_PENALTY) external {
         lonToken = _lonToken;
 
         _initializeOwnable(_owner);
@@ -173,11 +168,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         }
     }
 
-    function _transfer(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) internal override whenNotPaused {
+    function _transfer(address _from, address _to, uint256 _amount) internal override whenNotPaused {
         uint256 balanceOfFrom = balanceOf(_from);
         uint256 balanceOfTo = balanceOf(_to);
         uint256 previousSenderCooldown = stakersCooldowns[_from];
@@ -193,15 +184,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
     }
 
     // EIP-2612 permit standard
-    function permit(
-        address _owner,
-        address _spender,
-        uint256 _value,
-        uint256 _deadline,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s
-    ) external {
+    function permit(address _owner, address _spender, uint256 _value, uint256 _deadline, uint8 _v, bytes32 _r, bytes32 _s) external {
         require(_owner != address(0), "owner is zero address");
         require(block.timestamp <= _deadline || _deadline == 0, "permit expired");
 
@@ -237,13 +220,7 @@ contract LONStaking is ERC20ForUpgradeable, OwnableForUpgradeable, ReentrancyGua
         lonToken.transferFrom(msg.sender, address(this), _amount);
     }
 
-    function stakeWithPermit(
-        uint256 _amount,
-        uint256 _deadline,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s
-    ) public nonReentrant whenNotPaused {
+    function stakeWithPermit(uint256 _amount, uint256 _deadline, uint8 _v, bytes32 _r, bytes32 _s) public nonReentrant whenNotPaused {
         _stake(msg.sender, _amount);
         // Use permit to allow LONStaking contract to transferFrom user
         lonToken.permit(msg.sender, address(this), _amount, _deadline, _v, _r, _s);

@@ -42,9 +42,5 @@ interface IRFQ is IStrategyBase {
     /// @param _mmSignature The signature of the order from maker
     /// @param _userSignature The signature of the order from taker
     /// @return The settled amount of the order
-    function fill(
-        RFQLibEIP712.Order memory _order,
-        bytes memory _mmSignature,
-        bytes memory _userSignature
-    ) external payable returns (uint256);
+    function fill(RFQLibEIP712.Order memory _order, bytes memory _mmSignature, bytes memory _userSignature) external payable returns (uint256);
 }

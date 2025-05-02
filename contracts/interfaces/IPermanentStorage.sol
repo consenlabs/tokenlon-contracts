@@ -33,22 +33,9 @@ interface IPermanentStorage {
         address _makerAddr,
         address _takerAssetAddr,
         address _makerAssetAddr
-    )
-        external
-        view
-        returns (
-            int128 takerAssetIndex,
-            int128 makerAssetIndex,
-            uint16 swapMethod,
-            bool supportGetDx
-        );
+    ) external view returns (int128 takerAssetIndex, int128 makerAssetIndex, uint16 swapMethod, bool supportGetDx);
 
-    function setCurvePoolInfo(
-        address _makerAddr,
-        address[] calldata _underlyingCoins,
-        address[] calldata _coins,
-        bool _supportGetDx
-    ) external;
+    function setCurvePoolInfo(address _makerAddr, address[] calldata _underlyingCoins, address[] calldata _coins, bool _supportGetDx) external;
 
     function isAMMTransactionSeen(bytes32 _transactionHash) external view returns (bool);
 

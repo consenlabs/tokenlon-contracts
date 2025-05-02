@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
+pragma abicoder v2;
 
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -112,11 +113,7 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
         }
     }
 
-    function setEOABalanceAndApprove(
-        address eoa,
-        IERC20[] memory tokens,
-        uint256 amount
-    ) internal {
+    function setEOABalanceAndApprove(address eoa, IERC20[] memory tokens, uint256 amount) internal {
         require(address(allowanceTarget) != address(0), "System contracts not setup yet");
         vm.startPrank(eoa);
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -126,12 +123,7 @@ contract StrategySharedSetup is BalanceUtil, RegisterCurveIndexes {
         vm.stopPrank();
     }
 
-    function setWalletContractBalanceAndApprove(
-        address owner,
-        address walletContract,
-        IERC20[] memory tokens,
-        uint256 amount
-    ) internal {
+    function setWalletContractBalanceAndApprove(address owner, address walletContract, IERC20[] memory tokens, uint256 amount) internal {
         require(address(allowanceTarget) != address(0), "System contracts not setup yet");
         address[] memory tokenAddresses = new address[](tokens.length);
         for (uint256 i = 0; i < tokens.length; i++) {

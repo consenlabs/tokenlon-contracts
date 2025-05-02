@@ -23,13 +23,7 @@ abstract contract StrategyBase is IStrategyBase, Ownable {
     IPermanentStorage public immutable permStorage;
     ISpender public spender;
 
-    constructor(
-        address _owner,
-        address _userProxy,
-        address _weth,
-        address _permStorage,
-        address _spender
-    ) Ownable(_owner) {
+    constructor(address _owner, address _userProxy, address _weth, address _permStorage, address _spender) Ownable(_owner) {
         userProxy = _userProxy;
         weth = IWETH(_weth);
         permStorage = IPermanentStorage(_permStorage);

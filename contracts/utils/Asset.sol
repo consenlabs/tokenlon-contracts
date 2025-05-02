@@ -13,11 +13,7 @@ library Asset {
         return (addr == LibConstant.ETH_ADDRESS || addr == LibConstant.ZERO_ADDRESS);
     }
 
-    function transferTo(
-        address asset,
-        address payable to,
-        uint256 amount
-    ) internal {
+    function transferTo(address asset, address payable to, uint256 amount) internal {
         if (to == address(this)) {
             return;
         }

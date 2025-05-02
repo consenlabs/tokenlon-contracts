@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
+pragma abicoder v2;
 
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -161,12 +162,7 @@ contract TreasuryVesterTest is Test {
         treasuryVester.setRecipient(other);
     }
 
-    function _getVestedAmount(
-        uint256 vestingAmount,
-        uint256 lastUpdate,
-        uint256 beginTimestamp,
-        uint256 endTimestamp
-    ) internal view returns (uint256) {
+    function _getVestedAmount(uint256 vestingAmount, uint256 lastUpdate, uint256 beginTimestamp, uint256 endTimestamp) internal view returns (uint256) {
         return vestingAmount.mul(block.timestamp - lastUpdate).div(endTimestamp.sub(beginTimestamp));
     }
 

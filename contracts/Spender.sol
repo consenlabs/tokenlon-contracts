@@ -159,11 +159,7 @@ contract Spender is ISpender, Ownable {
     /// @param _user The user to spend token from.
     /// @param _tokenAddr The address of the token.
     /// @param _amount Amount to spend.
-    function spendFromUser(
-        address _user,
-        address _tokenAddr,
-        uint256 _amount
-    ) external override onlyAuthorized {
+    function spendFromUser(address _user, address _tokenAddr, uint256 _amount) external override onlyAuthorized {
         require(!tokenBlacklist[_tokenAddr], "Spender: token is blacklisted");
 
         if (_tokenAddr != LibConstant.ETH_ADDRESS && _tokenAddr != LibConstant.ZERO_ADDRESS) {

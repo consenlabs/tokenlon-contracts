@@ -11,6 +11,7 @@
   },
   "scripts": {
     "setup": "yarn install --frozen-lockfile",
+    "format": "prettier --write .",
     "check-pretty": "prettier --check .",
     "lint": "solhint \"contracts/**/*.sol\"",
     "compile": "forge build --force",

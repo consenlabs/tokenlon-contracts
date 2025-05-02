@@ -12,13 +12,7 @@ contract TreasuryVesterFactory {
         lon = _lon;
     }
 
-    function createVester(
-        address recipient,
-        uint256 vestingAmount,
-        uint256 vestingBegin,
-        uint256 vestingCliff,
-        uint256 vestingEnd
-    ) external returns (address) {
+    function createVester(address recipient, uint256 vestingAmount, uint256 vestingBegin, uint256 vestingCliff, uint256 vestingEnd) external returns (address) {
         require(vestingAmount > 0, "vesting amount is zero");
 
         address vester = address(new TreasuryVester(address(lon), recipient, vestingAmount, vestingBegin, vestingCliff, vestingEnd));

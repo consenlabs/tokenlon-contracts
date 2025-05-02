@@ -26,11 +26,7 @@ contract MarketMakerProxy is Ownable {
     address public signer;
     mapping(address => bool) public isWithdrawWhitelist;
 
-    constructor(
-        address _owner,
-        address _signer,
-        IWETH _weth
-    ) Ownable(_owner) {
+    constructor(address _owner, address _signer, IWETH _weth) Ownable(_owner) {
         require(_signer != address(0), "MarketMakerProxy: zero address");
         signer = _signer;
         WETH = _weth;
@@ -70,11 +66,7 @@ contract MarketMakerProxy is Ownable {
         }
     }
 
-    function withdrawToken(
-        address token,
-        address to,
-        uint256 amount
-    ) external onlyOwner {
+    function withdrawToken(address token, address to, uint256 amount) external onlyOwner {
         require(isWithdrawWhitelist[to], "MarketMakerProxy: not in withdraw whitelist");
         IERC20(token).safeTransfer(to, amount);
     }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.6;
+pragma abicoder v2;
 
 import "test/LON/Setup.t.sol";
 import { getEIP712Hash } from "test/utils/Sig.sol";
@@ -88,14 +89,7 @@ contract TestLONPermit is TestLON {
      *          Test Helpers         *
      *********************************/
 
-    function _signPermit(uint256 privateKey, Permit memory permit)
-        internal
-        returns (
-            uint8,
-            bytes32,
-            bytes32
-        )
-    {
+    function _signPermit(uint256 privateKey, Permit memory permit) internal returns (uint8, bytes32, bytes32) {
         bytes32 permitHash = _getPermitHash(permit);
         bytes32 EIP712SignDigest = getEIP712Hash(lon.DOMAIN_SEPARATOR(), permitHash);
 
