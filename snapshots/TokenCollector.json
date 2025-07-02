@@ -1,7 +1,7 @@
 {
-  "collect(): testCollectByAllowanceTarget": "64565",
-  "collect(): testCollectByPermit2AllowanceTransfer": "100762",
-  "collect(): testCollectByPermit2SignatureTransfer": "94003",
-  "collect(): testCollectByTokenApproval": "57170",
-  "collect(): testCollectByTokenPermit": "91054"
+  "collect(): testCollectByAllowanceTarget": "44298",
+  "collect(): testCollectByPermit2AllowanceTransfer": "71796",
+  "collect(): testCollectByPermit2SignatureTransfer": "68053",
+  "collect(): testCollectByTokenApproval": "35424",
+  "collect(): testCollectByTokenPermit": "90883"
 }

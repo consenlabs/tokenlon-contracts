@@ -1,11 +1,11 @@
 {
-  "executeStrategy(): testMultipleAMMs": "607558",
-  "executeStrategy(): testUniswapV2WithWETHUnwrap": "140873",
-  "executeStrategy(): testUniswapV3WithAmountReplace": "159842",
-  "executeStrategy(): testUniswapV3WithMaxAmountReplace": "154811",
-  "executeStrategy(): testUniswapV3WithoutAmountReplace": "152972",
-  "executeStrategy(): testV6LOIntegration": "173538",
-  "executeStrategy(): testV6RFQIntegration": "177215",
-  "executeStrategy(): testV6RFQIntegrationWhenMakerTokenIsETH": "144660",
-  "executeStrategy(): testV6RFQIntegrationWhenTakerTokenIsETH": "165683"
+  "executeStrategy(): testMultipleAMMs": "578554",
+  "executeStrategy(): testUniswapV2WithWETHUnwrap": "123073",
+  "executeStrategy(): testUniswapV3WithAmountReplace": "114182",
+  "executeStrategy(): testUniswapV3WithMaxAmountReplace": "113726",
+  "executeStrategy(): testUniswapV3WithoutAmountReplace": "111675",
+  "executeStrategy(): testV6LOIntegration": "169549",
+  "executeStrategy(): testV6RFQIntegration": "170773",
+  "executeStrategy(): testV6RFQIntegrationWhenMakerTokenIsETH": "143277",
+  "executeStrategy(): testV6RFQIntegrationWhenTakerTokenIsETH": "193658"
 }

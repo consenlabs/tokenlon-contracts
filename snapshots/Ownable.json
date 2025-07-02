@@ -1,5 +1,5 @@
 {
-  "acceptOwnership(): testAcceptOwnership": "28029",
-  "nominateNewOwner(): testNominateNewOwner": "46965",
-  "renounceOwnership(): testRenounceOwnership": "25105"
+  "acceptOwnership(): testAcceptOwnership": "5634",
+  "nominateNewOwner(): testNominateNewOwner": "25920",
+  "renounceOwnership(): testRenounceOwnership": "9241"
 }

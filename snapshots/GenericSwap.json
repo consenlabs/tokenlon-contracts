@@ -1,9 +1,11 @@
 {
-  "executeSwap(): testGenericSwapWithUniswap": "248141",
-  "executeSwap(): testLeaveOneWeiWithMultipleUsers(the first deposit)": "248141",
-  "executeSwap(): testLeaveOneWeiWithMultipleUsers(the second deposit)": "204495",
-  "executeSwap(): testSwapWithETHInput": "97813",
-  "executeSwap(): testSwapWithETHOutput": "127973",
-  "executeSwap(): testSwapWithLessOutputButWithinTolerance": "157429",
-  "executeSwapWithSig(): testGenericSwapRelayed": "279472"
+  "addSolver(): testAddSolver": "26392",
+  "executeSwap(): testGenericSwapWithUniswap": "240706",
+  "executeSwap(): testLeaveOneWeiWithMultipleUsers(the first deposit)": "234706",
+  "executeSwap(): testLeaveOneWeiWithMultipleUsers(the second deposit)": "143860",
+  "executeSwap(): testSwapWithETHInput": "61310",
+  "executeSwap(): testSwapWithETHOutput": "89483",
+  "executeSwap(): testSwapWithLessOutputButWithinTolerance": "117249",
+  "executeSwapWithSig(): testGenericSwapRelayed": "270770",
+  "removeSolver(): testRemoveSolver": "9261"
 }

@@ -8,6 +8,14 @@ import { GenericSwapData } from "../libraries/GenericSwapData.sol";
 /// @notice Interface for a generic swap contract.
 /// @dev This interface defines functions and events related to executing swaps and handling swap errors.
 interface IGenericSwap {
+    /// @notice Emitted when a new solver is added to the contract.
+    /// @param solver The address of the solver being added.
+    event AddSolver(address indexed solver);
+
+    /// @notice Emitted when a solver is removed from the contract.
+    /// @param solver The address of the solver being removed.
+    event RemoveSolver(address indexed solver);
+
     /// @notice Event emitted when a swap is executed.
     /// @param swapHash The hash of the swap data.
     /// @param maker The address of the maker initiating the swap.
@@ -29,6 +37,10 @@ interface IGenericSwap {
         uint256 outputAmount,
         uint256 salt
     );
+
+    /// @notice Error to be thrown when an unauthorized address attempts to execute a swap.
+    /// @dev This error is used to restrict access to certain functions to authorized solvers only
+    error InvalidSolver();
 
     /// @notice Error to be thrown when a swap is already filled.
     /// @dev This error is used when attempting to fill a swap that has already been completed.
@@ -60,18 +72,25 @@ interface IGenericSwap {
 
     /// @notice Executes a swap using provided swap data and taker token permit.
     /// @param swapData The swap data containing details of the swap.
+    /// @param strategyData The strategy data contains the details on how to perform the swap.
     /// @param takerTokenPermit The permit for spending taker's tokens.
     /// @return returnAmount The amount of tokens returned from the swap.
-    function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable returns (uint256 returnAmount);
+    function executeSwap(
+        GenericSwapData calldata swapData,
+        bytes calldata strategyData,
+        bytes calldata takerTokenPermit
+    ) external payable returns (uint256 returnAmount);
 
     /// @notice Executes a swap using provided swap data, taker token permit, taker address, and signature.
     /// @param swapData The swap data containing details of the swap.
+    /// @param strategyData The strategy data contains the details on how to perform the swap.
     /// @param takerTokenPermit The permit for spending taker's tokens.
     /// @param taker The address of the taker initiating the swap.
     /// @param takerSig The signature of the taker authorizing the swap.
     /// @return returnAmount The amount of tokens returned from the swap.
     function executeSwapWithSig(
         GenericSwapData calldata swapData,
+        bytes calldata strategyData,
         bytes calldata takerTokenPermit,
         address taker,
         bytes calldata takerSig
