@@ -1,5 +1,5 @@
 {
-  "EIP712_DOMAIN_SEPARATOR(): testDomainSeparatorOnChain": "337",
-  "EIP712_DOMAIN_SEPARATOR(): testDomainSeparatorOnDifferentChain": "1074",
-  "getEIP712Hash(): testGetEIP712Hash": "315"
+  "EIP712_DOMAIN_SEPARATOR(): testDomainSeparatorOnChain": "443",
+  "EIP712_DOMAIN_SEPARATOR(): testDomainSeparatorOnDifferentChain": "1404",
+  "getEIP712Hash(): testGetEIP712Hash": "817"
 }
