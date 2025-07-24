@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import { EIP712 } from "./abstracts/EIP712.sol";
 import { TokenCollector } from "./abstracts/TokenCollector.sol";
+import { Ownable } from "./abstracts/Ownable.sol";
 
 import { IGenericSwap } from "./interfaces/IGenericSwap.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
@@ -14,24 +15,65 @@ import { SignatureValidator } from "./libraries/SignatureValidator.sol";
 /// @title GenericSwap Contract
 /// @author imToken Labs
 /// @notice This contract facilitates token swaps using SmartOrderStrategy strategies.
-contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
+contract GenericSwap is IGenericSwap, TokenCollector, EIP712, Ownable {
     using Asset for address;
+
+    /// @notice Mapping to track addresses authorized as solvers.
+    /// @dev Maps each address to a boolean indicating whether it is an authorized solver.
+    mapping(address solver => bool isSolver) public solvers;
 
     /// @notice Mapping to keep track of filled swaps.
     /// @dev Stores the status of swaps to ensure they are not filled more than once.
     mapping(bytes32 swapHash => bool isFilled) public filledSwap;
 
+    modifier onlySolver() {
+        if (!solvers[msg.sender]) revert InvalidSolver();
+        _;
+    }
+
     /// @notice Constructor to initialize the contract with the permit2 and allowance target.
     /// @param _uniswapPermit2 The address for Uniswap permit2.
     /// @param _allowanceTarget The address for the allowance target.
-    constructor(address _uniswapPermit2, address _allowanceTarget) TokenCollector(_uniswapPermit2, _allowanceTarget) {}
+    constructor(
+        address _uniswapPermit2,
+        address _allowanceTarget,
+        address _owner,
+        address[] memory _trustedSolvers
+    ) TokenCollector(_uniswapPermit2, _allowanceTarget) Ownable(_owner) {
+        uint256 length = _trustedSolvers.length;
+        for (uint256 i; i < length; ++i) {
+            solvers[_trustedSolvers[i]] = true;
+        }
+    }
 
     /// @notice Receive function to receive ETH.
     receive() external payable {}
 
+    function addSolver(address solver) external onlyOwner {
+        if (solver == address(0)) revert ZeroAddress();
+
+        if (!solvers[solver]) {
+            solvers[solver] = true;
+
+            emit AddSolver(solver);
+        }
+    }
+
+    function removeSolver(address solver) external onlyOwner {
+        if (solvers[solver]) {
+            solvers[solver] = false;
+
+            emit RemoveSolver(solver);
+        }
+    }
+
     /// @inheritdoc IGenericSwap
-    function executeSwap(GenericSwapData calldata swapData, bytes calldata takerTokenPermit) external payable returns (uint256 returnAmount) {
-        returnAmount = _executeSwap(swapData, msg.sender, takerTokenPermit);
+    function executeSwap(
+        GenericSwapData calldata swapData,
+        bytes calldata strategyData,
+        bytes calldata takerTokenPermit
+    ) external payable returns (uint256 returnAmount) {
+        returnAmount = _executeSwap(swapData, strategyData, msg.sender, takerTokenPermit);
 
         _emitGSExecuted(getGSDataHash(swapData), swapData, msg.sender, returnAmount);
     }
@@ -39,17 +81,18 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     /// @inheritdoc IGenericSwap
     function executeSwapWithSig(
         GenericSwapData calldata swapData,
+        bytes calldata strategyData,
         bytes calldata takerTokenPermit,
         address taker,
         bytes calldata takerSig
-    ) external payable returns (uint256 returnAmount) {
+    ) external payable onlySolver returns (uint256 returnAmount) {
         bytes32 swapHash = getGSDataHash(swapData);
         bytes32 gs712Hash = getEIP712Hash(swapHash);
         if (filledSwap[swapHash]) revert AlreadyFilled();
         filledSwap[swapHash] = true;
         if (!SignatureValidator.validateSignature(taker, gs712Hash, takerSig)) revert InvalidSignature();
 
-        returnAmount = _executeSwap(swapData, taker, takerTokenPermit);
+        returnAmount = _executeSwap(swapData, strategyData, taker, takerTokenPermit);
 
         _emitGSExecuted(swapHash, swapData, taker, returnAmount);
     }
@@ -61,6 +104,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
     /// @return returnAmount The output amount of the swap.
     function _executeSwap(
         GenericSwapData calldata _swapData,
+        bytes calldata strategyData,
         address _authorizedUser,
         bytes calldata _takerTokenPermit
     ) private returns (uint256 returnAmount) {
@@ -78,7 +122,7 @@ contract GenericSwap is IGenericSwap, TokenCollector, EIP712 {
             _collect(_inputToken, _authorizedUser, _swapData.maker, _swapData.takerTokenAmount, _takerTokenPermit);
         }
 
-        IStrategy(_swapData.maker).executeStrategy{ value: msg.value }(_outputToken, _swapData.strategyData);
+        IStrategy(_swapData.maker).executeStrategy{ value: msg.value }(_outputToken, strategyData);
 
         returnAmount = _outputToken.getBalance(address(this));
         if (returnAmount > 1) {

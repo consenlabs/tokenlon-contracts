@@ -1,8 +1,8 @@
 {
-  "pause(): testSpendFromUserToAfterUnpause": "27565",
-  "spendFromUserTo(): testSpendFromUserTo": "61960",
-  "spendFromUserTo(): testSpendFromUserToAfterUnpause": "61960",
-  "spendFromUserTo(): testSpendFromUserToWithDeflationaryToken": "89862",
-  "spendFromUserTo(): testSpendFromUserToWithNoReturnValueToken": "67278",
-  "unpause(): testSpendFromUserToAfterUnpause": "27326"
+  "pause(): testSpendFromUserToAfterUnpause": "6978",
+  "spendFromUserTo(): testSpendFromUserTo": "36872",
+  "spendFromUserTo(): testSpendFromUserToAfterUnpause": "34872",
+  "spendFromUserTo(): testSpendFromUserToWithDeflationaryToken": "65947",
+  "spendFromUserTo(): testSpendFromUserToWithNoReturnValueToken": "42418",
+  "unpause(): testSpendFromUserToAfterUnpause": "2175"
 }

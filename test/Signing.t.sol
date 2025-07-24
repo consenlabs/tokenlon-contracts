@@ -49,8 +49,7 @@ contract testEIP712Signing is SigHelper {
             minMakerTokenAmount: abi.decode(vm.parseJson(genericSwapDataPayloadJson, "$.minMakerTokenAmount"), (uint256)),
             expiry: abi.decode(vm.parseJson(genericSwapDataPayloadJson, "$.expiry"), (uint256)),
             salt: abi.decode(vm.parseJson(genericSwapDataPayloadJson, "$.salt"), (uint256)),
-            recipient: abi.decode(vm.parseJson(genericSwapDataPayloadJson, "$.recipient"), (address)),
-            strategyData: abi.decode(vm.parseJson(genericSwapDataPayloadJson, "$.strategyData"), (bytes))
+            recipient: abi.decode(vm.parseJson(genericSwapDataPayloadJson, "$.recipient"), (address))
         });
         uint256 signingKey = abi.decode(vm.parseJson(genericSwapDataPayloadJson, "$.signingKey"), (uint256));
         bytes memory sig = signGenericSwap(signingKey, genericSwapData, chainId, verifyingContract);
