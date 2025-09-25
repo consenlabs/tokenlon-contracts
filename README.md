@@ -5,6 +5,8 @@
 
 Tokenlon is a decentralized exchange and payment settlement protocol based on blockchain technology. Visit [tokenlon.im](https://tokenlon.im/)
 
+Supported Chains: Mainnet, Polygon, Optimism, Arbitrum, Base, BNB, zkSync, Unichain
+
 > Notice: This repository may contain changes that are under development. Make sure the correct commit is referenced when reviewing specific deployed contract.
 
 ## Architecture
