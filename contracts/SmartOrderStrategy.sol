@@ -94,6 +94,7 @@ contract SmartOrderStrategy is ISmartOrderStrategy, AdminManagement {
             // calculate input amount if ratio should be applied
             if (_ratioNumerator != _ratioDenominator) {
                 if (_ratioDenominator == 0) revert ZeroDenominator();
+                if (_ratioNumerator > _ratioDenominator) revert InvalidInputRatio();
                 inputTokenBalance = (inputTokenBalance * _ratioNumerator) / _ratioDenominator;
             }
             assembly {
